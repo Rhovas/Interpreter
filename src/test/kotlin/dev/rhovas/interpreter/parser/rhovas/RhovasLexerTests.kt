@@ -152,6 +152,205 @@ class RhovasLexerTests {
         )
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testMultiple(name: String, input: String, expected: List<Token<RhovasTokenType>>) {
+        test(input, expected, true)
+    }
+
+    fun testMultiple(): Stream<Arguments> {
+        return Stream.of(
+            //whitespace
+            Arguments.of("Inner Whitespace", "first \tsecond\n\rthird", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "first"),
+                Token(RhovasTokenType.IDENTIFIER, "second"),
+                Token(RhovasTokenType.IDENTIFIER, "third"),
+            )),
+            Arguments.of("Leading Whitespace", "    token", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "token"),
+            )),
+            Arguments.of("Trailing Whitespace", "token    ", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "token"),
+            )),
+            //identifier
+            Arguments.of("Leading Digits", "123abc", listOf(
+                Token(RhovasTokenType.INTEGER, "123"),
+                Token(RhovasTokenType.IDENTIFIER, "abc"),
+            )),
+            //integer
+            Arguments.of("Signed Integer", "-123", listOf(
+                Token(RhovasTokenType.OPERATOR, "-"),
+                Token(RhovasTokenType.INTEGER, "123"),
+            )),
+            //decimal
+            Arguments.of("Leading Decimal", ".123", listOf(
+                Token(RhovasTokenType.OPERATOR, "."),
+                Token(RhovasTokenType.INTEGER, "123"),
+            )),
+            Arguments.of("Trailing Decimal", "123.", listOf(
+                Token(RhovasTokenType.INTEGER, "123"),
+                Token(RhovasTokenType.OPERATOR, "."),
+            )),
+            Arguments.of("Signed Decimal", "-123.456", listOf(
+                Token(RhovasTokenType.OPERATOR, "-"),
+                Token(RhovasTokenType.DECIMAL, "123.456"),
+            )),
+            //string
+            Arguments.of("Triple Quotes", "\"\"\"string\"\"\"", listOf(
+               Token(RhovasTokenType.STRING, "\"\""),
+                Token(RhovasTokenType.STRING, "\"string\""),
+                Token(RhovasTokenType.STRING, "\"\""),
+            )),
+            //atom
+            Arguments.of("Single Digit", ":1", listOf(
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.INTEGER, "1"),
+            )),
+            Arguments.of("Leading Digits", ":123", listOf(
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.INTEGER, "123"),
+            )),
+            //operator
+            Arguments.of("Multiple Operators", "<=", listOf(
+                Token(RhovasTokenType.OPERATOR, "<"),
+                Token(RhovasTokenType.OPERATOR, "="),
+            )),
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testProgram(name: String, input: String, expected: List<Token<RhovasTokenType>>) {
+        test(input, expected, true)
+    }
+
+    fun testProgram(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Hello World", """
+                func main() {
+                    print("Hello, World!");
+                }
+            """.trimIndent(), listOf(
+                Token(RhovasTokenType.IDENTIFIER, "func"),
+                Token(RhovasTokenType.IDENTIFIER, "main"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, "{"),
+
+                Token(RhovasTokenType.IDENTIFIER, "print"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.STRING, "\"Hello, World!\""),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ";"),
+
+                Token(RhovasTokenType.OPERATOR, "}"),
+            )),
+            Arguments.of("FizzBuzz", """
+                func fizzbuzz(num: Integer) {
+                    range(1, num, :incl).for {
+                        match ([val.mod(3), val.mod(5)]) {
+                            [0, 0]: print("FizzBuzz");
+                            [0, _]: print("Fizz");
+                            [_, 0]: print("Buzz");
+                            else: print(val);
+                        }
+                    }
+                }
+            """.trimIndent(), listOf(
+                Token(RhovasTokenType.IDENTIFIER, "func"),
+                Token(RhovasTokenType.IDENTIFIER, "fizzbuzz"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.IDENTIFIER, "num"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "Integer"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, "{"),
+
+                Token(RhovasTokenType.IDENTIFIER, "range"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.INTEGER, "1"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.IDENTIFIER, "num"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.ATOM, ":incl"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, "."),
+                Token(RhovasTokenType.IDENTIFIER, "for"),
+                Token(RhovasTokenType.OPERATOR, "{"),
+
+                Token(RhovasTokenType.IDENTIFIER, "match"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.OPERATOR, "["),
+                Token(RhovasTokenType.IDENTIFIER, "val"),
+                Token(RhovasTokenType.OPERATOR, "."),
+                Token(RhovasTokenType.IDENTIFIER, "mod"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.INTEGER, "3"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.IDENTIFIER, "val"),
+                Token(RhovasTokenType.OPERATOR, "."),
+                Token(RhovasTokenType.IDENTIFIER, "mod"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.INTEGER, "5"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, "]"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, "{"),
+
+                Token(RhovasTokenType.OPERATOR, "["),
+                Token(RhovasTokenType.INTEGER, "0"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.INTEGER, "0"),
+                Token(RhovasTokenType.OPERATOR, "]"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "print"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.STRING, "\"FizzBuzz\""),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ";"),
+
+                Token(RhovasTokenType.OPERATOR, "["),
+                Token(RhovasTokenType.INTEGER, "0"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.IDENTIFIER, "_"),
+                Token(RhovasTokenType.OPERATOR, "]"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "print"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.STRING, "\"Fizz\""),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ";"),
+
+                Token(RhovasTokenType.OPERATOR, "["),
+                Token(RhovasTokenType.IDENTIFIER, "_"),
+                Token(RhovasTokenType.OPERATOR, ","),
+                Token(RhovasTokenType.INTEGER, "0"),
+                Token(RhovasTokenType.OPERATOR, "]"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "print"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.STRING, "\"Buzz\""),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ";"),
+
+                Token(RhovasTokenType.IDENTIFIER, "else"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "print"),
+                Token(RhovasTokenType.OPERATOR, "("),
+                Token(RhovasTokenType.IDENTIFIER, "val"),
+                Token(RhovasTokenType.OPERATOR, ")"),
+                Token(RhovasTokenType.OPERATOR, ";"),
+
+                Token(RhovasTokenType.OPERATOR, "}"),
+
+                Token(RhovasTokenType.OPERATOR, "}"),
+
+                Token(RhovasTokenType.OPERATOR, "}"),
+            )),
+        )
+    }
+
     private fun test(input: String, expected: RhovasTokenType, success: Boolean) {
         test(input, listOf(Token(expected, input)), success)
     }
