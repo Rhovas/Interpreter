@@ -110,30 +110,6 @@ class RhovasLexerTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testAtom(name: String, input: String, success: Boolean) {
-        test(input, RhovasTokenType.ATOM, success)
-    }
-
-    fun testAtom(): Stream<Arguments> {
-        return Stream.of(
-            Arguments.of("Empty", ":", false),
-            Arguments.of("Single Letter", ":c", true),
-            Arguments.of("Single Digit", ":1", false),
-            Arguments.of("Single Underscore", ":_", true),
-            Arguments.of("Lowercase Letters", ":abc", true),
-            Arguments.of("Uppercase Letters", ":ABC", true),
-            Arguments.of("Digits", ":abc123def", true),
-            Arguments.of("Leading Digits", ":123abc", false),
-            Arguments.of("Trailing Digits", ":abc123", true),
-            Arguments.of("Underscore", ":abc_def", true),
-            Arguments.of("Leading Underscore", ":_abc", true),
-            Arguments.of("Trailing Underscore", ":abc_", true),
-            Arguments.of("Keyword", ":class", true),
-        )
-    }
-
-    @ParameterizedTest(name = "{0}")
-    @MethodSource
     fun testOperator(name: String, input: String, success: Boolean) {
         test(input, RhovasTokenType.OPERATOR, success)
     }
@@ -201,19 +177,15 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.STRING, "\"string\""),
                 Token(RhovasTokenType.STRING, "\"\""),
             )),
-            //atom
-            Arguments.of("Single Digit", ":1", listOf(
-                Token(RhovasTokenType.OPERATOR, ":"),
-                Token(RhovasTokenType.INTEGER, "1"),
-            )),
-            Arguments.of("Leading Digits", ":123", listOf(
-                Token(RhovasTokenType.OPERATOR, ":"),
-                Token(RhovasTokenType.INTEGER, "123"),
-            )),
             //operator
             Arguments.of("Multiple Operators", "<=", listOf(
                 Token(RhovasTokenType.OPERATOR, "<"),
                 Token(RhovasTokenType.OPERATOR, "="),
+            )),
+            //atom
+            Arguments.of("Atom", ":atom", listOf(
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "atom"),
             )),
         )
     }
@@ -272,7 +244,8 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ","),
                 Token(RhovasTokenType.IDENTIFIER, "num"),
                 Token(RhovasTokenType.OPERATOR, ","),
-                Token(RhovasTokenType.ATOM, ":incl"),
+                Token(RhovasTokenType.OPERATOR, ":"),
+                Token(RhovasTokenType.IDENTIFIER, "incl"),
                 Token(RhovasTokenType.OPERATOR, ")"),
                 Token(RhovasTokenType.OPERATOR, "."),
                 Token(RhovasTokenType.IDENTIFIER, "for"),

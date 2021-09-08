@@ -14,7 +14,6 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
             peek("[A-Za-z_]") -> lexIdentifier()
             peek("[0-9]") -> lexNumber()
             peek('"') -> lexString()
-            peek(':', "[A-Za-z_]") -> lexAtom()
             else -> lexOperator()
         }
     }
@@ -48,12 +47,6 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
         }
         require(match('"')) { "Unterminated string literal." }
         return chars.emit(RhovasTokenType.STRING)
-    }
-
-    private fun lexAtom(): Token<RhovasTokenType> {
-        require(match(':', "[A-Za-z_]"))
-        while (match("[A-Za-z0-9_]")) {}
-        return chars.emit(RhovasTokenType.ATOM)
     }
 
     private fun lexOperator(): Token<RhovasTokenType> {

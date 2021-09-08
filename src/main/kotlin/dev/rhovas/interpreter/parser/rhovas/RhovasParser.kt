@@ -23,7 +23,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 //TODO: Escapes
                 RhovasAst.Expression.Literal(tokens[-1]!!.literal.removeSurrounding("\""))
             }
-            match(RhovasTokenType.ATOM) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal.substring(1)))
+            match(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal))
             else -> throw ParseException("Expected expression.")
         }
     }

@@ -7,6 +7,5 @@ enum class RhovasTokenType: Token.Type {
     INTEGER,
     DECIMAL,
     STRING,
-    ATOM,
     OPERATOR,
 }
