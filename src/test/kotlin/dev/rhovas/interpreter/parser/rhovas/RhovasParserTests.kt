@@ -36,6 +36,40 @@ class RhovasParserTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
+    fun testGroup(name: String, input: String, expected: RhovasAst.Expression.Group?) {
+        testExpression(input, expected)
+    }
+
+    fun testGroup(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Group", "(expr)",
+                RhovasAst.Expression.Group(RhovasAst.Expression.Access("expr"))
+            ),
+            Arguments.of("Nested", "(((expr)))",
+                RhovasAst.Expression.Group(
+                    RhovasAst.Expression.Group(
+                        RhovasAst.Expression.Group(
+                            RhovasAst.Expression.Access("expr"),
+                        ),
+                    ),
+                ),
+            ),
+            Arguments.of("Binary", "(first + second)",
+                RhovasAst.Expression.Group(
+                    RhovasAst.Expression.Binary("+",
+                        RhovasAst.Expression.Access("first"),
+                        RhovasAst.Expression.Access("second"),
+                    ),
+                ),
+            ),
+            Arguments.of("Empty", "()", null),
+            Arguments.of("Tuple", "(first, second)", null),
+            Arguments.of("Missing Closing Parenthesis", "(expr", null),
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
     fun testUnary(name: String, input: String, expected: RhovasAst.Expression.Unary?) {
         testExpression(input, expected)
     }

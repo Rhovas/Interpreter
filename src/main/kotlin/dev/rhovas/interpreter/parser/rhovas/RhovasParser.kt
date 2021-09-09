@@ -73,6 +73,11 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 RhovasAst.Expression.Literal(tokens[-1]!!.literal.removeSurrounding("\""))
             }
             match(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal))
+            match("(") -> {
+                val expression = parseExpression()
+                require(match(")")) { "Expected closing parenthesis." }
+                RhovasAst.Expression.Group(expression)
+            }
             match(RhovasTokenType.IDENTIFIER) -> {
                 val name = tokens[-1]!!.literal
                 if (match("(")) {

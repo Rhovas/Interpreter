@@ -8,6 +8,10 @@ sealed class RhovasAst {
             val value: Any?,
         ): Expression()
 
+        data class Group(
+            val expression: Expression,
+        ) : Expression()
+
         data class Unary(
             val operator: String,
             val expression: Expression,
