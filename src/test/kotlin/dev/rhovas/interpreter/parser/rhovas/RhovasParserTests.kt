@@ -36,6 +36,127 @@ class RhovasParserTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
+    fun testUnary(name: String, input: String, expected: RhovasAst.Expression.Unary?) {
+        testExpression(input, expected)
+    }
+
+    fun testUnary(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Numerical Negation", "-expr",
+                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Access("expr"))
+            ),
+            Arguments.of("Logical Negation", "!expr",
+                RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access("expr"))
+            ),
+            Arguments.of("Multiple", "-!expr",
+                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access("expr")))
+            ),
+            Arguments.of("Unknown Operator", "+expr", null),
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testBinary(name: String, input: String, expected: RhovasAst.Expression.Binary?) {
+        testExpression(input, expected)
+    }
+
+    fun testBinary(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Multiplicative", "left * right",
+                RhovasAst.Expression.Binary("*",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Additive", "left + right",
+                RhovasAst.Expression.Binary("+",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Comparison", "left < right",
+                RhovasAst.Expression.Binary("<",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Equality", "left == right",
+                RhovasAst.Expression.Binary("==",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Logical And", "left && right",
+                RhovasAst.Expression.Binary("&&",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Logical Or", "left || right",
+                RhovasAst.Expression.Binary("||",
+                    RhovasAst.Expression.Access("left"),
+                    RhovasAst.Expression.Access("right"),
+                ),
+            ),
+            Arguments.of("Left Precedence", "first * second + third < fourth == fifth && sixth || seventh",
+                RhovasAst.Expression.Binary("||",
+                    RhovasAst.Expression.Binary("&&",
+                        RhovasAst.Expression.Binary("==",
+                            RhovasAst.Expression.Binary("<",
+                                RhovasAst.Expression.Binary("+",
+                                    RhovasAst.Expression.Binary("*",
+                                        RhovasAst.Expression.Access("first"),
+                                        RhovasAst.Expression.Access("second"),
+                                    ),
+                                    RhovasAst.Expression.Access("third"),
+                                ),
+                                RhovasAst.Expression.Access("fourth"),
+                            ),
+                            RhovasAst.Expression.Access("fifth"),
+                        ),
+                        RhovasAst.Expression.Access("sixth"),
+                    ),
+                    RhovasAst.Expression.Access("seventh"),
+                ),
+            ),
+            Arguments.of("Right Precedence", "first || second && third == fourth < fifth + sixth * seventh",
+                RhovasAst.Expression.Binary("||",
+                    RhovasAst.Expression.Access("first"),
+                    RhovasAst.Expression.Binary("&&",
+                        RhovasAst.Expression.Access("second"),
+                        RhovasAst.Expression.Binary("==",
+                            RhovasAst.Expression.Access("third"),
+                            RhovasAst.Expression.Binary("<",
+                                RhovasAst.Expression.Access("fourth"),
+                                RhovasAst.Expression.Binary("+",
+                                    RhovasAst.Expression.Access("fifth"),
+                                    RhovasAst.Expression.Binary("*",
+                                        RhovasAst.Expression.Access("sixth"),
+                                        RhovasAst.Expression.Access("seventh"),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            Arguments.of("Equal Precedence", "first < second <= third",
+                RhovasAst.Expression.Binary("<=",
+                    RhovasAst.Expression.Binary("<",
+                        RhovasAst.Expression.Access("first"),
+                        RhovasAst.Expression.Access("second"),
+                    ),
+                    RhovasAst.Expression.Access("third"),
+                ),
+            ),
+            Arguments.of("Missing Right", "first +", null),
+            //Arguments.of("Unknown Operator", "first % second", null), TODO: Enforce end of input
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
     fun testAccess(name: String, input: String, expected: RhovasAst.Expression.Access?) {
         testExpression(input, expected)
     }

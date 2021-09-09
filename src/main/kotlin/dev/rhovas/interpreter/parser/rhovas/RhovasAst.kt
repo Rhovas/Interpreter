@@ -8,6 +8,17 @@ sealed class RhovasAst {
             val value: Any?,
         ): Expression()
 
+        data class Unary(
+            val operator: String,
+            val expression: Expression,
+        ) : Expression()
+
+        data class Binary(
+            val operator: String,
+            val left: Expression,
+            val right: Expression,
+        ) : Expression()
+
         data class Access(
             //TODO: val receiver: Expression?
             val name: String,
