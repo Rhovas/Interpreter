@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.parser.ParseException
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.params.ParameterizedTest
@@ -33,8 +34,59 @@ class RhovasParserTests {
         )
     }
 
-    private fun testExpression(input: String, expected: RhovasAst) {
-        Assertions.assertEquals(expected, RhovasParser(input).parseExpression())
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testAccess(name: String, input: String, expected: RhovasAst.Expression.Access?) {
+        testExpression(input, expected)
+    }
+
+    fun testAccess(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Variable", "variable", RhovasAst.Expression.Access("variable")),
+            //TODO: Fields
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testFunction(name: String, input: String, expected: RhovasAst.Expression.Function?) {
+        testExpression(input, expected)
+    }
+
+    fun testFunction(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Zero Arguments", "function()",
+                RhovasAst.Expression.Function("function", listOf())
+            ),
+            Arguments.of("Single Argument", "function(argument)",
+                RhovasAst.Expression.Function("function", listOf(
+                    RhovasAst.Expression.Access("argument"),
+                ))
+            ),
+            Arguments.of("Multiple Arguments", "function(first, second, third)",
+                RhovasAst.Expression.Function("function", listOf(
+                    RhovasAst.Expression.Access("first"),
+                    RhovasAst.Expression.Access("second"),
+                    RhovasAst.Expression.Access("third"),
+                ))
+            ),
+            Arguments.of("Trailing Comma", "function(argument,)",
+                RhovasAst.Expression.Function("function", listOf(
+                    RhovasAst.Expression.Access("argument"),
+                ))
+            ),
+            Arguments.of("Missing Closing Parenthesis", "function(argument", null),
+            Arguments.of("Missing Comma", "function(first second)", null),
+            //TODO: Methods
+        )
+    }
+
+    private fun testExpression(input: String, expected: RhovasAst?) {
+        if (expected != null) {
+            Assertions.assertEquals(expected, RhovasParser(input).parseExpression())
+        } else {
+            Assertions.assertThrows(ParseException::class.java) { RhovasParser(input).parseExpression() }
+        }
     }
 
 }
