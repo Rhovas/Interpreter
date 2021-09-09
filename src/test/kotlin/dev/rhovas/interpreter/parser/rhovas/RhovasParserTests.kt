@@ -151,7 +151,7 @@ class RhovasParserTests {
                 ),
             ),
             Arguments.of("Missing Right", "first +", null),
-            //Arguments.of("Unknown Operator", "first % second", null), TODO: Enforce end of input
+            Arguments.of("Unknown Operator", "first % second", null),
         )
     }
 
@@ -204,9 +204,9 @@ class RhovasParserTests {
 
     private fun testExpression(input: String, expected: RhovasAst?) {
         if (expected != null) {
-            Assertions.assertEquals(expected, RhovasParser(input).parseExpression())
+            Assertions.assertEquals(expected, RhovasParser(input).parse("expression"))
         } else {
-            Assertions.assertThrows(ParseException::class.java) { RhovasParser(input).parseExpression() }
+            Assertions.assertThrows(ParseException::class.java) { RhovasParser(input).parse("expression") }
         }
     }
 

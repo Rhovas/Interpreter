@@ -4,7 +4,7 @@ abstract class Parser<T : Token.Type>(lexer: Lexer<T>) {
 
     protected val tokens = TokenStream(lexer.lex())
 
-    abstract fun parse(): Any
+    abstract fun parse(rule: String): Any
 
     protected fun match(vararg objects: Any): Boolean {
         return peek(*objects).also {

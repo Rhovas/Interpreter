@@ -5,8 +5,11 @@ import dev.rhovas.interpreter.parser.Parser
 
 class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
-    override fun parse(): RhovasAst {
-        TODO("source")
+    override fun parse(rule: String): RhovasAst {
+        return when (rule) {
+            "expression" -> parseExpression()
+            else -> throw AssertionError()
+        }.also { require(tokens[0] == null) { "Expected end of input." } }
     }
 
     fun parseExpression(): RhovasAst.Expression {
