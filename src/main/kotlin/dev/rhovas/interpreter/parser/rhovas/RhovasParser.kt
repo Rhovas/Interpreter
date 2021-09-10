@@ -58,7 +58,37 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             val expression = parseUnaryExpression()
             RhovasAst.Expression.Unary(operator, expression)
         } else {
-            parsePrimaryExpression()
+            parseSecondaryExpression()
+        }
+    }
+
+    private fun parseSecondaryExpression(): RhovasAst.Expression {
+        var expression = parsePrimaryExpression()
+        while (true) {
+            expression = when {
+                match(".", RhovasTokenType.IDENTIFIER) -> {
+                    val name = tokens[-1]!!.literal
+                    if (match("(")) {
+                        val arguments = mutableListOf<RhovasAst.Expression>()
+                        while (!match(")")) {
+                            arguments.add(parseExpression())
+                            require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
+                        }
+                        RhovasAst.Expression.Function(expression, name, arguments)
+                    } else {
+                        RhovasAst.Expression.Access(expression, name)
+                    }
+                }
+                match("[") -> {
+                    val arguments = mutableListOf<RhovasAst.Expression>()
+                    while (!match("]")) {
+                        arguments.add(parseExpression())
+                        require(peek("]") || match(",")) { "Expected closing bracket or comma." }
+                    }
+                    RhovasAst.Expression.Index(expression, arguments)
+                }
+                else -> return expression
+            }
         }
     }
 
@@ -86,9 +116,9 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                         arguments.add(parseExpression())
                         require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
                     }
-                    RhovasAst.Expression.Function(name, arguments)
+                    RhovasAst.Expression.Function(null, name, arguments)
                 } else {
-                    RhovasAst.Expression.Access(name)
+                    RhovasAst.Expression.Access(null, name)
                 }
             }
             else -> throw ParseException("Expected expression.")

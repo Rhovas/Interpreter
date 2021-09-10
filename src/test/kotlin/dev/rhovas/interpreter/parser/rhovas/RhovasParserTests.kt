@@ -43,13 +43,13 @@ class RhovasParserTests {
     fun testGroup(): Stream<Arguments> {
         return Stream.of(
             Arguments.of("Group", "(expr)",
-                RhovasAst.Expression.Group(RhovasAst.Expression.Access("expr"))
+                RhovasAst.Expression.Group(RhovasAst.Expression.Access(null, "expr"))
             ),
             Arguments.of("Nested", "(((expr)))",
                 RhovasAst.Expression.Group(
                     RhovasAst.Expression.Group(
                         RhovasAst.Expression.Group(
-                            RhovasAst.Expression.Access("expr"),
+                            RhovasAst.Expression.Access(null, "expr"),
                         ),
                     ),
                 ),
@@ -57,8 +57,8 @@ class RhovasParserTests {
             Arguments.of("Binary", "(first + second)",
                 RhovasAst.Expression.Group(
                     RhovasAst.Expression.Binary("+",
-                        RhovasAst.Expression.Access("first"),
-                        RhovasAst.Expression.Access("second"),
+                        RhovasAst.Expression.Access(null, "first"),
+                        RhovasAst.Expression.Access(null, "second"),
                     ),
                 ),
             ),
@@ -77,13 +77,13 @@ class RhovasParserTests {
     fun testUnary(): Stream<Arguments> {
         return Stream.of(
             Arguments.of("Numerical Negation", "-expr",
-                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Access("expr"))
+                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Access(null, "expr"))
             ),
             Arguments.of("Logical Negation", "!expr",
-                RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access("expr"))
+                RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access(null, "expr"))
             ),
             Arguments.of("Multiple", "-!expr",
-                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access("expr")))
+                RhovasAst.Expression.Unary("-", RhovasAst.Expression.Unary("!", RhovasAst.Expression.Access(null, "expr")))
             ),
             Arguments.of("Unknown Operator", "+expr", null),
         )
@@ -99,38 +99,38 @@ class RhovasParserTests {
         return Stream.of(
             Arguments.of("Multiplicative", "left * right",
                 RhovasAst.Expression.Binary("*",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Additive", "left + right",
                 RhovasAst.Expression.Binary("+",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Comparison", "left < right",
                 RhovasAst.Expression.Binary("<",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Equality", "left == right",
                 RhovasAst.Expression.Binary("==",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Logical And", "left && right",
                 RhovasAst.Expression.Binary("&&",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Logical Or", "left || right",
                 RhovasAst.Expression.Binary("||",
-                    RhovasAst.Expression.Access("left"),
-                    RhovasAst.Expression.Access("right"),
+                    RhovasAst.Expression.Access(null, "left"),
+                    RhovasAst.Expression.Access(null, "right"),
                 ),
             ),
             Arguments.of("Left Precedence", "first * second + third < fourth == fifth && sixth || seventh",
@@ -140,34 +140,34 @@ class RhovasParserTests {
                             RhovasAst.Expression.Binary("<",
                                 RhovasAst.Expression.Binary("+",
                                     RhovasAst.Expression.Binary("*",
-                                        RhovasAst.Expression.Access("first"),
-                                        RhovasAst.Expression.Access("second"),
+                                        RhovasAst.Expression.Access(null, "first"),
+                                        RhovasAst.Expression.Access(null, "second"),
                                     ),
-                                    RhovasAst.Expression.Access("third"),
+                                    RhovasAst.Expression.Access(null, "third"),
                                 ),
-                                RhovasAst.Expression.Access("fourth"),
+                                RhovasAst.Expression.Access(null, "fourth"),
                             ),
-                            RhovasAst.Expression.Access("fifth"),
+                            RhovasAst.Expression.Access(null, "fifth"),
                         ),
-                        RhovasAst.Expression.Access("sixth"),
+                        RhovasAst.Expression.Access(null, "sixth"),
                     ),
-                    RhovasAst.Expression.Access("seventh"),
+                    RhovasAst.Expression.Access(null, "seventh"),
                 ),
             ),
             Arguments.of("Right Precedence", "first || second && third == fourth < fifth + sixth * seventh",
                 RhovasAst.Expression.Binary("||",
-                    RhovasAst.Expression.Access("first"),
+                    RhovasAst.Expression.Access(null, "first"),
                     RhovasAst.Expression.Binary("&&",
-                        RhovasAst.Expression.Access("second"),
+                        RhovasAst.Expression.Access(null, "second"),
                         RhovasAst.Expression.Binary("==",
-                            RhovasAst.Expression.Access("third"),
+                            RhovasAst.Expression.Access(null, "third"),
                             RhovasAst.Expression.Binary("<",
-                                RhovasAst.Expression.Access("fourth"),
+                                RhovasAst.Expression.Access(null, "fourth"),
                                 RhovasAst.Expression.Binary("+",
-                                    RhovasAst.Expression.Access("fifth"),
+                                    RhovasAst.Expression.Access(null, "fifth"),
                                     RhovasAst.Expression.Binary("*",
-                                        RhovasAst.Expression.Access("sixth"),
-                                        RhovasAst.Expression.Access("seventh"),
+                                        RhovasAst.Expression.Access(null, "sixth"),
+                                        RhovasAst.Expression.Access(null, "seventh"),
                                     ),
                                 ),
                             ),
@@ -178,10 +178,10 @@ class RhovasParserTests {
             Arguments.of("Equal Precedence", "first < second <= third",
                 RhovasAst.Expression.Binary("<=",
                     RhovasAst.Expression.Binary("<",
-                        RhovasAst.Expression.Access("first"),
-                        RhovasAst.Expression.Access("second"),
+                        RhovasAst.Expression.Access(null, "first"),
+                        RhovasAst.Expression.Access(null, "second"),
                     ),
-                    RhovasAst.Expression.Access("third"),
+                    RhovasAst.Expression.Access(null, "third"),
                 ),
             ),
             Arguments.of("Missing Right", "first +", null),
@@ -197,8 +197,69 @@ class RhovasParserTests {
 
     fun testAccess(): Stream<Arguments> {
         return Stream.of(
-            Arguments.of("Variable", "variable", RhovasAst.Expression.Access("variable")),
-            //TODO: Fields
+            Arguments.of("Variable", "variable",
+                RhovasAst.Expression.Access(null, "variable")
+            ),
+            Arguments.of("Field", "object.field",
+                RhovasAst.Expression.Access(
+                    RhovasAst.Expression.Access(null, "object"),
+                    "field",
+                ),
+            ),
+            Arguments.of("Multiple Fields", "first.second.third",
+                RhovasAst.Expression.Access(
+                    RhovasAst.Expression.Access(
+                        RhovasAst.Expression.Access(null, "first"),
+                        "second",
+                    ),
+                    "third",
+                ),
+            )
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testIndex(name: String, input: String, expected: RhovasAst.Expression.Index?) {
+        testExpression(input, expected)
+    }
+
+    fun testIndex(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Zero Arguments", "object[]",
+                RhovasAst.Expression.Index(
+                    RhovasAst.Expression.Access(null, "object"),
+                    listOf(),
+                ),
+            ),
+            Arguments.of("Single Argument", "object[argument]",
+                RhovasAst.Expression.Index(
+                    RhovasAst.Expression.Access(null, "object"),
+                    listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    ),
+                ),
+            ),
+            Arguments.of("Multiple Arguments", "object[first, second, third]",
+                RhovasAst.Expression.Index(
+                    RhovasAst.Expression.Access(null, "object"),
+                    listOf(
+                        RhovasAst.Expression.Access(null, "first"),
+                        RhovasAst.Expression.Access(null, "second"),
+                        RhovasAst.Expression.Access(null, "third"),
+                    ),
+                ),
+            ),
+            Arguments.of("Trailing Comma", "object[argument,]",
+                RhovasAst.Expression.Index(
+                    RhovasAst.Expression.Access(null, "object"),
+                    listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    ),
+                ),
+            ),
+            Arguments.of("Missing Closing Bracket", "object[argument", null),
+            Arguments.of("Missing Comma", "object[first second]", null),
         )
     }
 
@@ -211,28 +272,47 @@ class RhovasParserTests {
     fun testFunction(): Stream<Arguments> {
         return Stream.of(
             Arguments.of("Zero Arguments", "function()",
-                RhovasAst.Expression.Function("function", listOf())
+                RhovasAst.Expression.Function(null, "function", listOf())
             ),
             Arguments.of("Single Argument", "function(argument)",
-                RhovasAst.Expression.Function("function", listOf(
-                    RhovasAst.Expression.Access("argument"),
-                ))
+                RhovasAst.Expression.Function(null, "function", listOf(
+                    RhovasAst.Expression.Access(null, "argument"),
+                )),
             ),
             Arguments.of("Multiple Arguments", "function(first, second, third)",
-                RhovasAst.Expression.Function("function", listOf(
-                    RhovasAst.Expression.Access("first"),
-                    RhovasAst.Expression.Access("second"),
-                    RhovasAst.Expression.Access("third"),
-                ))
+                RhovasAst.Expression.Function(null, "function", listOf(
+                    RhovasAst.Expression.Access(null, "first"),
+                    RhovasAst.Expression.Access(null, "second"),
+                    RhovasAst.Expression.Access(null, "third"),
+                )),
             ),
             Arguments.of("Trailing Comma", "function(argument,)",
-                RhovasAst.Expression.Function("function", listOf(
-                    RhovasAst.Expression.Access("argument"),
-                ))
+                RhovasAst.Expression.Function(null, "function", listOf(
+                    RhovasAst.Expression.Access(null, "argument"),
+                )),
             ),
             Arguments.of("Missing Closing Parenthesis", "function(argument", null),
             Arguments.of("Missing Comma", "function(first second)", null),
-            //TODO: Methods
+            Arguments.of("Method", "object.method(argument)",
+                RhovasAst.Expression.Function(
+                    RhovasAst.Expression.Access(null, "object"),
+                    "method",
+                    listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    ),
+                ),
+            ),
+            Arguments.of("Multiple Methods", "first().second().third()",
+                RhovasAst.Expression.Function(
+                    RhovasAst.Expression.Function(
+                        RhovasAst.Expression.Function(null, "first", listOf()),
+                        "second",
+                        listOf(),
+                    ),
+                    "third",
+                    listOf(),
+                ),
+            ),
         )
     }
 

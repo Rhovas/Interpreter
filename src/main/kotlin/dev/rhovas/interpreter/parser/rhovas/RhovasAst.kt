@@ -24,12 +24,17 @@ sealed class RhovasAst {
         ) : Expression()
 
         data class Access(
-            //TODO: val receiver: Expression?
+            val receiver: Expression?,
             val name: String,
         ) : Expression()
 
+        data class Index(
+            val receiver: Expression,
+            val arguments: List<Expression>,
+        ) : Expression()
+
         data class Function(
-            //TODO: val receiver: Expression?
+            val receiver: Expression?,
             val name: String,
             val arguments: List<Expression>,
         ) : Expression()
