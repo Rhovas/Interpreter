@@ -31,6 +31,40 @@ class RhovasParserTests {
             Arguments.of("String", "\"string\"", "string"),
             //TODO: Arguments.of("String Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
             Arguments.of("Atom", ":atom", RhovasAst.Atom("atom")),
+            Arguments.of("List Empty", "[]", listOf<RhovasAst.Expression>()),
+            Arguments.of("List Single", "[element]", listOf(
+                RhovasAst.Expression.Access(null, "element"),
+            )),
+            Arguments.of("List Multiple", "[first, second, third]", listOf(
+                RhovasAst.Expression.Access(null, "first"),
+                RhovasAst.Expression.Access(null, "second"),
+                RhovasAst.Expression.Access(null, "third"),
+            )),
+            Arguments.of("List Trailing Comma", "[first, second,]", listOf(
+                RhovasAst.Expression.Access(null, "first"),
+                RhovasAst.Expression.Access(null, "second"),
+            )),
+            //TODO: Arguments.of("List Missing Closing Bracket", "[element", null),
+            //TODO: Arguments.of("List Missing Comma", "[first second]", null),
+            Arguments.of("Object Empty", "{}", mapOf<String, RhovasAst.Expression>()),
+            Arguments.of("Object Single", "{key: value}", mapOf(
+                "key" to RhovasAst.Expression.Access(null, "value"),
+            )),
+            Arguments.of("Object Multiple", "{k1: v1, k2: v2, k3: v3}", mapOf(
+                "k1" to RhovasAst.Expression.Access(null, "v1"),
+                "k2" to RhovasAst.Expression.Access(null, "v2"),
+                "k3" to RhovasAst.Expression.Access(null, "v3"),
+            )),
+            Arguments.of("Object Multiple", "{k1: v1, k2: v2,}", mapOf(
+                "k1" to RhovasAst.Expression.Access(null, "v1"),
+                "k2" to RhovasAst.Expression.Access(null, "v2"),
+            )),
+            Arguments.of("Object Key Only", "{key}", mapOf(
+                "key" to RhovasAst.Expression.Access(null, "key")
+            )),
+            //TODO: Arguments.of("Object Missing Colon", "{k1 v1}", null),
+            //TODO: Arguments.of("Object Missing Closing Bracket", "{k1: v1", null),
+            //TODO: Arguments.of("Object Missing Comma", "{k1: v1 k2: v2}", null),
         )
     }
 

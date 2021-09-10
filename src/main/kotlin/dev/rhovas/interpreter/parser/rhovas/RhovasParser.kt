@@ -103,6 +103,24 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 RhovasAst.Expression.Literal(tokens[-1]!!.literal.removeSurrounding("\""))
             }
             match(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal))
+            match("[") -> {
+                val elements = mutableListOf<RhovasAst.Expression>()
+                while (!match("]")) {
+                    elements.add(parseExpression())
+                    require(peek("]") || match(",")) { "Expected closing parenthesis or comma." }
+                }
+                RhovasAst.Expression.Literal(elements)
+            }
+            match("{") -> {
+                val properties = mutableMapOf<String, RhovasAst.Expression>()
+                while (!match("}")) {
+                    require(match(RhovasTokenType.IDENTIFIER)) { "Expected property key." }
+                    val key = tokens[-1]!!.literal
+                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access(null, key)
+                    require(peek("}") || match(",")) { "Expected closing parenthesis or comma." }
+                }
+                RhovasAst.Expression.Literal(properties)
+            }
             match("(") -> {
                 val expression = parseExpression()
                 require(match(")")) { "Expected closing parenthesis." }
