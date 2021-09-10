@@ -61,9 +61,12 @@ abstract class Lexer<T: Token.Type>(input: String) {
             length = 0
         }
 
-        fun emit(type: T): Token<T> {
-            return Token(type, input.substring(index, index + length))
-                .also { consume() }
+        fun literal(): String {
+            return input.substring(index, index + length)
+        }
+
+        fun emit(type: T, value: Any? = null): Token<T> {
+            return Token(type, literal(), value).also { consume() }
         }
 
     }

@@ -29,7 +29,7 @@ class RhovasParserTests {
             Arguments.of("Decimal", "123.456", BigDecimal("123.456")),
             Arguments.of("Decimal Above Double Max", "1" + "0".repeat(308) + ".0", BigDecimal("1" + "0".repeat(308) + ".0")),
             Arguments.of("String", "\"string\"", "string"),
-            //TODO: Arguments.of("String Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
+            Arguments.of("String Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
             Arguments.of("Atom", ":atom", RhovasAst.Atom("atom")),
             Arguments.of("List Empty", "[]", listOf<RhovasAst.Expression>()),
             Arguments.of("List Single", "[element]", listOf(

@@ -2,6 +2,8 @@ package dev.rhovas.interpreter.parser.rhovas
 
 import dev.rhovas.interpreter.parser.Lexer
 import dev.rhovas.interpreter.parser.Token
+import java.math.BigDecimal
+import java.math.BigInteger
 
 class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
 
@@ -31,22 +33,31 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
         return if (match('.', "[0-9]")) {
             while (match("[0-9]")) {}
             //TODO: Scientific notation
-            chars.emit(RhovasTokenType.DECIMAL)
+            chars.emit(RhovasTokenType.DECIMAL, BigDecimal(chars.literal()))
         } else {
-            chars.emit(RhovasTokenType.INTEGER)
+            chars.emit(RhovasTokenType.INTEGER, BigInteger(chars.literal()))
         }
     }
 
     private fun lexString(): Token<RhovasTokenType> {
         require(match('"'))
+        val builder = StringBuilder()
         while (match("[^\"\n\r]")) {
             if (chars[-1] == '\\') {
                 //TODO: Unicode escapes
                 require(match("[nrt\"\$\\\\]")) { "Invalid character escape." }
+                builder.append(when (chars[-1]!!) {
+                    'n' -> '\n'
+                    'r' -> '\r'
+                    't' -> '\t'
+                    else -> chars[-1]!!
+                })
+            } else {
+                builder.append(chars[-1]!!)
             }
         }
         require(match('"')) { "Unterminated string literal." }
-        return chars.emit(RhovasTokenType.STRING)
+        return chars.emit(RhovasTokenType.STRING, builder.toString())
     }
 
     private fun lexOperator(): Token<RhovasTokenType> {

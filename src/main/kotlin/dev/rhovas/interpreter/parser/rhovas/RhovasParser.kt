@@ -96,12 +96,9 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         return when {
             match("null") -> RhovasAst.Expression.Literal(null)
             match(listOf("true", "false")) -> RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBooleanStrict())
-            match(RhovasTokenType.INTEGER) -> RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBigInteger())
-            match(RhovasTokenType.DECIMAL) -> RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBigDecimal())
-            match(RhovasTokenType.STRING) -> {
-                //TODO: Escapes
-                RhovasAst.Expression.Literal(tokens[-1]!!.literal.removeSurrounding("\""))
-            }
+            match(RhovasTokenType.INTEGER) ||
+            match(RhovasTokenType.DECIMAL) ||
+            match(RhovasTokenType.STRING) -> RhovasAst.Expression.Literal(tokens[-1]!!.value)
             match(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal))
             match("[") -> {
                 val elements = mutableListOf<RhovasAst.Expression>()
