@@ -56,37 +56,46 @@ class RhovasLexerTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testInteger(name: String, input: String, success: Boolean) {
-        val value = if (success) BigInteger(input) else null
-        test(input, listOf(Token(RhovasTokenType.INTEGER, input, value)), success)
+    fun testInteger(name: String, input: String, expected: BigInteger?) {
+        test(input, listOf(Token(RhovasTokenType.INTEGER, input, expected)), expected != null)
     }
 
     fun testInteger(): Stream<Arguments> {
         return Stream.of(
-            Arguments.of("Single Digit", "1", true),
-            Arguments.of("Multiple Digits", "123", true),
-            Arguments.of("Above Long Max", "1" + "0".repeat(19), true),
-            Arguments.of("Signed Integer", "-123", false),
+            Arguments.of("Single Digit", "1", BigInteger("1")),
+            Arguments.of("Multiple Digits", "123", BigInteger("123")),
+            Arguments.of("Above Long Max", "1" + "0".repeat(19), BigInteger("1" + "0".repeat(19))),
+            Arguments.of("Signed Integer", "-123", null),
+            Arguments.of("Binary", "0b10", BigInteger("10", 2)),
+            Arguments.of("Octal", "0o123", BigInteger("123", 8)),
+            Arguments.of("Hexadecimal", "0x123ABC", BigInteger("123ABC", 16)),
+            Arguments.of("Non-Leading Zero Base", "1b10", null),
+            Arguments.of("Trailing Base", "0b", null),
+            Arguments.of("Invalid Leading Digit", "0b2", null),
+            Arguments.of("Invalid Inner Digit", "0b10201", null),
         )
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testDecimal(name: String, input: String, success: Boolean) {
-        val value = if (success) BigDecimal(input) else null
-        test(input, listOf(Token(RhovasTokenType.DECIMAL, input, value)), success)
+    fun testDecimal(name: String, input: String, expected: BigDecimal?) {
+        test(input, listOf(Token(RhovasTokenType.DECIMAL, input, expected)), expected != null)
     }
 
     fun testDecimal(): Stream<Arguments> {
         return Stream.of(
-            Arguments.of("Single Digit", "1.0", true),
-            Arguments.of("Multiple Digits", "123.456", true),
-            Arguments.of("Above Double Max", "1" + "0".repeat(308) + ".0", true),
-            Arguments.of("Leading Zeros", "000.456", true),
-            Arguments.of("Trailing Zeros", "123.000", true),
-            Arguments.of("Leading Decimal", ".456", false),
-            Arguments.of("Trailing Decimal", "123.", false),
-            Arguments.of("Signed Decimal", "-123.456", false),
+            Arguments.of("Single Digit", "1.0", BigDecimal("1.0")),
+            Arguments.of("Multiple Digits", "123.456", BigDecimal("123.456")),
+            Arguments.of("Above Double Max", "1" + "0".repeat(308) + ".0", BigDecimal("1" + "0".repeat(308) + ".0")),
+            Arguments.of("Leading Zeros", "000.456", BigDecimal("000.456")),
+            Arguments.of("Trailing Zeros", "123.000", BigDecimal("123.000")),
+            Arguments.of("Leading Decimal", ".456", null),
+            Arguments.of("Trailing Decimal", "123.", null),
+            Arguments.of("Signed Decimal", "-123.456", null),
+            Arguments.of("Scientific", "123.456e789", BigDecimal("123.456e789")),
+            Arguments.of("Signed Exponent", "123.456e-789", BigDecimal("123.456e-789")),
+            Arguments.of("Trailing Exponent", "123.456e", null),
+            Arguments.of("Trailing Exponent Sign", "123.456e-", null),
         )
     }
 
@@ -162,6 +171,22 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, "-", null),
                 Token(RhovasTokenType.INTEGER, "123", BigInteger("123")),
             )),
+            Arguments.of("Non-Leading Zero Base", "1b10", listOf(
+                Token(RhovasTokenType.INTEGER, "1", BigInteger("1")),
+                Token(RhovasTokenType.IDENTIFIER, "b10", null),
+            )),
+            Arguments.of("Trailing Base", "0b", listOf(
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
+                Token(RhovasTokenType.IDENTIFIER, "b", null),
+            )),
+            Arguments.of("Invalid Leading Digit", "0b2", listOf(
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
+                Token(RhovasTokenType.IDENTIFIER, "b2", null),
+            )),
+            Arguments.of("Invalid Inner Digit", "0b10201", listOf(
+                Token(RhovasTokenType.INTEGER, "0b10", BigInteger("10", 2)),
+                Token(RhovasTokenType.INTEGER, "201", BigInteger("201")),
+            )),
             //decimal
             Arguments.of("Leading Decimal", ".123", listOf(
                 Token(RhovasTokenType.OPERATOR, ".", null),
@@ -174,6 +199,15 @@ class RhovasLexerTests {
             Arguments.of("Signed Decimal", "-123.456", listOf(
                 Token(RhovasTokenType.OPERATOR, "-", null),
                 Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
+            )),
+            Arguments.of("Trailing Exponent", "123.456e", listOf(
+                Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
+                Token(RhovasTokenType.IDENTIFIER, "e", null),
+            )),
+            Arguments.of("Trailing Exponent Sign", "123.456e-", listOf(
+                Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
+                Token(RhovasTokenType.IDENTIFIER, "e", null),
+                Token(RhovasTokenType.OPERATOR, "-", null),
             )),
             //string
             Arguments.of("Triple Quotes", "\"\"\"string\"\"\"", listOf(

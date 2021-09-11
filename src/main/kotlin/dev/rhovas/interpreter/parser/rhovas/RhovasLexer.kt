@@ -28,11 +28,23 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
 
     private fun lexNumber(): Token<RhovasTokenType> {
         require(match("[0-9]"))
-        //TODO: Binary, octal, hexadecimal
+        if (chars[-1] == '0' && peek("[box]")) {
+            fun lexBase(base: Int, digits: String): Token<RhovasTokenType> {
+                while (match(digits)) {}
+                return chars.emit(RhovasTokenType.INTEGER, BigInteger(chars.literal().substring(2), base))
+            }
+            when {
+                match('b', "[0-1]") -> return lexBase(2, "[0-1]")
+                match('o', "[0-7]") -> return lexBase(8, "[0-7]")
+                match('x', "[0-9A-F]") -> return lexBase(16, "[0-9A-F]")
+            }
+        }
         while (match("[0-9]")) {}
         return if (match('.', "[0-9]")) {
             while (match("[0-9]")) {}
-            //TODO: Scientific notation
+            if (match("e", "[0-9]") || match("e", "[+\\-]", "[0-9]")) {
+                while (match("[0-9]")) {}
+            }
             chars.emit(RhovasTokenType.DECIMAL, BigDecimal(chars.literal()))
         } else {
             chars.emit(RhovasTokenType.INTEGER, BigInteger(chars.literal()))
