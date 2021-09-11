@@ -8,8 +8,11 @@ import java.math.BigInteger
 class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
 
     override fun lexToken(): Token<RhovasTokenType>? {
-        //TODO: Comments
-        while (match("[ \t\n\r]")) {}
+        while (match("[ \t\n\r]") || match("/", "/")) {
+            if (chars[-1] == '/') {
+                while (match("[^\n\r]")) {}
+            }
+        }
         chars.consume()
         return when {
             chars[0] == null -> null

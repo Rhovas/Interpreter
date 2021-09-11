@@ -33,6 +33,19 @@ class RhovasLexerTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
+    fun testComment(name: String, input: String, success: Boolean) {
+        test(input, listOf(), success)
+    }
+
+    fun testComment(): Stream<Arguments> {
+        return Stream.of(
+            Arguments.of("Single Comment", "//comment", true),
+            Arguments.of("Multiple Comments", "//first\n//second\n//third", true),
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
     fun testIdentifier(name: String, input: String, success: Boolean) {
         test(input, listOf(Token(RhovasTokenType.IDENTIFIER, input, null)), success)
     }
@@ -152,15 +165,25 @@ class RhovasLexerTests {
     fun testMultiple(): Stream<Arguments> {
         return Stream.of(
             //whitespace
-            Arguments.of("Inner Whitespace", "first \tsecond\n\rthird", listOf(
+            Arguments.of("Inner Whitespace", "first \t\n\rsecond", listOf(
                 Token(RhovasTokenType.IDENTIFIER, "first", null),
                 Token(RhovasTokenType.IDENTIFIER, "second", null),
-                Token(RhovasTokenType.IDENTIFIER, "third", null),
             )),
             Arguments.of("Leading Whitespace", "    token", listOf(
                 Token(RhovasTokenType.IDENTIFIER, "token", null),
             )),
             Arguments.of("Trailing Whitespace", "token    ", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "token", null),
+            )),
+            //comment
+            Arguments.of("Inner Comment", "first//comment\nsecond", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "first", null),
+                Token(RhovasTokenType.IDENTIFIER, "second", null),
+            )),
+            Arguments.of("Leading Comment", "//comment\ntoken", listOf(
+                Token(RhovasTokenType.IDENTIFIER, "token", null),
+            )),
+            Arguments.of("Trailing Comment", "token//comment", listOf(
                 Token(RhovasTokenType.IDENTIFIER, "token", null),
             )),
             //identifier
