@@ -319,38 +319,38 @@ class RhovasParserTests {
         }
 
         fun testIndex(): Stream<Arguments> {
+            val receiver = RhovasAst.Expression.Access(null, "object")
             return Stream.of(
                 Arguments.of("Zero Arguments", "object[]",
-                    RhovasAst.Expression.Index(
-                        RhovasAst.Expression.Access(null, "object"),
-                        listOf(),
-                    ),
+                    RhovasAst.Expression.Index(receiver, listOf()),
                 ),
                 Arguments.of("Single Argument", "object[argument]",
-                    RhovasAst.Expression.Index(
-                        RhovasAst.Expression.Access(null, "object"),
-                        listOf(
-                            RhovasAst.Expression.Access(null, "argument"),
-                        ),
-                    ),
+                    RhovasAst.Expression.Index(receiver, listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    )),
                 ),
                 Arguments.of("Multiple Arguments", "object[first, second, third]",
+                    RhovasAst.Expression.Index(receiver, listOf(
+                        RhovasAst.Expression.Access(null, "first"),
+                        RhovasAst.Expression.Access(null, "second"),
+                        RhovasAst.Expression.Access(null, "third"),
+                    )),
+                ),
+                Arguments.of("Multiple Indexes", "object[first][second][third]",
                     RhovasAst.Expression.Index(
-                        RhovasAst.Expression.Access(null, "object"),
-                        listOf(
-                            RhovasAst.Expression.Access(null, "first"),
-                            RhovasAst.Expression.Access(null, "second"),
-                            RhovasAst.Expression.Access(null, "third"),
+                        RhovasAst.Expression.Index(
+                            RhovasAst.Expression.Index(receiver, listOf(
+                                RhovasAst.Expression.Access(null, "first"),
+                            )),
+                            listOf(RhovasAst.Expression.Access(null, "second")),
                         ),
+                        listOf(RhovasAst.Expression.Access(null, "third")),
                     ),
                 ),
                 Arguments.of("Trailing Comma", "object[argument,]",
-                    RhovasAst.Expression.Index(
-                        RhovasAst.Expression.Access(null, "object"),
-                        listOf(
-                            RhovasAst.Expression.Access(null, "argument"),
-                        ),
-                    ),
+                    RhovasAst.Expression.Index(receiver, listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    )),
                 ),
                 Arguments.of("Missing Comma", "object[first second]", null),
                 Arguments.of("Missing Closing Bracket", "object[argument", null),
