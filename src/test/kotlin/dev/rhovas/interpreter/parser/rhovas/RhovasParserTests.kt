@@ -373,22 +373,19 @@ class RhovasParserTests {
                 Arguments.of("Zero Arguments", "function()",
                     RhovasAst.Expression.Function(null, "function", listOf())
                 ),
-                Arguments.of(
-                    "Single Argument", "function(argument)",
+                Arguments.of("Single Argument", "function(argument)",
                     RhovasAst.Expression.Function(null, "function", listOf(
                         RhovasAst.Expression.Access(null, "argument"),
                     )),
                 ),
-                Arguments.of(
-                    "Multiple Arguments", "function(first, second, third)",
+                Arguments.of("Multiple Arguments", "function(first, second, third)",
                     RhovasAst.Expression.Function(null, "function", listOf(
                         RhovasAst.Expression.Access(null, "first"),
                         RhovasAst.Expression.Access(null, "second"),
                         RhovasAst.Expression.Access(null, "third"),
                     )),
                 ),
-                Arguments.of(
-                    "Trailing Comma", "function(argument,)",
+                Arguments.of("Trailing Comma", "function(argument,)",
                     RhovasAst.Expression.Function(null, "function", listOf(
                         RhovasAst.Expression.Access(null, "argument"),
                     )),
@@ -440,6 +437,44 @@ class RhovasParserTests {
                 ),
                 Arguments.of("Missing Comma", "object.method(first second)", null),
                 Arguments.of("Missing Closing Parenthesis", "object.method(argument", null),
+            )
+        }
+
+    }
+
+    @Nested
+    inner class MacroTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testMacro(name: String, input: String, expected: RhovasAst.Expression.Macro?) {
+            testExpression(input, expected)
+        }
+
+        fun testMacro(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Zero Arguments", "#macro()",
+                    RhovasAst.Expression.Macro("macro", listOf())
+                ),
+                Arguments.of("Single Argument", "#macro(argument)",
+                    RhovasAst.Expression.Macro("macro", listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    )),
+                ),
+                Arguments.of("Multiple Arguments", "#macro(first, second, third)",
+                    RhovasAst.Expression.Macro("macro", listOf(
+                        RhovasAst.Expression.Access(null, "first"),
+                        RhovasAst.Expression.Access(null, "second"),
+                        RhovasAst.Expression.Access(null, "third"),
+                    )),
+                ),
+                Arguments.of("Trailing Comma", "#macro(argument,)",
+                    RhovasAst.Expression.Macro("macro", listOf(
+                        RhovasAst.Expression.Access(null, "argument"),
+                    )),
+                ),
+                Arguments.of("Missing Comma", "#macro(first second)", null),
+                Arguments.of("Missing Closing Parenthesis", "#macro(argument", null),
             )
         }
 

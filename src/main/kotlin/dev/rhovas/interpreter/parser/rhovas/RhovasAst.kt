@@ -39,6 +39,12 @@ sealed class RhovasAst {
             val arguments: List<Expression>,
         ) : Expression()
 
+        data class Macro(
+            val name: String,
+            val arguments: List<Expression>,
+            //TODO: Syntax macros
+        ) : Expression()
+
     }
 
     data class Atom(val name: String)

@@ -136,6 +136,19 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                     RhovasAst.Expression.Access(null, name)
                 }
             }
+            match("#", RhovasTokenType.IDENTIFIER) -> {
+                val name = tokens[-1]!!.literal
+                if (match("(")) {
+                    val arguments = mutableListOf<RhovasAst.Expression>()
+                    while (!match(")")) {
+                        arguments.add(parseExpression())
+                        require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
+                    }
+                    RhovasAst.Expression.Macro(name, arguments)
+                } else {
+                    throw ParseException("TODO: Syntax macros") //TODO
+                }
+            }
             else -> throw ParseException("Expected expression.")
         }
     }
