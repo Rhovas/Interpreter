@@ -58,6 +58,7 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
         require(match('"'))
         val builder = StringBuilder()
         while (match("[^\"\n\r]")) {
+            //TODO: String interpolation
             if (chars[-1] == '\\') {
                 require(match("[nrtu\"\$\\\\]")) { "Invalid character escape." }
                 builder.append(when (chars[-1]!!) {
@@ -81,7 +82,6 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
     private fun lexOperator(): Token<RhovasTokenType> {
         require(chars[0] != null)
         chars.advance()
-        //TODO: Multi-character operators?
         return chars.emit(RhovasTokenType.OPERATOR)
     }
 
