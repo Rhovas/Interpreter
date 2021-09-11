@@ -115,7 +115,9 @@ class RhovasLexerTests {
             Arguments.of("Whitespace", "\" \t\u000B\"", " \t\u000B"),
             Arguments.of("Unicode", "\"ρ⚡♖\"", "ρ⚡♖"),
             Arguments.of("Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
+            Arguments.of("Unicode Escapes", "\"\\u1234\\uABCD\"", "\u1234\uABCD"),
             Arguments.of("Invalid Escape", "\"\\e\"", null),
+            Arguments.of("Invalid Unicode Escape", "\"\\uXXXX\"", null),
             Arguments.of("Unterminated", "\"string", null),
             Arguments.of("Unterminated Newline", "\"string\n\"", null),
         )

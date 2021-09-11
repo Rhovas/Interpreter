@@ -56,12 +56,15 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
         val builder = StringBuilder()
         while (match("[^\"\n\r]")) {
             if (chars[-1] == '\\') {
-                //TODO: Unicode escapes
-                require(match("[nrt\"\$\\\\]")) { "Invalid character escape." }
+                require(match("[nrtu\"\$\\\\]")) { "Invalid character escape." }
                 builder.append(when (chars[-1]!!) {
                     'n' -> '\n'
                     'r' -> '\r'
                     't' -> '\t'
+                    'u' -> Char((1..4).fold(0) { codepoint, _ ->
+                        require(match("[0-9A-F]")) { "Invalid unicode escape." }
+                        16 * codepoint + chars[-1]!!.digitToInt(16)
+                    })
                     else -> chars[-1]!!
                 })
             } else {
