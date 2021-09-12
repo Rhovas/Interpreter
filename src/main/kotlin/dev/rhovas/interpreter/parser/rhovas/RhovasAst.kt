@@ -36,6 +36,17 @@ sealed class RhovasAst {
             val elseCase: Pair<RhovasAst.Expression?, Statement>?,
         ) : Statement()
 
+        data class For(
+            val name: String,
+            val iterable: RhovasAst.Expression,
+            val body: Statement,
+        ) : Statement()
+
+        data class While(
+            val condition: RhovasAst.Expression,
+            val body: Statement,
+        ) : Statement()
+
     }
 
     sealed class Expression: RhovasAst() {

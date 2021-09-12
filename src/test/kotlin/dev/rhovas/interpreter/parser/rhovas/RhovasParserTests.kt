@@ -274,6 +274,88 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class ForTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFor(name: String, input: String, expected: RhovasAst.Statement.For?) {
+                test("statement", input, expected)
+            }
+
+            fun testFor(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "for (val name in iterable) {}", RhovasAst.Statement.For(
+                        "name",
+                        RhovasAst.Expression.Access(null, "iterable"),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Single", "for (val name in iterable) { statement; }", RhovasAst.Statement.For(
+                        "name",
+                        RhovasAst.Expression.Access(null, "iterable"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                    )),
+                    Arguments.of("Multiple", "for (val name in iterable) { first; second; third; }", RhovasAst.Statement.For(
+                        "name",
+                        RhovasAst.Expression.Access(null, "iterable"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                    )),
+                    Arguments.of("Missing Opening Parenthesis", "for val name in iterable) {}", null),
+                    Arguments.of("Missing Val", "for (name in iterable) {}", null),
+                    Arguments.of("Missing Name", "for (val in iterable) {}", null),
+                    Arguments.of("Missing In", "for (val name iterable) {}", null),
+                    Arguments.of("Missing Iterable", "for (val name in) {}", null),
+                    Arguments.of("Missing Closing Parenthesis", "for (val name in iterable {}", null),
+                    Arguments.of("Missing Statement", "for (val name in iterable)", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class WhileTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testWhile(name: String, input: String, expected: RhovasAst.Statement.While?) {
+                test("statement", input, expected)
+            }
+
+            fun testWhile(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "while (condition) {}", RhovasAst.Statement.While(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Single", "while (condition) { statement; }", RhovasAst.Statement.While(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                    )),
+                    Arguments.of("Multiple", "while (condition) { first; second; third; }", RhovasAst.Statement.While(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                    )),
+                    Arguments.of("Missing Opening Parenthesis", "while condition) {}", null),
+                    Arguments.of("Missing Condition", "while () {}", null),
+                    Arguments.of("Missing Closing Parenthesis", "while (condition {}", null),
+                    Arguments.of("Missing Statement", "while (condition)", null),
+                )
+            }
+
+        }
+
     }
 
     @Nested

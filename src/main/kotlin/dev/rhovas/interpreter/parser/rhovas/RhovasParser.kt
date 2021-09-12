@@ -19,6 +19,8 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             peek(listOf("val", "var")) -> parseDeclarationStatement()
             peek("if") -> parseIfStatement()
             peek("match") -> parseMatchStatement()
+            peek("for") -> parseForStatement()
+            peek("while") -> parseWhileStatement()
             else -> {
                 val expression = parseExpression()
                 val statement = if (match("=")) {
@@ -61,6 +63,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         val elseStatement = if (match("else")) parseStatement() else null
         return RhovasAst.Statement.If(condition, thenStatement, elseStatement)
     }
+
     private fun parseMatchStatement(): RhovasAst.Statement.Match {
         require(match("match"))
         val argument = if (match("(")) {
@@ -87,6 +90,28 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             }
         }
         return RhovasAst.Statement.Match(argument, cases, elseCase)
+    }
+
+    private fun parseForStatement(): RhovasAst.Statement.For {
+        require(match("for"))
+        require(match("(")) { "Expected opening parenthesis." }
+        require(match("val")) { "Expected `val`." }
+        require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+        val name = tokens[-1]!!.literal
+        require(match("in")) { "Expected `in`." }
+        val iterable = parseExpression()
+        require(match(")")) { "Expected closing parenthesis." }
+        val body = parseStatement()
+        return RhovasAst.Statement.For(name, iterable, body)
+    }
+
+    private fun parseWhileStatement(): RhovasAst.Statement.While {
+        require(match("while"))
+        require(match("(")) { "Expected opening parenthesis." }
+        val condition = parseExpression()
+        require(match(")")) { "Expected closing parenthesis." }
+        val body = parseStatement()
+        return RhovasAst.Statement.While(condition, body)
     }
 
     private fun parseExpression(): RhovasAst.Expression {
