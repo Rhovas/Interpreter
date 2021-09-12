@@ -17,6 +17,8 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         return when {
             peek("{") -> parseBlockStatement()
             peek(listOf("val", "var")) -> parseDeclarationStatement()
+            peek("if") -> parseIfStatement()
+            peek("match") -> parseMatchStatement()
             else -> {
                 val expression = parseExpression()
                 val statement = if (match("=")) {
@@ -48,6 +50,43 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         val value = if (match("=")) parseExpression() else null
         require(match(";")) { "Expected semicolon." }
         return RhovasAst.Statement.Declaration(mutable, name, value)
+    }
+
+    private fun parseIfStatement(): RhovasAst.Statement.If {
+        require(match("if"))
+        require(match("(")) { "Expected opening parenthesis." }
+        val condition = parseExpression()
+        require(match(")")) { "Expected closing parenthesis." }
+        val thenStatement = parseStatement()
+        val elseStatement = if (match("else")) parseStatement() else null
+        return RhovasAst.Statement.If(condition, thenStatement, elseStatement)
+    }
+    private fun parseMatchStatement(): RhovasAst.Statement.Match {
+        require(match("match"))
+        val argument = if (match("(")) {
+            val argument = parseExpression()
+            require(match(")")) { "Expected closing parenthesis." }
+            argument
+        } else null
+        require(match("{")) { "Expected opening brace." }
+        val cases = mutableListOf<Pair<RhovasAst.Expression, RhovasAst.Statement>>()
+        var elseCase: Pair<RhovasAst.Expression?, RhovasAst.Statement>? = null
+        while (!match("}")) {
+            if (match("else")) {
+                val condition = if (!peek(":")) parseExpression() else null
+                require(match(":")) { "Expected colon." }
+                val statement = parseStatement()
+                elseCase = Pair(condition, statement)
+                require(match("}")) { "Expected closing brace." }
+                break
+            } else {
+                val condition = parseExpression()
+                require(match(":")) { "Expected colon." }
+                val statement = parseStatement()
+                cases.add(Pair(condition, statement))
+            }
+        }
+        return RhovasAst.Statement.Match(argument, cases, elseCase)
     }
 
     private fun parseExpression(): RhovasAst.Expression {

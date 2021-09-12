@@ -24,6 +24,18 @@ sealed class RhovasAst {
             val value: RhovasAst.Expression,
         ) : Statement()
 
+        data class If(
+            val condition: RhovasAst.Expression,
+            val thenStatement: Statement,
+            val elseStatement: Statement?,
+        ) : Statement()
+
+        data class Match(
+            val argument: RhovasAst.Expression?,
+            val cases: List<Pair<RhovasAst.Expression, Statement>>,
+            val elseCase: Pair<RhovasAst.Expression?, Statement>?,
+        ) : Statement()
+
     }
 
     sealed class Expression: RhovasAst() {

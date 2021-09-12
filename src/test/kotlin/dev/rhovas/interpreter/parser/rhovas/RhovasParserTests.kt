@@ -136,6 +136,144 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class IfTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIf(name: String, input: String, expected: RhovasAst.Statement.If?) {
+                test("statement", input, expected)
+            }
+
+            fun testIf(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Then Empty", "if (condition) {}", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf()),
+                        null,
+                    )),
+                    Arguments.of("Then Single", "if (condition) { statement; }", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                        null,
+                    )),
+                    Arguments.of("Then Multiple", "if (condition) { first; second; third; }", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                        null,
+                    )),
+                    Arguments.of("Else Empty", "if (condition) {} else {}", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf()),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Else Single", "if (condition) {} else { statement; }", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf()),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                    )),
+                    Arguments.of("Else Multiple", "if (condition) {} else { first; second; third; }", RhovasAst.Statement.If(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Statement.Block(listOf()),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                    )),
+                    Arguments.of("Missing Opening Parenthesis", "if condition) {}", null),
+                    Arguments.of("Missing Condition", "if () {}", null),
+                    Arguments.of("Missing Closing Parenthesis", "if (condition {}", null),
+                    Arguments.of("Missing Else", "if (condition) {} {}", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class MatchTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testMatch(name: String, input: String, expected: RhovasAst.Statement.Match?) {
+                test("statement", input, expected)
+            }
+
+            fun testMatch(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "match {}", RhovasAst.Statement.Match(null, listOf(), null)),
+                    Arguments.of("Single", "match { condition: statement; }", RhovasAst.Statement.Match(
+                        null,
+                        listOf(Pair(
+                            RhovasAst.Expression.Access(null, "condition"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                        null
+                    )),
+                    Arguments.of("Multiple ", "match { c1: s1; c2: s2; c3: s3; }", RhovasAst.Statement.Match(
+                        null,
+                        listOf(Pair(
+                            RhovasAst.Expression.Access(null, "c1"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s1")),
+                        ), Pair(
+                            RhovasAst.Expression.Access(null, "c2"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s2")),
+                        ), Pair(
+                            RhovasAst.Expression.Access(null, "c3"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s3")),
+                        )),
+                        null
+                    )),
+                    Arguments.of("Argument", "match (argument) {}", RhovasAst.Statement.Match(
+                        RhovasAst.Expression.Access(null, "argument"),
+                        listOf(),
+                        null,
+                    )),
+                    Arguments.of("Else", "match { else: statement; }", RhovasAst.Statement.Match(
+                        null,
+                        listOf(),
+                        Pair(null, RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")))
+                    )),
+                    Arguments.of("Else Condition", "match { else condition: statement; }", RhovasAst.Statement.Match(
+                        null,
+                        listOf(),
+                        Pair(
+                            RhovasAst.Expression.Access(null, "condition"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )
+                    )),
+                    Arguments.of("Else With Cases", "match { c1: s1; c2: s2; else: s3; }", RhovasAst.Statement.Match(
+                        null,
+                        listOf(Pair(
+                            RhovasAst.Expression.Access(null, "c1"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s1")),
+                        ), Pair(
+                            RhovasAst.Expression.Access(null, "c2"),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s2")),
+                        )),
+                        Pair(null, RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "s3")))
+                    )),
+                    Arguments.of("Else Inner", "match { c1: s2; else: s2; c3: s3; }", null),
+                    Arguments.of("Else Multiple", "match { else: s1; else: s2; }", null),
+                    Arguments.of("Missing Opening Brace", "match }", null),
+                    Arguments.of("Missing Condition", "match { : statement; }", null), //parses : statement as an Atom
+                    Arguments.of("Missing Colon", "match { condition statement; }", null),
+                    Arguments.of("Missing Statement", "match { condition }", null),
+                    Arguments.of("Missing Else Colon", "match { else statement; }", null), //parses statement as the condition
+                    Arguments.of("Missing Else Statement", "match { else: }", null),
+                )
+            }
+
+        }
+
     }
 
     @Nested
