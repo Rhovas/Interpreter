@@ -30,7 +30,7 @@ abstract class Parser<T : Token.Type>(lexer: Lexer<T>) {
     }
 
     protected fun require(condition: Boolean) {
-        return require(condition) { "Broken lexer invariant." }
+        return require(condition) { "Broken parser invariant." }
     }
 
     protected fun require(condition: Boolean, error: () -> String) {

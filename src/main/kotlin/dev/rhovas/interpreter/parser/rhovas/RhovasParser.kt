@@ -7,12 +7,50 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
 
     override fun parse(rule: String): RhovasAst {
         return when (rule) {
+            "statement" -> parseStatement()
             "expression" -> parseExpression()
             else -> throw AssertionError()
         }.also { require(tokens[0] == null) { "Expected end of input." } }
     }
 
-    fun parseExpression(): RhovasAst.Expression {
+    private fun parseStatement(): RhovasAst.Statement {
+        return when {
+            peek("{") -> parseBlockStatement()
+            peek(listOf("val", "var")) -> parseDeclarationStatement()
+            else -> {
+                val expression = parseExpression()
+                val statement = if (match("=")) {
+                    val value = parseExpression()
+                    RhovasAst.Statement.Assignment(expression, value)
+                } else {
+                    RhovasAst.Statement.Expression(expression)
+                }
+                require(match(";")) { "Expected semicolon." }
+                statement
+            }
+        }
+    }
+
+    private fun parseBlockStatement(): RhovasAst.Statement.Block {
+        require(match("{"))
+        val statements = mutableListOf<RhovasAst.Statement>()
+        while (!match("}")) {
+            statements.add(parseStatement())
+        }
+        return RhovasAst.Statement.Block(statements)
+    }
+
+    private fun parseDeclarationStatement(): RhovasAst.Statement.Declaration {
+        require(match(listOf("val", "var")))
+        val mutable = tokens[-1]!!.literal == "var"
+        require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+        val name = tokens[-1]!!.literal
+        val value = if (match("=")) parseExpression() else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Declaration(mutable, name, value)
+    }
+
+    private fun parseExpression(): RhovasAst.Expression {
         return parseLogicalOrExpression()
     }
 

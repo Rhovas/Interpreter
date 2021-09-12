@@ -2,6 +2,30 @@ package dev.rhovas.interpreter.parser.rhovas
 
 sealed class RhovasAst {
 
+    sealed class Statement: RhovasAst() {
+
+        data class Block(
+            val statements: List<Statement>,
+        ) : Statement()
+
+        data class Expression(
+            val expression: RhovasAst.Expression,
+        ) : Statement()
+
+        data class Declaration(
+            val mutable: Boolean,
+            val name: String,
+            //TODO: val type: Type
+            val value: RhovasAst.Expression?,
+        ) : Statement()
+
+        data class Assignment(
+            val receiver: RhovasAst.Expression,
+            val value: RhovasAst.Expression,
+        ) : Statement()
+
+    }
+
     sealed class Expression: RhovasAst() {
 
         data class Literal(
