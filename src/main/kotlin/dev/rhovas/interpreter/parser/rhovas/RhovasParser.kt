@@ -21,6 +21,8 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             peek("match") -> parseMatchStatement()
             peek("for") -> parseForStatement()
             peek("while") -> parseWhileStatement()
+            peek("try") -> parseTryStatement()
+            peek("with") -> parseWithStatement()
             else -> {
                 val expression = parseExpression()
                 val statement = if (match("=")) {
@@ -112,6 +114,38 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         require(match(")")) { "Expected closing parenthesis." }
         val body = parseStatement()
         return RhovasAst.Statement.While(condition, body)
+    }
+
+    private fun parseTryStatement(): RhovasAst.Statement.Try {
+        require(match("try"))
+        val body = parseStatement()
+        val catches = mutableListOf<RhovasAst.Statement.Try.Catch>()
+        while (match("catch")) {
+            require(match("(")) { "Expected opening parenthesis." }
+            require(match("val")) { "Expected `val`." }
+            require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+            val name = tokens[-1]!!.literal
+            require(match(")")) { "Expected closing parenthesis." }
+            val catchBody = parseStatement()
+            catches.add(RhovasAst.Statement.Try.Catch(name, catchBody))
+        }
+        val finallyStatement = if (match("finally")) parseStatement() else null
+        return RhovasAst.Statement.Try(body, catches, finallyStatement)
+    }
+
+    private fun parseWithStatement(): RhovasAst.Statement.With {
+        require(match("with"))
+        require(match("(")) { "Expected opening parenthesis." }
+        val name = if (match("val")) {
+            require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+            val name = tokens[-1]!!.literal
+            require(match("=")) { "Expected equals." }
+            name
+        } else null
+        val argument = parseExpression()
+        require(match(")")) { "Expected closing parenthesis." }
+        val body = parseStatement()
+        return RhovasAst.Statement.With(name, argument, body)
     }
 
     private fun parseExpression(): RhovasAst.Expression {

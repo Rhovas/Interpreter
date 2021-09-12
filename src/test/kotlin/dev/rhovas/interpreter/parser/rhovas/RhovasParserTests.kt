@@ -356,6 +356,159 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class TryTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testTry(name: String, input: String, expected: RhovasAst.Statement.Try?) {
+                test("statement", input, expected)
+            }
+
+            fun testTry(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Try Empty", "try {}", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(),
+                        null,
+                    )),
+                    Arguments.of("Try Single", "try { statement; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                        listOf(),
+                        null,
+                    )),
+                    Arguments.of("Try Multiple", "try { first; second; third; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                        listOf(),
+                        null,
+                    )),
+                    Arguments.of("Catch Empty", "try {} catch (val name) {}", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(RhovasAst.Statement.Try.Catch(
+                            "name",
+                            RhovasAst.Statement.Block(listOf()),
+                        )),
+                        null,
+                    )),
+                    Arguments.of("Catch Single", "try {} catch (val name) { statement; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(RhovasAst.Statement.Try.Catch(
+                            "name",
+                            RhovasAst.Statement.Block(listOf(
+                                RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                            )),
+                        )),
+                        null,
+                    )),
+                    Arguments.of("Catch Multiple", "try {} catch (val name) { first; second; third; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(RhovasAst.Statement.Try.Catch(
+                            "name",
+                            RhovasAst.Statement.Block(listOf(
+                                RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                                RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                                RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                            )),
+                        )),
+                        null,
+                    )),
+                    Arguments.of("Multiple Catch", "try {} catch (val first) {} catch (val second) {} catch (val third) {}", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(
+                            RhovasAst.Statement.Try.Catch("first", RhovasAst.Statement.Block(listOf())),
+                            RhovasAst.Statement.Try.Catch("second", RhovasAst.Statement.Block(listOf())),
+                            RhovasAst.Statement.Try.Catch("third", RhovasAst.Statement.Block(listOf())),
+                        ),
+                        null,
+                    )),
+                    Arguments.of("Finally Empty", "try {} finally {}", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Finally Single", "try {} finally { statement; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                    )),
+                    Arguments.of("Finally Multiple", "try {} finally { first; second; third; }", RhovasAst.Statement.Try(
+                        RhovasAst.Statement.Block(listOf()),
+                        listOf(),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                    )),
+                    Arguments.of("Missing Try Statement", "try", null),
+                    Arguments.of("Missing Catch Opening Parenthesis", "try {} catch val name) {}", null),
+                    Arguments.of("Missing Catch Val", "try {} catch (name) {}", null),
+                    Arguments.of("Missing Catch Name", "try {} catch (val) {}", null),
+                    Arguments.of("Missing Catch Closing Parenthesis", "try {} catch (val name {}", null),
+                    Arguments.of("Missing Catch Statement", "try {} catch (val name)", null),
+                    Arguments.of("Missing Finally Statement", "try {} finally", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class WithTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testWith(name: String, input: String, expected: RhovasAst.Statement.With?) {
+                test("statement", input, expected)
+            }
+
+            fun testWith(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Name", "with (val name = argument) {}", RhovasAst.Statement.With(
+                        "name",
+                        RhovasAst.Expression.Access(null, "argument"),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Empty", "with (argument) {}", RhovasAst.Statement.With(
+                        null,
+                        RhovasAst.Expression.Access(null, "argument"),
+                        RhovasAst.Statement.Block(listOf()),
+                    )),
+                    Arguments.of("Single", "with (argument) { statement; }", RhovasAst.Statement.With(
+                        null,
+                        RhovasAst.Expression.Access(null, "argument"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                        )),
+                    )),
+                    Arguments.of("Multiple", "with (argument) { first; second; third; }", RhovasAst.Statement.With(
+                        null,
+                        RhovasAst.Expression.Access(null, "argument"),
+                        RhovasAst.Statement.Block(listOf(
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "first")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "second")),
+                            RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "third")),
+                        )),
+                    )),
+                    Arguments.of("Missing Opening Parenthesis", "with argument) {}", null),
+                    Arguments.of("Missing Val", "with (name = argument) {}", null),
+                    Arguments.of("Missing Name", "with (val = argument) {}", null),
+                    Arguments.of("Missing Equals", "with (val name argument) {}", null),
+                    Arguments.of("Missing Argument", "with () {}", null),
+                    Arguments.of("Missing Closing Parenthesis", "with (argument {}", null),
+                    Arguments.of("Missing Statement", "with (argument)", null),
+                )
+            }
+
+        }
+
     }
 
     @Nested

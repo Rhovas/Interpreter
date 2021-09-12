@@ -47,6 +47,26 @@ sealed class RhovasAst {
             val body: Statement,
         ) : Statement()
 
+        data class Try(
+            val body: Statement,
+            val catches: List<Catch>,
+            val finallyStatement: Statement?
+        ) : Statement() {
+
+            data class Catch(
+                val name: String,
+                //TODO: val type: Type,
+                val body: Statement,
+            ) : RhovasAst()
+
+        }
+
+        data class With(
+            val name: String?,
+            val argument: RhovasAst.Expression,
+            val body: Statement,
+        ) : Statement()
+
     }
 
     sealed class Expression: RhovasAst() {
