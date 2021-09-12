@@ -509,6 +509,110 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class LabelTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLabel(name: String, input: String, expected: RhovasAst.Statement.Label?) {
+                test("statement", input, expected)
+            }
+
+            fun testLabel(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Label", "label: statement;", RhovasAst.Statement.Label(
+                        "label",
+                        RhovasAst.Statement.Expression(RhovasAst.Expression.Access(null, "statement")),
+                    )),
+                    Arguments.of("Loop", "label: while (condition) {}", RhovasAst.Statement.Label(
+                        "label",
+                        RhovasAst.Statement.While(
+                            RhovasAst.Expression.Access(null, "condition"),
+                            RhovasAst.Statement.Block(listOf()),
+                        )
+                    )),
+                    Arguments.of("Missing Statement", "label:", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class BreakTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testBreak(name: String, input: String, expected: RhovasAst.Statement.Break?) {
+                test("statement", input, expected)
+            }
+
+            fun testBreak(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Break", "break;", RhovasAst.Statement.Break(null)),
+                    Arguments.of("Label", "break label;", RhovasAst.Statement.Break("label")),
+                    Arguments.of("Missing Semicolon", "break", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ContinueTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testContinue(name: String, input: String, expected: RhovasAst.Statement.Continue?) {
+                test("statement", input, expected)
+            }
+
+            fun testContinue(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Continue", "continue;", RhovasAst.Statement.Continue(null)),
+                    Arguments.of("Label", "continue label;", RhovasAst.Statement.Continue("label")),
+                    Arguments.of("Missing Semicolon", "continue", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ReturnTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testReturn(name: String, input: String, expected: RhovasAst.Statement.Return?) {
+                test("statement", input, expected)
+            }
+
+            fun testReturn(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Return", "return;", RhovasAst.Statement.Return(null)),
+                    Arguments.of("Return", "return value;", RhovasAst.Statement.Return(RhovasAst.Expression.Access(null, "value"))),
+                    Arguments.of("Missing Semicolon", "return", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ThrowTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testThrow(name: String, input: String, expected: RhovasAst.Statement.Throw?) {
+                test("statement", input, expected)
+            }
+
+            fun testThrow(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Throw", "throw exception;", RhovasAst.Statement.Throw(RhovasAst.Expression.Access(null, "exception"))),
+                    Arguments.of("Missing Exception", "throw;", null),
+                    Arguments.of("Missing Semicolon", "throw exception", null),
+                )
+            }
+
+        }
+
     }
 
     @Nested

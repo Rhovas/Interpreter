@@ -23,6 +23,11 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             peek("while") -> parseWhileStatement()
             peek("try") -> parseTryStatement()
             peek("with") -> parseWithStatement()
+            peek(RhovasTokenType.IDENTIFIER, ":") -> parseLabelStatement()
+            peek("break") -> parseBreakStatement()
+            peek("continue") -> parseContinueStatement()
+            peek("return") -> parseReturnStatement()
+            peek("throw") -> parseThrowStatement()
             else -> {
                 val expression = parseExpression()
                 val statement = if (match("=")) {
@@ -146,6 +151,42 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         require(match(")")) { "Expected closing parenthesis." }
         val body = parseStatement()
         return RhovasAst.Statement.With(name, argument, body)
+    }
+
+    private fun parseLabelStatement(): RhovasAst.Statement.Label {
+        require(match(RhovasTokenType.IDENTIFIER))
+        val label = tokens[-1]!!.literal
+        require(match(":"))
+        val statement = parseStatement()
+        return RhovasAst.Statement.Label(label, statement)
+    }
+
+    private fun parseBreakStatement(): RhovasAst.Statement.Break {
+        require(match("break"))
+        val label = if (match(RhovasTokenType.IDENTIFIER)) tokens[-1]!!.literal else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Break(label)
+    }
+
+    private fun parseContinueStatement(): RhovasAst.Statement.Continue {
+        require(match("continue"))
+        val label = if (match(RhovasTokenType.IDENTIFIER)) tokens[-1]!!.literal else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Continue(label)
+    }
+
+    private fun parseReturnStatement(): RhovasAst.Statement.Return {
+        require(match("return"))
+        val value = if (!peek(";")) parseExpression() else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Return(value)
+    }
+
+    private fun parseThrowStatement(): RhovasAst.Statement.Throw {
+        require(match("throw"))
+        val exception = parseExpression()
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Throw(exception)
     }
 
     private fun parseExpression(): RhovasAst.Expression {

@@ -67,6 +67,27 @@ sealed class RhovasAst {
             val body: Statement,
         ) : Statement()
 
+        data class Label(
+            val label: String,
+            val statement: Statement,
+        ) : Statement()
+
+        data class Break(
+            val label: String?,
+        ) : Statement()
+
+        data class Continue(
+            val label: String?,
+        ) : Statement()
+
+        data class Return(
+            val value: RhovasAst.Expression?,
+        ) : Statement()
+
+        data class Throw(
+            val exception: RhovasAst.Expression,
+        ) : Statement()
+
     }
 
     sealed class Expression: RhovasAst() {
