@@ -192,15 +192,15 @@ class RhovasLexerTests {
     }
 
     @Nested
-    inner class MultipleTests {
+    inner class InteractionTests {
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
-        fun testMultiple(name: String, input: String, expected: List<Token<RhovasTokenType>>) {
+        fun testInteraction(name: String, input: String, expected: List<Token<RhovasTokenType>>) {
             test(input, expected, true)
         }
 
-        fun testMultiple(): Stream<Arguments> {
+        fun testInteraction(): Stream<Arguments> {
             return Stream.of(
                 //whitespace
                 Arguments.of("Inner Whitespace", "first \t\n\rsecond", listOf(
@@ -274,7 +274,7 @@ class RhovasLexerTests {
                 )),
                 //string
                 Arguments.of("Triple Quotes", "\"\"\"string\"\"\"", listOf(
-                   Token(RhovasTokenType.STRING, "\"\"", ""),
+                    Token(RhovasTokenType.STRING, "\"\"", ""),
                     Token(RhovasTokenType.STRING, "\"string\"", "string"),
                     Token(RhovasTokenType.STRING, "\"\"", ""),
                 )),

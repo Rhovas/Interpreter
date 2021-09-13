@@ -1091,7 +1091,6 @@ class RhovasParserTests {
                             RhovasAst.Expression.Lambda(listOf(), RhovasAst.Statement.Block(listOf())),
                         )),
                     ),
-                    //Arguments.of("Zero Parameters", "function || {} ", null) //TODO: parsed as (function) || ({})
                     Arguments.of("Missing Comma", "function |first second| {} ", null),
                     Arguments.of("Missing Closing Pipe", "function |first, second {} ", null),
                     Arguments.of("Non-Block Statement", "function body;", null),
@@ -1136,6 +1135,32 @@ class RhovasParserTests {
                 )
             }
 
+        }
+
+    }
+
+    @Nested
+    inner class InteractionTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testInteraction(name: String, rule: String, input: String, expected: RhovasAst) {
+            test(rule, input, expected)
+        }
+
+        fun testInteraction(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Keyword Label Atom", "statement", "return :atom;",
+                    RhovasAst.Statement.Return(RhovasAst.Expression.Literal(RhovasAst.Atom("atom"))),
+                ),
+                //expression
+                Arguments.of("Lambda Zero Parameters", "expression", "function || {} ",
+                    RhovasAst.Expression.Binary("||",
+                        expression("function"),
+                        RhovasAst.Expression.Literal(mapOf<String, RhovasAst.Expression>())
+                    ),
+                ),
+            )
         }
 
     }
