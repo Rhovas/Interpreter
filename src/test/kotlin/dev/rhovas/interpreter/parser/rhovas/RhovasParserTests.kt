@@ -166,59 +166,21 @@ class RhovasParserTests {
 
             fun testIf(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Then Empty", "if (condition) {}",
+                    Arguments.of("Then", "if (condition) thenStatement;",
                         RhovasAst.Statement.If(
                             expression("condition"),
-                            RhovasAst.Statement.Block(listOf()),
+                            statement("thenStatement"),
                             null,
                         ),
                     ),
-                    Arguments.of("Then Single", "if (condition) { statement; }",
-                        RhovasAst.Statement.If(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                            null,
-                        ),
+                    Arguments.of("Empty Then", "if (condition) {}",
+                        RhovasAst.Statement.If(expression("condition"), block(), null),
                     ),
-                    Arguments.of("Then Multiple", "if (condition) { first; second; third; }",
-                        RhovasAst.Statement.If(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                            null,
-                        ),
+                    Arguments.of("Else", "if (condition) {} else elseStatement;",
+                        RhovasAst.Statement.If(expression("condition"), block(), statement("elseStatement")),
                     ),
-                    Arguments.of("Else Empty", "if (condition) {} else {}",
-                        RhovasAst.Statement.If(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf()),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
-                    ),
-                    Arguments.of("Else Single", "if (condition) {} else { statement; }",
-                        RhovasAst.Statement.If(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf()),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                        ),
-                    ),
-                    Arguments.of("Else Multiple", "if (condition) {} else { first; second; third; }",
-                        RhovasAst.Statement.If(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf()),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                        ),
+                    Arguments.of("Empty Else", "if (condition) {} else {}",
+                        RhovasAst.Statement.If(expression("condition"), block(), block()),
                     ),
                     Arguments.of("Missing Opening Parenthesis", "if condition) {}", null),
                     Arguments.of("Missing Condition", "if () {}", null),
@@ -246,9 +208,7 @@ class RhovasParserTests {
                     Arguments.of("Single", "match { condition: statement; }",
                         RhovasAst.Statement.Match(
                             null,
-                            listOf(
-                                Pair(expression("condition"), statement("statement"))
-                            ),
+                            listOf(Pair(expression("condition"), statement("statement"))),
                             null
                         ),
                     ),
@@ -264,11 +224,7 @@ class RhovasParserTests {
                         ),
                     ),
                     Arguments.of("Argument", "match (argument) {}",
-                        RhovasAst.Statement.Match(
-                            expression("argument"),
-                            listOf(),
-                            null,
-                        ),
+                        RhovasAst.Statement.Match(expression("argument"), listOf(), null),
                     ),
                     Arguments.of("Else", "match { else: statement; }",
                         RhovasAst.Statement.Match(
@@ -318,32 +274,11 @@ class RhovasParserTests {
 
             fun testFor(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Empty", "for (val name in iterable) {}",
-                        RhovasAst.Statement.For(
-                            "name",
-                            expression("iterable"),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
+                    Arguments.of("For", "for (val name in iterable) body;",
+                        RhovasAst.Statement.For("name", expression("iterable"), statement("body")),
                     ),
-                    Arguments.of("Single", "for (val name in iterable) { statement; }",
-                        RhovasAst.Statement.For(
-                            "name",
-                            expression("iterable"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                        ),
-                    ),
-                    Arguments.of("Multiple", "for (val name in iterable) { first; second; third; }",
-                        RhovasAst.Statement.For(
-                            "name",
-                            expression("iterable"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                        ),
+                    Arguments.of("Empty Body", "for (val name in iterable) {}",
+                        RhovasAst.Statement.For("name", expression("iterable"), block()),
                     ),
                     Arguments.of("Missing Opening Parenthesis", "for val name in iterable) {}", null),
                     Arguments.of("Missing Val", "for (name in iterable) {}", null),
@@ -368,29 +303,11 @@ class RhovasParserTests {
 
             fun testWhile(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Empty", "while (condition) {}",
-                        RhovasAst.Statement.While(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
+                    Arguments.of("While", "while (condition) body;",
+                        RhovasAst.Statement.While(expression("condition"), statement("body")),
                     ),
-                    Arguments.of("Single", "while (condition) { statement; }",
-                        RhovasAst.Statement.While(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                        ),
-                    ),
-                    Arguments.of("Multiple", "while (condition) { first; second; third; }",
-                        RhovasAst.Statement.While(
-                            expression("condition"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                        ),
+                    Arguments.of("Empty Body", "while (condition) {}",
+                        RhovasAst.Statement.While(expression("condition"), block()),
                     ),
                     Arguments.of("Missing Opening Parenthesis", "while condition) {}", null),
                     Arguments.of("Missing Condition", "while () {}", null),
@@ -412,105 +329,48 @@ class RhovasParserTests {
 
             fun testTry(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Try Empty", "try {}",
+                    Arguments.of("Try", "try body;",
+                        RhovasAst.Statement.Try(statement("body"), listOf(), null),
+                    ),
+                    Arguments.of("Empty Body", "try {}",
+                        RhovasAst.Statement.Try(block(), listOf(), null),
+                    ),
+                    Arguments.of("Catch", "try {} catch (val name) body;",
                         RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(),
+                            block(),
+                            listOf(RhovasAst.Statement.Try.Catch("name", statement("body"))),
                             null,
                         ),
                     ),
-                    Arguments.of("Try Single", "try { statement; }",
+                    Arguments.of("Empty Catch", "try {} catch (val name) {}",
                         RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                            listOf(),
-                            null,
-                        ),
-                    ),
-                    Arguments.of("Try Multiple", "try { first; second; third; }",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                            listOf(),
-                            null,
-                        ),
-                    ),
-                    Arguments.of("Catch Empty", "try {} catch (val name) {}",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(RhovasAst.Statement.Try.Catch(
-                                "name",
-                                RhovasAst.Statement.Block(listOf()),
-                            )),
-                            null,
-                        ),
-                    ),
-                    Arguments.of("Catch Single", "try {} catch (val name) { statement; }",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(RhovasAst.Statement.Try.Catch(
-                                "name",
-                                RhovasAst.Statement.Block(listOf(
-                                    statement("statement"),
-                                )),
-                            )),
-                            null,
-                        ),
-                    ),
-                    Arguments.of("Catch Multiple", "try {} catch (val name) { first; second; third; }",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(RhovasAst.Statement.Try.Catch(
-                                "name",
-                                RhovasAst.Statement.Block(listOf(
-                                    statement("first"),
-                                    statement("second"),
-                                    statement("third"),
-                                )),
-                            )),
+                            block(),
+                            listOf(RhovasAst.Statement.Try.Catch("name", block())),
                             null,
                         ),
                     ),
                     Arguments.of("Multiple Catch", "try {} catch (val first) {} catch (val second) {} catch (val third) {}",
                         RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
+                            block(),
                             listOf(
-                                RhovasAst.Statement.Try.Catch("first", RhovasAst.Statement.Block(listOf())),
-                                RhovasAst.Statement.Try.Catch("second", RhovasAst.Statement.Block(listOf())),
-                                RhovasAst.Statement.Try.Catch("third", RhovasAst.Statement.Block(listOf())),
+                                RhovasAst.Statement.Try.Catch("first", block()),
+                                RhovasAst.Statement.Try.Catch("second", block()),
+                                RhovasAst.Statement.Try.Catch("third", block()),
                             ),
                             null,
                         ),
                     ),
-                    Arguments.of("Finally Empty", "try {} finally {}",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
+                    Arguments.of("Finally", "try {} finally finallyStatement;",
+                        RhovasAst.Statement.Try(block(), listOf(), statement("finallyStatement")),
                     ),
-                    Arguments.of("Finally Single", "try {} finally { statement; }",
-                        RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                        ),
+                    Arguments.of("Empty Finally", "try {} finally {}",
+                        RhovasAst.Statement.Try(block(), listOf(), block()),
                     ),
-                    Arguments.of("Finally Multiple", "try {} finally { first; second; third; }",
+                    Arguments.of("Both Catch & Finally", "try {} catch (val name) {} finally {}",
                         RhovasAst.Statement.Try(
-                            RhovasAst.Statement.Block(listOf()),
-                            listOf(),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
+                            block(),
+                            listOf(RhovasAst.Statement.Try.Catch("name", block())),
+                            block(),
                         ),
                     ),
                     Arguments.of("Missing Try Statement", "try", null),
@@ -536,39 +396,11 @@ class RhovasParserTests {
 
             fun testWith(): Stream<Arguments> {
                 return Stream.of(
+                    Arguments.of("With", "with (argument) {}",
+                        RhovasAst.Statement.With(null, expression("argument"), block()),
+                    ),
                     Arguments.of("Name", "with (val name = argument) {}",
-                        RhovasAst.Statement.With(
-                            "name",
-                            expression("argument"),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
-                    ),
-                    Arguments.of("Empty", "with (argument) {}",
-                        RhovasAst.Statement.With(
-                            null,
-                            expression("argument"),
-                            RhovasAst.Statement.Block(listOf()),
-                        ),
-                    ),
-                    Arguments.of("Single", "with (argument) { statement; }",
-                        RhovasAst.Statement.With(
-                            null,
-                            expression("argument"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("statement"),
-                            )),
-                        ),
-                    ),
-                    Arguments.of("Multiple", "with (argument) { first; second; third; }",
-                        RhovasAst.Statement.With(
-                            null,
-                            expression("argument"),
-                            RhovasAst.Statement.Block(listOf(
-                                statement("first"),
-                                statement("second"),
-                                statement("third"),
-                            )),
-                        ),
+                        RhovasAst.Statement.With("name", expression("argument"), block()),
                     ),
                     Arguments.of("Missing Opening Parenthesis", "with argument) {}", null),
                     Arguments.of("Missing Val", "with (name = argument) {}", null),
@@ -594,18 +426,11 @@ class RhovasParserTests {
             fun testLabel(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Label", "label: statement;",
-                        RhovasAst.Statement.Label(
-                            "label",
-                            statement("statement"),
-                        ),
+                        RhovasAst.Statement.Label("label", statement("statement")),
                     ),
                     Arguments.of("Loop", "label: while (condition) {}",
-                        RhovasAst.Statement.Label(
-                            "label",
-                            RhovasAst.Statement.While(
-                                expression("condition"),
-                                RhovasAst.Statement.Block(listOf()),
-                            )
+                        RhovasAst.Statement.Label("label",
+                            RhovasAst.Statement.While(expression("condition"), block())
                         ),
                     ),
                     Arguments.of("Missing Statement", "label:", null),
@@ -716,16 +541,10 @@ class RhovasParserTests {
             fun testAssert(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Assert", "assert condition;",
-                        RhovasAst.Statement.Assert(
-                            expression("condition"),
-                            null,
-                        ),
+                        RhovasAst.Statement.Assert(expression("condition"), null),
                     ),
                     Arguments.of("Message", "assert condition: message;",
-                        RhovasAst.Statement.Assert(
-                            expression("condition"),
-                            expression("message"),
-                        ),
+                        RhovasAst.Statement.Assert(expression("condition"), expression("message")),
                     ),
                     Arguments.of("Missing Condition", "assert;", null),
                     Arguments.of("Missing Colon", "assert condition message;", null),
@@ -748,16 +567,10 @@ class RhovasParserTests {
             fun testRequire(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Require", "require condition;",
-                        RhovasAst.Statement.Require(
-                            expression("condition"),
-                            null,
-                        ),
+                        RhovasAst.Statement.Require(expression("condition"), null),
                     ),
                     Arguments.of("Message", "require condition: message;",
-                        RhovasAst.Statement.Require(
-                            expression("condition"),
-                            expression("message"),
-                        ),
+                        RhovasAst.Statement.Require(expression("condition"), expression("message")),
                     ),
                     Arguments.of("Missing Condition", "require;", null),
                     Arguments.of("Missing Colon", "require condition message;", null),
@@ -780,16 +593,10 @@ class RhovasParserTests {
             fun testEnsure(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Ensure", "ensure condition;",
-                        RhovasAst.Statement.Ensure(
-                            expression("condition"),
-                            null,
-                        ),
+                        RhovasAst.Statement.Ensure(expression("condition"), null),
                     ),
                     Arguments.of("Message", "ensure condition: message;",
-                        RhovasAst.Statement.Ensure(
-                            expression("condition"),
-                            expression("message"),
-                        ),
+                        RhovasAst.Statement.Ensure(expression("condition"), expression("message")),
                     ),
                     Arguments.of("Missing Condition", "ensure;", null),
                     Arguments.of("Missing Colon", "ensure condition message;", null),
@@ -1274,6 +1081,10 @@ class RhovasParserTests {
 
         }
 
+    }
+
+    private fun block(): RhovasAst.Statement.Block {
+        return RhovasAst.Statement.Block(listOf())
     }
 
     private fun statement(name: String): RhovasAst.Statement {
