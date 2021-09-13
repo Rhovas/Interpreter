@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.parser.rhovas
 
 import dev.rhovas.interpreter.parser.ParseException
+import dev.rhovas.interpreter.parser.dsl.DslAst
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
@@ -1143,26 +1144,23 @@ class RhovasParserTests {
 
             fun testDsl(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Rhovas DSL", "#rhovas { body; }",
-                        RhovasAst.Expression.Macro("rhovas", listOf(
-                            RhovasAst.Expression.Dsl(RhovasAst.Statement.Block(listOf(
-                                statement("body"),
-                            ))),
-                        ))
+                    Arguments.of("Inline", "#macro { source }",
+                        RhovasAst.Expression.Macro("macro", listOf(
+                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf(" source "), listOf())),
+                        )),
                     ),
-                    Arguments.of("Empty Block", "#rhovas {}",
-                        RhovasAst.Expression.Macro("rhovas", listOf(
-                            RhovasAst.Expression.Dsl(block()),
-                        ))
+                    Arguments.of("Multiline", "#macro {\n    source\n}",
+                        RhovasAst.Expression.Macro("macro", listOf(
+                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf("source"), listOf())),
+                        )),
                     ),
-                    Arguments.of("Argument", "#rhovas(argument) {}",
-                        RhovasAst.Expression.Macro("rhovas", listOf(
+                    Arguments.of("Argument", "#macro(argument) { source }",
+                        RhovasAst.Expression.Macro("macro", listOf(
                             expression("argument"),
-                            RhovasAst.Expression.Dsl(block())
-                        ))
+                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf(" source "), listOf())),
+                        )),
                     ),
-                    Arguments.of("Invalid DSL", "#dsl { body; }", null),
-                    Arguments.of("Missing Closing Brace", "#rhovas { body;", null),
+                    Arguments.of("Missing Closing Brace", "#macro { source", null),
                 )
             }
 

@@ -153,7 +153,8 @@ sealed class RhovasAst {
         ) : Expression()
 
         data class Dsl(
-            val ast: Any
+            val name: String,
+            val ast: Any,
         ) : Expression()
 
     }

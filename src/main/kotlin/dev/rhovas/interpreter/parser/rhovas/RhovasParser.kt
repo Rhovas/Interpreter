@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.parser.rhovas
 
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
+import dev.rhovas.interpreter.parser.dsl.DslParser
 
 class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
@@ -368,13 +369,12 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             }
         }
         if (match("{")) {
-            require(name == "rhovas") { "Expected 'rhovas' as the DSL name." }
-            val parser = RhovasParser(lexer.input)
+            val parser = DslParser(lexer.input)
             parser.lexer.state = lexer.state - 1
-            val ast = parser.parse("statement")
+            val ast = parser.parse("source")
             lexer.state = parser.lexer.state - 1
             require(match("}"))
-            arguments.add(RhovasAst.Expression.Dsl(ast))
+            arguments.add(RhovasAst.Expression.Dsl(name, ast))
         }
         return RhovasAst.Expression.Macro(name, arguments)
     }
