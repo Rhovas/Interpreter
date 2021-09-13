@@ -613,6 +613,90 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class AssertTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testAssert(name: String, input: String, expected: RhovasAst.Statement.Assert?) {
+                test("statement", input, expected)
+            }
+
+            fun testAssert(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Assert", "assert condition;", RhovasAst.Statement.Assert(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        null,
+                    )),
+                    Arguments.of("Message", "assert condition: message;", RhovasAst.Statement.Assert(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Expression.Access(null, "message"),
+                    )),
+                    Arguments.of("Missing Condition", "assert;", null),
+                    Arguments.of("Missing Colon", "assert condition message;", null),
+                    Arguments.of("Missing Message", "assert condition: ;", null),
+                    Arguments.of("Missing Semicolon", "assert condition", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class RequireTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testRequire(name: String, input: String, expected: RhovasAst.Statement.Require?) {
+                test("statement", input, expected)
+            }
+
+            fun testRequire(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Require", "require condition;", RhovasAst.Statement.Require(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        null,
+                    )),
+                    Arguments.of("Message", "require condition: message;", RhovasAst.Statement.Require(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Expression.Access(null, "message"),
+                    )),
+                    Arguments.of("Missing Condition", "require;", null),
+                    Arguments.of("Missing Colon", "require condition message;", null),
+                    Arguments.of("Missing Message", "require condition: ;", null),
+                    Arguments.of("Missing Semicolon", "require condition", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class EnsureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testEnsure(name: String, input: String, expected: RhovasAst.Statement.Ensure?) {
+                test("statement", input, expected)
+            }
+
+            fun testEnsure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Ensure", "ensure condition;", RhovasAst.Statement.Ensure(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        null,
+                    )),
+                    Arguments.of("Message", "ensure condition: message;", RhovasAst.Statement.Ensure(
+                        RhovasAst.Expression.Access(null, "condition"),
+                        RhovasAst.Expression.Access(null, "message"),
+                    )),
+                    Arguments.of("Missing Condition", "ensure;", null),
+                    Arguments.of("Missing Colon", "ensure condition message;", null),
+                    Arguments.of("Missing Message", "ensure condition: ;", null),
+                    Arguments.of("Missing Semicolon", "ensure condition", null),
+                )
+            }
+
+        }
+
     }
 
     @Nested

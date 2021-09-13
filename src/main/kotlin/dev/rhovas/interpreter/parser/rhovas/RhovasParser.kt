@@ -28,6 +28,9 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             peek("continue") -> parseContinueStatement()
             peek("return") -> parseReturnStatement()
             peek("throw") -> parseThrowStatement()
+            peek("assert") -> parseAssertStatement()
+            peek("require") -> parseRequireStatement()
+            peek("ensure") -> parseEnsureStatement()
             else -> {
                 val expression = parseExpression()
                 val statement = if (match("=")) {
@@ -187,6 +190,30 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         val exception = parseExpression()
         require(match(";")) { "Expected semicolon." }
         return RhovasAst.Statement.Throw(exception)
+    }
+
+    private fun parseAssertStatement(): RhovasAst.Statement.Assert {
+        require(match("assert"))
+        val condition = parseExpression()
+        val message = if (match(":")) parseExpression() else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Assert(condition, message)
+    }
+
+    private fun parseRequireStatement(): RhovasAst.Statement.Require {
+        require(match("require"))
+        val condition = parseExpression()
+        val message = if (match(":")) parseExpression() else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Require(condition, message)
+    }
+
+    private fun parseEnsureStatement(): RhovasAst.Statement.Ensure {
+        require(match("ensure"))
+        val condition = parseExpression()
+        val message = if (match(":")) parseExpression() else null
+        require(match(";")) { "Expected semicolon." }
+        return RhovasAst.Statement.Ensure(condition, message)
     }
 
     private fun parseExpression(): RhovasAst.Expression {

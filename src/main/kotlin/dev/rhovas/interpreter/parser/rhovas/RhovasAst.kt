@@ -88,6 +88,21 @@ sealed class RhovasAst {
             val exception: RhovasAst.Expression,
         ) : Statement()
 
+        data class Assert(
+            val condition: RhovasAst.Expression,
+            val message: RhovasAst.Expression?,
+        ) : Statement()
+
+        data class Require(
+            val condition: RhovasAst.Expression,
+            val message: RhovasAst.Expression?,
+        ) : Statement()
+
+        data class Ensure(
+            val condition: RhovasAst.Expression,
+            val message: RhovasAst.Expression?,
+        ) : Statement()
+
     }
 
     sealed class Expression: RhovasAst() {
