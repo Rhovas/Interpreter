@@ -1,8 +1,10 @@
 package dev.rhovas.interpreter.parser
 
-abstract class Lexer<T: Token.Type>(input: String) {
+abstract class Lexer<T: Token.Type>(val input: String) {
 
-    protected val chars = CharStream(input)
+    protected val chars = CharStream()
+
+    var state by chars::state
 
     fun lex(): List<Token<T>> {
         return generateSequence { lexToken() }.toList()
@@ -43,16 +45,19 @@ abstract class Lexer<T: Token.Type>(input: String) {
         }
     }
 
-    inner class CharStream(private val input: String) {
+    inner class CharStream {
 
         private var index = 0
         private var length = 0
+
+        var state by this::index
 
         operator fun get(offset: Int): Char? {
             return input.getOrNull(index + length + offset)
         }
 
         fun advance() {
+            require(this[0] != null)
             length++
         }
 

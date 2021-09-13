@@ -150,7 +150,10 @@ sealed class RhovasAst {
         data class Macro(
             val name: String,
             val arguments: List<Expression>,
-            //TODO: Syntax macros
+        ) : Expression()
+
+        data class Dsl(
+            val ast: Any
         ) : Expression()
 
     }

@@ -1,8 +1,8 @@
 package dev.rhovas.interpreter.parser
 
-abstract class Parser<T : Token.Type>(lexer: Lexer<T>) {
+abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
 
-    protected val tokens = TokenStream(lexer.lex())
+    protected val tokens = TokenStream()
 
     abstract fun parse(rule: String): Any
 
@@ -39,15 +39,20 @@ abstract class Parser<T : Token.Type>(lexer: Lexer<T>) {
         }
     }
 
-    inner class TokenStream(private val tokens: List<Token<T>>) {
+    inner class TokenStream {
 
+        private val tokens = mutableListOf<Token<T>?>()
         private var index = 0
 
         operator fun get(offset: Int): Token<T>? {
-            return tokens.getOrNull(index + offset)
+            while (tokens.size <= index + offset) {
+                tokens.add(lexer.lexToken())
+            }
+            return tokens[index + offset]
         }
 
         fun advance() {
+            require(this[0] != null)
             index++
         }
 

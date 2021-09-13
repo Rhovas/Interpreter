@@ -319,19 +319,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 RhovasAst.Expression.Group(expression)
             }
             peek(RhovasTokenType.IDENTIFIER) -> parseAccessOrFunctionExpression(null)
-            match("#", RhovasTokenType.IDENTIFIER) -> {
-                val name = tokens[-1]!!.literal
-                if (match("(")) {
-                    val arguments = mutableListOf<RhovasAst.Expression>()
-                    while (!match(")")) {
-                        arguments.add(parseExpression())
-                        require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
-                    }
-                    RhovasAst.Expression.Macro(name, arguments)
-                } else {
-                    throw ParseException("TODO: Syntax macros") //TODO
-                }
-            }
+            peek("#", RhovasTokenType.IDENTIFIER) -> parseMacroExpression()
             else -> throw ParseException("Expected expression.")
         }
     }
@@ -366,6 +354,29 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         } else {
             RhovasAst.Expression.Function(receiver, name, arguments)
         }
+    }
+
+    private fun parseMacroExpression(): RhovasAst.Expression {
+        require(match("#", RhovasTokenType.IDENTIFIER))
+        val name = tokens[-1]!!.literal
+        require(peek(listOf("(", "{"))) { "Expected opening parenthesis or brace." }
+        val arguments = mutableListOf<RhovasAst.Expression>()
+        if (match("(")) {
+            while (!match(")")) {
+                arguments.add(parseExpression())
+                require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
+            }
+        }
+        if (match("{")) {
+            require(name == "rhovas") { "Expected 'rhovas' as the DSL name." }
+            val parser = RhovasParser(lexer.input)
+            parser.lexer.state = lexer.state - 1
+            val ast = parser.parse("statement")
+            lexer.state = parser.lexer.state - 1
+            require(match("}"))
+            arguments.add(RhovasAst.Expression.Dsl(ast))
+        }
+        return RhovasAst.Expression.Macro(name, arguments)
     }
 
 }

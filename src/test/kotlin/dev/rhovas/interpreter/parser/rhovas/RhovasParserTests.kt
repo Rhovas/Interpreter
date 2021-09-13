@@ -1135,6 +1135,37 @@ class RhovasParserTests {
                 )
             }
 
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testDsl(name: String, input: String, expected: RhovasAst.Expression.Macro?) {
+                test("expression", input, expected)
+            }
+
+            fun testDsl(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Rhovas DSL", "#rhovas { body; }",
+                        RhovasAst.Expression.Macro("rhovas", listOf(
+                            RhovasAst.Expression.Dsl(RhovasAst.Statement.Block(listOf(
+                                statement("body"),
+                            ))),
+                        ))
+                    ),
+                    Arguments.of("Empty Block", "#rhovas {}",
+                        RhovasAst.Expression.Macro("rhovas", listOf(
+                            RhovasAst.Expression.Dsl(block()),
+                        ))
+                    ),
+                    Arguments.of("Argument", "#rhovas(argument) {}",
+                        RhovasAst.Expression.Macro("rhovas", listOf(
+                            expression("argument"),
+                            RhovasAst.Expression.Dsl(block())
+                        ))
+                    ),
+                    Arguments.of("Invalid DSL", "#dsl { body; }", null),
+                    Arguments.of("Missing Closing Brace", "#rhovas { body;", null),
+                )
+            }
+
         }
 
     }
