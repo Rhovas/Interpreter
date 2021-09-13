@@ -270,18 +270,9 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         var expression = parsePrimaryExpression()
         while (true) {
             expression = when {
-                match(".", RhovasTokenType.IDENTIFIER) -> {
-                    val name = tokens[-1]!!.literal
-                    if (match("(")) {
-                        val arguments = mutableListOf<RhovasAst.Expression>()
-                        while (!match(")")) {
-                            arguments.add(parseExpression())
-                            require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
-                        }
-                        RhovasAst.Expression.Function(expression, name, arguments)
-                    } else {
-                        RhovasAst.Expression.Access(expression, name)
-                    }
+                peek(".", RhovasTokenType.IDENTIFIER) -> {
+                    require(match("."))
+                    parseAccessOrFunctionExpression(expression)
                 }
                 match("[") -> {
                     val arguments = mutableListOf<RhovasAst.Expression>()
@@ -327,19 +318,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 require(match(")")) { "Expected closing parenthesis." }
                 RhovasAst.Expression.Group(expression)
             }
-            match(RhovasTokenType.IDENTIFIER) -> {
-                val name = tokens[-1]!!.literal
-                if (match("(")) {
-                    val arguments = mutableListOf<RhovasAst.Expression>()
-                    while (!match(")")) {
-                        arguments.add(parseExpression())
-                        require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
-                    }
-                    RhovasAst.Expression.Function(null, name, arguments)
-                } else {
-                    RhovasAst.Expression.Access(null, name)
-                }
-            }
+            peek(RhovasTokenType.IDENTIFIER) -> parseAccessOrFunctionExpression(null)
             match("#", RhovasTokenType.IDENTIFIER) -> {
                 val name = tokens[-1]!!.literal
                 if (match("(")) {
@@ -354,6 +333,38 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
                 }
             }
             else -> throw ParseException("Expected expression.")
+        }
+    }
+
+    private fun parseAccessOrFunctionExpression(receiver: RhovasAst.Expression?): RhovasAst.Expression {
+        require(match(RhovasTokenType.IDENTIFIER))
+        val name = tokens[-1]!!.literal
+        var arguments: MutableList<RhovasAst.Expression>? = null
+        if (match("(")) {
+            arguments = mutableListOf()
+            while (!match(")")) {
+                arguments.add(parseExpression())
+                require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
+            }
+        }
+        if (peek("|", RhovasTokenType.IDENTIFIER) || peek("{")) {
+            arguments = arguments ?: mutableListOf()
+            val parameters = mutableListOf<String>()
+            if (match("|")) {
+                while (!match("|")) {
+                    require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+                    parameters.add(tokens[-1]!!.literal)
+                    require(peek("|") || match(",")) { "Expected closing pipe or comma." }
+                }
+            }
+            require(peek("{")) { "Expected opening brace." }
+            val body = parseStatement()
+            arguments.add(RhovasAst.Expression.Lambda(parameters, body))
+        }
+        return if (arguments == null) {
+            RhovasAst.Expression.Access(receiver, name)
+        } else {
+            RhovasAst.Expression.Function(receiver, name, arguments)
         }
     }
 

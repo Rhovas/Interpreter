@@ -1041,6 +1041,63 @@ class RhovasParserTests {
                 )
             }
 
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLambda(name: String, input: String, expected: RhovasAst.Expression.Function?) {
+                test("expression", input, expected)
+            }
+
+            fun testLambda(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Lambda", "function { body; }",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Statement.Block(listOf(statement("body")))),
+                        )),
+                    ),
+                    Arguments.of("Empty Block", "function {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf(), block()),
+                        )),
+                    ),
+                    Arguments.of("Argument", "function(argument) {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            expression("argument"),
+                            RhovasAst.Expression.Lambda(listOf(), block()),
+                        )),
+                    ),
+                    Arguments.of("Single Parameter", "function |parameter| {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf("parameter"), block()),
+                        )),
+                    ),
+                    Arguments.of("Multiple Parameters", "function |first, second, third| {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf("first", "second", "third"), block()),
+                        )),
+                    ),
+                    Arguments.of("Trailing Comma", "function |parameter,| {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf("parameter"), block()),
+                        )),
+                    ),
+                    Arguments.of("Argument & Parameter", "function(argument) |parameter| {}",
+                        RhovasAst.Expression.Function(null, "function", listOf(
+                            expression("argument"),
+                            RhovasAst.Expression.Lambda(listOf("parameter"), block()),
+                        )),
+                    ),
+                    Arguments.of("Method", "receiver.method {}",
+                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf(
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Statement.Block(listOf())),
+                        )),
+                    ),
+                    //Arguments.of("Zero Parameters", "function || {} ", null) //TODO: parsed as (function) || ({})
+                    Arguments.of("Missing Comma", "function |first second| {} ", null),
+                    Arguments.of("Missing Closing Pipe", "function |first, second {} ", null),
+                    Arguments.of("Non-Block Statement", "function body;", null),
+                )
+            }
+
         }
 
         @Nested

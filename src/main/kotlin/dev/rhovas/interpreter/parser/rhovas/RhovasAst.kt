@@ -142,6 +142,11 @@ sealed class RhovasAst {
             val arguments: List<Expression>,
         ) : Expression()
 
+        data class Lambda(
+            val parameters: List<String>,
+            val body: Statement,
+        ) : Expression()
+
         data class Macro(
             val name: String,
             val arguments: List<Expression>,
