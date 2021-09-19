@@ -1,7 +1,10 @@
 package dev.rhovas.interpreter.evaluator
 
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
+import java.math.BigDecimal
+import java.math.BigInteger
 
 class Evaluator : RhovasAst.Visitor<Object> {
 
@@ -78,7 +81,23 @@ class Evaluator : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal): Object {
-        TODO()
+        return when (ast.value) {
+            null -> Object(Library.TYPES["Null"]!!, null)
+            is Boolean -> Object(Library.TYPES["Boolean"]!!, ast.value)
+            is BigInteger -> Object(Library.TYPES["Integer"]!!, ast.value)
+            is BigDecimal -> Object(Library.TYPES["Decimal"]!!, ast.value)
+            is String -> Object(Library.TYPES["String"]!!, ast.value)
+            is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ast.value)
+            is List<*> -> {
+                val value = (ast.value as List<RhovasAst.Expression>).map { visit(it) }
+                Object(Library.TYPES["List"]!!, value)
+            }
+            is Map<*, *> -> {
+                val value = (ast.value as Map<String, RhovasAst.Expression>).mapValues { visit(it.value) }
+                Object(Library.TYPES["Object"]!!, value)
+            }
+            else -> throw AssertionError()
+        }
     }
 
     override fun visit(ast: RhovasAst.Expression.Group): Object {
