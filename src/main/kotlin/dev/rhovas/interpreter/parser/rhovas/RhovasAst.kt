@@ -57,7 +57,7 @@ sealed class RhovasAst {
                 val name: String,
                 //TODO: val type: Type,
                 val body: Statement,
-            ) : RhovasAst()
+            )
 
         }
 
@@ -160,5 +160,73 @@ sealed class RhovasAst {
     }
 
     data class Atom(val name: String)
+
+    interface Visitor<T> {
+
+        fun visit(ast: RhovasAst): T {
+            return when (ast) {
+                is Statement.Block -> visit(ast)
+                is Statement.Expression -> visit(ast)
+                is Statement.Declaration -> visit(ast)
+                is Statement.Assignment -> visit(ast)
+                is Statement.If -> visit(ast)
+                is Statement.Match -> visit(ast)
+                is Statement.For -> visit(ast)
+                is Statement.While -> visit(ast)
+                is Statement.Try -> visit(ast)
+                is Statement.With -> visit(ast)
+                is Statement.Label -> visit(ast)
+                is Statement.Break -> visit(ast)
+                is Statement.Continue -> visit(ast)
+                is Statement.Return -> visit(ast)
+                is Statement.Throw -> visit(ast)
+                is Statement.Assert -> visit(ast)
+                is Statement.Ensure -> visit(ast)
+                is Statement.Require -> visit(ast)
+
+                is Expression.Literal -> visit(ast)
+                is Expression.Group -> visit(ast)
+                is Expression.Unary -> visit(ast)
+                is Expression.Binary -> visit(ast)
+                is Expression.Access -> visit(ast)
+                is Expression.Index -> visit(ast)
+                is Expression.Function -> visit(ast)
+                is Expression.Lambda -> visit(ast)
+                is Expression.Macro -> visit(ast)
+                is Expression.Dsl -> visit(ast)
+            }
+        }
+
+        fun visit(ast: Statement.Block): T
+        fun visit(ast: Statement.Expression): T
+        fun visit(ast: Statement.Declaration): T
+        fun visit(ast: Statement.Assignment): T
+        fun visit(ast: Statement.If): T
+        fun visit(ast: Statement.Match): T
+        fun visit(ast: Statement.For): T
+        fun visit(ast: Statement.While): T
+        fun visit(ast: Statement.Try): T
+        fun visit(ast: Statement.With): T
+        fun visit(ast: Statement.Label): T
+        fun visit(ast: Statement.Break): T
+        fun visit(ast: Statement.Continue): T
+        fun visit(ast: Statement.Return): T
+        fun visit(ast: Statement.Throw): T
+        fun visit(ast: Statement.Assert): T
+        fun visit(ast: Statement.Require): T
+        fun visit(ast: Statement.Ensure): T
+
+        fun visit(ast: Expression.Literal): T
+        fun visit(ast: Expression.Group): T
+        fun visit(ast: Expression.Unary): T
+        fun visit(ast: Expression.Binary): T
+        fun visit(ast: Expression.Access): T
+        fun visit(ast: Expression.Index): T
+        fun visit(ast: Expression.Function): T
+        fun visit(ast: Expression.Lambda): T
+        fun visit(ast: Expression.Macro): T
+        fun visit(ast: Expression.Dsl): T
+
+    }
 
 }
