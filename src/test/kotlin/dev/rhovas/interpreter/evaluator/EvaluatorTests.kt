@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.stream.Stream
+import kotlin.math.exp
 
 class EvaluatorTests {
 
@@ -29,7 +30,7 @@ class EvaluatorTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testScalar(name: String, input: String, expected: Object) {
+            fun testScalar(name: String, input: String, expected: Object?) {
                 test("expression", input, expected)
             }
 
@@ -58,7 +59,7 @@ class EvaluatorTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testList(name: String, input: String, expected: Object) {
+            fun testList(name: String, input: String, expected: Object?) {
                 test("expression", input, expected)
             }
 
@@ -84,7 +85,7 @@ class EvaluatorTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testObject(name: String, input: String, expected: Object) {
+            fun testObject(name: String, input: String, expected: Object?) {
                 test("expression", input, expected)
             }
 
@@ -111,11 +112,64 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class GroupTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testGroup(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testGroup(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Group", "(\"expression\")",
+                        Object(Library.TYPES["String"]!!, "expression"),
+                    ),
+                    Arguments.of("Nested", "(((\"expression\")))",
+                        Object(Library.TYPES["String"]!!, "expression"),
+                    ),
+                    //TODO: Binary expression evaluation
+                    /*Arguments.of("Binary", "(\"first\" + \"second\")",
+                        Object(Library.TYPES["String"]!!, "firstsecond"),
+                    ),*/
+                )
+            }
+
+        }
+
+        @Nested
+        inner class UnaryTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testUnary(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testUnary(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Numerical Negation", "-1", //TODO: Depends on unsigned number literals
+                        Object(Library.TYPES["Integer"]!!, BigInteger("-1")),
+                    ),
+                    Arguments.of("Logical Negation", "!true",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Invalid", "-true", null),
+                )
+            }
+
+        }
+
     }
 
-    fun test(rule: String, input: String, expected: Object) {
+    fun test(rule: String, input: String, expected: Object?) {
         val ast = RhovasParser(input).parse(rule)
-        Assertions.assertEquals(expected, Evaluator().visit(ast))
+        if (expected != null) {
+            Assertions.assertEquals(expected, Evaluator().visit(ast))
+        } else {
+            Assertions.assertThrows(EvaluateException::class.java) { Evaluator().visit(ast) }
+        }
     }
 
 }

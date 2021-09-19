@@ -101,11 +101,14 @@ class Evaluator : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Group): Object {
-        TODO()
+        return visit(ast.expression)
     }
 
     override fun visit(ast: RhovasAst.Expression.Unary): Object {
-        TODO()
+        val expression = visit(ast.expression)
+        val method = expression.methods[ast.operator, 0]
+            ?: throw EvaluateException("Unary ${ast.operator} is not supported by type ${expression.type.name}.")
+        return method.invoke(listOf())
     }
 
     override fun visit(ast: RhovasAst.Expression.Binary): Object {
