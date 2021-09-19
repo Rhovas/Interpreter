@@ -1,15 +1,9 @@
 package dev.rhovas.interpreter.environment
 
-class Object(
+data class Object(
     val type: Type,
     val value: Any?,
 ) {
-
-    companion object {
-
-        val VOID = Object(Type.VOID, null)
-
-    }
 
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
@@ -27,7 +21,7 @@ class Object(
     inner class MethodsDelegate {
 
         operator fun get(name: String, arity: Int): Method? {
-            return type.methods[name, arity]?.let { function ->
+            return type.methods[name, arity + 1]?.let { function ->
                 Method(name, arity, this@Object, function)
             }
         }
