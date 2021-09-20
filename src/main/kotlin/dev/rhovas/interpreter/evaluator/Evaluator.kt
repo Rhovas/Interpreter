@@ -199,7 +199,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Index): Object {
-        TODO()
+        val receiver = visit(ast.receiver)
+        val method = receiver.methods["[]", ast.arguments.size]
+            ?: throw EvaluateException("Method []/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
+        return method.invoke(ast.arguments.map { visit(it) })
     }
 
     override fun visit(ast: RhovasAst.Expression.Function): Object {
