@@ -3,10 +3,32 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object ObjectInitializer : Library.TypeInitializer("Object") {
 
     override fun initialize() {
+        type.methods.define(Function("get", 2) { arguments ->
+            val map = arguments[0].value as MutableMap<String, Object>
+            if (arguments[1].type != Library.TYPES["Atom"]!!) {
+                throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
+            }
+            val key = arguments[1].value as RhovasAst.Atom
+            map[key.name] ?: Object(Library.TYPES["Null"]!!, null)
+        })
+        type.methods.define(type.methods["get", 2]!!.copy(name = "[]"))
+
+        type.methods.define(Function("set", 3) { arguments ->
+            val map = arguments[0].value as MutableMap<String, Object>
+            if (arguments[1].type != Library.TYPES["Atom"]!!) {
+                throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
+            }
+            val key = arguments[1].value as RhovasAst.Atom
+            map[key.name] = arguments[2]
+            Object(Library.TYPES["Void"]!!, Unit)
+        })
+        type.methods.define(type.methods["set", 3]!!.copy(name = "[]="))
+
         type.methods.define(Function("equals", 2) { arguments ->
             val self = arguments[0].value as Map<String, Object>
             val other = arguments[0].value as Map<String, Object>

@@ -9,10 +9,10 @@ object ListInitializer : Library.TypeInitializer("List") {
 
     override fun initialize() {
         type.methods.define(Function("get", 2) { arguments ->
+            val list = arguments[0].value as MutableList<Object>
             if (arguments[1].type != Library.TYPES["Integer"]!!) {
                 throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
             }
-            val list = arguments[0].value as List<Object>
             val index = arguments[1].value as BigInteger
             if (index < BigInteger.ZERO || index >= BigInteger.valueOf(list.size.toLong())) {
                 throw EvaluateException("Index $index out of bounds for list of size ${list.size}.")
@@ -20,6 +20,20 @@ object ListInitializer : Library.TypeInitializer("List") {
             list[index.toInt()]
         })
         type.methods.define(type.methods["get", 2]!!.copy(name = "[]"))
+
+        type.methods.define(Function("set", 3) { arguments ->
+            val list = arguments[0].value as MutableList<Object>
+            if (arguments[1].type != Library.TYPES["Integer"]!!) {
+                throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
+            }
+            val index = arguments[1].value as BigInteger
+            if (index < BigInteger.ZERO || index >= BigInteger.valueOf(list.size.toLong())) {
+                throw EvaluateException("Index $index out of bounds for list of size ${list.size}.")
+            }
+            list[index.toInt()] = arguments[2]
+            Object(Library.TYPES["Void"]!!, Unit)
+        })
+        type.methods.define(type.methods["set", 3]!!.copy(name = "[]="))
 
         type.methods.define(Function("concat", 2) { arguments ->
             if (arguments[1].type != type) {

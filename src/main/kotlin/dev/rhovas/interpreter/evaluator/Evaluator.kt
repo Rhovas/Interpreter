@@ -130,11 +130,11 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ast.value)
             is List<*> -> {
                 val value = (ast.value as List<RhovasAst.Expression>).map { visit(it) }
-                Object(Library.TYPES["List"]!!, value)
+                Object(Library.TYPES["List"]!!, value.toMutableList())
             }
             is Map<*, *> -> {
                 val value = (ast.value as Map<String, RhovasAst.Expression>).mapValues { visit(it.value) }
-                Object(Library.TYPES["Object"]!!, value)
+                Object(Library.TYPES["Object"]!!, value.toMutableMap())
             }
             else -> throw AssertionError()
         }

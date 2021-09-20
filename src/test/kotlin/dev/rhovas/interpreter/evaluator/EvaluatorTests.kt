@@ -134,29 +134,20 @@ class EvaluatorTests {
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("[]", 2) { arguments ->
-                            val map = arguments[0].value as MutableMap<String, Object>
-                            val key = arguments[1].value as RhovasAst.Atom
-                            map[key.name] ?: Object(Library.TYPES["Null"]!!, null)
-                        })
-                        it.functions.define(Function("[]=", 3) { arguments ->
-                            val map = arguments[0].value as MutableMap<String, Object>
-                            val key = arguments[1].value as RhovasAst.Atom
-                            map[key.name] = arguments[2]
-                            Object(Library.TYPES["Void"]!!, Unit)
-                        })
-                    })
-                    it.variables.define(Variable("object", Object(type, mutableMapOf(
-                        Pair("key",  Object(Library.TYPES["String"]!!, "initial")),
-                    ))))
                     it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "initial")))
+                    it.variables.define(Variable("list", Object(Library.TYPES["List"]!!, mutableListOf(
+                        Object(Library.TYPES["String"]!!, "initial"),
+                    ))))
+                    it.variables.define(Variable("object", Object(Library.TYPES["Object"]!!, mutableMapOf(
+                        Pair("key", Object(Library.TYPES["String"]!!, "initial")),
+                    ))))
                 })
             }
 
             fun testIndex(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Property", "{ object[:key] = \"final\"; log(object[:key]); }", "final"),
+                    Arguments.of("List", "{ list[0] = \"final\"; log(list[0]); }", "final"),
+                    Arguments.of("Object", "{ object[:key] = \"final\"; log(object[:key]); }", "final"),
                     Arguments.of("Invalid Arity", "{ object[] = \"final\"; }", null),
                     Arguments.of("Undefined", "{ variable[:key] = \"final\"; }", null), //TODO: Depends on Strings not supporting indexing
                 )
@@ -515,6 +506,38 @@ class EvaluatorTests {
                         Object(Library.TYPES["String"]!!, "property")
                     ),
                     Arguments.of("Undefined", "object.undefined", null)
+                )
+            }
+
+        }
+
+        @Nested
+        inner class IndexTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIndex(name: String, input: String, expected: Object?) {
+                test(input, expected, Scope(null).also {
+                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "variable")))
+                    it.variables.define(Variable("list", Object(Library.TYPES["List"]!!, mutableListOf(
+                        Object(Library.TYPES["String"]!!, "element"),
+                    ))))
+                    it.variables.define(Variable("object", Object(Library.TYPES["Object"]!!, mutableMapOf(
+                        Pair("key", Object(Library.TYPES["String"]!!, "value")),
+                    ))))
+                })
+            }
+
+            fun testIndex(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("List", "list[0]",
+                        Object(Library.TYPES["String"]!!, "element"),
+                    ),
+                    Arguments.of("Object", "object[:key]",
+                        Object(Library.TYPES["String"]!!, "value"),
+                    ),
+                    Arguments.of("Invalid Arity", "list[]", null),
+                    Arguments.of("Undefined", "variable[:key]", null), //TODO: Depends on Strings not supporting indexing
                 )
             }
 
