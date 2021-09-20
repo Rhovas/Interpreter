@@ -161,6 +161,126 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class BinaryTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLogicalOr(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testLogicalOr(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", "false || true",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("False", "false || false",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Short Circuit", "true || invalid",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("Invalid Left", "0 || true", null),
+                    Arguments.of("Invalid Right", "false || 1", null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLogicalAnd(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testLogicalAnd(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", "true && true",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("False", "true && false",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Short Circuit", "false && invalid",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Invalid Left", "1 && false", null),
+                    Arguments.of("Invalid Right", "true && 0", null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testEquality(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testEquality(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", "1 == 1",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("False", "1 != 1",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Different Types", "1 == 1.0",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    //Arguments.of("Invalid Left") TODO: Requires non-equatable types
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIdentity(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testIdentity(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", "true === true",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("False", "[] !== []",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    //Arguments.of("Different Types") TODO: Requires types with identical values (void?)
+                    //TODO: Identity equality for implementation non-primitives (Integer/Decimal/String/Atom)
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testComparison(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testComparison(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Less Than", "0 < 1",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("Greater Than", "0 > 1",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Less Than Or Equal", "0 <= 1",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("Greater Than Or Equal", "0 >= 1",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Less Than Equal", "0 < 0",
+                        Object(Library.TYPES["Boolean"]!!, false),
+                    ),
+                    Arguments.of("Less Than Or Equal Equal", "0 <= 0",
+                        Object(Library.TYPES["Boolean"]!!, true),
+                    ),
+                    Arguments.of("Invalid Left", "false < 1", null),
+                    Arguments.of("Invalid Right", "0 < true", null),
+                )
+            }
+
+        }
+
     }
 
     fun test(rule: String, input: String, expected: Object?) {

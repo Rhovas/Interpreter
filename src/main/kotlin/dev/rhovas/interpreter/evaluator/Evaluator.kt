@@ -112,7 +112,72 @@ class Evaluator : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Binary): Object {
-        TODO()
+        val left = visit(ast.left)
+        return when (ast.operator) {
+            "||" -> {
+                if (left.type != Library.TYPES["Boolean"]!!) {
+                    throw EvaluateException("Binary || is not supported by type ${left.type.name}")
+                }
+                if (left.value as Boolean) {
+                    Object(Library.TYPES["Boolean"]!!, true)
+                } else {
+                    val right = visit(ast.right)
+                    if (right.type != Library.TYPES["Boolean"]!!) {
+                        throw EvaluateException("Binary || is not supported by type ${right.type.name}")
+                    }
+                    Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
+                }
+            }
+            "&&" -> {
+                if (left.type != Library.TYPES["Boolean"]!!) {
+                    throw EvaluateException("Binary && is not supported by type ${left.type.name}")
+                }
+                if (left.value as Boolean) {
+                    val right = visit(ast.right)
+                    if (right.type != Library.TYPES["Boolean"]!!) {
+                        throw EvaluateException("Binary && is not supported by type ${right.type.name}")
+                    }
+                    Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
+                } else {
+                    Object(Library.TYPES["Boolean"]!!, false)
+                }
+            }
+            "==", "!=" -> {
+                val method = left.methods["==", 1]
+                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val right = visit(ast.right)
+                val result = if (left.type == right.type) method.invoke(listOf(right)).value as Boolean else false
+                val value = if (ast.operator == "==") result else !result
+                Object(Library.TYPES["Boolean"]!!, value)
+            }
+            "===", "!==" -> {
+                val right = visit(ast.right)
+                //TODO: Implementation non-primitives (Integer/Decimal/String/Atom)
+                val result = if (left.type == right.type) left.value === right.value else false
+                val value = if (ast.operator == "===") result else !result
+                Object(Library.TYPES["Boolean"]!!, value)
+            }
+            "<", ">", "<=", ">=" -> {
+                val method = left.methods["<=>", 1]
+                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val right = visit(ast.right)
+                if (left.type != right.type) {
+                    throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name} with argument ${right.type.name}")
+                }
+                val result = method.invoke(listOf(right)).value as BigInteger
+                val value = when (ast.operator) {
+                    "<" -> result < BigInteger.ZERO
+                    ">" -> result > BigInteger.ZERO
+                    "<=" -> result <= BigInteger.ZERO
+                    ">=" -> result >= BigInteger.ZERO
+                    else -> throw AssertionError()
+                }
+                Object(Library.TYPES["Boolean"]!!, value)
+            }
+            else -> {
+                TODO()
+            }
+        }
     }
 
     override fun visit(ast: RhovasAst.Expression.Access): Object {

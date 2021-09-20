@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object BooleanInitializer : Library.TypeInitializer("Boolean") {
 
@@ -10,6 +11,12 @@ object BooleanInitializer : Library.TypeInitializer("Boolean") {
             Object(Library.TYPES["Boolean"]!!, (arguments[0].value as Boolean).not())
         })
         type.methods.define(type.methods["negate", 1]!!.copy(name = "!"))
+
+        type.methods.define(Function("equals", 2) { arguments ->
+            Object(Library.TYPES["Boolean"]!!, arguments[0].value == arguments[1].value)
+        })
+        type.methods.define(type.methods["equals", 2]!!.copy(name = "=="))
+
         type.methods.define(Function("toString", 1) { arguments ->
             Object(Library.TYPES["String"]!!, arguments[0].value.toString())
         })

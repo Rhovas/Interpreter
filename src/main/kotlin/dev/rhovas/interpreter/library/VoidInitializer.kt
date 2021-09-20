@@ -6,6 +6,11 @@ import dev.rhovas.interpreter.environment.Object
 object VoidInitializer : Library.TypeInitializer("Void") {
 
     override fun initialize() {
+        type.methods.define(Function("equals", 2) { arguments ->
+            Object(Library.TYPES["Boolean"]!!, true)
+        })
+        type.methods.define(type.methods["equals", 2]!!.copy(name = "=="))
+
         type.methods.define(Function("toString", 1) { arguments ->
             Object(Library.TYPES["String"]!!, "void")
         })
