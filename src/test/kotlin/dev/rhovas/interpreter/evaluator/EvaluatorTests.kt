@@ -26,6 +26,164 @@ class EvaluatorTests {
     }
 
     @Nested
+    inner class StatementTests {
+
+        @Nested
+        inner class BlockTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testBlock(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testBlock(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "{}", ""),
+                    Arguments.of("Single", "{ log(1); }", "1"),
+                    Arguments.of("Multiple", "{ log(1); log(2); log(3); }", "123"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ExpressionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testExpression(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testExpression(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Function", "log(1);", "1"),
+                    Arguments.of("Invalid", "1;", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class DeclarationTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testDeclaration(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testDeclaration(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Val Declaration", "{ val name; }", null),
+                    Arguments.of("Var Declaration", "{ var name; log(name); }", "null"),
+                    Arguments.of("Val Initialization", "{ val name = 1; log(name); }", "1"),
+                    Arguments.of("Var Initialization", "{ var name = 1; log(name); }", "1"),
+                    Arguments.of("Redeclaration", "{ val name = 1; val name = 2; log(name); }", "2"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class AssignmentTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: String?) {
+                test(input, expected, Scope(null).also {
+                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "initial")))
+                })
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", "{ variable = \"final\"; log(variable); }", "final"),
+                    Arguments.of("Undefined", "{ undefined = \"final\"; }", null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testProperty(name: String, input: String, expected: String?) {
+                test(input, expected, Scope(null).also {
+                    val type = Type("TestObject", Scope(null).also {
+                        it.functions.define(Function("property", 1) { arguments ->
+                            (arguments[0].value as MutableMap<String, Object>)["property"]!!
+                        })
+                        it.functions.define(Function("property", 2) { arguments ->
+                            (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
+                            Object(Library.TYPES["Void"]!!, Unit)
+                        })
+                    })
+                    it.variables.define(Variable("object", Object(type, mutableMapOf(
+                        Pair("property",  Object(Library.TYPES["String"]!!, "initial")),
+                    ))))
+                })
+            }
+
+            fun testProperty(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Property", "{ object.property = \"final\"; log(object.property); }", "final"),
+                    Arguments.of("Undefined", "{ object.undefined = \"final\"; }", null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIndex(name: String, input: String, expected: String?) {
+                test(input, expected, Scope(null).also {
+                    val type = Type("TestObject", Scope(null).also {
+                        it.functions.define(Function("[]", 2) { arguments ->
+                            val map = arguments[0].value as MutableMap<String, Object>
+                            val key = arguments[1].value as RhovasAst.Atom
+                            map[key.name] ?: Object(Library.TYPES["Null"]!!, null)
+                        })
+                        it.functions.define(Function("[]=", 3) { arguments ->
+                            val map = arguments[0].value as MutableMap<String, Object>
+                            val key = arguments[1].value as RhovasAst.Atom
+                            map[key.name] = arguments[2]
+                            Object(Library.TYPES["Void"]!!, Unit)
+                        })
+                    })
+                    it.variables.define(Variable("object", Object(type, mutableMapOf(
+                        Pair("key",  Object(Library.TYPES["String"]!!, "initial")),
+                    ))))
+                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "initial")))
+                })
+            }
+
+            fun testIndex(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Property", "{ object[:key] = \"final\"; log(object[:key]); }", "final"),
+                    Arguments.of("Invalid Arity", "{ object[] = \"final\"; }", null),
+                    Arguments.of("Undefined", "{ variable[:key] = \"final\"; }", null), //TODO: Depends on Strings not supporting indexing
+                )
+            }
+
+        }
+
+        //TODO: Scope tests
+
+        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+            val log = StringBuilder()
+            scope.functions.define(Function("log", 1) { arguments ->
+                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                arguments[0]
+            })
+            val ast = RhovasParser(input).parse("statement")
+            if (expected != null) {
+                Evaluator(scope).visit(ast)
+                Assertions.assertEquals(expected, log.toString())
+            } else {
+                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+            }
+        }
+
+    }
+
+    @Nested
     inner class ExpressionTests {
 
         @Nested
@@ -34,7 +192,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testScalar(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testScalar(): Stream<Arguments> {
@@ -63,7 +221,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testList(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testList(): Stream<Arguments> {
@@ -89,7 +247,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testObject(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testObject(): Stream<Arguments> {
@@ -121,7 +279,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testGroup(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testGroup(): Stream<Arguments> {
@@ -146,7 +304,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testUnary(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testUnary(): Stream<Arguments> {
@@ -169,7 +327,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testLogicalOr(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testLogicalOr(): Stream<Arguments> {
@@ -191,7 +349,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testLogicalAnd(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testLogicalAnd(): Stream<Arguments> {
@@ -213,7 +371,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testEquality(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testEquality(): Stream<Arguments> {
@@ -234,7 +392,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIdentity(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testIdentity(): Stream<Arguments> {
@@ -253,7 +411,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testComparison(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testComparison(): Stream<Arguments> {
@@ -284,7 +442,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testArithmetic(name: String, input: String, expected: Object?) {
-                test("expression", input, expected)
+                test(input, expected)
             }
 
             fun testArithmetic(): Stream<Arguments> {
@@ -322,7 +480,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVariable(name: String, input: String, expected: Object?) {
-                test("expression", input, expected, Scope(null).also {
+                test(input, expected, Scope(null).also {
                     it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "variable")))
                 })
             }
@@ -339,7 +497,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: Object?) {
-                test("expression", input, expected, Scope(null).also {
+                test(input, expected, Scope(null).also {
                     val type = Type("TestObject", Scope(null).also {
                         it.functions.define(Function("property", 1) { arguments ->
                             (arguments[0].value as Map<String, Object>)["property"]!!
@@ -368,7 +526,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: Object?) {
-                test("expression", input, expected, Scope(null).also {
+                test(input, expected, Scope(null).also {
                     it.functions.define(Function("function", 1) { arguments ->
                         arguments[0]
                     })
@@ -388,7 +546,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testMethod(name: String, input: String, expected: Object?) {
-                test("expression", input, expected, Scope(null).also {
+                test(input, expected, Scope(null).also {
                     val type = Type("TestObject", Scope(null).also {
                         it.functions.define(Function("method", 2) { arguments ->
                             arguments[1]
@@ -412,15 +570,15 @@ class EvaluatorTests {
 
         }
 
-    }
-
-    fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(null)) {
-        val ast = RhovasParser(input).parse(rule)
-        if (expected != null) {
-            Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
-        } else {
-            Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+        private fun test(input: String, expected: Object?, scope: Scope = Scope(null)) {
+            val ast = RhovasParser(input).parse("expression")
+            if (expected != null) {
+                Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
+            } else {
+                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+            }
         }
+
     }
 
 }

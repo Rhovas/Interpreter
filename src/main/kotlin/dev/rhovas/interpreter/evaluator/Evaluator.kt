@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.evaluator
 
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
@@ -10,19 +11,57 @@ import java.math.BigInteger
 class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Statement.Block): Object {
-        TODO()
+        scoped(Scope(scope)) {
+            ast.statements.forEach { visit(it) }
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Expression): Object {
-        TODO()
+        if (ast.expression is RhovasAst.Expression.Function) {
+            visit(ast.expression)
+        } else {
+            throw EvaluateException("Expression statement is not supported by expression of type ${ast.javaClass.simpleName}.")
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Declaration): Object {
-        TODO()
+        //TODO: Immutable variables
+        if (!ast.mutable && ast.value == null) {
+            //TODO: Semantic analysis validation
+            throw EvaluateException("Immutable variable requires a value.")
+        }
+        //TODO: Redeclaration/shadowing
+        scope.variables.define(Variable(ast.name, ast.value?.let { visit(it) }
+            ?: Object(Library.TYPES["Null"]!!, null)))
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Assignment): Object {
-        TODO()
+        if (ast.receiver is RhovasAst.Expression.Access) {
+            if (ast.receiver.receiver != null) {
+                val receiver = visit(ast.receiver.receiver)
+                val property = receiver.properties[ast.receiver.name]
+                    ?: throw EvaluateException("Property ${ast.receiver.name} is not supported by type ${receiver.type.name}.")
+                //TODO: Immutable properties
+                property.set(visit(ast.value))
+            } else {
+                val variable = scope.variables[ast.receiver.name]
+                    ?: throw EvaluateException("Variable ${ast.receiver.name} is not defined.")
+                //TODO: Immutable variables
+                variable.set(visit(ast.value))
+            }
+        } else if (ast.receiver is RhovasAst.Expression.Index) {
+            val receiver = visit(ast.receiver.receiver)
+            val method = receiver.methods["[]=", ast.receiver.arguments.size + 1]
+                ?: throw EvaluateException("Method []=/${ast.receiver.arguments.size + 1} is not supported by type ${receiver.type.name}.")
+            method.invoke(ast.receiver.arguments.map { visit(it) } + listOf(visit(ast.value)))
+        } else {
+            //TODO: Semantic analysis validation
+            throw EvaluateException("Assignment is not supported by expression of type ${ast.receiver.javaClass.simpleName}.")
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.If): Object {
@@ -228,6 +267,16 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Expression.Dsl): Object {
         TODO()
+    }
+
+    private fun <T> scoped(scope: Scope, block: () -> T): T {
+        val original = this.scope
+        this.scope = scope
+        try {
+            return block()
+        } finally {
+            this.scope = original
+        }
     }
 
 }
