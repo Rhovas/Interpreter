@@ -11,8 +11,8 @@ data class Object(
     inner class PropertiesDelegate {
 
         operator fun get(name: String): Property? {
-            return type.methods[name, 0]?.let { getter ->
-                Property(name, this@Object, getter, type.methods[name, 1])
+            return type.methods[name, 1]?.let { getter ->
+                Property(name, this@Object, getter, type.methods[name, 2])
             }
         }
 

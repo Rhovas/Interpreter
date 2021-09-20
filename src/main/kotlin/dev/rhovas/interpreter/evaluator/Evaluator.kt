@@ -1,12 +1,13 @@
 package dev.rhovas.interpreter.evaluator
 
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class Evaluator : RhovasAst.Visitor<Object> {
+class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Statement.Block): Object {
         TODO()
@@ -185,7 +186,16 @@ class Evaluator : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Access): Object {
-        TODO()
+        return if (ast.receiver != null) {
+            val receiver = visit(ast.receiver)
+            val property = receiver.properties[ast.name]
+                ?: throw EvaluateException("Property ${ast.name} is not supported by type ${receiver.type.name}.")
+            property.get()
+        } else {
+            val variable = scope.variables[ast.name]
+                ?: throw EvaluateException("Variable ${ast.name} is not defined.")
+            variable.get()
+        }
     }
 
     override fun visit(ast: RhovasAst.Expression.Index): Object {
@@ -193,7 +203,16 @@ class Evaluator : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Function): Object {
-        TODO()
+        return if (ast.receiver != null) {
+            val receiver = visit(ast.receiver)
+            val method = receiver.methods[ast.name, ast.arguments.size]
+                ?: throw EvaluateException("Method ${ast.name}/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
+            method.invoke(ast.arguments.map { visit(it) })
+        } else {
+            val function = scope.functions[ast.name, ast.arguments.size]
+                ?: throw EvaluateException("Function ${ast.name}/${ast.arguments.size} is not defined.")
+            function.invoke(ast.arguments.map { visit(it) })
+        }
     }
 
     override fun visit(ast: RhovasAst.Expression.Lambda): Object {

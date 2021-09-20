@@ -1,6 +1,10 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
@@ -13,7 +17,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.stream.Stream
-import kotlin.math.exp
 
 class EvaluatorTests {
 
@@ -313,14 +316,110 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class AccessTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: Object?) {
+                test("expression", input, expected, Scope(null).also {
+                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "variable")))
+                })
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", "variable",
+                        Object(Library.TYPES["String"]!!, "variable")
+                    ),
+                    Arguments.of("Undefined", "undefined", null)
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testProperty(name: String, input: String, expected: Object?) {
+                test("expression", input, expected, Scope(null).also {
+                    val type = Type("TestObject", Scope(null).also {
+                        it.functions.define(Function("property", 1) { arguments ->
+                            (arguments[0].value as Map<String, Object>)["property"]!!
+                        })
+                    })
+                    it.variables.define(Variable("object", Object(type, mapOf(
+                        Pair("property",  Object(Library.TYPES["String"]!!, "property")),
+                    ))))
+                })
+            }
+
+            fun testProperty(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Property", "object.property",
+                        Object(Library.TYPES["String"]!!, "property")
+                    ),
+                    Arguments.of("Undefined", "object.undefined", null)
+                )
+            }
+
+        }
+
+        @Nested
+        inner class FunctionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFunction(name: String, input: String, expected: Object?) {
+                test("expression", input, expected, Scope(null).also {
+                    it.functions.define(Function("function", 1) { arguments ->
+                        arguments[0]
+                    })
+                })
+            }
+
+            fun testFunction(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Function", "function(\"argument\")",
+                        Object(Library.TYPES["String"]!!, "argument")
+                    ),
+                    Arguments.of("Invalid Arity", "function()", null),
+                    Arguments.of("Undefined", "undefined", null)
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testMethod(name: String, input: String, expected: Object?) {
+                test("expression", input, expected, Scope(null).also {
+                    val type = Type("TestObject", Scope(null).also {
+                        it.functions.define(Function("method", 2) { arguments ->
+                            arguments[1]
+                        })
+                    })
+                    it.variables.define(Variable("object", Object(type, mapOf(
+                        Pair("property",  Object(Library.TYPES["String"]!!, "property")),
+                    ))))
+                })
+            }
+
+            fun testMethod(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Method", "object.method(\"argument\")",
+                        Object(Library.TYPES["String"]!!, "argument")
+                    ),
+                    Arguments.of("Invalid Arity", "object.method()", null),
+                    Arguments.of("Undefined", "object.undefined()", null)
+                )
+            }
+
+        }
+
     }
 
-    fun test(rule: String, input: String, expected: Object?) {
+    fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(null)) {
         val ast = RhovasParser(input).parse(rule)
         if (expected != null) {
-            Assertions.assertEquals(expected, Evaluator().visit(ast))
+            Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
         } else {
-            Assertions.assertThrows(EvaluateException::class.java) { Evaluator().visit(ast) }
+            Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
         }
     }
 
