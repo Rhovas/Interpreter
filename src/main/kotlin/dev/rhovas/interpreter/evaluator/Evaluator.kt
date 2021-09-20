@@ -174,9 +174,13 @@ class Evaluator : RhovasAst.Visitor<Object> {
                 }
                 Object(Library.TYPES["Boolean"]!!, value)
             }
-            else -> {
-                TODO()
+            "+", "-", "*", "/" -> {
+                val method = left.methods[ast.operator, 1]
+                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val right = visit(ast.right)
+                method.invoke(listOf(right))
             }
+            else -> throw AssertionError()
         }
     }
 

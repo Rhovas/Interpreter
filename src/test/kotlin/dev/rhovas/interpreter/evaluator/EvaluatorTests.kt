@@ -129,10 +129,9 @@ class EvaluatorTests {
                     Arguments.of("Nested", "(((\"expression\")))",
                         Object(Library.TYPES["String"]!!, "expression"),
                     ),
-                    //TODO: Binary expression evaluation
-                    /*Arguments.of("Binary", "(\"first\" + \"second\")",
+                    Arguments.of("Binary", "(\"first\" + \"second\")",
                         Object(Library.TYPES["String"]!!, "firstsecond"),
-                    ),*/
+                    ),
                 )
             }
 
@@ -276,6 +275,39 @@ class EvaluatorTests {
                     ),
                     Arguments.of("Invalid Left", "false < 1", null),
                     Arguments.of("Invalid Right", "0 < true", null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testArithmetic(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testArithmetic(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Integer Add", "1 + 2",
+                        Object(Library.TYPES["Integer"]!!, BigInteger("3")),
+                    ),
+                    Arguments.of("Integer Subtract", "1 - 2",
+                        Object(Library.TYPES["Integer"]!!, BigInteger("-1")),
+                    ),
+                    Arguments.of("Decimal Multiply", "1.2 * 2.3",
+                        Object(Library.TYPES["Decimal"]!!, BigDecimal("2.76")),
+                    ),
+                    Arguments.of("Decimal Divide", "1.2 / 2.3",
+                        Object(Library.TYPES["Decimal"]!!, BigDecimal("0.5")),
+                    ),
+                    Arguments.of("String Concat", "\"first\" + \"second\"",
+                        Object(Library.TYPES["String"]!!, "firstsecond"),
+                    ),
+                    Arguments.of("List Concat", "[1] + [2]",
+                        Object(Library.TYPES["List"]!!, listOf(
+                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                            Object(Library.TYPES["Integer"]!!, BigInteger("2")),
+                        )),
+                    ),
+                    Arguments.of("Invalid Left", "true + false", null),
                 )
             }
 
