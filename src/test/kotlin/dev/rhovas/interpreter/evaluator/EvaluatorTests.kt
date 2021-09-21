@@ -155,6 +155,119 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class IfTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIf(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testIf(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", "if (true) { log(1); }", "1"),
+                    Arguments.of("False", "if (false) { log(1); }", ""),
+                    Arguments.of("Else", "if (false) { log(1); } else { log(2); }", "2"),
+                    Arguments.of("Invalid Condition", "if (1) { log(1); }", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class MatchTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testConditional(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testConditional(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("First", """
+                        match {
+                            true: log(1);
+                            false: log(2);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Last", """
+                        match {
+                            false: log(1);
+                            true: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    Arguments.of("None", """
+                        match {
+                            false: log(1);
+                            false: log(2);
+                        }
+                    """.trimIndent(), ""),
+                    Arguments.of("Else", """
+                        match {
+                            else: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Else Condition True", """
+                        match {
+                            else true: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Else Condition False", """
+                        match {
+                            else false: log(1);
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testStructural(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testStructural(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("First", """
+                        match (true) {
+                            true: log(1);
+                            false: log(2);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Last", """
+                        match (false) {
+                            true: log(1);
+                            false: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    Arguments.of("None", """
+                        match (true) {
+                            false: log(1);
+                            false: log(2);
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Else", """
+                        match (true) {
+                            else: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Else Condition True", """
+                        match (true) {
+                            else true: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Else Condition False", """
+                        match (true) {
+                            else false: log(1);
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
         //TODO: Scope tests
 
         private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {

@@ -7,6 +7,7 @@ import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.util.function.Predicate
 
 class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
@@ -65,11 +66,48 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.If): Object {
-        TODO()
+        val condition = visit(ast.condition)
+        if (condition.type != Library.TYPES["Boolean"]!!) {
+            throw EvaluateException("If condition is not supported by type ${condition.type}.")
+        }
+        if (condition.value as Boolean) {
+            visit(ast.thenStatement)
+        } else if (ast.elseStatement != null) {
+            visit(ast.elseStatement)
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Match): Object {
-        TODO()
+        val predicate = if (ast.argument != null) {
+            val argument = visit(ast.argument)
+            val method = argument.methods["==", 1]
+                ?: throw EvaluateException("Match argument is not supported by type ${argument.type.name}.")
+            Predicate { value: Object ->
+                if (value.type != argument.type) {
+                    throw EvaluateException("Match case value is not supported by type ${value.type.name} with argument ${argument.type.name}.")
+                }
+                method.invoke(listOf(value)).value as Boolean
+            }
+        } else {
+            Predicate { condition: Object ->
+                if (condition.type != Library.TYPES["Boolean"]!!) {
+                    throw EvaluateException("Match case condition is not supported by type ${condition.type.name}.")
+                }
+                condition.value as Boolean
+            }
+        }
+        val case = ast.cases.firstOrNull { predicate.test(visit(it.first)) }
+            ?: ast.elseCase?.also {
+                if (it.first?.let { predicate.test(visit(it)) } == false) {
+                    throw EvaluateException("Match else condition returned false.")
+                }
+            }
+            ?: if (ast.argument != null) {
+                throw EvaluateException("Structural match requires exhaustive cases.")
+            } else null
+        case?.let { visit(it.second) }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
