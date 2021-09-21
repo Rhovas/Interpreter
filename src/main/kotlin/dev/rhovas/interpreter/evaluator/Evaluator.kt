@@ -11,6 +11,8 @@ import java.util.function.Predicate
 
 class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
+    private var label: String? = null
+
     override fun visit(ast: RhovasAst.Statement.Block): Object {
         scoped(Scope(scope)) {
             ast.statements.forEach { visit(it) }
@@ -111,11 +113,63 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
-        TODO()
+        val iterable = visit(ast.iterable)
+        //TODO: Iterable type
+        if (iterable.type != Library.TYPES["List"]!!) {
+            throw EvaluateException("For iterable is not supported by type ${iterable.type}.")
+        }
+        val label = this.label
+        this.label = null
+        for (element in iterable.value as List<Object>) {
+            try {
+                scoped(Scope(scope)) {
+                    scope.variables.define(Variable(ast.name, element))
+                    visit(ast.body)
+                }
+            } catch (e: Break) {
+                if (e.label != null && e.label != label) {
+                    throw e
+                }
+                break
+            } catch (e: Continue) {
+                if (e.label != null && e.label != label) {
+                    throw e
+                }
+                continue
+            }
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.While): Object {
-        TODO()
+        val label = this.label
+        this.label = null
+        while (true) {
+            val condition = visit(ast.condition)
+            if (condition.type != Library.TYPES["Boolean"]!!) {
+                throw EvaluateException("If condition is not supported by type ${condition.type}.")
+            }
+            if (condition.value as Boolean) {
+                try {
+                    scoped(Scope(scope)) {
+                        visit(ast.body)
+                    }
+                } catch (e: Break) {
+                    if (e.label != null && e.label != label) {
+                        throw e
+                    }
+                    break
+                } catch (e: Continue) {
+                    if (e.label != null && e.label != label) {
+                        throw e
+                    }
+                    continue
+                }
+            } else {
+                break
+            }
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Try): Object {
@@ -127,15 +181,25 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Label): Object {
-        TODO()
+        if (ast.statement !is RhovasAst.Statement.For && ast.statement !is RhovasAst.Statement.While) {
+            throw EvaluateException("Label is not supported for statement of type ${ast.statement.javaClass.simpleName}.")
+        }
+        val original = label
+        label = ast.label
+        try {
+            visit(ast.statement)
+        } finally {
+            label = original
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Break): Object {
-        TODO()
+        throw Break(ast.label)
     }
 
     override fun visit(ast: RhovasAst.Statement.Continue): Object {
-        TODO()
+        throw Continue(ast.label)
     }
 
     override fun visit(ast: RhovasAst.Statement.Return): Object {
@@ -316,5 +380,9 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             this.scope = original
         }
     }
+
+    data class Break(var label: String?): Exception()
+
+    data class Continue(var label: String?): Exception()
 
 }

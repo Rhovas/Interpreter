@@ -268,6 +268,159 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class ForTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFor(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testFor(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", """
+                        for (val element in []) {
+                            log(1);
+                        }
+                    """.trimIndent(), ""),
+                    Arguments.of("Single", """
+                        for (val element in [1]) {
+                            log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple", """
+                        for (val element in [1, 2, 3]) {
+                            log(1);
+                        }
+                    """.trimIndent(), "111"),
+                    Arguments.of("Element", """
+                        for (val element in [1, 2, 3]) {
+                            log(element);
+                        }
+                    """.trimIndent(), "123"),
+                    Arguments.of("Break", """
+                        for (val element in [1, 2, 3]) {
+                            log(1);
+                            break;
+                            log(2);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Break Label", """
+                        outer: for (val first in [1, 2, 3]) {
+                            log(1);
+                            for (val second in [4, 5, 6]) {
+                                log(2);
+                                break outer;
+                                log(3);
+                            }
+                            log(4);
+                        }
+                    """.trimIndent(), "12"),
+                    Arguments.of("Continue", """
+                        for (val element in [1, 2, 3]) {
+                            log(1);
+                            continue;
+                            log(2);
+                        }
+                    """.trimIndent(), "111"),
+                    Arguments.of("Continue Label", """
+                        outer: for (val first in [1, 2, 3]) {
+                            log(1);
+                            for (val second in [4, 5, 6]) {
+                                log(2);
+                                continue outer;
+                                log(3);
+                            }
+                            log(4);
+                        }
+                    """.trimIndent(), "121212"),
+                    Arguments.of("Invalid Iterable", """
+                        for (val element in 1) {}
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class WhileTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testWhile(name: String, input: String, expected: String?) {
+                test(input, expected, Scope(null).also {
+                    it.variables.define(Variable("number", Object(Library.TYPES["Integer"]!!, BigInteger.ZERO)))
+                })
+            }
+
+            fun testWhile(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Zero Iterations", """
+                        while (number < 0) {
+                            log(1);
+                        }
+                    """.trimIndent(), ""),
+                    Arguments.of("Single Iteration", """
+                        while (number < 1) {
+                            log(1);
+                            number = number + 1;
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple Iterations", """
+                        while (number < 5) {
+                            log(1);
+                            number = number + 1;
+                        }
+                    """.trimIndent(), "11111"),
+                    Arguments.of("Break", """
+                        while (number < 5) {
+                            log(1);
+                            number = number + 1;
+                            break;
+                            log(2);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Break Label", """
+                        outer: while (number < 5) {
+                            log(1);
+                            number = number + 1;
+                            while (number < 5) {
+                                log(2);
+                                break outer;
+                                log(3);
+                            }
+                            log(4);
+                        }
+                    """.trimIndent(), "12"),
+                    Arguments.of("Continue", """
+                        while (number < 5) {
+                            log(1);
+                            number = number + 1;
+                            continue;
+                            log(2);
+                        }
+                    """.trimIndent(), "11111"),
+                    Arguments.of("Continue Label", """
+                        outer: while (number < 5) {
+                            log(1);
+                            number = number + 1;
+                            while (number < 5) {
+                                log(2);
+                                continue outer;
+                                log(3);
+                            }
+                            log(4);
+                        }
+                    """.trimIndent(), "1212121214"),
+                    Arguments.of("Invalid Condition", """
+                        while (1) {}
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
         //TODO: Scope tests
 
         private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
