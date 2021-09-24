@@ -18,6 +18,7 @@ object Library {
             AtomInitializer,
             ListInitializer,
             ObjectInitializer,
+            LambdaInitializer,
             ExceptionInitializer,
         )
         initializers.forEach { TYPES[it.name] = it.type }

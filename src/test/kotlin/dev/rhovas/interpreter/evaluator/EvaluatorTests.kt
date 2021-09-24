@@ -908,6 +908,38 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class LambdaTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLambda(name: String, input: String, expected: String?) {
+                val log = StringBuilder()
+                val scope = Scope(null)
+                scope.functions.define(Function("log", 1) { arguments ->
+                    log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                    arguments[0]
+                })
+                val ast = RhovasParser(input).parse("expression")
+                if (expected != null) {
+                    Evaluator(scope).visit(ast)
+                    Assertions.assertEquals(expected, log.toString())
+                } else {
+                    Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                }
+            }
+
+            fun testLambda(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Lambda", """
+                        [1, 2, 3].for { log(val); }
+                    """.trimIndent(), "123"),
+                    //TODO: Lambda scoping
+                )
+            }
+
+        }
+
         private fun test(input: String, expected: Object?, scope: Scope = Scope(null)) {
             val ast = RhovasParser(input).parse("expression")
             if (expected != null) {

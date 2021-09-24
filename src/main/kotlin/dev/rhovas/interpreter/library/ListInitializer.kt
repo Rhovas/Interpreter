@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
+import dev.rhovas.interpreter.evaluator.Evaluator
 import java.math.BigInteger
 
 object ListInitializer : Library.TypeInitializer("List") {
@@ -42,6 +43,18 @@ object ListInitializer : Library.TypeInitializer("List") {
             Object(Library.TYPES["List"]!!, arguments[0].value as List<Object> + arguments[1].value as List<Object>)
         })
         type.methods.define(type.methods["concat", 2]!!.copy(name = "+"))
+
+        type.methods.define(Function("for", 2) { arguments ->
+            if (arguments[1].type != Library.TYPES["Lambda"]) {
+                throw EvaluateException("List#map is not supported with argument ${arguments[1].type.name}.")
+            }
+            val lambda = arguments[1].value as Evaluator.Lambda
+            if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
+                throw EvaluateException("")
+            }
+            (arguments[0].value as List<Object>).forEach { lambda.invoke(mapOf(Pair("val", it))) }
+            Object(Library.TYPES["Void"]!!, Unit)
+        })
 
         type.methods.define(Function("equals", 2) { arguments ->
             val self = arguments[0].value as List<Object>

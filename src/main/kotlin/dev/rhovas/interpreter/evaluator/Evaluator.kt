@@ -374,7 +374,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Lambda): Object {
-        TODO()
+        //TODO: Limit access to variables defined in the scope after this lambda at runtime?
+        return Object(Library.TYPES["Lambda"]!!, Lambda(ast, scope, this))
     }
 
     override fun visit(ast: RhovasAst.Expression.Macro): Object {
@@ -400,5 +401,28 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     data class Continue(val label: String?): Exception()
 
     data class Throw(val exception: Object): Exception()
+
+    data class Lambda(
+        val ast: RhovasAst.Expression.Lambda,
+        val scope: Scope,
+        val evaluator: Evaluator,
+    ) {
+
+        fun invoke(arguments: Map<String, Object>) {
+            evaluator.scoped(Scope(scope)) {
+                if (ast.parameters.isNotEmpty()) {
+                    ast.parameters.zip(arguments.values)
+                        .forEach { evaluator.scope.variables.define(Variable(it.first, it.second)) }
+                } else if (arguments.size == 1) {
+                    //TODO: entry name is (intentionally) unused
+                    evaluator.scope.variables.define(Variable("val", arguments.values.first()))
+                } else {
+                    evaluator.scope.variables.define(Variable("val", Object(Library.TYPES["Object"]!!, arguments.toMutableMap())))
+                }
+                evaluator.visit(ast.body)
+            }
+        }
+
+    }
 
 }
