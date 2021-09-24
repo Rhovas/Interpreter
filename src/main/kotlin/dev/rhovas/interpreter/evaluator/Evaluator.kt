@@ -173,7 +173,21 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Try): Object {
-        TODO()
+        try {
+            visit(ast.body)
+        } catch (e: Throw) {
+            //TODO: Catch exception types
+            ast.catches.firstOrNull()?.let {
+                scoped(Scope(scope)) {
+                    scope.variables.define(Variable(it.name, e.exception))
+                    visit(it.body)
+                }
+            }
+        } finally {
+            //TODO: Ensure finally doesn't run for internal exceptions
+            ast.finallyStatement?.let { visit(it) }
+        }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.With): Object {
@@ -207,7 +221,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Throw): Object {
-        TODO()
+        throw Throw(visit(ast.exception))
     }
 
     override fun visit(ast: RhovasAst.Statement.Assert): Object {
@@ -381,8 +395,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
     }
 
-    data class Break(var label: String?): Exception()
+    data class Break(val label: String?): Exception()
 
-    data class Continue(var label: String?): Exception()
+    data class Continue(val label: String?): Exception()
+
+    data class Throw(val exception: Object): Exception()
 
 }

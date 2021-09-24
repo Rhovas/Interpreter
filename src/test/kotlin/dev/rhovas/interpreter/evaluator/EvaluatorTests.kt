@@ -421,6 +421,55 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class TryTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testTry(name: String, input: String, expected: String?) {
+                test(input, expected, Scope(null).also {
+                    it.functions.define(Function("Exception", 1) { arguments ->
+                        Object(Library.TYPES["Exception"]!!, arguments[0].value as String)
+                    })
+                })
+            }
+
+            fun testTry(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Try", """
+                        try {
+                            log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Catch Thrown", """
+                        try {
+                            log(1);
+                            throw Exception("message");
+                            log(2);
+                        } catch (val e) {
+                            log(3);
+                        }
+                    """.trimIndent(), "13"),
+                    Arguments.of("Catch Unthrown", """
+                        try {
+                            log(1);
+                        } catch (val e) {
+                            log(2);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Finally", """
+                        try {
+                            log(1);
+                        } finally {
+                            log(2);
+                        }
+                    """.trimIndent(), "12"),
+                    //TODO: Tests with other control flow modifications
+                )
+            }
+
+        }
+
         //TODO: Scope tests
 
         private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {

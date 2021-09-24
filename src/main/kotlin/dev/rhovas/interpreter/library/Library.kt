@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
@@ -19,6 +18,7 @@ object Library {
             AtomInitializer,
             ListInitializer,
             ObjectInitializer,
+            ExceptionInitializer,
         )
         initializers.forEach { TYPES[it.name] = it.type }
         initializers.forEach { it.initialize() }
