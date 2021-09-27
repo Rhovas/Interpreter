@@ -934,6 +934,9 @@ class EvaluatorTests {
                     Arguments.of("Lambda", """
                         [1, 2, 3].for { log(val); }
                     """.trimIndent(), "123"),
+                    Arguments.of("Return", """
+                        log([1, 2, 3].map { return val * val; })
+                    """.trimIndent(), "[1, 4, 9]")
                     //TODO: Lambda scoping
                 )
             }

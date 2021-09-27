@@ -47,7 +47,7 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
         type.methods.define(Function("toString", 1) { arguments ->
             Object(Library.TYPES["String"]!!, (arguments[0].value as Map<String, Object>).mapValues {
                 it.value.methods["toString", 0]!!.invoke(listOf()).value.toString()
-            })
+            }.toString())
         })
     }
 

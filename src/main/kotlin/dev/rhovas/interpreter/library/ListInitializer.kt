@@ -46,14 +46,26 @@ object ListInitializer : Library.TypeInitializer("List") {
 
         type.methods.define(Function("for", 2) { arguments ->
             if (arguments[1].type != Library.TYPES["Lambda"]) {
+                throw EvaluateException("List#for is not supported with argument ${arguments[1].type.name}.")
+            }
+            val lambda = arguments[1].value as Evaluator.Lambda
+            if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
+                throw EvaluateException("List#for requires a lambda with one parameter.")
+            }
+            (arguments[0].value as List<Object>).forEach { lambda.invoke(mapOf(Pair("val", it))) }
+            Object(Library.TYPES["Void"]!!, Unit)
+        })
+
+        type.methods.define(Function("map", 2) { arguments ->
+            if (arguments[1].type != Library.TYPES["Lambda"]) {
                 throw EvaluateException("List#map is not supported with argument ${arguments[1].type.name}.")
             }
             val lambda = arguments[1].value as Evaluator.Lambda
             if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
-                throw EvaluateException("")
+                throw EvaluateException("List#map requires a lambda with one parameter.")
             }
-            (arguments[0].value as List<Object>).forEach { lambda.invoke(mapOf(Pair("val", it))) }
-            Object(Library.TYPES["Void"]!!, Unit)
+            Object(Library.TYPES["List"]!!, (arguments[0].value as List<Object>).map { lambda.invoke(mapOf(Pair("val", it))) })
+                .also { println(it) }
         })
 
         type.methods.define(Function("equals", 2) { arguments ->
@@ -74,7 +86,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         type.methods.define(Function("toString", 1) { arguments ->
             Object(Library.TYPES["String"]!!, (arguments[0].value as List<Object>).map {
                 it.methods["toString", 0]!!.invoke(listOf()).value.toString()
-            })
+            }.toString())
         })
     }
 
