@@ -24,6 +24,7 @@ object Library {
         )
         initializers.forEach { TYPES[it.name] = it.type }
         initializers.forEach { it.initialize() }
+        KernelInitializer.initialize(SCOPE)
     }
 
     abstract class TypeInitializer(
