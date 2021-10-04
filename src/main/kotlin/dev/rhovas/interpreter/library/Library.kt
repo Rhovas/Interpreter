@@ -6,6 +6,7 @@ import dev.rhovas.interpreter.environment.Type
 object Library {
 
     val TYPES = mutableMapOf<String, Type>()
+    val SCOPE = Scope(null)
 
     fun initialize() {
         val initializers = listOf(
