@@ -6,10 +6,11 @@ import dev.rhovas.interpreter.environment.Type
 object Library {
 
     val TYPES = mutableMapOf<String, Type>()
-    val SCOPE = Scope(null)
+    val SCOPE: Scope = Scope(null)
 
     fun initialize() {
         val initializers = listOf(
+            KernelInitializer,
             VoidInitializer,
             NullInitializer,
             BooleanInitializer,
@@ -24,16 +25,18 @@ object Library {
         )
         initializers.forEach { TYPES[it.name] = it.type }
         initializers.forEach { it.initialize() }
-        KernelInitializer.initialize(SCOPE)
     }
 
     abstract class TypeInitializer(
         val name: String,
+        scope: Scope = Scope(null),
     ) {
 
-        val type = Type(name, Scope(null))
+        val type = Type(name, scope)
 
-        abstract fun initialize()
+        open fun initialize() {
+            Reflect.initialize(this)
+        }
 
     }
 
