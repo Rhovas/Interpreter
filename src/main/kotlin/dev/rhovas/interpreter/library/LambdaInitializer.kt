@@ -1,13 +1,13 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
 
     override fun initialize() {
+        //TODO: Varargs (prefer List?)
         type.methods.define(Function("invoke", 0) { arguments ->
             val lambda = arguments[0].value as Evaluator.Lambda
             if (lambda.ast.parameters.size != arguments.size - 1) {
@@ -20,10 +20,11 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
         for (arity in 1..10) {
             type.methods.define(type.methods["invoke", 0]!!.copy(arity = arity))
         }
-        type.methods.define(Function("toString", 1) { arguments ->
-            val lambda = (arguments[0].value as Evaluator.Lambda)
-            Object(Library.TYPES["String"]!!, "Lambda/${lambda.ast.parameters.size}#${lambda.hashCode()}")
-        })
+    }
+
+    @Reflect.Method("toString", returns = "String")
+    fun toString(instance: Evaluator.Lambda): String {
+        return "Lambda/${instance.ast.parameters.size}#${instance.hashCode()}"
     }
 
 }

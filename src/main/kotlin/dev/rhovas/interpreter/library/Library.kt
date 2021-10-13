@@ -24,7 +24,10 @@ object Library {
             ExceptionInitializer,
         )
         initializers.forEach { TYPES[it.name] = it.type }
-        initializers.forEach { it.initialize() }
+        initializers.forEach {
+            Reflect.initialize(it)
+            it.initialize()
+        }
     }
 
     abstract class TypeInitializer(
@@ -34,9 +37,7 @@ object Library {
 
         val type = Type(name, scope)
 
-        open fun initialize() {
-            Reflect.initialize(this)
-        }
+        open fun initialize() {}
 
     }
 

@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
 import dev.rhovas.interpreter.evaluator.Evaluator
@@ -8,86 +7,55 @@ import java.math.BigInteger
 
 object ListInitializer : Library.TypeInitializer("List") {
 
-    override fun initialize() {
-        type.methods.define(Function("get", 2) { arguments ->
-            val list = arguments[0].value as MutableList<Object>
-            if (arguments[1].type != Library.TYPES["Integer"]!!) {
-                throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
-            }
-            val index = arguments[1].value as BigInteger
-            if (index < BigInteger.ZERO || index >= BigInteger.valueOf(list.size.toLong())) {
-                throw EvaluateException("Index $index out of bounds for list of size ${list.size}.")
-            }
-            list[index.toInt()]
-        })
-        type.methods.define(type.methods["get", 2]!!.copy(name = "[]"))
+    @Reflect.Method("get", operator = "[]", parameters = ["Integer"], returns = "")
+    fun get(instance: List<Object>, index: BigInteger): Object {
+        if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
+            throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
+        }
+        return instance[index.toInt()]
+    }
 
-        type.methods.define(Function("set", 3) { arguments ->
-            val list = arguments[0].value as MutableList<Object>
-            if (arguments[1].type != Library.TYPES["Integer"]!!) {
-                throw EvaluateException("List#get is not supported with argument ${arguments[1].type.name}.")
-            }
-            val index = arguments[1].value as BigInteger
-            if (index < BigInteger.ZERO || index >= BigInteger.valueOf(list.size.toLong())) {
-                throw EvaluateException("Index $index out of bounds for list of size ${list.size}.")
-            }
-            list[index.toInt()] = arguments[2]
-            Object(Library.TYPES["Void"]!!, Unit)
-        })
-        type.methods.define(type.methods["set", 3]!!.copy(name = "[]="))
+    @Reflect.Method("set", operator = "[]=", parameters = ["Integer", ""])
+    fun set(instance: MutableList<Object>, index: BigInteger, value: Object) {
+        if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
+            throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
+        }
+        instance[index.toInt()] = value
+    }
 
-        type.methods.define(Function("concat", 2) { arguments ->
-            if (arguments[1].type != type) {
-                throw EvaluateException("List#concat is not supported with argument ${arguments[1].type.name}.")
-            }
-            Object(Library.TYPES["List"]!!, arguments[0].value as List<Object> + arguments[1].value as List<Object>)
-        })
-        type.methods.define(type.methods["concat", 2]!!.copy(name = "+"))
+    @Reflect.Method("concat", operator = "+", parameters = ["List"], returns = "List")
+    fun concat(instance: List<Object>, other: List<Object>): List<Object> {
+        return instance + other
+    }
 
-        type.methods.define(Function("for", 2) { arguments ->
-            if (arguments[1].type != Library.TYPES["Lambda"]) {
-                throw EvaluateException("List#for is not supported with argument ${arguments[1].type.name}.")
-            }
-            val lambda = arguments[1].value as Evaluator.Lambda
-            if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
-                throw EvaluateException("List#for requires a lambda with one parameter.")
-            }
-            (arguments[0].value as List<Object>).forEach { lambda.invoke(mapOf(Pair("val", it))) }
-            Object(Library.TYPES["Void"]!!, Unit)
-        })
+    @Reflect.Method("for", parameters = ["Lambda"])
+    fun for_(instance: List<Object>, lambda: Evaluator.Lambda) {
+        if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
+            throw EvaluateException("List#for requires a lambda with one parameter.")
+        }
+        instance.forEach { lambda.invoke(mapOf(Pair("val", it))) }
+    }
 
-        type.methods.define(Function("map", 2) { arguments ->
-            if (arguments[1].type != Library.TYPES["Lambda"]) {
-                throw EvaluateException("List#map is not supported with argument ${arguments[1].type.name}.")
-            }
-            val lambda = arguments[1].value as Evaluator.Lambda
-            if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
-                throw EvaluateException("List#map requires a lambda with one parameter.")
-            }
-            Object(Library.TYPES["List"]!!, (arguments[0].value as List<Object>).map { lambda.invoke(mapOf(Pair("val", it))) })
-                .also { println(it) }
-        })
+    @Reflect.Method("map", parameters = ["Lambda"], returns = "List")
+    fun map(instance: List<Object>, lambda: Evaluator.Lambda): List<Object> {
+        if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
+            throw EvaluateException("List#map requires a lambda with one parameter.")
+        }
+        return instance.map { lambda.invoke(mapOf(Pair("val", it))) }
+    }
 
-        type.methods.define(Function("equals", 2) { arguments ->
-            val self = arguments[0].value as List<Object>
-            val other = arguments[0].value as List<Object>
-            if (self.size == other.size) {
-                Object(Library.TYPES["Boolean"]!!, self.zip(other).all {
-                    val method = it.first.methods["==", 1]
-                        ?: throw EvaluateException("Binary == is not supported by type ${it.first.type.name}.")
-                    if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
-                })
-            } else {
-                Object(Library.TYPES["Boolean"]!!, false)
-            }
-        })
-        type.methods.define(type.methods["equals", 2]!!.copy(name = "=="))
+    @Reflect.Method("equals", operator = "==", parameters = ["List"], returns = "Boolean")
+    fun equals(instance: List<Object>, other: List<Object>): Boolean {
+        return instance.size == other.size && instance.zip(other).all {
+            val method = it.first.methods["==", 1]
+                ?: throw EvaluateException("Binary == is not supported by type ${it.first.type.name}.")
+            if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
+        }
+    }
 
-        type.methods.define(Function("toString", 1) { arguments ->
-            Object(Library.TYPES["String"]!!, (arguments[0].value as List<Object>).map {
-                it.methods["toString", 0]!!.invoke(listOf()).value.toString()
-            }.toString())
-        })
+    @Reflect.Method("toString", returns = "String")
+    fun toString(instance: List<Object>): String {
+        return instance.map { it.methods["toString", 0]!!.invoke(listOf()).value as String }.toString()
     }
 
 }
