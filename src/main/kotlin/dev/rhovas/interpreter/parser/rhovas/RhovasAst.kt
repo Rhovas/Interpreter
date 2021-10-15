@@ -12,6 +12,12 @@ sealed class RhovasAst {
             val expression: RhovasAst.Expression,
         ) : Statement()
 
+        data class Function(
+            val name: String,
+            val parameters: List<String>, //TODO: Types
+            val body: Statement,
+        ) : Statement()
+
         data class Declaration(
             val mutable: Boolean,
             val name: String,
@@ -167,6 +173,7 @@ sealed class RhovasAst {
             return when (ast) {
                 is Statement.Block -> visit(ast)
                 is Statement.Expression -> visit(ast)
+                is Statement.Function -> visit(ast)
                 is Statement.Declaration -> visit(ast)
                 is Statement.Assignment -> visit(ast)
                 is Statement.If -> visit(ast)
@@ -199,6 +206,7 @@ sealed class RhovasAst {
 
         fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Expression): T
+        fun visit(ast: Statement.Function): T
         fun visit(ast: Statement.Declaration): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T

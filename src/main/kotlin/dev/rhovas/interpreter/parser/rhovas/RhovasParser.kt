@@ -17,6 +17,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
     private fun parseStatement(): RhovasAst.Statement {
         return when {
             peek("{") -> parseBlockStatement()
+            peek("func") -> parseFunctionStatement()
             peek(listOf("val", "var")) -> parseDeclarationStatement()
             peek("if") -> parseIfStatement()
             peek("match") -> parseMatchStatement()
@@ -53,6 +54,21 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             statements.add(parseStatement())
         }
         return RhovasAst.Statement.Block(statements)
+    }
+
+    private fun parseFunctionStatement(): RhovasAst.Statement.Function {
+        require(match("func"))
+        require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+        val name = tokens[-1]!!.literal
+        val parameters = mutableListOf<String>()
+        require(match("(")) { "Expected opening parenthesis." }
+        while (!match(")")) {
+            require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+            parameters.add(tokens[-1]!!.literal)
+            require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
+        }
+        val body = parseStatement()
+        return RhovasAst.Statement.Function(name, parameters, body)
     }
 
     private fun parseDeclarationStatement(): RhovasAst.Statement.Declaration {

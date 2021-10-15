@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Variable
@@ -26,6 +27,24 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         } else {
             throw EvaluateException("Expression statement is not supported by expression of type ${ast.javaClass.simpleName}.")
         }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Function): Object {
+        val current = scope
+        scope.functions.define(Function(ast.name, ast.parameters.size) { arguments ->
+            scoped(current) {
+                ast.parameters.zip(arguments).forEach {
+                    scope.variables.define(Variable(it.first, it.second))
+                }
+                try {
+                    visit(ast.body)
+                    Object(Library.TYPES["Void"]!!, Unit)
+                } catch (e: Return) {
+                    e.value ?: Object(Library.TYPES["Void"]!!, Unit)
+                }
+            }
+        })
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

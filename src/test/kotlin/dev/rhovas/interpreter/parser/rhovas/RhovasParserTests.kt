@@ -86,6 +86,42 @@ class RhovasParserTests {
         }
 
         @Nested
+        inner class FunctionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFunction(name: String, input: String, expected: RhovasAst.Statement.Function?) {
+                test("statement", input, expected)
+            }
+
+            fun testFunction(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Func", "func name() { body; }",
+                        RhovasAst.Statement.Function("name", listOf(), RhovasAst.Statement.Block(listOf(statement("body")))),
+                    ),
+                    Arguments.of("Empty Body", "func name() {}",
+                        RhovasAst.Statement.Function("name", listOf(), block()),
+                    ),
+                    Arguments.of("Single Parameter", "func name(parameter) {}",
+                        RhovasAst.Statement.Function("name", listOf("parameter"), block()),
+                    ),
+                    Arguments.of("Multiple Parameters", "func name(first, second, third) {}",
+                        RhovasAst.Statement.Function("name", listOf("first", "second", "third"), block()),
+                    ),
+                    Arguments.of("Trailing Comma", "func name(parameter,) {}",
+                        RhovasAst.Statement.Function("name", listOf("parameter"), block()),
+                    ),
+                    Arguments.of("Missing Name", "func () {}", null),
+                    Arguments.of("Missing Parenthesis", "func name {}", null),
+                    Arguments.of("Missing Comma", "func name(first second) {}", null),
+                    Arguments.of("Missing Closing Parenthesis", "func name(argument {}", null),
+                    Arguments.of("Missing Blody", "func name()", null),
+                )
+            }
+
+        }
+
+        @Nested
         inner class DeclarationTests {
 
             @ParameterizedTest(name = "{0}")

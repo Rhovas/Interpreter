@@ -66,6 +66,26 @@ class EvaluatorTests {
         }
 
         @Nested
+        inner class FunctionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFunction(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testFunction(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Declaration", "{ func name() { log(1); } name(); }", "1"),
+                    Arguments.of("Single Parameter", "{ func name(x) { log(x); } name(1); }", "1"),
+                    Arguments.of("Multiple Parameters", "{ func name(x, y, z) { log(x); log(y); log(z); } name(1, 2, 3); }", "123"),
+                    Arguments.of("Return Value", "{ func name() { return 1; } log(name()); }", "1"),
+                )
+            }
+
+        }
+
+        @Nested
         inner class DeclarationTests {
 
             @ParameterizedTest(name = "{0}")
