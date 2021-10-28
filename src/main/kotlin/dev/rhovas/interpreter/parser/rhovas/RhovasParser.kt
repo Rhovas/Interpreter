@@ -60,15 +60,18 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         require(match("func"))
         require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
         val name = tokens[-1]!!.literal
-        val parameters = mutableListOf<String>()
+        val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
         require(match("(")) { "Expected opening parenthesis." }
         while (!match(")")) {
             require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
-            parameters.add(tokens[-1]!!.literal)
+            val name = tokens[-1]!!.literal
+            val type = if (match(":")) parseType() else null
+            parameters.add(Pair(name, type))
             require(peek(")") || match(",")) { "Expected closing parenthesis or comma." }
         }
+        val returns = if (match(":")) parseType() else null
         val body = parseStatement()
-        return RhovasAst.Statement.Function(name, parameters, body)
+        return RhovasAst.Statement.Function(name, parameters, returns, body)
     }
 
     private fun parseDeclarationStatement(): RhovasAst.Statement.Declaration {
@@ -76,9 +79,10 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         val mutable = tokens[-1]!!.literal == "var"
         require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
         val name = tokens[-1]!!.literal
+        val type = if (match(":")) parseType() else null
         val value = if (match("=")) parseExpression() else null
         require(match(";")) { "Expected semicolon." }
-        return RhovasAst.Statement.Declaration(mutable, name, value)
+        return RhovasAst.Statement.Declaration(mutable, name, type, value)
     }
 
     private fun parseIfStatement(): RhovasAst.Statement.If {
@@ -354,11 +358,13 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         }
         if (peek("|", RhovasTokenType.IDENTIFIER) || peek("{")) {
             arguments = arguments ?: mutableListOf()
-            val parameters = mutableListOf<String>()
+            val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
             if (match("|")) {
                 while (!match("|")) {
                     require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
-                    parameters.add(tokens[-1]!!.literal)
+                    val name = tokens[-1]!!.literal
+                    val type = if (match(":")) parseType() else null
+                    parameters.add(Pair(name, type))
                     require(peek("|") || match(",")) { "Expected closing pipe or comma." }
                 }
             }
@@ -393,6 +399,12 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             arguments.add(RhovasAst.Expression.Dsl(name, ast))
         }
         return RhovasAst.Expression.Macro(name, arguments)
+    }
+
+    private fun parseType(): RhovasAst.Type {
+        require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+        val name = tokens[-1]!!.literal
+        return RhovasAst.Type(name)
     }
 
 }

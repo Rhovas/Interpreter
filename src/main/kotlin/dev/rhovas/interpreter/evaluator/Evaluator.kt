@@ -35,7 +35,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         scope.functions.define(Function(ast.name, ast.parameters.size) { arguments ->
             scoped(current) {
                 ast.parameters.zip(arguments).forEach {
-                    scope.variables.define(Variable(it.first, it.second))
+                    scope.variables.define(Variable(it.first.first, it.second))
                 }
                 try {
                     visit(ast.body)
@@ -405,6 +405,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         TODO()
     }
 
+    override fun visit(ast: RhovasAst.Type): Object {
+        TODO()
+    }
+
     private fun <T> scoped(scope: Scope, block: () -> T): T {
         val original = this.scope
         this.scope = scope
@@ -433,7 +437,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             return evaluator.scoped(Scope(scope)) {
                 if (ast.parameters.isNotEmpty()) {
                     ast.parameters.zip(arguments.values)
-                        .forEach { evaluator.scope.variables.define(Variable(it.first, it.second)) }
+                        .forEach { evaluator.scope.variables.define(Variable(it.first.first, it.second)) }
                 } else if (arguments.size == 1) {
                     //TODO: entry name is (intentionally) unused
                     evaluator.scope.variables.define(Variable("val", arguments.values.first()))

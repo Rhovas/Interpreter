@@ -11,7 +11,7 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
         if (instance.ast.parameters.size != arguments.size) {
             throw EvaluateException("Lambda requires ${instance.ast.parameters.size} parameter(s), received ${arguments.size}.")
         }
-        return instance.invoke(instance.ast.parameters.zip(arguments).associate { it.first to it.second })
+        return instance.invoke(instance.ast.parameters.zip(arguments).associate { it.first.first to it.second })
     }
 
     @Reflect.Method("toString", returns = "String")

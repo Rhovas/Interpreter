@@ -14,14 +14,15 @@ sealed class RhovasAst {
 
         data class Function(
             val name: String,
-            val parameters: List<String>, //TODO: Types
+            val parameters: List<Pair<String, Type?>>,
+            val returns: Type?,
             val body: Statement,
         ) : Statement()
 
         data class Declaration(
             val mutable: Boolean,
             val name: String,
-            //TODO: val type: Type
+            val type: Type?,
             val value: RhovasAst.Expression?,
         ) : Statement()
 
@@ -149,7 +150,7 @@ sealed class RhovasAst {
         ) : Expression()
 
         data class Lambda(
-            val parameters: List<String>,
+            val parameters: List<Pair<String, Type?>>,
             val body: Statement,
         ) : Expression()
 
@@ -164,6 +165,10 @@ sealed class RhovasAst {
         ) : Expression()
 
     }
+
+    data class Type(
+        val name: String,
+    ) : RhovasAst()
 
     data class Atom(val name: String)
 
@@ -201,6 +206,8 @@ sealed class RhovasAst {
                 is Expression.Lambda -> visit(ast)
                 is Expression.Macro -> visit(ast)
                 is Expression.Dsl -> visit(ast)
+
+                is Type -> visit(ast)
             }
         }
 
@@ -234,6 +241,8 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Lambda): T
         fun visit(ast: Expression.Macro): T
         fun visit(ast: Expression.Dsl): T
+
+        fun visit(ast: Type): T
 
     }
 
