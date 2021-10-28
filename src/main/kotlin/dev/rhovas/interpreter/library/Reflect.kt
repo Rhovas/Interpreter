@@ -26,17 +26,18 @@ object Reflect {
             parameters: Array<String>,
             returns: String
         ): dev.rhovas.interpreter.environment.Function {
-            return Function(name, parameters.size) { arguments ->
-                val transformed = arguments.withIndex().map {
-                    if (parameters[it.index].isNotEmpty() && it.value.type.name != parameters[it.index]) {
-                        //TODO: Error message format and index accuracy for methods
-                        throw EvaluateException("Argument ${it.index} to ${initializer.type.name}#${name}/${parameters.size} " +
-                                "must have type ${parameters[it.index]}, received ${arguments[it.index].type.name}")
+            val parameters = parameters.map { Library.TYPES[it]!! }
+            val returns = Library.TYPES[returns]!!
+            return Function(name, parameters, returns) { arguments ->
+                val transformed = parameters.indices.map {
+                    when (parameters[it].name) {
+                        "Any" -> arguments[it]
+                        arguments[it].type.name -> arguments[it].value
+                        else -> throw EvaluateException("Invalid argument to function ${name}/${parameters.size}: expected ${parameters[it].name}, received ${arguments[it].type.name}.")
                     }
-                    if (method.parameters[it.index].type == Object::class.java) it.value else it.value.value
                 }
                 val result = method.invoke(initializer, *transformed.toTypedArray())
-                if (result is Object) result else Object(Library.TYPES[returns]!!, result)
+                if (result is Object) result else Object(returns, result)
             }
         }
         initializer.javaClass.methods

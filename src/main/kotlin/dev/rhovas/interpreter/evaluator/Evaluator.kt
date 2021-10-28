@@ -1,9 +1,7 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
@@ -32,15 +30,25 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Statement.Function): Object {
         val current = scope
-        scope.functions.define(Function(ast.name, ast.parameters.size) { arguments ->
+        val parameters = ast.parameters.map {
+            Pair(it.first, it.second?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!)
+        }
+        val returns = ast.returns?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!
+        scope.functions.define(Function(ast.name, parameters.map { it.second }, returns) { arguments ->
             scoped(current) {
-                ast.parameters.zip(arguments).forEach {
-                    scope.variables.define(Variable(it.first.first, it.second))
+                for (i in parameters.indices) {
+                    if (parameters[i].second.name != "Any" && arguments[i].type.name != parameters[i].second.name) {
+                        throw EvaluateException("Invalid argument to function ${ast.name}/${parameters.size}: expected ${parameters[i].second.name}, received ${arguments[i].type.name}.")
+                    }
+                    scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i]))
                 }
                 try {
                     visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
+                    if (e.value != null && returns.name != "Any" && e.value.type.name != returns.name) {
+                        throw EvaluateException("Invalid return value from function ${ast.name}/${parameters.size}: expected ${returns.name}, received ${e.value.type}.")
+                    }
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }
             }
@@ -55,8 +63,13 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             throw EvaluateException("Immutable variable requires a value.")
         }
         //TODO: Redeclaration/shadowing
-        scope.variables.define(Variable(ast.name, ast.value?.let { visit(it) }
-            ?: Object(Library.TYPES["Null"]!!, null)))
+        val type = ast.type?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!
+        val value = ast.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        if (type.name != "Any" && ast.value !== null && value.type.name != type.name) {
+            //TODO: Proper handling of uninitialized variables
+            throw EvaluateException("Invalid value for variable ${ast.name}: expected ${type.name}, received ${value.type.name}.")
+        }
+        scope.variables.define(Variable(ast.name, type, value))
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -142,7 +155,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         for (element in iterable.value as List<Object>) {
             try {
                 scoped(Scope(scope)) {
-                    scope.variables.define(Variable(ast.name, element))
+                    //TODO: Generic types
+                    scope.variables.define(Variable(ast.name, Library.TYPES["Any"]!!, element))
                     visit(ast.body)
                 }
             } catch (e: Break) {
@@ -198,7 +212,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             //TODO: Catch exception types
             ast.catches.firstOrNull()?.let {
                 scoped(Scope(scope)) {
-                    scope.variables.define(Variable(it.name, e.exception))
+                    //TODO: Exception types
+                    scope.variables.define(Variable(it.name, Library.TYPES["Exception"]!!, e.exception))
                     visit(it.body)
                 }
             }
@@ -406,7 +421,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Type): Object {
-        TODO()
+        val type = Library.TYPES[ast.name] ?: throw EvaluateException("Undefined type ${ast.name}.")
+        return Object(Library.TYPES["Type"]!!, type)
     }
 
     private fun <T> scoped(scope: Scope, block: () -> T): T {
@@ -433,21 +449,36 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         val evaluator: Evaluator,
     ) {
 
-        fun invoke(arguments: Map<String, Object>): Object {
+        fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
+            //TODO: Lambda identification information for errors
             return evaluator.scoped(Scope(scope)) {
                 if (ast.parameters.isNotEmpty()) {
-                    ast.parameters.zip(arguments.values)
-                        .forEach { evaluator.scope.variables.define(Variable(it.first.first, it.second)) }
+                    if (ast.parameters.size != arguments.size) {
+                        throw EvaluateException("Invalid parameter count for lambda: expected ${arguments.size}, received ${ast.parameters.size}")
+                    }
+                    val parameters = ast.parameters.map {
+                        Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
+                    }
+                    for (i in parameters.indices) {
+                        if (parameters[i].second.name != "Any" && parameters[i].second.name != arguments[i].second.name) {
+                            throw EvaluateException("Invalid parameter type for lambda: expected ${arguments[i].second.name}, received ${parameters[i].second.name}.")
+                        }
+                        evaluator.scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i].third))
+                    }
                 } else if (arguments.size == 1) {
                     //TODO: entry name is (intentionally) unused
-                    evaluator.scope.variables.define(Variable("val", arguments.values.first()))
+                    evaluator.scope.variables.define(Variable("val", arguments[0].second, arguments[0].third))
                 } else {
-                    evaluator.scope.variables.define(Variable("val", Object(Library.TYPES["Object"]!!, arguments.toMutableMap())))
+                    evaluator.scope.variables.define(Variable("val", Library.TYPES["Object"]!!,
+                        Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })))
                 }
                 try {
                     evaluator.visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
+                    if (e.value != null && returns.name != "Any" && e.value.type.name != returns.name) {
+                        throw EvaluateException("Invalid return value from lambda: expected ${returns.name}, received ${e.value.type}.")
+                    }
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }
             }

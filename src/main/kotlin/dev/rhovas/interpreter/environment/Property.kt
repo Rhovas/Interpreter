@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.environment
 
 data class Property(
     val name: String,
+    val type: Type,
     private val receiver: Object,
     private val getter: Function,
     private val setter: Function?,

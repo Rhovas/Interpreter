@@ -28,7 +28,7 @@ class Scope(private val parent: Scope?) {
         }
 
         fun define(function: Function) {
-            functions[Pair(function.name, function.arity)] = function
+            functions[Pair(function.name, function.parameters.size)] = function
         }
 
     }

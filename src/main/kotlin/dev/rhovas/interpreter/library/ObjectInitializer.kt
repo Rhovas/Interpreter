@@ -6,12 +6,12 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object ObjectInitializer : Library.TypeInitializer("Object") {
 
-    @Reflect.Method("get", operator = "[]", parameters = ["Atom"], returns = "")
+    @Reflect.Method("get", operator = "[]", parameters = ["Atom"], returns = "Any")
     fun get(instance: Map<String, Object>, key: RhovasAst.Atom): Object {
         return instance[key.name] ?: Object(Library.TYPES["Null"]!!, null)
     }
 
-    @Reflect.Method("set", operator = "[]=", parameters = ["Atom", ""])
+    @Reflect.Method("set", operator = "[]=", parameters = ["Atom", "Any"])
     fun get(instance: MutableMap<String, Object>, key: RhovasAst.Atom, value: Object) {
         instance[key.name] = value
     }

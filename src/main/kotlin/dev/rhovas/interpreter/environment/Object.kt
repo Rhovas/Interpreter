@@ -12,7 +12,7 @@ data class Object(
 
         operator fun get(name: String): Property? {
             return type.methods[name, 1]?.let { getter ->
-                Property(name, this@Object, getter, type.methods[name, 2])
+                Property(name, getter.returns, this@Object, getter, type.methods[name, 2])
             }
         }
 

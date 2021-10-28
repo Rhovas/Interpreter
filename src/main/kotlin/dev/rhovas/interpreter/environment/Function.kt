@@ -2,7 +2,8 @@ package dev.rhovas.interpreter.environment
 
 data class Function(
     val name: String,
-    val arity: Int,
+    val parameters: List<Type>,
+    val returns: Type,
     private val function: (List<Object>) -> Object,
 ) {
 

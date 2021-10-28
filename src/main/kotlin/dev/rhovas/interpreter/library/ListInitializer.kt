@@ -7,7 +7,7 @@ import java.math.BigInteger
 
 object ListInitializer : Library.TypeInitializer("List") {
 
-    @Reflect.Method("get", operator = "[]", parameters = ["Integer"], returns = "")
+    @Reflect.Method("get", operator = "[]", parameters = ["Integer"], returns = "Any")
     fun get(instance: List<Object>, index: BigInteger): Object {
         if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
             throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
@@ -15,7 +15,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         return instance[index.toInt()]
     }
 
-    @Reflect.Method("set", operator = "[]=", parameters = ["Integer", ""])
+    @Reflect.Method("set", operator = "[]=", parameters = ["Integer", "Any"])
     fun set(instance: MutableList<Object>, index: BigInteger, value: Object) {
         if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
             throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
@@ -33,7 +33,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
             throw EvaluateException("List#for requires a lambda with one parameter.")
         }
-        instance.forEach { lambda.invoke(mapOf(Pair("val", it))) }
+        instance.forEach { lambda.invoke(listOf(Triple("val", Library.TYPES["Any"]!!, it)), Library.TYPES["Any"]!!) }
     }
 
     @Reflect.Method("map", parameters = ["Lambda"], returns = "List")
@@ -41,7 +41,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
             throw EvaluateException("List#map requires a lambda with one parameter.")
         }
-        return instance.map { lambda.invoke(mapOf(Pair("val", it))) }
+        return instance.map { lambda.invoke(listOf(Triple("val", Library.TYPES["Any"]!!, it)), Library.TYPES["Any"]!!) }
     }
 
     @Reflect.Method("equals", operator = "==", parameters = ["List"], returns = "Boolean")

@@ -113,7 +113,7 @@ class EvaluatorTests {
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "initial")))
+                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "initial")))
                 })
             }
 
@@ -129,15 +129,15 @@ class EvaluatorTests {
             fun testProperty(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
                     val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("property", 1) { arguments ->
+                        it.functions.define(Function("property", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                             (arguments[0].value as MutableMap<String, Object>)["property"]!!
                         })
-                        it.functions.define(Function("property", 2) { arguments ->
+                        it.functions.define(Function("property", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                             (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
                             Object(Library.TYPES["Void"]!!, Unit)
                         })
                     })
-                    it.variables.define(Variable("object", Object(type, mutableMapOf(
+                    it.variables.define(Variable("object", type, Object(type, mutableMapOf(
                         Pair("property",  Object(Library.TYPES["String"]!!, "initial")),
                     ))))
                 })
@@ -154,11 +154,11 @@ class EvaluatorTests {
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "initial")))
-                    it.variables.define(Variable("list", Object(Library.TYPES["List"]!!, mutableListOf(
+                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "initial")))
+                    it.variables.define(Variable("list", Library.TYPES["List"]!!, Object(Library.TYPES["List"]!!, mutableListOf(
                         Object(Library.TYPES["String"]!!, "initial"),
                     ))))
-                    it.variables.define(Variable("object", Object(Library.TYPES["Object"]!!, mutableMapOf(
+                    it.variables.define(Variable("object", Library.TYPES["Object"]!!, Object(Library.TYPES["Object"]!!, mutableMapOf(
                         Pair("key", Object(Library.TYPES["String"]!!, "initial")),
                     ))))
                 })
@@ -370,7 +370,7 @@ class EvaluatorTests {
             @MethodSource
             fun testWhile(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("number", Object(Library.TYPES["Integer"]!!, BigInteger.ZERO)))
+                    it.variables.define(Variable("number", Library.TYPES["Integer"]!!, Object(Library.TYPES["Integer"]!!, BigInteger.ZERO)))
                 })
             }
 
@@ -448,7 +448,7 @@ class EvaluatorTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    it.functions.define(Function("Exception", 1) { arguments ->
+                    it.functions.define(Function("Exception", listOf(Library.TYPES["String"]!!), Library.TYPES["Exception"]!!) { arguments ->
                         Object(Library.TYPES["Exception"]!!, arguments[0].value as String)
                     })
                 })
@@ -494,7 +494,7 @@ class EvaluatorTests {
 
         private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
             val log = StringBuilder()
-            scope.functions.define(Function("log", 1) { arguments ->
+            scope.functions.define(Function("log", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                 log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
                 arguments[0]
             })
@@ -807,7 +807,7 @@ class EvaluatorTests {
             @MethodSource
             fun testVariable(name: String, input: String, expected: Object?) {
                 test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "variable")))
+                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
                 })
             }
 
@@ -825,11 +825,11 @@ class EvaluatorTests {
             fun testProperty(name: String, input: String, expected: Object?) {
                 test(input, expected, Scope(null).also {
                     val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("property", 1) { arguments ->
+                        it.functions.define(Function("property", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                             (arguments[0].value as Map<String, Object>)["property"]!!
                         })
                     })
-                    it.variables.define(Variable("object", Object(type, mapOf(
+                    it.variables.define(Variable("object", type, Object(type, mapOf(
                         Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                     ))))
                 })
@@ -853,11 +853,11 @@ class EvaluatorTests {
             @MethodSource
             fun testIndex(name: String, input: String, expected: Object?) {
                 test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Object(Library.TYPES["String"]!!, "variable")))
-                    it.variables.define(Variable("list", Object(Library.TYPES["List"]!!, mutableListOf(
+                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
+                    it.variables.define(Variable("list", Library.TYPES["List"]!!, Object(Library.TYPES["List"]!!, mutableListOf(
                         Object(Library.TYPES["String"]!!, "element"),
                     ))))
-                    it.variables.define(Variable("object", Object(Library.TYPES["Object"]!!, mutableMapOf(
+                    it.variables.define(Variable("object", Library.TYPES["Object"]!!, Object(Library.TYPES["Object"]!!, mutableMapOf(
                         Pair("key", Object(Library.TYPES["String"]!!, "value")),
                     ))))
                 })
@@ -885,7 +885,7 @@ class EvaluatorTests {
             @MethodSource
             fun testFunction(name: String, input: String, expected: Object?) {
                 test(input, expected, Scope(null).also {
-                    it.functions.define(Function("function", 1) { arguments ->
+                    it.functions.define(Function("function", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                         arguments[0]
                     })
                 })
@@ -906,11 +906,11 @@ class EvaluatorTests {
             fun testMethod(name: String, input: String, expected: Object?) {
                 test(input, expected, Scope(null).also {
                     val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("method", 2) { arguments ->
+                        it.functions.define(Function("method", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                             arguments[1]
                         })
                     })
-                    it.variables.define(Variable("object", Object(type, mapOf(
+                    it.variables.define(Variable("object", type, Object(type, mapOf(
                         Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                     ))))
                 })
@@ -936,7 +936,7 @@ class EvaluatorTests {
             fun testLambda(name: String, input: String, expected: String?) {
                 val log = StringBuilder()
                 val scope = Scope(null)
-                scope.functions.define(Function("log", 1) { arguments ->
+                scope.functions.define(Function("log", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                     log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
                     arguments[0]
                 })

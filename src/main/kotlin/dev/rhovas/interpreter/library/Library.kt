@@ -9,6 +9,8 @@ object Library {
     val SCOPE: Scope = Scope(null)
 
     fun initialize() {
+        TYPES["Any"] = Type("Any", Scope(null))
+        TYPES["Type"] = Type("Type", Scope(null))
         val initializers = listOf(
             KernelInitializer,
             VoidInitializer,
