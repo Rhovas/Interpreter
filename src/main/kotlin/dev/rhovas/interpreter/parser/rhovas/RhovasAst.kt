@@ -37,11 +37,20 @@ sealed class RhovasAst {
             val elseStatement: Statement?,
         ) : Statement()
 
-        data class Match(
-            val argument: RhovasAst.Expression?,
-            val cases: List<Pair<RhovasAst.Expression, Statement>>,
-            val elseCase: Pair<RhovasAst.Expression?, Statement>?,
-        ) : Statement()
+        sealed class Match: Statement() {
+
+            data class Conditional(
+                val cases: List<Pair<RhovasAst.Expression, Statement>>,
+                val elseCase: Pair<RhovasAst.Expression?, Statement>?,
+            ) : Match()
+
+            data class Structural(
+                val argument: RhovasAst.Expression,
+                val cases: List<Pair<Pattern, Statement>>,
+                val elseCase: Pair<Pattern?, Statement>?
+            ) : Match()
+
+        }
 
         data class For(
             val name: String,
@@ -166,6 +175,41 @@ sealed class RhovasAst {
 
     }
 
+    sealed class Pattern : RhovasAst() {
+
+        data class Variable(
+            val name: String,
+        ) : Pattern()
+
+        data class Value(
+            val value: Expression,
+        ) : Pattern()
+
+        data class Predicate(
+            val pattern: Pattern,
+            val predicate: Expression,
+        ) : Pattern()
+
+        data class OrderedDestructure(
+            val patterns: List<Pattern>
+        ) : Pattern()
+
+        data class NamedDestructure(
+            val patterns: Map<String, Pattern>
+        ) : Pattern()
+
+        data class TypedDestructure(
+            val type: Type,
+            val pattern: Pattern?,
+        ): Pattern()
+
+        data class VarargDestructure(
+            val pattern: Pattern?,
+            val operator: String,
+        ) : Pattern()
+
+    }
+
     data class Type(
         val name: String,
     ) : RhovasAst()
@@ -182,7 +226,8 @@ sealed class RhovasAst {
                 is Statement.Declaration -> visit(ast)
                 is Statement.Assignment -> visit(ast)
                 is Statement.If -> visit(ast)
-                is Statement.Match -> visit(ast)
+                is Statement.Match.Conditional -> visit(ast)
+                is Statement.Match.Structural -> visit(ast)
                 is Statement.For -> visit(ast)
                 is Statement.While -> visit(ast)
                 is Statement.Try -> visit(ast)
@@ -207,6 +252,14 @@ sealed class RhovasAst {
                 is Expression.Macro -> visit(ast)
                 is Expression.Dsl -> visit(ast)
 
+                is Pattern.Variable -> visit(ast)
+                is Pattern.Value -> visit(ast)
+                is Pattern.Predicate -> visit(ast)
+                is Pattern.OrderedDestructure -> visit(ast)
+                is Pattern.NamedDestructure -> visit(ast)
+                is Pattern.TypedDestructure -> visit(ast)
+                is Pattern.VarargDestructure -> visit(ast)
+
                 is Type -> visit(ast)
             }
         }
@@ -217,7 +270,8 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Declaration): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T
-        fun visit(ast: Statement.Match): T
+        fun visit(ast: Statement.Match.Conditional): T
+        fun visit(ast: Statement.Match.Structural): T
         fun visit(ast: Statement.For): T
         fun visit(ast: Statement.While): T
         fun visit(ast: Statement.Try): T
@@ -241,6 +295,14 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Lambda): T
         fun visit(ast: Expression.Macro): T
         fun visit(ast: Expression.Dsl): T
+
+        fun visit(ast: Pattern.Variable): T
+        fun visit(ast: Pattern.Value): T
+        fun visit(ast: Pattern.Predicate): T
+        fun visit(ast: Pattern.OrderedDestructure): T
+        fun visit(ast: Pattern.NamedDestructure): T
+        fun visit(ast: Pattern.TypedDestructure): T
+        fun visit(ast: Pattern.VarargDestructure): T
 
         fun visit(ast: Type): T
 

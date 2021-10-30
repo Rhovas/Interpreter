@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.parser.rhovas
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import org.junit.jupiter.api.Assertions
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -242,25 +243,23 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testMatch(name: String, input: String, expected: RhovasAst.Statement.Match?) {
+            fun testConditional(name: String, input: String, expected: RhovasAst.Statement.Match.Conditional?) {
                 test("statement", input, expected)
             }
 
-            fun testMatch(): Stream<Arguments> {
+            fun testConditional(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Empty", "match {}",
-                        RhovasAst.Statement.Match(null, listOf(), null),
+                        RhovasAst.Statement.Match.Conditional(listOf(), null),
                     ),
                     Arguments.of("Single", "match { condition: statement; }",
-                        RhovasAst.Statement.Match(
-                            null,
+                        RhovasAst.Statement.Match.Conditional(
                             listOf(Pair(expression("condition"), statement("statement"))),
                             null
                         ),
                     ),
                     Arguments.of("Multiple ", "match { c1: s1; c2: s2; c3: s3; }",
-                        RhovasAst.Statement.Match(
-                            null,
+                        RhovasAst.Statement.Match.Conditional(
                             listOf(
                                 Pair(expression("c1"), statement("s1")),
                                 Pair(expression("c2"), statement("s2")),
@@ -269,26 +268,20 @@ class RhovasParserTests {
                             null
                         ),
                     ),
-                    Arguments.of("Argument", "match (argument) {}",
-                        RhovasAst.Statement.Match(expression("argument"), listOf(), null),
-                    ),
                     Arguments.of("Else", "match { else: statement; }",
-                        RhovasAst.Statement.Match(
-                            null,
+                        RhovasAst.Statement.Match.Conditional(
                             listOf(),
                             Pair(null, statement("statement"))
                         ),
                     ),
                     Arguments.of("Else Condition", "match { else condition: statement; }",
-                        RhovasAst.Statement.Match(
-                            null,
+                        RhovasAst.Statement.Match.Conditional(
                             listOf(),
                             Pair(expression("condition"), statement("statement"))
                         ),
                     ),
                     Arguments.of("Else With Cases", "match { c1: s1; c2: s2; else: s3; }",
-                        RhovasAst.Statement.Match(
-                            null,
+                        RhovasAst.Statement.Match.Conditional(
                             listOf(
                                 Pair(expression("c1"), statement("s1")),
                                 Pair(expression("c2"), statement("s2")),
@@ -304,6 +297,72 @@ class RhovasParserTests {
                     Arguments.of("Missing Statement", "match { condition }", null),
                     Arguments.of("Missing Else Colon", "match { else statement; }", null), //parses statement as the condition
                     Arguments.of("Missing Else Statement", "match { else: }", null),
+                )
+            }
+
+            @Disabled("Awaiting parsePattern() implementation")
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testStructural(name: String, input: String, expected: RhovasAst.Statement.Match.Structural?) {
+                test("statement", input, expected)
+            }
+
+            fun testStructural(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "match (argument) {}",
+                        RhovasAst.Statement.Match.Structural(expression("argument"), listOf(), null),
+                    ),
+                    Arguments.of("Single", "match (argument) { pattern: statement; }",
+                        RhovasAst.Statement.Match.Structural(
+                            expression("argument"),
+                            listOf(Pair(RhovasAst.Pattern.Variable("pattern"), statement("statement"))),
+                            null
+                        ),
+                    ),
+                    Arguments.of("Multiple ", "match (argument) { p1: s1; p2: s2; p3: s3; }",
+                        RhovasAst.Statement.Match.Structural(
+                            expression("argument"),
+                            listOf(
+                                Pair(RhovasAst.Pattern.Variable("p1"), statement("s1")),
+                                Pair(RhovasAst.Pattern.Variable("p2"), statement("s2")),
+                                Pair(RhovasAst.Pattern.Variable("p3"), statement("s3"))
+                            ),
+                            null
+                        ),
+                    ),
+                    Arguments.of("Else", "match (argument) { else: statement; }",
+                        RhovasAst.Statement.Match.Structural(
+                            expression("argument"),
+                            listOf(),
+                            Pair(null, statement("statement"))
+                        ),
+                    ),
+                    Arguments.of("Else Condition", "match (argument) { else pattern: statement; }",
+                        RhovasAst.Statement.Match.Structural(
+                            expression("argument"),
+                            listOf(),
+                            Pair(RhovasAst.Pattern.Variable("pattern"), statement("statement"))
+                        ),
+                    ),
+                    Arguments.of("Else With Cases", "match (argument) { p1: s1; p2: s2; else: s3; }",
+                        RhovasAst.Statement.Match.Structural(
+                            expression("argument"),
+                            listOf(
+                                Pair(RhovasAst.Pattern.Variable("p1"), statement("s1")),
+                                Pair(RhovasAst.Pattern.Variable("p2"), statement("s2")),
+                            ),
+                            Pair(null, statement("s3"))
+                        ),
+                    ),
+                    Arguments.of("Else Inner", "match (argument) { p1: s2; else: s2; p3: s3; }", null),
+                    Arguments.of("Else Multiple", "match (argument) { else: s1; else: s2; }", null),
+                    Arguments.of("Missing Closing Parenthesis", "match (argument {}", null),
+                    Arguments.of("Missing Opening Brace", "match (argument) }", null),
+                    Arguments.of("Missing Pattern", "match (argument) { : statement; }", null), //parses : statement as an Atom
+                    Arguments.of("Missing Colon", "match (argument) { pattern statement; }", null),
+                    Arguments.of("Missing Statement", "match (argument) { pattern }", null),
+                    Arguments.of("Missing Else Colon", "match (argument) { else statement; }", null), //parses statement as the pattern
+                    Arguments.of("Missing Else Statement", "match (argument) { else: }", null),
                 )
             }
 

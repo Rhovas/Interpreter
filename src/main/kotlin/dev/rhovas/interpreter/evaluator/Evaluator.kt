@@ -112,24 +112,12 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Match): Object {
-        val predicate = if (ast.argument != null) {
-            val argument = visit(ast.argument)
-            val method = argument.methods["==", 1]
-                ?: throw EvaluateException("Match argument is not supported by type ${argument.type.name}.")
-            Predicate { value: Object ->
-                if (value.type != argument.type) {
-                    throw EvaluateException("Match case value is not supported by type ${value.type.name} with argument ${argument.type.name}.")
-                }
-                method.invoke(listOf(value)).value as Boolean
+    override fun visit(ast: RhovasAst.Statement.Match.Conditional): Object {
+        val predicate = Predicate { condition: Object ->
+            if (condition.type != Library.TYPES["Boolean"]!!) {
+                throw EvaluateException("Match case condition is not supported by type ${condition.type.name}.")
             }
-        } else {
-            Predicate { condition: Object ->
-                if (condition.type != Library.TYPES["Boolean"]!!) {
-                    throw EvaluateException("Match case condition is not supported by type ${condition.type.name}.")
-                }
-                condition.value as Boolean
-            }
+            condition.value as Boolean
         }
         val case = ast.cases.firstOrNull { predicate.test(visit(it.first)) }
             ?: ast.elseCase?.also {
@@ -137,11 +125,12 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                     throw EvaluateException("Match else condition returned false.")
                 }
             }
-            ?: if (ast.argument != null) {
-                throw EvaluateException("Structural match requires exhaustive cases.")
-            } else null
         case?.let { visit(it.second) }
         return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Match.Structural): Object {
+        TODO()
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
@@ -417,6 +406,34 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Dsl): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.Variable): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.Value): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.Predicate): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.VarargDestructure): Object {
         TODO()
     }
 

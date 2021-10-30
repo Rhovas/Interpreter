@@ -10,6 +10,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -242,6 +243,7 @@ class EvaluatorTests {
                 )
             }
 
+            @Disabled("Awaiting implementation")
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testStructural(name: String, input: String, expected: String?) {
