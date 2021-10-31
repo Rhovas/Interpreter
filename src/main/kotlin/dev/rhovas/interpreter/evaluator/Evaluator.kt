@@ -11,6 +11,7 @@ import java.util.function.Predicate
 class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     private var label: String? = null
+    private lateinit var patternState: PatternState
 
     override fun visit(ast: RhovasAst.Statement.Block): Object {
         scoped(Scope(scope)) {
@@ -130,7 +131,25 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Structural): Object {
-        TODO()
+        val argument = visit(ast.argument)
+        val predicate = Predicate { pattern: RhovasAst.Pattern ->
+            patternState = PatternState(Scope(this.scope), argument)
+            scoped(patternState.scope) {
+                visit(pattern).value as Boolean
+            }
+        }
+        val case = ast.cases.firstOrNull { predicate.test(it.first) }
+            ?: ast.elseCase?.also {
+                if (it.first == null) {
+                    patternState = PatternState(Scope(this.scope), argument)
+                } else if (!predicate.test(it.first!!)) {
+                    throw EvaluateException("Match else condition returned false.")
+                }
+            }
+            ?: throw EvaluateException("Match patterns were not exhaustive.")
+        return scoped(patternState?.scope) {
+            visit(case.second)
+        }
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
@@ -410,31 +429,137 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Pattern.Variable): Object {
-        TODO()
+        if (ast.name != "_") {
+            patternState.scope.variables.define(Variable(ast.name, patternState.value.type, patternState.value))
+        }
+        return Object(Library.TYPES["Boolean"]!!, true)
     }
 
     override fun visit(ast: RhovasAst.Pattern.Value): Object {
-        TODO()
+        val value = visit(ast.value)
+        val method = value.methods["==", 1]
+            ?: throw EvaluateException("Binary == is not supported by type ${value.type.name}.")
+        val result = if (value.type == patternState.value.type) method.invoke(listOf(patternState.value)).value as Boolean else false
+        return Object(Library.TYPES["Boolean"]!!, result)
     }
 
     override fun visit(ast: RhovasAst.Pattern.Predicate): Object {
-        TODO()
+        var result = visit(ast.pattern)
+        if (result.value as Boolean) {
+            result = visit(ast.predicate)
+            if (result.type != Library.TYPES["Boolean"]!!) {
+                throw EvaluateException("Predicate pattern is not supported by type ${result.type}.")
+            }
+        }
+        return result
     }
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): Object {
-        TODO()
+        if (patternState.value.type != Library.TYPES["List"]) {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
+        val list = patternState.value.value as List<Object>
+        var i = 0
+        var vararg = false
+        for (pattern in ast.patterns) {
+            val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
+                if (vararg) {
+                    throw EvaluateException("Pattern cannot contain multiple varargs.")
+                }
+                vararg = true
+                val value = list.subList(i, list.size - ast.patterns.size + i + 1)
+                i += value.size
+                Object(Library.TYPES["List"]!!, value)
+            } else {
+                list.getOrNull(i++) ?: return Object(Library.TYPES["Boolean"]!!, false)
+            }
+            patternState = patternState.copy(value = value)
+            val result = visit(pattern)
+            if (!(result.value as Boolean)) {
+                return result
+            }
+        }
+        if (i != list.size) {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
+        return Object(Library.TYPES["Boolean"]!!, true)
     }
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): Object {
-        TODO()
+        println("Visit Named: " + ast)
+        if (patternState.value.type != Library.TYPES["Object"]) {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
+        val map = patternState.value.value as Map<String, Object>
+        val named = ast.patterns.map { it.first }.toSet()
+        var vararg = false
+        for ((key, pattern) in ast.patterns) {
+            val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
+                if (vararg) {
+                    throw EvaluateException("Pattern cannot contain multiple varargs.")
+                }
+                vararg = true
+                Object(Library.TYPES["Object"]!!, map.filterKeys { !named.contains(it) })
+            } else {
+                map[key] ?: return Object(Library.TYPES["Boolean"]!!, false)
+            }
+            if (pattern != null) {
+                patternState = patternState.copy(value = value)
+                if (!(visit(pattern).value as Boolean)) {
+                    return Object(Library.TYPES["Boolean"]!!, false)
+                }
+            } else {
+                patternState.scope.variables.define(Variable(key, value.type, value))
+            }
+        }
+        if (!vararg && map.size != named.size) {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
+        return Object(Library.TYPES["Boolean"]!!, true)
     }
 
     override fun visit(ast: RhovasAst.Pattern.TypedDestructure): Object {
-        TODO()
+        if (patternState.value.type != visit(ast.type).value as Type) {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
+        return ast.pattern?.let { visit(it) } ?: Object(Library.TYPES["Boolean"]!!, true)
     }
 
     override fun visit(ast: RhovasAst.Pattern.VarargDestructure): Object {
-        TODO()
+        if (patternState.value.type == Library.TYPES["List"]) {
+            val list = patternState.value.value as List<Object>
+            if (ast.operator == "+" && list.isEmpty()) {
+                return Object(Library.TYPES["Boolean"]!!, false)
+            }
+            return if (ast.pattern is RhovasAst.Pattern.Variable) {
+                scope.variables.define(Variable(ast.pattern.name, Library.TYPES["List"]!!, Object(Library.TYPES["List"]!!, list)))
+                Object(Library.TYPES["Boolean"]!!, true)
+            } else {
+                //TODO: Handle variable bindings
+                Object(Library.TYPES["Boolean"]!!, list.all {
+                    patternState = patternState.copy(value = it)
+                    ast.pattern?.let { visit(it).value as Boolean } ?: true
+                })
+            }
+        } else if (patternState.value.type == Library.TYPES["Object"]) {
+            val map = patternState.value.value as Map<String, Object>
+            if (ast.operator == "+" && map.isEmpty()) {
+                return Object(Library.TYPES["Boolean"]!!, false)
+            }
+            return if (ast.pattern is RhovasAst.Pattern.Variable) {
+                scope.variables.define(Variable(ast.pattern.name, Library.TYPES["Object"]!!, Object(Library.TYPES["Object"]!!, map)))
+                Object(Library.TYPES["Boolean"]!!, true)
+            } else {
+                //TODO: Handle variable bindings
+                Object(Library.TYPES["Boolean"]!!, map.all {
+                    //TODO: Consider allowing matching on key
+                    patternState = patternState.copy(value = it.value)
+                    ast.pattern?.let { visit(it).value as Boolean } ?: true
+                })
+            }
+        } else {
+            return Object(Library.TYPES["Boolean"]!!, false)
+        }
     }
 
     override fun visit(ast: RhovasAst.Type): Object {
@@ -502,5 +627,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
 
     }
+
+    data class PatternState(
+        val scope: Scope,
+        val value: Object,
+    )
 
 }

@@ -243,7 +243,6 @@ class EvaluatorTests {
                 )
             }
 
-            @Disabled("Awaiting implementation")
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testStructural(name: String, input: String, expected: String?) {
@@ -969,6 +968,270 @@ class EvaluatorTests {
             val ast = RhovasParser(input).parse("expression")
             if (expected != null) {
                 Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
+            } else {
+                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+            }
+        }
+
+    }
+
+    @Nested
+    inner class PatternTests {
+
+        @Nested
+        inner class VariableTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", """
+                        match (1) {
+                            variable: log(variable);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Underscore", """
+                        match (1) {
+                            _: log(_);
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ValueTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testValue(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testValue(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Null", """
+                        match (null) {
+                            null: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Boolean True", """
+                        match (true) {
+                            true: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Boolean False", """
+                        match (false) {
+                            false: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Integer", """
+                        match (0) {
+                            0: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Decimal", """
+                        match (0.0) {
+                            0.0: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("String", """
+                        match ("string") {
+                            "string": log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Atom", """
+                        match (:atom) {
+                            :atom: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Interpolation", """
+                        match (1 + 2) {
+                            ${'$'}{1 + 2}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class PredicateTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testPredicate(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testPredicate(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable True", """
+                        match (0) {
+                            num ${'$'}{num == 0}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Variable False", """
+                        match (1) {
+                            num ${'$'}{num == 0}: log(1);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    Arguments.of("Vararg True", """
+                        match ([]) {
+                            list* ${'$'}{list == []}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Vararg False", """
+                        match ([1]) {
+                            list* ${'$'}{list == []}: log(1);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class OrderedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testOrderedDestructure(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testOrderedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", """
+                        match ([]) {
+                            []: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Single", """
+                        match ([1]) {
+                            [element]: log(element);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple", """
+                        match ([1, 2, 3]) {
+                            [first, second, third]: { log(first); log(second); log(third); }
+                        }
+                    """.trimIndent(), "123"),
+                    Arguments.of("Leading Varargs", """
+                        match ([1, 2, 3]) {
+                            [rest*, last]: { log(rest); log(last); }
+                        }
+                    """.trimIndent(), "[1, 2]3"),
+                    Arguments.of("Middle Varargs", """
+                        match ([1, 2, 3]) {
+                            [first, rest*, last]: { log(first); log(rest); log(last); }
+                        }
+                    """.trimIndent(), "1[2]3"),
+                    Arguments.of("Trailing Varargs", """
+                        match ([1, 2, 3]) {
+                            [first, rest*]: { log(first); log(rest); }
+                        }
+                    """.trimIndent(), "1[2, 3]"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class NamedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testNamedDestructure(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testNamedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", """
+                        match ({}) {
+                            {}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Single", """
+                        match ({key: 1}) {
+                            {key: value}: log(value);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple", """
+                        match ({k1: 1, k2: 2, k3: 3}) {
+                            {k1: v1, k2: v2, k3: v3}: { log(v1); log(v2); log(v3); }
+                        }
+                    """.trimIndent(), "123"),
+                    Arguments.of("Key Only", """
+                        match ({key: 1}) {
+                            {key}: log(key);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Varargs", """
+                        match ({k1: 1, k2: 2, k3: 3}) {
+                            {k1: v1, rest*}: { log(v1); log(rest); }
+                        }
+                    """.trimIndent(), "1{k2=2, k3=3}"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class VarargDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVarargDestructure(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testVarargDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Zero Or More", """
+                        match ([]) {
+                            list*: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("One Or More True", """
+                        match ([1]) {
+                            list+: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("One Or More False", """
+                        match ([]) {
+                            list+: log(1);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    Arguments.of("Operator Only", """
+                        match ([]) {
+                            *: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                )
+            }
+
+        }
+
+        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+            val log = StringBuilder()
+            scope.functions.define(Function("log", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                arguments[0]
+            })
+            val ast = RhovasParser(input).parse("statement")
+            if (expected != null) {
+                Evaluator(scope).visit(ast)
+                Assertions.assertEquals(expected, log.toString())
             } else {
                 Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
             }
