@@ -430,6 +430,8 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
 
     private fun parsePattern(): RhovasAst.Pattern {
         var pattern = when {
+            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING))
+                    || peek(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Pattern.Value(parsePrimaryExpression())
             peek(RhovasTokenType.IDENTIFIER) -> {
                 if (tokens[0]!!.literal[0].isUpperCase()) {
                     val type = parseType()

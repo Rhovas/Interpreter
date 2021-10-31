@@ -1308,7 +1308,14 @@ class RhovasParserTests {
 
             fun testValue(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Value", "\${value}", RhovasAst.Pattern.Value(expression("value"))),
+                    Arguments.of("Null", "null", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(null))),
+                    Arguments.of("Boolean True", "true", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(true))),
+                    Arguments.of("Boolean False", "false", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(false))),
+                    Arguments.of("Integer", "0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(BigInteger("0")))),
+                    Arguments.of("Decimal", "0.0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(BigDecimal("0.0")))),
+                    Arguments.of("String", "\"string\"", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal("string"))),
+                    Arguments.of("Atom", ":atom", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(RhovasAst.Atom("atom")))),
+                    Arguments.of("Interpolation", "\${value}", RhovasAst.Pattern.Value(expression("value"))),
                     Arguments.of("Missing Opening Brace", "\$value}", null),
                     Arguments.of("Missing Closing Brace", "\${value", null),
                 )
