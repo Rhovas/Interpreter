@@ -195,7 +195,7 @@ sealed class RhovasAst {
         ) : Pattern()
 
         data class NamedDestructure(
-            val patterns: Map<String, Pattern>
+            val patterns: List<Pair<String, Pattern?>>
         ) : Pattern()
 
         data class TypedDestructure(

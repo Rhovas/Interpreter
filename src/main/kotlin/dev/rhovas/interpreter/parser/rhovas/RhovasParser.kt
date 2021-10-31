@@ -10,6 +10,7 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         return when (rule) {
             "statement" -> parseStatement()
             "expression" -> parseExpression()
+            "pattern" -> parsePattern()
             else -> throw AssertionError()
         }.also { require(tokens[0] == null) { "Expected end of input." } }
     }
@@ -128,7 +129,8 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
     private fun parseStructuralMatch(): RhovasAst.Statement.Match.Structural {
         require(match("match", "("))
         val argument = parseExpression()
-        require(match(")")) { "Expected closing brace." }
+        require(match(")")) { "Expected closing parenthesis." }
+        require(match("{")) { "Expected opening brace." }
         val cases = mutableListOf<Pair<RhovasAst.Pattern, RhovasAst.Statement>>()
         var elseCase: Pair<RhovasAst.Pattern?, RhovasAst.Statement>? = null
         while (!match("}")) {
@@ -146,10 +148,6 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             }
         }
         return RhovasAst.Statement.Match.Structural(argument, cases, elseCase)
-    }
-
-    private fun parsePattern(): RhovasAst.Pattern {
-        TODO()
     }
 
     private fun parseForStatement(): RhovasAst.Statement.For {
@@ -428,6 +426,65 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             arguments.add(RhovasAst.Expression.Dsl(name, ast))
         }
         return RhovasAst.Expression.Macro(name, arguments)
+    }
+
+    private fun parsePattern(): RhovasAst.Pattern {
+        var pattern = when {
+            peek(RhovasTokenType.IDENTIFIER) -> {
+                if (tokens[0]!!.literal[0].isUpperCase()) {
+                    val type = parseType()
+                    val pattern = if (peek(listOf(RhovasTokenType.IDENTIFIER, "[", "{", "$"))) parsePattern() else null
+                    RhovasAst.Pattern.TypedDestructure(type, pattern)
+                } else {
+                    require(match(RhovasTokenType.IDENTIFIER))
+                    val name = tokens[-1]!!.literal
+                    RhovasAst.Pattern.Variable(name)
+                }
+            }
+            match("[") -> {
+                val patterns = mutableListOf<RhovasAst.Pattern>()
+                while (!match("]")) {
+                    patterns.add(parsePattern())
+                    require(peek("]") || match(",")) { "Expected closing bracket or comma." }
+                }
+                RhovasAst.Pattern.OrderedDestructure(patterns)
+            }
+            match("{") -> {
+                val patterns = mutableListOf<Pair<String, RhovasAst.Pattern?>>()
+                while (!match("}")) {
+                    if (peek(RhovasTokenType.IDENTIFIER, listOf("*", "+"))) {
+                        val pattern = parsePattern()
+                        patterns.add(Pair("", pattern))
+                    } else {
+                        require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
+                        val name = tokens[-1]!!.literal
+                        val pattern = if (match(":")) parsePattern() else null
+                        patterns.add(Pair(name, pattern))
+                    }
+                    require(peek("}") || match(",")) { "Expected closing bracket or comma." }
+                }
+                RhovasAst.Pattern.NamedDestructure(patterns)
+            }
+            match("$") -> {
+                require(match("{")) { "Expected opening brace." }
+                val value = parseExpression()
+                require(match("}")) { "Expected closing brace." }
+                RhovasAst.Pattern.Value(value)
+            }
+            peek(listOf("*", "+")) -> null
+            else -> throw ParseException("Expected pattern.")
+        }
+        if (match(listOf("*", "+"))) {
+            val operator = tokens[-1]!!.literal
+            pattern = RhovasAst.Pattern.VarargDestructure(pattern, operator)
+        }
+        if (match("$")) {
+            require(match("{")) { "Expected opening brace." }
+            val predicate = parseExpression()
+            require(match("}")) { "Expected closing brace." }
+            pattern = RhovasAst.Pattern.Predicate(pattern!!, predicate)
+        }
+        return pattern!!
     }
 
     private fun parseType(): RhovasAst.Type {

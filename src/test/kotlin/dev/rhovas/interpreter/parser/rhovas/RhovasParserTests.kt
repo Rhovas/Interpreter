@@ -300,7 +300,6 @@ class RhovasParserTests {
                 )
             }
 
-            @Disabled("Awaiting parsePattern() implementation")
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testStructural(name: String, input: String, expected: RhovasAst.Statement.Match.Structural?) {
@@ -1270,6 +1269,193 @@ class RhovasParserTests {
                         )),
                     ),
                     Arguments.of("Missing Closing Brace", "#macro { source", null),
+                )
+            }
+
+        }
+
+    }
+
+    @Nested
+    inner class PatternTests {
+
+        @Nested
+        inner class VariableTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: RhovasAst.Pattern.Variable?) {
+                test("pattern", input, expected)
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", "variable", RhovasAst.Pattern.Variable("variable")),
+                    Arguments.of("Underscore", "_", RhovasAst.Pattern.Variable("_")),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ValueTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testValue(name: String, input: String, expected: RhovasAst.Pattern.Value?) {
+                test("pattern", input, expected)
+            }
+
+            fun testValue(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Value", "\${value}", RhovasAst.Pattern.Value(expression("value"))),
+                    Arguments.of("Missing Opening Brace", "\$value}", null),
+                    Arguments.of("Missing Closing Brace", "\${value", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class PredicateTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testPredicate(name: String, input: String, expected: RhovasAst.Pattern.Predicate?) {
+                test("pattern", input, expected)
+            }
+
+            fun testPredicate(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", "pattern \${predicate}",
+                        RhovasAst.Pattern.Predicate(
+                            RhovasAst.Pattern.Variable("pattern"),
+                            expression("predicate"),
+                        ),
+                    ),
+                    Arguments.of("OrderedDestructure", "[ordered] \${predicate}",
+                        RhovasAst.Pattern.Predicate(
+                            RhovasAst.Pattern.OrderedDestructure(listOf(RhovasAst.Pattern.Variable("ordered"))),
+                            expression("predicate"),
+                        ),
+                    ),
+                    Arguments.of("VarargDestructure", "pattern* \${predicate}",
+                        RhovasAst.Pattern.Predicate(
+                            RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "*"),
+                            expression("predicate")
+                        ),
+                    ),
+                    Arguments.of("Missing Opening Brace", "pattern \$predicate}", null),
+                    Arguments.of("Missing Closing Brace", "pattern \${predicate", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class OrderedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testOrderedDestructure(name: String, input: String, expected: RhovasAst.Pattern.OrderedDestructure?) {
+                test("pattern", input, expected)
+            }
+
+            fun testOrderedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "[]",
+                        RhovasAst.Pattern.OrderedDestructure(listOf()),
+                    ),
+                    Arguments.of("Single", "[pattern]",
+                        RhovasAst.Pattern.OrderedDestructure(listOf(
+                            RhovasAst.Pattern.Variable("pattern"),
+                        )),
+                    ),
+                    Arguments.of("Multiple", "[first, second, third]",
+                        RhovasAst.Pattern.OrderedDestructure(listOf(
+                            RhovasAst.Pattern.Variable("first"),
+                            RhovasAst.Pattern.Variable("second"),
+                            RhovasAst.Pattern.Variable("third"),
+                        )),
+                    ),
+                    Arguments.of("Varargs", "[first, rest*]",
+                        RhovasAst.Pattern.OrderedDestructure(listOf(
+                            RhovasAst.Pattern.Variable("first"),
+                            RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*"),
+                        )),
+                    ),
+                    Arguments.of("Missing Comma", "[first second]", null),
+                    Arguments.of("Missing Closing Bracket", "[pattern", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class NamedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testNamedDestructure(name: String, input: String, expected: RhovasAst.Pattern.NamedDestructure?) {
+                test("pattern", input, expected)
+            }
+
+            fun testNamedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "{}",
+                        RhovasAst.Pattern.NamedDestructure(listOf()),
+                    ),
+                    Arguments.of("Single", "{key: pattern}",
+                        RhovasAst.Pattern.NamedDestructure(listOf(
+                            Pair("key", RhovasAst.Pattern.Variable("pattern")),
+                        )),
+                    ),
+                    Arguments.of("Multiple", "{k1: p1, k2: p2, k3: p3}",
+                        RhovasAst.Pattern.NamedDestructure(listOf(
+                            Pair("k1", RhovasAst.Pattern.Variable("p1")),
+                            Pair("k2", RhovasAst.Pattern.Variable("p2")),
+                            Pair("k3", RhovasAst.Pattern.Variable("p3")),
+                        )),
+                    ),
+                    Arguments.of("Key Only", "{key}",
+                        RhovasAst.Pattern.NamedDestructure(listOf(
+                            Pair("key", null),
+                        )),
+                    ),
+                    Arguments.of("Varargs", "{key: pattern, rest*}",
+                        RhovasAst.Pattern.NamedDestructure(listOf(
+                            Pair("key", RhovasAst.Pattern.Variable("pattern")),
+                            Pair("", RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*")),
+                        )),
+                    ),
+                    Arguments.of("Missing Colon", "{k1 p1}", null),
+                    Arguments.of("Missing Comma", "{k1: p1 k2: p2}", null),
+                    Arguments.of("Missing Closing Bracket", "{key: pattern", null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class VarargDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVarargDestructure(name: String, input: String, expected: RhovasAst.Pattern.VarargDestructure?) {
+                test("pattern", input, expected)
+            }
+
+            fun testVarargDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Zero Or More", "pattern*",
+                        RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "*"),
+                    ),
+                    Arguments.of("One Or More", "pattern+",
+                        RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "+"),
+                    ),
+                    Arguments.of("Operator Only", "*",
+                        RhovasAst.Pattern.VarargDestructure(null, "*"),
+                    ),
                 )
             }
 
