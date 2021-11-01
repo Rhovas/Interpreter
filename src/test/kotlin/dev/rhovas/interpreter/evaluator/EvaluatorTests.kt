@@ -841,6 +841,9 @@ class EvaluatorTests {
                     Arguments.of("Property", "object.property",
                         Object(Library.TYPES["String"]!!, "property")
                     ),
+                    Arguments.of("Nullable", "null?.property",
+                        Object(Library.TYPES["Null"]!!, null),
+                    ),
                     Arguments.of("Undefined", "object.undefined", null)
                 )
             }
@@ -914,6 +917,18 @@ class EvaluatorTests {
                     it.variables.define(Variable("object", type, Object(type, mapOf(
                         Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                     ))))
+                    it.functions.define(Library.SCOPE.functions["range", 3]!!)
+                    val pipeline = Type("Pipeline", Scope(null).also {
+                        val qualified = Type("Qualified", Scope(null).also {
+                            it.functions.define(Function("function", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                                arguments[1]
+                            })
+                        })
+                        it.functions.define(Function("Qualified", listOf(Library.TYPES["Any"]!!), qualified) { arguments ->
+                            Object(qualified, Unit)
+                        })
+                    })
+                    it.variables.define(Variable("Pipeline", pipeline, Object(pipeline, Unit)))
                 })
             }
 
@@ -921,6 +936,21 @@ class EvaluatorTests {
                 return Stream.of(
                     Arguments.of("Method", "object.method(\"argument\")",
                         Object(Library.TYPES["String"]!!, "argument")
+                    ),
+                    Arguments.of("Nullable", "null?.method(\"argument\")",
+                        Object(Library.TYPES["Null"]!!, null),
+                    ),
+                    Arguments.of("Coalesce", "1..add(2)",
+                        Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                    ),
+                    Arguments.of("Pipeline", "1.|range(2, :incl)",
+                        Object(Library.TYPES["List"]!!, listOf(
+                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                            Object(Library.TYPES["Integer"]!!, BigInteger("2")),
+                        )),
+                    ),
+                    Arguments.of("Pipeline Qualified", "1.|Pipeline.Qualified.function()",
+                        Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                     ),
                     Arguments.of("Invalid Arity", "object.method()", null),
                     Arguments.of("Undefined", "object.undefined()", null)

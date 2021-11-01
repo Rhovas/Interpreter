@@ -385,9 +385,13 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     override fun visit(ast: RhovasAst.Expression.Access): Object {
         return if (ast.receiver != null) {
             val receiver = visit(ast.receiver)
-            val property = receiver.properties[ast.name]
-                ?: throw EvaluateException("Property ${ast.name} is not supported by type ${receiver.type.name}.")
-            property.get()
+            if (ast.nullable && receiver.type == Library.TYPES["Null"]) {
+                receiver
+            } else {
+                val property = receiver.properties[ast.name]
+                    ?: throw EvaluateException("Property ${ast.name} is not supported by type ${receiver.type.name}.")
+                property.get()
+            }
         } else {
             val variable = scope.variables[ast.name]
                 ?: throw EvaluateException("Variable ${ast.name} is not defined.")
@@ -405,9 +409,31 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     override fun visit(ast: RhovasAst.Expression.Function): Object {
         return if (ast.receiver != null) {
             val receiver = visit(ast.receiver)
-            val method = receiver.methods[ast.name, ast.arguments.size]
-                ?: throw EvaluateException("Method ${ast.name}/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
-            method.invoke(ast.arguments.map { visit(it) })
+            val result = if (ast.nullable && receiver.type == Library.TYPES["Null"]) {
+                receiver
+            } else if (ast.pipeline) {
+                if (ast.name.contains(".")) {
+                    val split = ast.name.split(".")
+                    var base = scope.variables[split.first()]?.get()
+                        ?: throw EvaluateException("Variable ${split.first()} is not defined.")
+                    for (name in split.slice(1..(split.size - 2))) {
+                        base = base.properties[name]?.get()
+                            ?: throw EvaluateException("Property ${name} is not supported by type ${base.type.name}.")
+                    }
+                    val method = base.methods[split.last(), ast.arguments.size + 1]
+                        ?: throw EvaluateException("Method ${split.last()}/${ast.arguments.size + 1} is not supported by type ${base.type.name}.")
+                    method.invoke(listOf(receiver) + ast.arguments.map { visit(it) })
+                } else {
+                    val function = scope.functions[ast.name, ast.arguments.size + 1]
+                        ?: throw EvaluateException("Function ${ast.name}/${ast.arguments.size + 1} is not defined.")
+                    function.invoke(listOf(receiver) + ast.arguments.map { visit(it) })
+                }
+            } else {
+                val method = receiver.methods[ast.name, ast.arguments.size]
+                    ?: throw EvaluateException("Method ${ast.name}/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
+                method.invoke(ast.arguments.map { visit(it) })
+            }
+            if (ast.coalesce) receiver else result
         } else {
             val function = scope.functions[ast.name, ast.arguments.size]
                 ?: throw EvaluateException("Function ${ast.name}/${ast.arguments.size} is not defined.")
