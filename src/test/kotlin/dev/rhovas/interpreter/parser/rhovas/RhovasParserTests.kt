@@ -62,12 +62,12 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Function", "function();",
                         RhovasAst.Statement.Expression(
-                            RhovasAst.Expression.Function(null, "function", listOf()),
+                            RhovasAst.Expression.Function(null, false, false, false, "function", listOf()),
                         ),
                     ),
                     Arguments.of("Method", "receiver.method();",
                         RhovasAst.Statement.Expression(
-                            RhovasAst.Expression.Function(expression("receiver"), "method", listOf()),
+                            RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf()),
                         ),
                     ),
                     Arguments.of("Macro", "#macro();",
@@ -77,7 +77,7 @@ class RhovasParserTests {
                     ),
                     Arguments.of("Other", "variable;",
                         RhovasAst.Statement.Expression(
-                            RhovasAst.Expression.Access(null, "variable"),
+                            RhovasAst.Expression.Access(null, false, "variable"),
                         ),
                     ),
                     Arguments.of("Missing Semicolon", "expression", null),
@@ -178,7 +178,7 @@ class RhovasParserTests {
                     ),
                     Arguments.of("Field", "receiver.field = value;",
                         RhovasAst.Statement.Assignment(
-                            RhovasAst.Expression.Access(expression("receiver"), "field"),
+                            RhovasAst.Expression.Access(expression("receiver"), false, "field"),
                             expression("value"),
                         ),
                     ),
@@ -190,7 +190,7 @@ class RhovasParserTests {
                     ),
                     Arguments.of("Other", "function() = value;",
                         RhovasAst.Statement.Assignment(
-                            RhovasAst.Expression.Function(null, "function", listOf()),
+                            RhovasAst.Expression.Function(null, false, false, false, "function", listOf()),
                             expression("value"),
                         ),
                     ),
@@ -985,10 +985,10 @@ class RhovasParserTests {
             fun testVariable(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Variable", "variable",
-                        RhovasAst.Expression.Access(null, "variable")
+                        RhovasAst.Expression.Access(null, false, "variable")
                     ),
                     Arguments.of("Underscore", "_",
-                        RhovasAst.Expression.Access(null, "_")
+                        RhovasAst.Expression.Access(null, false, "_")
                     ),
                 )
             }
@@ -1002,17 +1002,24 @@ class RhovasParserTests {
             fun testField(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Field", "receiver.field",
-                        RhovasAst.Expression.Access(expression("receiver"),"field"),
+                        RhovasAst.Expression.Access(expression("receiver"),false, "field"),
                     ),
                     Arguments.of("Multiple Fields", "receiver.first.second.third",
                         RhovasAst.Expression.Access(
                             RhovasAst.Expression.Access(
-                                RhovasAst.Expression.Access(expression("receiver"), "first"),
+                                RhovasAst.Expression.Access(expression("receiver"), false, "first"),
+                                false,
                                 "second",
                             ),
+                            false,
                             "third",
                         ),
                     ),
+                    Arguments.of("Nullable", "receiver?.field",
+                        RhovasAst.Expression.Access(expression("receiver"),true, "field"),
+                    ),
+                    Arguments.of("Coalesce", "receiver..field", null),
+                    Arguments.of("Pipeline", "receiver.|field", null),
                 )
             }
 
@@ -1079,20 +1086,20 @@ class RhovasParserTests {
             fun testFunction(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Zero Arguments", "function()",
-                        RhovasAst.Expression.Function(null, "function", listOf())
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf())
                     ),
                     Arguments.of("Single Argument", "function(argument)",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             expression("argument"),
                         )),
                     ),
                     Arguments.of("Multiple Arguments", "function(first, second, third)",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             expression("first"), expression("second"), expression("third"),
                         )),
                     ),
                     Arguments.of("Trailing Comma", "function(argument,)",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             expression("argument"),
                         )),
                     ),
@@ -1110,35 +1117,56 @@ class RhovasParserTests {
             fun testMethod(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Zero Arguments", "receiver.method()",
-                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf())
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf())
                     ),
                     Arguments.of("Single Argument", "receiver.method(argument)",
-                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf(
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf(
                             expression("argument"),
                         )),
                     ),
                     Arguments.of("Multiple Arguments", "receiver.method(first, second, third)",
-                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf(
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf(
                             expression("first"),
                             expression("second"),
                             expression("third"),
                         )),
                     ),
                     Arguments.of("Trailing Comma", "receiver.method(argument,)",
-                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf(
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf(
                             expression("argument"),
                         )),
                     ),
                     Arguments.of("Multiple Methods", "receiver.first().second().third()",
                         RhovasAst.Expression.Function(
                             RhovasAst.Expression.Function(
-                                RhovasAst.Expression.Function(expression("receiver"), "first", listOf()),
+                                RhovasAst.Expression.Function(expression("receiver"), false, false, false, "first", listOf()),
+                                false,
+                                false,
+                                false,
                                 "second",
                                 listOf(),
                             ),
+                            false,
+                            false,
+                            false,
                             "third",
                             listOf(),
                         ),
+                    ),
+                    Arguments.of("Nullable", "receiver?.method()",
+                        RhovasAst.Expression.Function(expression("receiver"), true, false, false, "method", listOf()),
+                    ),
+                    Arguments.of("Coalesce", "receiver..method()",
+                        RhovasAst.Expression.Function(expression("receiver"), false, true, false, "method", listOf()),
+                    ),
+                    Arguments.of("Pipeline", "receiver.|function()",
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, true, "function", listOf()),
+                    ),
+                    Arguments.of("Pipeline Qualified", "receiver.|Namespace.function()",
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, true, "Namespace.function", listOf()),
+                    ),
+                    Arguments.of("Multiple Modifiers", "receiver?..|function()",
+                        RhovasAst.Expression.Function(expression("receiver"), true, true, true, "function", listOf()),
                     ),
                     Arguments.of("Missing Comma", "receiver.method(first second)", null),
                     Arguments.of("Missing Closing Parenthesis", "receiver.method(argument", null),
@@ -1154,49 +1182,49 @@ class RhovasParserTests {
             fun testLambda(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Lambda", "function { body; }",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf(), RhovasAst.Statement.Block(listOf(statement("body")))),
                         )),
                     ),
                     Arguments.of("Empty Block", "function {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf(), block()),
                         )),
                     ),
                     Arguments.of("Argument", "function(argument) {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             expression("argument"),
                             RhovasAst.Expression.Lambda(listOf(), block()),
                         )),
                     ),
                     Arguments.of("Single Parameter", "function |parameter| {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
                         )),
                     ),
                     Arguments.of("Multiple Parameters", "function |first, second, third| {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf("first" to null, "second" to null, "third" to null), block()),
                         )),
                     ),
                     Arguments.of("Typed Parameter", "function |parameter: Type| {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf("parameter" to RhovasAst.Type("Type")), block()),
                         )),
                     ),
                     Arguments.of("Trailing Comma", "function |parameter,| {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
                         )),
                     ),
                     Arguments.of("Argument & Parameter", "function(argument) |parameter| {}",
-                        RhovasAst.Expression.Function(null, "function", listOf(
+                        RhovasAst.Expression.Function(null, false, false, false, "function", listOf(
                             expression("argument"),
                             RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
                         )),
                     ),
                     Arguments.of("Method", "receiver.method {}",
-                        RhovasAst.Expression.Function(expression("receiver"), "method", listOf(
+                        RhovasAst.Expression.Function(expression("receiver"), false, false, false, "method", listOf(
                             RhovasAst.Expression.Lambda(listOf(), RhovasAst.Statement.Block(listOf())),
                         )),
                     ),
@@ -1505,7 +1533,7 @@ class RhovasParserTests {
     }
 
     private fun expression(name: String): RhovasAst.Expression {
-        return RhovasAst.Expression.Access(null, name)
+        return RhovasAst.Expression.Access(null, false, name)
     }
 
     private fun test(rule: String, input: String, expected: RhovasAst?) {

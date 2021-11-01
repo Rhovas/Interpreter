@@ -144,6 +144,7 @@ sealed class RhovasAst {
 
         data class Access(
             val receiver: Expression?,
+            val nullable: Boolean,
             val name: String,
         ) : Expression()
 
@@ -154,6 +155,9 @@ sealed class RhovasAst {
 
         data class Function(
             val receiver: Expression?,
+            val nullable: Boolean,
+            val coalesce: Boolean,
+            val pipeline: Boolean,
             val name: String,
             val arguments: List<Expression>,
         ) : Expression()
