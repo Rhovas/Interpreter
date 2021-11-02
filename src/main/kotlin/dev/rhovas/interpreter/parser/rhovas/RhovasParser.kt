@@ -11,8 +11,9 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
             "statement" -> parseStatement()
             "expression" -> parseExpression()
             "pattern" -> parsePattern()
+            "interpolation" -> parseInterpolation()
             else -> throw AssertionError()
-        }.also { require(tokens[0] == null) { "Expected end of input." } }
+        }.also { require(rule == "interpolation" || tokens[0] == null) { "Expected end of input." } }
     }
 
     private fun parseStatement(): RhovasAst.Statement {
@@ -505,6 +506,13 @@ class RhovasParser(input: String) : Parser<RhovasTokenType>(RhovasLexer(input)) 
         require(match(RhovasTokenType.IDENTIFIER)) { "Expected identifier." }
         val name = tokens[-1]!!.literal
         return RhovasAst.Type(name)
+    }
+
+    private fun parseInterpolation(): RhovasAst.Expression {
+        require(match("$", "{"))
+        val expression = parseExpression()
+        require(match("}")) { "Expected closing brace." }
+        return expression
     }
 
 }

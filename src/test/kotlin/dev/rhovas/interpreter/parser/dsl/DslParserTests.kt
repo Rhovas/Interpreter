@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.parser.dsl
 
 import dev.rhovas.interpreter.parser.ParseException
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
@@ -99,7 +100,9 @@ class DslParserTests {
                         ${"\$"}{value}
                     }
                 """.trimIndent(),
-                    null //TODO
+                    DslAst.Source(listOf("", ""), listOf(
+                        RhovasAst.Expression.Access(null, false, "value"),
+                    ))
                 ),
                 Arguments.of("Empty", """
                     {

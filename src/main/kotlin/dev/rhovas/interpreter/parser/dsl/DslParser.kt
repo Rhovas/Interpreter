@@ -1,7 +1,7 @@
 package dev.rhovas.interpreter.parser.dsl
 
-import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
+import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 
 class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
 
@@ -15,6 +15,8 @@ class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
     private fun parseSource(): DslAst.Source {
         require(match("{"))
         val builder = StringBuilder()
+        val literals = mutableListOf<String>()
+        val arguments = mutableListOf<Any>()
         if (match(DslTokenType.INDENT)) {
             val indent = tokens[-1]!!.literal
             while (true) {
@@ -25,7 +27,14 @@ class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
                     }
                     builder.append("\n").append(literal.removePrefix(indent))
                 } else if (match("$", "{")) {
-                    throw ParseException("TODO: Interpolation") //TODO
+                    val parser = RhovasParser(lexer.input)
+                    parser.lexer.state = lexer.state - 2
+                    val argument = parser.parse("interpolation")
+                    lexer.state = parser.lexer.state - 1
+                    require(match("}"))
+                    literals.add(builder.toString())
+                    arguments.add(argument)
+                    builder.clear()
                 } else {
                     require(tokens[0] != null) { "Expected token." }
                     tokens.advance()
@@ -38,8 +47,9 @@ class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
                 builder.append(tokens[-1]!!.literal)
             }
         }
+        literals.add(builder.toString())
         require(match("}")) { "Expected closing brace." }
-        return DslAst.Source(listOf(builder.toString()), listOf())
+        return DslAst.Source(literals, arguments)
     }
 
 }
