@@ -38,7 +38,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         scope.functions.define(Function(ast.name, parameters.map { it.second }, returns) { arguments ->
             scoped(current) {
                 for (i in parameters.indices) {
-                    if (parameters[i].second.name != "Any" && arguments[i].type.name != parameters[i].second.name) {
+                    if (!arguments[i].type.isSubtypeOf(parameters[i].second)) {
                         throw EvaluateException("Invalid argument to function ${ast.name}/${parameters.size}: expected ${parameters[i].second.name}, received ${arguments[i].type.name}.")
                     }
                     scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i]))
@@ -47,8 +47,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                     visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
-                    if (e.value != null && returns.name != "Any" && e.value.type.name != returns.name) {
-                        throw EvaluateException("Invalid return value from function ${ast.name}/${parameters.size}: expected ${returns.name}, received ${e.value.type}.")
+                    if (!(e.value?.type ?: Library.TYPES["Void"]!!).isSubtypeOf(returns)) {
+                        throw EvaluateException("Invalid return value from function ${ast.name}/${parameters.size}: expected ${returns.name}, received ${e.value?.type ?: Library.TYPES["Void"]!!}.")
                     }
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }
@@ -66,7 +66,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         //TODO: Redeclaration/shadowing
         val type = ast.type?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!
         val value = ast.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        if (type.name != "Any" && ast.value !== null && value.type.name != type.name) {
+        if (ast.value !== null && !value.type.isSubtypeOf(type)) {
             //TODO: Proper handling of uninitialized variables
             throw EvaluateException("Invalid value for variable ${ast.name}: expected ${type.name}, received ${value.type.name}.")
         }
@@ -628,7 +628,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                         Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
                     }
                     for (i in parameters.indices) {
-                        if (parameters[i].second.name != "Any" && parameters[i].second.name != arguments[i].second.name) {
+                        if (!arguments[i].second.isSubtypeOf(parameters[i].second)) {
                             throw EvaluateException("Invalid parameter type for lambda: expected ${arguments[i].second.name}, received ${parameters[i].second.name}.")
                         }
                         evaluator.scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i].third))
@@ -644,8 +644,8 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                     evaluator.visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
-                    if (e.value != null && returns.name != "Any" && e.value.type.name != returns.name) {
-                        throw EvaluateException("Invalid return value from lambda: expected ${returns.name}, received ${e.value.type}.")
+                    if (!(e.value?.type ?: Library.TYPES["Void"]!!).isSubtypeOf(returns)) {
+                        throw EvaluateException("Invalid return value from lambda: expected ${returns.name}, received ${e.value!!.type}.")
                     }
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }
