@@ -8,4 +8,8 @@ data class Type(
     //TODO: val fields by scope::variables
     val methods by scope::functions
 
+    override fun toString(): String {
+        return "Type(name='$name', scope=Scope@${scope.hashCode().toString(16)})"
+    }
+
 }
