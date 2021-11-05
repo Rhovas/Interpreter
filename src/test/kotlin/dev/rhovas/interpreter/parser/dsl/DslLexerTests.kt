@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.dsl
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Token
 import org.junit.jupiter.api.Assertions
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
+import java.util.regex.Matcher
 import java.util.stream.Stream
 
 class DslLexerTests {
@@ -18,7 +20,10 @@ class DslLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testIndent(name: String, input: String, expected: String?) {
-            test(input, listOf(Token(DslTokenType.INDENT, expected ?: "", null)), expected != null)
+            val index = Regex("^[\n\r]*").find(input)!!.value.length
+            test(input, listOf(
+                Token(DslTokenType.INDENT, expected ?: "", null, Input.Range(index, if (index > 0) 2 else 1, 0, expected?.length ?: 0))
+            ), expected != null)
         }
 
         fun testIndent(): Stream<Arguments> {
@@ -41,7 +46,9 @@ class DslLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testOperator(name: String, input: String, success: Boolean) {
-            test(input, listOf(Token(DslTokenType.OPERATOR, input, null)), success)
+            test(input, listOf(
+                Token(DslTokenType.OPERATOR, input, null, Input.Range(0, 1, 0, input.length))
+            ), success)
         }
 
         fun testOperator(): Stream<Arguments> {
@@ -62,7 +69,9 @@ class DslLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testText(name: String, input: String, success: Boolean) {
-            test(input, listOf(Token(DslTokenType.TEXT, input, null)), success)
+            test(input, listOf(
+                Token(DslTokenType.TEXT, input, null, Input.Range(0, 1, 0, input.length))
+            ), success)
         }
 
         fun testText(): Stream<Arguments> {
@@ -93,35 +102,35 @@ class DslLexerTests {
             return Stream.of(
                 //indent
                 Arguments.of("Inner Indent", "first\n    second", listOf(
-                    Token(DslTokenType.TEXT, "first", null),
-                    Token(DslTokenType.INDENT, "    ", null),
-                    Token(DslTokenType.TEXT, "second", null),
+                    Token(DslTokenType.TEXT, "first", null, Input.Range(0, 1, 0, 5)),
+                    Token(DslTokenType.INDENT, "    ", null, Input.Range(6, 2, 0, 4)),
+                    Token(DslTokenType.TEXT, "second", null, Input.Range(10, 2, 4, 6)),
                 )),
                 Arguments.of("Leading Indent", "\n    token", listOf(
-                    Token(DslTokenType.INDENT, "    ", null),
-                    Token(DslTokenType.TEXT, "token", null),
+                    Token(DslTokenType.INDENT, "    ", null, Input.Range(1, 2, 0, 4)),
+                    Token(DslTokenType.TEXT, "token", null, Input.Range(5, 2, 4, 5)),
                 )),
                 Arguments.of("Trailing Indent", "token\n    ", listOf(
-                    Token(DslTokenType.TEXT, "token", null),
-                    Token(DslTokenType.INDENT, "    ", null),
+                    Token(DslTokenType.TEXT, "token", null, Input.Range(0, 1, 0, 5)),
+                    Token(DslTokenType.INDENT, "    ", null, Input.Range(6, 2, 0, 4)),
                 )),
                 Arguments.of("Empty Line", "first\n\nsecond", listOf(
-                    Token(DslTokenType.TEXT, "first", null),
-                    Token(DslTokenType.INDENT, "", null),
-                    Token(DslTokenType.INDENT, "", null),
-                    Token(DslTokenType.TEXT, "second", null),
+                    Token(DslTokenType.TEXT, "first", null, Input.Range(0, 1, 0, 5)),
+                    Token(DslTokenType.INDENT, "", null, Input.Range(6, 2, 0, 0)),
+                    Token(DslTokenType.INDENT, "", null, Input.Range(7, 3, 0, 0)),
+                    Token(DslTokenType.TEXT, "second", null, Input.Range(7, 3, 0, 6)),
                 )),
                 //operator
                 Arguments.of("Interpolation", "\${value}", listOf(
-                    Token(DslTokenType.OPERATOR, "\$", null),
-                    Token(DslTokenType.OPERATOR, "{", null),
-                    Token(DslTokenType.TEXT, "value", null),
-                    Token(DslTokenType.OPERATOR, "}", null),
+                    Token(DslTokenType.OPERATOR, "\$", null, Input.Range(0, 1, 0, 1)),
+                    Token(DslTokenType.OPERATOR, "{", null, Input.Range(1, 1, 1, 1)),
+                    Token(DslTokenType.TEXT, "value", null, Input.Range(2, 1, 2, 5)),
+                    Token(DslTokenType.OPERATOR, "}", null, Input.Range(7, 1, 7, 1)),
                 )),
                 Arguments.of("Inner Operator", "first\$second", listOf(
-                    Token(DslTokenType.TEXT, "first", null),
-                    Token(DslTokenType.OPERATOR, "\$", null),
-                    Token(DslTokenType.TEXT, "second", null),
+                    Token(DslTokenType.TEXT, "first", null, Input.Range(0, 1, 0, 5)),
+                    Token(DslTokenType.OPERATOR, "\$", null, Input.Range(5, 1, 5, 1)),
+                    Token(DslTokenType.TEXT, "second", null, Input.Range(6, 1, 6, 6)),
                 )),
             )
         }
@@ -136,9 +145,9 @@ class DslLexerTests {
             test("""
                 { /\d+(\.\d+)?/ }
             """.trimIndent(), listOf(
-                Token(DslTokenType.OPERATOR, "{", null),
-                Token(DslTokenType.TEXT, " /\\d+(\\.\\d+)?/ ", null),
-                Token(DslTokenType.OPERATOR, "}", null),
+                Token(DslTokenType.OPERATOR, "{", null, Input.Range(0, 1, 0, 1)),
+                Token(DslTokenType.TEXT, " /\\d+(\\.\\d+)?/ ", null, Input.Range(1, 1, 1, 15)),
+                Token(DslTokenType.OPERATOR, "}", null, Input.Range(16, 1, 16, 1)),
             ), true)
         }
 
@@ -150,20 +159,20 @@ class DslLexerTests {
                     WHERE name = ${"\$"}{user.name}
                 }
             """.trimIndent(), listOf(
-                Token(DslTokenType.OPERATOR, "{", null),
+                Token(DslTokenType.OPERATOR, "{", null, Input.Range(0, 1, 0, 1)),
 
-                Token(DslTokenType.INDENT, "    ", null),
-                Token(DslTokenType.TEXT, "SELECT * FROM users", null),
+                Token(DslTokenType.INDENT, "    ", null, Input.Range(2, 2, 0, 4)),
+                Token(DslTokenType.TEXT, "SELECT * FROM users", null, Input.Range(6, 2, 4, 19)),
 
-                Token(DslTokenType.INDENT, "    ", null),
-                Token(DslTokenType.TEXT, "WHERE name = ", null),
-                Token(DslTokenType.OPERATOR, "\$", null),
-                Token(DslTokenType.OPERATOR, "{", null),
-                Token(DslTokenType.TEXT, "user.name", null),
-                Token(DslTokenType.OPERATOR, "}", null),
+                Token(DslTokenType.INDENT, "    ", null, Input.Range(26, 3, 0, 4)),
+                Token(DslTokenType.TEXT, "WHERE name = ", null, Input.Range(30, 3, 4, 13)),
+                Token(DslTokenType.OPERATOR, "\$", null, Input.Range(43, 3, 17, 1)),
+                Token(DslTokenType.OPERATOR, "{", null, Input.Range(44, 3, 18, 1)),
+                Token(DslTokenType.TEXT, "user.name", null, Input.Range(45, 3, 19, 9)),
+                Token(DslTokenType.OPERATOR, "}", null, Input.Range(54, 3, 28, 1)),
 
-                Token(DslTokenType.INDENT, "", null),
-                Token(DslTokenType.OPERATOR, "}", null),
+                Token(DslTokenType.INDENT, "", null, Input.Range(56, 4, 0, 0)),
+                Token(DslTokenType.OPERATOR, "}", null, Input.Range(56, 4, 0, 1)),
             ), true)
         }
 
@@ -171,10 +180,10 @@ class DslLexerTests {
 
     private fun test(input: String, expected: List<Token<DslTokenType>>, success: Boolean) {
         if (success) {
-            Assertions.assertEquals(expected, DslLexer(input).lex())
+            Assertions.assertEquals(expected, DslLexer(Input("Test", input)).lex())
         } else {
             try {
-                Assertions.assertNotEquals(expected, DslLexer(input).lex())
+                Assertions.assertNotEquals(expected, DslLexer(Input("Test", input)).lex())
             } catch (ignored: ParseException) {
             }
         }

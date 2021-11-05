@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.dsl
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import org.junit.jupiter.api.Assertions
@@ -125,9 +126,9 @@ class DslParserTests {
 
     private fun test(rule: String, input: String, expected: DslAst?) {
         if (expected != null) {
-            Assertions.assertEquals(expected, DslParser(input).parse(rule))
+            Assertions.assertEquals(expected, DslParser(Input("Test", input)).parse(rule))
         } else {
-            Assertions.assertThrows(ParseException::class.java) { DslParser(input).parse(rule) }
+            Assertions.assertThrows(ParseException::class.java) { DslParser(Input("Test", input)).parse(rule) }
         }
     }
 

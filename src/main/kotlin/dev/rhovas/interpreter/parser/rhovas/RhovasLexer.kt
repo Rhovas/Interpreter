@@ -1,16 +1,21 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.Lexer
 import dev.rhovas.interpreter.parser.Token
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
+class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
 
     override fun lexToken(): Token<RhovasTokenType>? {
-        while (match("[ \t\n\r]") || match("/", "/")) {
-            if (chars[-1] == '/') {
-                while (match("[^\n\r]")) {}
+        while (match("/", "/") || match("[ \t\n\r]")) {
+            when (chars[-1]) {
+                '/' -> while (match("[^\n\r]")) {}
+                '\n', '\r' -> {
+                    match(if (chars[-1] == '\n') '\r' else '\n')
+                    chars.newline()
+                }
             }
         }
         chars.consume()
@@ -60,13 +65,13 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
         while (match("[^\"\n\r]")) {
             //TODO: String interpolation
             if (chars[-1] == '\\') {
-                require(match("[nrtu\"\$\\\\]")) { "Invalid character escape." }
+                require(match("[nrtu\"\$\\\\]")) { error("Invalid character escape.") }
                 builder.append(when (chars[-1]!!) {
                     'n' -> '\n'
                     'r' -> '\r'
                     't' -> '\t'
                     'u' -> Char((1..4).fold(0) { codepoint, _ ->
-                        require(match("[0-9A-F]")) { "Invalid unicode escape." }
+                        require(match("[0-9A-F]")) { error("Invalid unicode escape.") }
                         16 * codepoint + chars[-1]!!.digitToInt(16)
                     })
                     else -> chars[-1]!!
@@ -75,7 +80,7 @@ class RhovasLexer(input: String) : Lexer<RhovasTokenType>(input) {
                 builder.append(chars[-1]!!)
             }
         }
-        require(match('"')) { "Unterminated string literal." }
+        require(match('"')) { error("Unterminated string literal.") }
         return chars.emit(RhovasTokenType.STRING, builder.toString())
     }
 

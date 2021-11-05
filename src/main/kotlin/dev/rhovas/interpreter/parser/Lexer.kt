@@ -1,10 +1,10 @@
 package dev.rhovas.interpreter.parser
 
-abstract class Lexer<T: Token.Type>(val input: String) {
+abstract class Lexer<T: Token.Type>(val input: Input) {
 
     protected val chars = CharStream()
 
-    var state by chars::state
+    var state by chars::range
 
     fun lex(): List<Token<T>> {
         return generateSequence { lexToken() }.toList()
@@ -36,24 +36,37 @@ abstract class Lexer<T: Token.Type>(val input: String) {
     }
 
     protected fun require(condition: Boolean) {
-        return require(condition) { "Broken lexer invariant." }
+        require(condition) { error("Broken lexer invariant.\n${Exception().stackTraceToString()}") }
     }
 
-    protected fun require(condition: Boolean, error: () -> String) {
+    protected fun require(condition: Boolean, error: () -> ParseException) {
         if (!condition) {
-            throw ParseException(error())
+            throw error()
         }
+    }
+
+    protected fun error(message: String, range: Input.Range = chars.range): ParseException {
+        return ParseException(message, range)
     }
 
     inner class CharStream {
 
         private var index = 0
+        private var line = 1
+        private var column = 0
         private var length = 0
 
-        var state by this::index
+        var range: Input.Range
+            get() = Input.Range(index, line, column, length)
+            set(value) {
+                index = value.index
+                line = value.line
+                column = value.column
+                length = value.length
+            }
 
         operator fun get(offset: Int): Char? {
-            return input.getOrNull(index + length + offset)
+            return input.content.getOrNull(index + length + offset)
         }
 
         fun advance() {
@@ -63,15 +76,23 @@ abstract class Lexer<T: Token.Type>(val input: String) {
 
         fun consume() {
             index += length
+            column += length
             length = 0
         }
 
+        fun newline() {
+            require(this[-1] == '\n' || this[-1] == '\r')
+            consume()
+            line++
+            column = 0
+        }
+
         fun literal(): String {
-            return input.substring(index, index + length)
+            return input.content.substring(index, index + length)
         }
 
         fun emit(type: T, value: Any? = null): Token<T> {
-            return Token(type, literal(), value).also { consume() }
+            return Token(type, literal(), value, Input.Range(index, line, column, length)).also { consume() }
         }
 
     }

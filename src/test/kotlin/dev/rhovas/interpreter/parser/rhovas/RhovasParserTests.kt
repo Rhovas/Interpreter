@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import org.junit.jupiter.api.Assertions
@@ -1538,9 +1539,9 @@ class RhovasParserTests {
 
     private fun test(rule: String, input: String, expected: RhovasAst?) {
         if (expected != null) {
-            Assertions.assertEquals(expected, RhovasParser(input).parse(rule))
+            Assertions.assertEquals(expected, RhovasParser(Input("Test", input)).parse(rule))
         } else {
-            Assertions.assertThrows(ParseException::class.java) { RhovasParser(input).parse(rule) }
+            Assertions.assertThrows(ParseException::class.java) { RhovasParser(Input("Test", input)).parse(rule) }
         }
     }
 

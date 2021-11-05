@@ -1,9 +1,10 @@
 package dev.rhovas.interpreter.parser.dsl
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.Lexer
 import dev.rhovas.interpreter.parser.Token
 
-class DslLexer(input: String) : Lexer<DslTokenType>(input) {
+class DslLexer(input: Input) : Lexer<DslTokenType>(input) {
 
     override fun lexToken(): Token<DslTokenType>? {
         return when {
@@ -17,7 +18,7 @@ class DslLexer(input: String) : Lexer<DslTokenType>(input) {
     private fun lexIndent(): Token<DslTokenType> {
         require(match("[\n\r]"))
         match(if (chars[-1] == '\n') '\r' else '\n')
-        chars.consume()
+        chars.newline()
         while (match("[ \t]")) {}
         return chars.emit(DslTokenType.INDENT)
     }

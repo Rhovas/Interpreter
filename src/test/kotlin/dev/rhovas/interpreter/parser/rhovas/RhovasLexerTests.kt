@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Token
 import org.junit.jupiter.api.Assertions
@@ -60,7 +61,9 @@ class RhovasLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testIdentifier(name: String, input: String, success: Boolean) {
-            test(input, listOf(Token(RhovasTokenType.IDENTIFIER, input, null)), success)
+            test(input, listOf(
+                Token(RhovasTokenType.IDENTIFIER, input, null, Input.Range(0, 1, 0, input.length))
+            ), success)
         }
 
         fun testIdentifier(): Stream<Arguments> {
@@ -88,7 +91,9 @@ class RhovasLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testInteger(name: String, input: String, expected: BigInteger?) {
-            test(input, listOf(Token(RhovasTokenType.INTEGER, input, expected)), expected != null)
+            test(input, listOf(
+                Token(RhovasTokenType.INTEGER, input, expected, Input.Range(0, 1, 0, input.length))
+            ), expected != null)
         }
 
         fun testInteger(): Stream<Arguments> {
@@ -115,7 +120,9 @@ class RhovasLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testDecimal(name: String, input: String, expected: BigDecimal?) {
-            test(input, listOf(Token(RhovasTokenType.DECIMAL, input, expected)), expected != null)
+            test(input, listOf(
+                Token(RhovasTokenType.DECIMAL, input, expected, Input.Range(0, 1, 0, input.length))
+            ), expected != null)
         }
 
         fun testDecimal(): Stream<Arguments> {
@@ -143,7 +150,9 @@ class RhovasLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testString(name: String, input: String, expected: String?) {
-            test(input, listOf(Token(RhovasTokenType.STRING, input, expected)), expected != null)
+            test(input, listOf(
+                Token(RhovasTokenType.STRING, input, expected, Input.Range(0, 1, 0, input.length))
+            ), expected != null)
         }
 
         fun testString(): Stream<Arguments> {
@@ -172,7 +181,9 @@ class RhovasLexerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testOperator(name: String, input: String, success: Boolean) {
-            test(input, listOf(Token(RhovasTokenType.OPERATOR, input, null)), success)
+            test(input, listOf(
+                Token(RhovasTokenType.OPERATOR, input, null, Input.Range(0, 1, 0, input.length))
+            ), success)
         }
 
         fun testOperator(): Stream<Arguments> {
@@ -204,89 +215,89 @@ class RhovasLexerTests {
             return Stream.of(
                 //whitespace
                 Arguments.of("Inner Whitespace", "first \t\n\rsecond", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "first", null),
-                    Token(RhovasTokenType.IDENTIFIER, "second", null),
+                    Token(RhovasTokenType.IDENTIFIER, "first", null, Input.Range(0, 1, 0, 5)),
+                    Token(RhovasTokenType.IDENTIFIER, "second", null, Input.Range(9, 2, 0, 6)),
                 )),
                 Arguments.of("Leading Whitespace", "    token", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "token", null),
+                    Token(RhovasTokenType.IDENTIFIER, "token", null, Input.Range(4, 1, 4, 5)),
                 )),
                 Arguments.of("Trailing Whitespace", "token    ", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "token", null),
+                    Token(RhovasTokenType.IDENTIFIER, "token", null, Input.Range(0, 1, 0, 5)),
                 )),
                 //comment
                 Arguments.of("Inner Comment", "first//comment\nsecond", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "first", null),
-                    Token(RhovasTokenType.IDENTIFIER, "second", null),
+                    Token(RhovasTokenType.IDENTIFIER, "first", null, Input.Range(0, 1, 0, 5)),
+                    Token(RhovasTokenType.IDENTIFIER, "second", null, Input.Range(15, 2, 0, 6)),
                 )),
                 Arguments.of("Leading Comment", "//comment\ntoken", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "token", null),
+                    Token(RhovasTokenType.IDENTIFIER, "token", null, Input.Range(10, 2, 0, 5)),
                 )),
                 Arguments.of("Trailing Comment", "token//comment", listOf(
-                    Token(RhovasTokenType.IDENTIFIER, "token", null),
+                    Token(RhovasTokenType.IDENTIFIER, "token", null, Input.Range(0, 1, 0, 5)),
                 )),
                 //identifier
                 Arguments.of("Leading Digits", "123abc", listOf(
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123")),
-                    Token(RhovasTokenType.IDENTIFIER, "abc", null),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(0, 1, 0, 3)),
+                    Token(RhovasTokenType.IDENTIFIER, "abc", null, Input.Range(3, 1, 3, 3)),
                 )),
                 //integer
                 Arguments.of("Signed Integer", "-123", listOf(
-                    Token(RhovasTokenType.OPERATOR, "-", null),
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123")),
+                    Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Non-Leading Zero Base", "1b10", listOf(
-                    Token(RhovasTokenType.INTEGER, "1", BigInteger("1")),
-                    Token(RhovasTokenType.IDENTIFIER, "b10", null),
+                    Token(RhovasTokenType.INTEGER, "1", BigInteger("1"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.IDENTIFIER, "b10", null, Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Trailing Base", "0b", listOf(
-                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                    Token(RhovasTokenType.IDENTIFIER, "b", null),
+                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.IDENTIFIER, "b", null, Input.Range(1, 1, 1, 1)),
                 )),
                 Arguments.of("Invalid Leading Digit", "0b2", listOf(
-                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                    Token(RhovasTokenType.IDENTIFIER, "b2", null),
+                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.IDENTIFIER, "b2", null, Input.Range(1, 1, 1, 2)),
                 )),
                 Arguments.of("Invalid Inner Digit", "0b10201", listOf(
-                    Token(RhovasTokenType.INTEGER, "0b10", BigInteger("10", 2)),
-                    Token(RhovasTokenType.INTEGER, "201", BigInteger("201")),
+                    Token(RhovasTokenType.INTEGER, "0b10", BigInteger("10", 2), Input.Range(0, 1, 0, 4)),
+                    Token(RhovasTokenType.INTEGER, "201", BigInteger("201"), Input.Range(4, 1, 4, 3)),
                 )),
                 //decimal
                 Arguments.of("Leading Decimal", ".123", listOf(
-                    Token(RhovasTokenType.OPERATOR, ".", null),
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123")),
+                    Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Trailing Decimal", "123.", listOf(
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123")),
-                    Token(RhovasTokenType.OPERATOR, ".", null),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(0, 1, 0, 3)),
+                    Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(3, 1, 3, 1)),
                 )),
                 Arguments.of("Signed Decimal", "-123.456", listOf(
-                    Token(RhovasTokenType.OPERATOR, "-", null),
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
+                    Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(1, 1, 1, 7)),
                 )),
                 Arguments.of("Trailing Exponent", "123.456e", listOf(
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
-                    Token(RhovasTokenType.IDENTIFIER, "e", null),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(0, 1, 0, 7)),
+                    Token(RhovasTokenType.IDENTIFIER, "e", null, Input.Range(7, 1, 7, 1)),
                 )),
                 Arguments.of("Trailing Exponent Sign", "123.456e-", listOf(
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456")),
-                    Token(RhovasTokenType.IDENTIFIER, "e", null),
-                    Token(RhovasTokenType.OPERATOR, "-", null),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(0, 1, 0, 7)),
+                    Token(RhovasTokenType.IDENTIFIER, "e", null, Input.Range(7, 1, 7, 1)),
+                    Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(8, 1, 8, 1)),
                 )),
                 //string
                 Arguments.of("Triple Quotes", "\"\"\"string\"\"\"", listOf(
-                    Token(RhovasTokenType.STRING, "\"\"", ""),
-                    Token(RhovasTokenType.STRING, "\"string\"", "string"),
-                    Token(RhovasTokenType.STRING, "\"\"", ""),
+                    Token(RhovasTokenType.STRING, "\"\"", "", Input.Range(0, 1, 0, 2)),
+                    Token(RhovasTokenType.STRING, "\"string\"", "string", Input.Range(2, 1, 2, 8)),
+                    Token(RhovasTokenType.STRING, "\"\"", "", Input.Range(10, 1, 10, 2)),
                 )),
                 //operator
                 Arguments.of("Multiple Operators", "<=", listOf(
-                    Token(RhovasTokenType.OPERATOR, "<", null),
-                    Token(RhovasTokenType.OPERATOR, "=", null),
+                    Token(RhovasTokenType.OPERATOR, "<", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.OPERATOR, "=", null, Input.Range(1, 1, 1, 1)),
                 )),
                 //atom
                 Arguments.of("Atom", ":atom", listOf(
-                    Token(RhovasTokenType.OPERATOR, ":", null),
-                    Token(RhovasTokenType.IDENTIFIER, "atom", null),
+                    Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.IDENTIFIER, "atom", null, Input.Range(1, 1, 1, 4)),
                 )),
             )
         }
@@ -303,19 +314,19 @@ class RhovasLexerTests {
                     print("Hello, World!");
                 }
             """.trimIndent(), listOf(
-                Token(RhovasTokenType.IDENTIFIER, "func", null),
-                Token(RhovasTokenType.IDENTIFIER, "main", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, "{", null),
+                Token(RhovasTokenType.IDENTIFIER, "func", null, Input.Range(0, 1, 0, 4)),
+                Token(RhovasTokenType.IDENTIFIER, "main", null, Input.Range(5, 1, 5, 4)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(9, 1, 9, 1)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(10, 1, 10, 1)),
+                Token(RhovasTokenType.OPERATOR, "{", null, Input.Range(12, 1, 12, 1)),
 
-                Token(RhovasTokenType.IDENTIFIER, "print", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.STRING, "\"Hello, World!\"", "Hello, World!"),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ";", null),
+                Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(18, 2, 4, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(23, 2, 9, 1)),
+                Token(RhovasTokenType.STRING, "\"Hello, World!\"", "Hello, World!", Input.Range(24, 2, 10, 15)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(39, 2, 25, 1)),
+                Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(40, 2, 26, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "}", null),
+                Token(RhovasTokenType.OPERATOR, "}", null, Input.Range(42, 3, 0, 1)),
             ), true)
         }
 
@@ -333,97 +344,97 @@ class RhovasLexerTests {
                     }
                 }
             """.trimIndent(), listOf(
-                Token(RhovasTokenType.IDENTIFIER, "func", null),
-                Token(RhovasTokenType.IDENTIFIER, "fizzbuzz", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.IDENTIFIER, "num", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "Integer", null),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, "{", null),
+                Token(RhovasTokenType.IDENTIFIER, "func", null, Input.Range(0, 1, 0, 4)),
+                Token(RhovasTokenType.IDENTIFIER, "fizzbuzz", null, Input.Range(5, 1, 5, 8)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(13, 1, 13, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "num", null, Input.Range(14, 1, 14, 3)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(17, 1, 17, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "Integer", null, Input.Range(19, 1, 19, 7)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(26, 1, 26, 1)),
+                Token(RhovasTokenType.OPERATOR, "{", null, Input.Range(28, 1, 28, 1)),
 
-                Token(RhovasTokenType.IDENTIFIER, "range", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.INTEGER, "1", BigInteger("1")),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.IDENTIFIER, "num", null),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "incl", null),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ".", null),
-                Token(RhovasTokenType.IDENTIFIER, "for", null),
-                Token(RhovasTokenType.OPERATOR, "{", null),
+                Token(RhovasTokenType.IDENTIFIER, "range", null, Input.Range(34, 2, 4, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(39, 2, 9, 1)),
+                Token(RhovasTokenType.INTEGER, "1", BigInteger("1"), Input.Range(40, 2, 10, 1)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(41, 2, 11, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "num", null, Input.Range(43, 2, 13, 3)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(46, 2, 16, 1)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(48, 2, 18, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "incl", null, Input.Range(49, 2, 19, 4)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(53, 2, 23, 1)),
+                Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(54, 2, 24, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "for", null, Input.Range(55, 2, 25, 3)),
+                Token(RhovasTokenType.OPERATOR, "{", null, Input.Range(59, 2, 29, 1)),
 
-                Token(RhovasTokenType.IDENTIFIER, "match", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.OPERATOR, "[", null),
-                Token(RhovasTokenType.IDENTIFIER, "val", null),
-                Token(RhovasTokenType.OPERATOR, ".", null),
-                Token(RhovasTokenType.IDENTIFIER, "mod", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.INTEGER, "3", BigInteger("3")),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.IDENTIFIER, "val", null),
-                Token(RhovasTokenType.OPERATOR, ".", null),
-                Token(RhovasTokenType.IDENTIFIER, "mod", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.INTEGER, "5", BigInteger("5")),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, "]", null),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, "{", null),
+                Token(RhovasTokenType.IDENTIFIER, "match", null, Input.Range(69, 3, 8, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(75, 3, 14, 1)),
+                Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(76, 3, 15, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "val", null, Input.Range(77, 3, 16, 3)),
+                Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(80, 3, 19, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "mod", null, Input.Range(81, 3, 20, 3)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(84, 3, 23, 1)),
+                Token(RhovasTokenType.INTEGER, "3", BigInteger("3"), Input.Range(85, 3, 24, 1)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(86, 3, 25, 1)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(87, 3, 26, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "val", null, Input.Range(89, 3, 28, 3)),
+                Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(92, 3, 31, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "mod", null, Input.Range(93, 3, 32, 3)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(96, 3, 35, 1)),
+                Token(RhovasTokenType.INTEGER, "5", BigInteger("5"), Input.Range(97, 3, 36, 1)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(98, 3, 37, 1)),
+                Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(99, 3, 38, 1)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(100, 3, 39, 1)),
+                Token(RhovasTokenType.OPERATOR, "{", null, Input.Range(102, 3, 41, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "[", null),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                Token(RhovasTokenType.OPERATOR, "]", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "print", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.STRING, "\"FizzBuzz\"", "FizzBuzz"),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ";", null),
+                Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(116, 4, 12, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(117, 4, 13, 1)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(118, 4, 14, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(120, 4, 16, 1)),
+                Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(121, 4, 17, 1)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(122, 4, 18, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(124, 4, 20, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(129, 4, 25, 1)),
+                Token(RhovasTokenType.STRING, "\"FizzBuzz\"", "FizzBuzz", Input.Range(130, 4, 26, 10)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(140, 4, 36, 1)),
+                Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(141, 4, 37, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "[", null),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.IDENTIFIER, "_", null),
-                Token(RhovasTokenType.OPERATOR, "]", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "print", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.STRING, "\"Fizz\"", "Fizz"),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ";", null),
+                Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(155, 5, 12, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(156, 5, 13, 1)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(157, 5, 14, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "_", null, Input.Range(159, 5, 16, 1)),
+                Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(160, 5, 17, 1)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(161, 5, 18, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(163, 5, 20, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(168, 5, 25, 1)),
+                Token(RhovasTokenType.STRING, "\"Fizz\"", "Fizz", Input.Range(169, 5, 26, 6)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(175, 5, 32, 1)),
+                Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(176, 5, 33, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "[", null),
-                Token(RhovasTokenType.IDENTIFIER, "_", null),
-                Token(RhovasTokenType.OPERATOR, ",", null),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0")),
-                Token(RhovasTokenType.OPERATOR, "]", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "print", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.STRING, "\"Buzz\"", "Buzz"),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ";", null),
+                Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(190, 6, 12, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "_", null, Input.Range(191, 6, 13, 1)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(192, 6, 14, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(194, 6, 16, 1)),
+                Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(195, 6, 17, 1)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(196, 6, 18, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(198, 6, 20, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(203, 6, 25, 1)),
+                Token(RhovasTokenType.STRING, "\"Buzz\"", "Buzz", Input.Range(204, 6, 26, 6)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(210, 6, 32, 1)),
+                Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(211, 6, 33, 1)),
 
-                Token(RhovasTokenType.IDENTIFIER, "else", null),
-                Token(RhovasTokenType.OPERATOR, ":", null),
-                Token(RhovasTokenType.IDENTIFIER, "print", null),
-                Token(RhovasTokenType.OPERATOR, "(", null),
-                Token(RhovasTokenType.IDENTIFIER, "val", null),
-                Token(RhovasTokenType.OPERATOR, ")", null),
-                Token(RhovasTokenType.OPERATOR, ";", null),
+                Token(RhovasTokenType.IDENTIFIER, "else", null, Input.Range(225, 7, 12, 4)),
+                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(229, 7, 16, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(231, 7, 18, 5)),
+                Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(236, 7, 23, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "val", null, Input.Range(237, 7, 24, 3)),
+                Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(240, 7, 27, 1)),
+                Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(241, 7, 28, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "}", null),
+                Token(RhovasTokenType.OPERATOR, "}", null, Input.Range(251, 8, 8, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "}", null),
+                Token(RhovasTokenType.OPERATOR, "}", null, Input.Range(257, 9, 4, 1)),
 
-                Token(RhovasTokenType.OPERATOR, "}", null),
+                Token(RhovasTokenType.OPERATOR, "}", null, Input.Range(259, 10, 0, 1))
             ), true)
         }
 
@@ -431,10 +442,10 @@ class RhovasLexerTests {
 
     private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
         if (success) {
-            Assertions.assertEquals(expected, RhovasLexer(input).lex())
+            Assertions.assertEquals(expected, RhovasLexer(Input("Test", input)).lex())
         } else {
             try {
-                Assertions.assertNotEquals(expected, RhovasLexer(input).lex())
+                Assertions.assertNotEquals(expected, RhovasLexer(Input("Test", input)).lex())
             } catch (ignored: ParseException) {
             }
         }

@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.parser
 
+import java.util.*
+
 abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
 
     protected val tokens = TokenStream()
@@ -30,13 +32,17 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
     }
 
     protected fun require(condition: Boolean) {
-        return require(condition) { "Broken parser invariant." }
+        require(condition) { error("Broken parser invariant.\n${Exception().stackTraceToString()}") }
     }
 
-    protected fun require(condition: Boolean, error: () -> String) {
+    protected fun require(condition: Boolean, error: () -> ParseException) {
         if (!condition) {
-            throw ParseException(error())
+            throw error()
         }
+    }
+
+    protected fun error(message: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
+        return ParseException(message, range)
     }
 
     inner class TokenStream {

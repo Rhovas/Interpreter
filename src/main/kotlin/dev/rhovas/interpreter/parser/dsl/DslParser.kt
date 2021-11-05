@@ -1,15 +1,16 @@
 package dev.rhovas.interpreter.parser.dsl
 
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.Parser
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 
-class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
+class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
 
     override fun parse(rule: String): Any {
         return when (rule) {
             "source" -> parseSource()
             else -> throw AssertionError()
-        }.also { require(tokens[0] == null) { "Expected end of input." } }
+        }.also { require(tokens[0] == null) { error("Expected end of input.") } }
     }
 
     private fun parseSource(): DslAst.Source {
@@ -28,15 +29,15 @@ class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
                     builder.append("\n").append(literal.removePrefix(indent))
                 } else if (match("$", "{")) {
                     val parser = RhovasParser(lexer.input)
-                    parser.lexer.state = lexer.state - 2
+                    parser.lexer.state = lexer.state.let { it.copy(index = it.index - 2, column = it.column - 2, length = 0) }
                     val argument = parser.parse("interpolation")
-                    lexer.state = parser.lexer.state - 1
+                    lexer.state = parser.lexer.state.let { it.copy(index = it.index - 1, column = it.column - 1, length = 0) }
                     require(match("}"))
                     literals.add(builder.toString())
                     arguments.add(argument)
                     builder.clear()
                 } else {
-                    require(tokens[0] != null) { "Expected token." }
+                    require(tokens[0] != null) { error("Expected token.") }
                     tokens.advance()
                     builder.append(tokens[-1]!!.literal)
                 }
@@ -48,7 +49,7 @@ class DslParser(input: String) : Parser<DslTokenType>(DslLexer(input)) {
             }
         }
         literals.add(builder.toString())
-        require(match("}")) { "Expected closing brace." }
+        require(match("}")) { error("Expected closing brace.") }
         return DslAst.Source(literals, arguments)
     }
 

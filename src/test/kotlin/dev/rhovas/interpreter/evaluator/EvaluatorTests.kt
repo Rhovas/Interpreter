@@ -6,6 +6,7 @@ import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
@@ -499,7 +500,7 @@ class EvaluatorTests {
                 log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
                 arguments[0]
             })
-            val ast = RhovasParser(input).parse("statement")
+            val ast = RhovasParser(Input("Test", input)).parse("statement")
             if (expected != null) {
                 Evaluator(scope).visit(ast)
                 Assertions.assertEquals(expected, log.toString())
@@ -971,7 +972,7 @@ class EvaluatorTests {
                     log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
                     arguments[0]
                 })
-                val ast = RhovasParser(input).parse("expression")
+                val ast = RhovasParser(Input("Test", input)).parse("expression")
                 if (expected != null) {
                     Evaluator(scope).visit(ast)
                     Assertions.assertEquals(expected, log.toString())
@@ -995,7 +996,7 @@ class EvaluatorTests {
         }
 
         private fun test(input: String, expected: Object?, scope: Scope = Scope(null)) {
-            val ast = RhovasParser(input).parse("expression")
+            val ast = RhovasParser(Input("Test", input)).parse("expression")
             if (expected != null) {
                 Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
             } else {
@@ -1258,7 +1259,7 @@ class EvaluatorTests {
                 log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
                 arguments[0]
             })
-            val ast = RhovasParser(input).parse("statement")
+            val ast = RhovasParser(Input("Test", input)).parse("statement")
             if (expected != null) {
                 Evaluator(scope).visit(ast)
                 Assertions.assertEquals(expected, log.toString())
