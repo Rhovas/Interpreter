@@ -42,7 +42,7 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
     }
 
     protected fun error(message: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
-        return ParseException(message, range)
+        return ParseException(message, "", range)
     }
 
     inner class TokenStream {

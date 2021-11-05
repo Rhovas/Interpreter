@@ -9,13 +9,13 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import java.io.File
 
 fun main(args: Array<String>) {
+    val input = Input(args[0], "{${File(args[0]).readText()}}")
     try {
-        val input = Input(args[0], "{${File(args[0]).readText()}}")
         val ast = RhovasParser(input).parse("statement")
         Library.initialize()
         Evaluator(Library.SCOPE).visit(ast)
     } catch (e: ParseException) {
-        println(e.message)
+        println(input.diagnostic(e))
     } catch (e: EvaluateException) {
         println(e.message)
     } catch (e: Exception) {

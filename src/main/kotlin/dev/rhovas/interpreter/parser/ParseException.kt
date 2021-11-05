@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.parser
 
 data class ParseException(
-    override val message: String,
+    val summary: String,
+    val details: String,
     val range: Input.Range,
-): Exception("${range.line}.${range.column}-${range.column + range.length}: ${message}")
+): Exception("${range.line}:${range.column}-${range.column + range.length}: ${summary}")

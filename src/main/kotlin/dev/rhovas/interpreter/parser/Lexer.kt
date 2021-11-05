@@ -46,7 +46,7 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
     }
 
     protected fun error(message: String, range: Input.Range = chars.range): ParseException {
-        return ParseException(message, range)
+        return ParseException(message, "", range)
     }
 
     inner class CharStream {
