@@ -440,6 +440,40 @@ class RhovasLexerTests {
 
     }
 
+    @Nested
+    inner class ErrorTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testError(name: String, input: String, summary: String, range: Input.Range) {
+            val exception = Assertions.assertThrows(ParseException::class.java) {
+                RhovasLexer(Input("Test", input)).lex()
+            }
+            Assertions.assertAll(
+                { Assertions.assertEquals(summary, exception.summary) },
+                { Assertions.assertEquals(range, exception.range) },
+            )
+        }
+
+        fun testError(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Invalid Character Escape", "\"\\e\"",
+                    "Invalid character escape.",
+                    Input.Range(1, 1, 1, 2),
+                ),
+                Arguments.of("Invalid Unicode Escape", "\"\\u1A?\"",
+                    "Invalid unicode escape.",
+                    Input.Range(1, 1, 1, 5),
+                ),
+                Arguments.of("Unterminated String Literal", "\"unterminated",
+                    "Unterminated string literal.",
+                    Input.Range(0, 1, 0, 13),
+                ),
+            )
+        }
+
+    }
+
     private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
         if (success) {
             Assertions.assertEquals(expected, RhovasLexer(Input("Test", input)).lex())

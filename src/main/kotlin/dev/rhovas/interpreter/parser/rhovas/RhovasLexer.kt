@@ -65,13 +65,22 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
         while (match("[^\"\n\r]")) {
             //TODO: String interpolation
             if (chars[-1] == '\\') {
-                require(match("[nrtu\"\$\\\\]")) { error("Invalid character escape.") }
+                val start = chars.range.let { it.copy(index = it.index + it.length - 1, column = it.column + it.length - 1, length = 1) }
+                require(match("[nrtu\"\$\\\\]")) { error(
+                    "Invalid character escape.",
+                    "A character escape is in the form \\char, where char is one of [nrtu\'\"\\]. If a literal backslash is desired, use an escape as in \"abc\\\\123\".",
+                    start.copy(length = if (chars[0] != null) 2 else 1)
+                ) }
                 builder.append(when (chars[-1]!!) {
                     'n' -> '\n'
                     'r' -> '\r'
                     't' -> '\t'
-                    'u' -> Char((1..4).fold(0) { codepoint, _ ->
-                        require(match("[0-9A-F]")) { error("Invalid unicode escape.") }
+                    'u' -> Char((1..4).fold(0) { codepoint, index ->
+                        require(match("[0-9A-F]")) { error(
+                            "Invalid unicode escape.",
+                            "A unicode escape is in the form \\uXXXX, where X is a hexadecimal digit (one of [0-9A-F]). If a literal backslash is desired, use an escape as in \"abc\\\\123\".",
+                            start.copy(length = index + (if (chars[0] != null) 2 else 1))
+                        ) }
                         16 * codepoint + chars[-1]!!.digitToInt(16)
                     })
                     else -> chars[-1]!!
@@ -80,7 +89,10 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
                 builder.append(chars[-1]!!)
             }
         }
-        require(match('"')) { error("Unterminated string literal.") }
+        require(match('"')) { error(
+            "Unterminated string literal.",
+            "A string literal must end with a double quote (\") and cannot span multiple lines.",
+        ) }
         return chars.emit(RhovasTokenType.STRING, builder.toString())
     }
 

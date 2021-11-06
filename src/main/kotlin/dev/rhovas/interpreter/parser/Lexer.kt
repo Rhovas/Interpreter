@@ -36,7 +36,11 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
     }
 
     protected fun require(condition: Boolean) {
-        require(condition) { error("Broken lexer invariant.\n${Exception().stackTraceToString()}") }
+        require(condition) { error("Broken lexer invariant.", """
+            This is an internal compiler error, please report this!
+            
+            ${Exception().printStackTrace()}
+        """.trimIndent()) }
     }
 
     protected fun require(condition: Boolean, error: () -> ParseException) {
@@ -45,8 +49,8 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
         }
     }
 
-    protected fun error(message: String, range: Input.Range = chars.range): ParseException {
-        return ParseException(message, "", range)
+    protected fun error(message: String, details: String = "", range: Input.Range = chars.range): ParseException {
+        return ParseException(message, details, range)
     }
 
     inner class CharStream {
