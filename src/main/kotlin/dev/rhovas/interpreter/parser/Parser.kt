@@ -32,7 +32,11 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
     }
 
     protected fun require(condition: Boolean) {
-        require(condition) { error("Broken parser invariant.\n${Exception().stackTraceToString()}") }
+        require(condition) { error("Broken parser invariant.", """
+            This is an internal compiler error, please report this!
+            
+            ${Exception().printStackTrace()}
+        """.trimIndent()) }
     }
 
     protected fun require(condition: Boolean, error: () -> ParseException) {
@@ -41,8 +45,8 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
         }
     }
 
-    protected fun error(message: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
-        return ParseException(message, "", range)
+    protected fun error(message: String, details: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
+        return ParseException(message, details, range)
     }
 
     inner class TokenStream {

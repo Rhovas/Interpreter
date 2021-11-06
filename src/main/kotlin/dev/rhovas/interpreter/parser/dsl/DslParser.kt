@@ -37,7 +37,10 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
                     arguments.add(argument)
                     builder.clear()
                 } else {
-                    require(tokens[0] != null) { error("Expected token.") }
+                    require(tokens[0] != null) { error(
+                        "Expected input.",
+                        "A DSL expression is terminated by a closing brace `}` (if defined inline) or a closing brace `}` at a lower indentation than the start (if defined multiline).",
+                    ) }
                     tokens.advance()
                     builder.append(tokens[-1]!!.literal)
                 }
@@ -49,7 +52,10 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
             }
         }
         literals.add(builder.toString())
-        require(match("}")) { error("Expected closing brace.") }
+        require(match("}")) { error(
+            "Expected closing brace.",
+            "A DSL expression requires braces around the source, as in `#dsl \${ source }`.",
+        ) }
         return DslAst.Source(literals, arguments)
     }
 

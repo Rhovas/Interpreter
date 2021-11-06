@@ -25,9 +25,11 @@ data class Input(
         context.forEach {
             val start = it.index - it.column
             val end = content.indexOfAny(charArrayOf('\n', '\r'), it.index).takeIf { it != -1 } ?: content.length
-            builder.append(" ${it.line.toString().padStart(digits)} | ${content.substring(start, end)}")
+            println(content)
+            println(content.substring(start, end))
+            builder.append("\n ${it.line.toString().padStart(digits)} | ${content.substring(start, end)}")
             if (it.line == e.range.line) {
-                builder.append("${" ".repeat(digits)} | ${" ".repeat(e.range.column)}${"^".repeat(e.range.length)}")
+                builder.append("\n ${" ".repeat(digits)} | ${" ".repeat(e.range.column)}${"^".repeat(e.range.length)}")
             }
         }
         if (e.details.isNotEmpty()) {

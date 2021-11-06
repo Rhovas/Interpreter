@@ -49,7 +49,7 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
         }
     }
 
-    protected fun error(message: String, details: String = "", range: Input.Range = chars.range): ParseException {
+    protected fun error(message: String, details: String, range: Input.Range = chars.range): ParseException {
         return ParseException(message, details, range)
     }
 
