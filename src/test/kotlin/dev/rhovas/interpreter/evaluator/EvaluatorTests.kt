@@ -11,7 +11,6 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.BeforeAll
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -25,6 +24,40 @@ class EvaluatorTests {
     @BeforeAll
     fun beforeAll() {
         Library.initialize()
+    }
+
+    @Nested
+    inner class SourceTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testSource(name: String, input: String, expected: String?) {
+            test(input, expected)
+        }
+
+        fun testSource(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", "{}", ""),
+                Arguments.of("Single", "{ log(1); }", "1"),
+                Arguments.of("Multiple", "{ log(1); log(2); log(3); }", "123"),
+            )
+        }
+
+        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+            val log = StringBuilder()
+            scope.functions.define(Function("log", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                arguments[0]
+            })
+            val ast = RhovasParser(Input("Test", input)).parse("source")
+            if (expected != null) {
+                Evaluator(scope).visit(ast)
+                Assertions.assertEquals(expected, log.toString())
+            } else {
+                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+            }
+        }
+
     }
 
     @Nested

@@ -9,9 +9,9 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import java.io.File
 
 fun main(args: Array<String>) {
-    val input = Input(args[0], "{${File(args[0]).readText()}}")
+    val input = Input(args[0], File(args[0]).readText())
     try {
-        val ast = RhovasParser(input).parse("statement")
+        val ast = RhovasParser(input).parse("source")
         Library.initialize()
         Evaluator(Library.SCOPE).visit(ast)
     } catch (e: ParseException) {

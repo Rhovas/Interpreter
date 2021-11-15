@@ -13,6 +13,11 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     private var label: String? = null
     private lateinit var patternState: PatternState
 
+    override fun visit(ast: RhovasAst.Source): Object {
+        ast.statements.forEach { visit(it) }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
     override fun visit(ast: RhovasAst.Statement.Block): Object {
         scoped(Scope(scope)) {
             ast.statements.forEach { visit(it) }

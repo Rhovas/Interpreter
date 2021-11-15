@@ -4,7 +4,6 @@ import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -14,6 +13,33 @@ import java.math.BigInteger
 import java.util.stream.Stream
 
 class RhovasParserTests {
+
+    @Nested
+    inner class SourceTests {
+
+        fun testSource(name: String, input: String, expected: RhovasAst.Source?) {
+            test("source", input, expected)
+        }
+
+        fun testSource(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", "",
+                    RhovasAst.Source(listOf()),
+                ),
+                Arguments.of("Single", "statement;",
+                    RhovasAst.Source(listOf(statement("statement"))),
+                ),
+                Arguments.of("Multiple", "first; second; third;",
+                    RhovasAst.Source(listOf(
+                        statement("first"),
+                        statement("second"),
+                        statement("third"),
+                    )),
+                ),
+            )
+        }
+
+    }
 
     @Nested
     inner class StatementTests {

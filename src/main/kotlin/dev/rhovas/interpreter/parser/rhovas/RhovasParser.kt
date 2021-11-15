@@ -9,6 +9,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     override fun parse(rule: String): RhovasAst {
         return when (rule) {
+            "source" -> parseSource()
             "statement" -> parseStatement()
             "expression" -> parseExpression()
             "pattern" -> parsePattern()
@@ -20,6 +21,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 "Parsing for the `${rule}` rule completed without consuming all input. This is normally an implementation problem.",
             )
         } }
+    }
+
+    private fun parseSource(): RhovasAst.Source {
+        val statements = mutableListOf<RhovasAst.Statement>()
+        while (tokens[0] != null) {
+            statements.add(parseStatement())
+        }
+        return RhovasAst.Source(statements)
     }
 
     private fun parseStatement(): RhovasAst.Statement {

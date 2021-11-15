@@ -2,6 +2,10 @@ package dev.rhovas.interpreter.parser.rhovas
 
 sealed class RhovasAst {
 
+    data class Source(
+        val statements: List<Statement>,
+    ) : RhovasAst()
+
     sealed class Statement: RhovasAst() {
 
         data class Block(
@@ -224,6 +228,7 @@ sealed class RhovasAst {
 
         fun visit(ast: RhovasAst): T {
             return when (ast) {
+                is Source -> visit(ast)
                 is Statement.Block -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Function -> visit(ast)
@@ -267,6 +272,8 @@ sealed class RhovasAst {
                 is Type -> visit(ast)
             }
         }
+
+        fun visit(ast: Source): T
 
         fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Expression): T
