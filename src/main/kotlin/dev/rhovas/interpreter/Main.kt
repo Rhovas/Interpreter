@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter
 
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.evaluator.EvaluateException
 import dev.rhovas.interpreter.evaluator.Evaluator
 import dev.rhovas.interpreter.library.Library
@@ -13,7 +14,7 @@ fun main(args: Array<String>) {
     try {
         val ast = RhovasParser(input).parse("source")
         Library.initialize()
-        Evaluator(Library.SCOPE).visit(ast)
+        Evaluator(Scope(Library.SCOPE)).visit(ast)
     } catch (e: ParseException) {
         println(input.diagnostic(e))
     } catch (e: EvaluateException) {

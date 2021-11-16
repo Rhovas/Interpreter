@@ -29,6 +29,11 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
         return instance.divide(other)
     }
 
+    @Reflect.Method("mod", parameters = ["Integer"], returns = "Integer")
+    fun mod(instance: BigInteger, other: BigInteger): BigInteger {
+        return instance.mod(other)
+    }
+
     @Reflect.Method("equals", operator = "==", parameters = ["Integer"], returns = "Boolean")
     fun equals(instance: BigInteger, other: BigInteger): Boolean {
         return instance == other

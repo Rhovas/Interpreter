@@ -1,0 +1,10 @@
+func factorial(num: Integer) {
+    match {
+        num == 0: return 1;
+        else: return num * factorial(num - 1);
+    }
+}
+
+range(0, 10, :incl).for {
+    print(factorial(val));
+};

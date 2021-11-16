@@ -1,0 +1,12 @@
+func isPalindrome(list: List) {
+    match (list) {
+        []: return true;
+        [elem]: return true;
+        [first, middle*, last]: return first == last && isPalindrome(middle);
+    }
+}
+
+print(isPalindrome([]));
+print(isPalindrome([1]));
+print(isPalindrome([1, 2, 3, 2, 1]));
+print(isPalindrome([1, 2, 3, 4, 5]));
