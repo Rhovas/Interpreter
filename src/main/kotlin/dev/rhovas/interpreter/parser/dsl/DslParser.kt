@@ -15,6 +15,7 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
 
     private fun parseSource(): DslAst.Source {
         require(match("{"))
+        context.addLast(tokens[-1]!!.range)
         val builder = StringBuilder()
         val literals = mutableListOf<String>()
         val arguments = mutableListOf<Any>()
@@ -28,14 +29,20 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
                     }
                     builder.append("\n").append(literal.removePrefix(indent))
                 } else if (match("$", "{")) {
+                    context.addLast(tokens[-1]!!.range)
                     val parser = RhovasParser(lexer.input)
-                    parser.lexer.state = lexer.state.let { it.copy(index = it.index - 2, column = it.column - 2, length = 0) }
+                    parser.lexer.state = lexer.state.let {
+                        Pair(it.first.copy(index = it.first.index - 2, column = it.first.column - 2, length = 0), it.second)
+                    }
                     val argument = parser.parse("interpolation")
-                    lexer.state = parser.lexer.state.let { it.copy(index = it.index - 1, column = it.column - 1, length = 0) }
+                    lexer.state = parser.lexer.state.let {
+                        Pair(it.first.copy(index = it.first.index - 1, column = it.first.column - 1, length = 0), it.second)
+                    }
                     require(match("}"))
                     literals.add(builder.toString())
                     arguments.add(argument)
                     builder.clear()
+                    context.removeLast()
                 } else {
                     require(tokens[0] != null) { error(
                         "Expected input.",
@@ -56,6 +63,7 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
             "Expected closing brace.",
             "A DSL expression requires braces around the source, as in `#dsl \${ source }`.",
         ) }
+        context.removeLast()
         return DslAst.Source(literals, arguments)
     }
 

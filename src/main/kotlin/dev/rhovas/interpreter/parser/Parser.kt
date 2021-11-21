@@ -1,10 +1,9 @@
 package dev.rhovas.interpreter.parser
 
-import java.util.*
-
 abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
 
     protected val tokens = TokenStream()
+    protected val context = lexer.state.second
 
     abstract fun parse(rule: String): Any
 
@@ -46,7 +45,7 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
     }
 
     protected fun error(message: String, details: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
-        return ParseException(message, details, range)
+        return ParseException(message, details, range, context.toList())
     }
 
     inner class TokenStream {

@@ -3,8 +3,15 @@ package dev.rhovas.interpreter.parser
 abstract class Lexer<T: Token.Type>(val input: Input) {
 
     protected val chars = CharStream()
+    private val context = ArrayDeque<Input.Range>()
 
-    var state by chars::range
+    var state
+        get() = Pair(chars.range, context)
+        set(value) {
+            chars.range = value.first
+            context.clear()
+            context.addAll(value.second)
+        }
 
     fun lex(): List<Token<T>> {
         return generateSequence { lexToken() }.toList()
@@ -50,7 +57,7 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
     }
 
     protected fun error(message: String, details: String, range: Input.Range = chars.range): ParseException {
-        return ParseException(message, details, range)
+        return ParseException(message, details, range, listOf())
     }
 
     inner class CharStream {

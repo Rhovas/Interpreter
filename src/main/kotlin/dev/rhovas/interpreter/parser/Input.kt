@@ -20,6 +20,7 @@ data class Input(
             .append("\nError: ${e.summary}")
         val context = TreeSet(compareBy(Range::line)).also {
             it.add(e.range)
+            it.addAll(e.context)
         }
         val digits = context.last().line.toString().length
         context.forEach {
