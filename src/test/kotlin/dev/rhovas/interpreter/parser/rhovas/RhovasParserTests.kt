@@ -1047,6 +1047,7 @@ class RhovasParserTests {
                     ),
                     Arguments.of("Coalesce", "receiver..field", null),
                     Arguments.of("Pipeline", "receiver.|field", null),
+                    Arguments.of("Missing Identifier", "receiver.", null),
                 )
             }
 
@@ -1567,7 +1568,11 @@ class RhovasParserTests {
         if (expected != null) {
             Assertions.assertEquals(expected, RhovasParser(Input("Test", input)).parse(rule))
         } else {
-            Assertions.assertThrows(ParseException::class.java) { RhovasParser(Input("Test", input)).parse(rule) }
+            val exception = Assertions.assertThrows(ParseException::class.java) {
+                RhovasParser(Input("Test", input)).parse(rule)
+            }
+            Assertions.assertNotEquals("Broken lexer invariant.", exception.summary)
+            Assertions.assertNotEquals("Broken parser invariant.", exception.summary)
         }
     }
 

@@ -507,6 +507,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     require(match("."))
                     val coalesce = match(".")
                     val pipeline = match("|")
+                    require(peek(RhovasTokenType.IDENTIFIER)) { error(
+                        "Expected identifier.",
+                        "An access or method expression requires a name, as in `receiver.property` or `receiver.method()`.",
+                    ) }
                     parseAccessOrFunctionExpression(expression, nullable, coalesce, pipeline)
                 }
                 match("[") -> {

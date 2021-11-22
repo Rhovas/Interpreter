@@ -34,7 +34,7 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
         require(condition) { error("Broken parser invariant.", """
             This is an internal compiler error, please report this!
             
-            ${Exception().printStackTrace()}
+            ${Exception().stackTraceToString()}
         """.trimIndent()) }
     }
 

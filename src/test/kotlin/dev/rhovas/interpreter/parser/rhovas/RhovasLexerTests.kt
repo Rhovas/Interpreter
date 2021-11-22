@@ -480,7 +480,8 @@ class RhovasLexerTests {
         } else {
             try {
                 Assertions.assertNotEquals(expected, RhovasLexer(Input("Test", input)).lex())
-            } catch (ignored: ParseException) {
+            } catch (e: ParseException) {
+                Assertions.assertNotEquals("Broken lexer invariant.", e.summary)
             }
         }
     }
