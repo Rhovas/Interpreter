@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
 import dev.rhovas.interpreter.evaluator.Evaluator
@@ -9,17 +10,19 @@ object ListInitializer : Library.TypeInitializer("List") {
 
     @Reflect.Method("get", operator = "[]", parameters = ["Integer"], returns = "Any")
     fun get(instance: List<Object>, index: BigInteger): Object {
-        if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
-            throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
-        }
+        EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.valueOf(instance.size.toLong())) { EVALUATOR.error(
+            "Invalid list index.",
+            "Expected an index in range [0, ${instance.size}), but received ${index}.",
+        ) }
         return instance[index.toInt()]
     }
 
     @Reflect.Method("set", operator = "[]=", parameters = ["Integer", "Any"])
     fun set(instance: MutableList<Object>, index: BigInteger, value: Object) {
-        if (index < BigInteger.ZERO || index >= BigInteger.valueOf(instance.size.toLong())) {
-            throw EvaluateException("Index $index out of bounds for list of size ${instance.size}.")
-        }
+        EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.valueOf(instance.size.toLong())) { EVALUATOR.error(
+            "Invalid list index.",
+            "Expected an index in range [0, ${instance.size}), but received ${index}.",
+        ) }
         instance[index.toInt()] = value
     }
 
@@ -30,25 +33,29 @@ object ListInitializer : Library.TypeInitializer("List") {
 
     @Reflect.Method("for", parameters = ["Lambda"])
     fun for_(instance: List<Object>, lambda: Evaluator.Lambda) {
-        if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
-            throw EvaluateException("List#for requires a lambda with one parameter.")
-        }
+        EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
+            "Invalid lambda parameter count.",
+            "Function List.for requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
+        ) }
         instance.forEach { lambda.invoke(listOf(Triple("val", Library.TYPES["Any"]!!, it)), Library.TYPES["Any"]!!) }
     }
 
     @Reflect.Method("map", parameters = ["Lambda"], returns = "List")
     fun map(instance: List<Object>, lambda: Evaluator.Lambda): List<Object> {
-        if (lambda.ast.parameters.isNotEmpty() && lambda.ast.parameters.size != 1) {
-            throw EvaluateException("List#map requires a lambda with one parameter.")
-        }
+        EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
+            "Invalid lambda parameter count.",
+            "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
+        ) }
         return instance.map { lambda.invoke(listOf(Triple("val", Library.TYPES["Any"]!!, it)), Library.TYPES["Any"]!!) }
     }
 
     @Reflect.Method("equals", operator = "==", parameters = ["List"], returns = "Boolean")
     fun equals(instance: List<Object>, other: List<Object>): Boolean {
         return instance.size == other.size && instance.zip(other).all {
-            val method = it.first.methods["==", 1]
-                ?: throw EvaluateException("Binary == is not supported by type ${it.first.type.name}.")
+            val method = it.first.methods["==", 1] ?: throw EVALUATOR.error(
+                "Undefined binary operator.",
+                "The operator ==/1 (equals) is not defined by type ${it.first.type.name}.",
+            )
             if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
         }
     }

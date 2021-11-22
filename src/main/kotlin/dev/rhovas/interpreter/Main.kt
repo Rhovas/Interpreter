@@ -9,17 +9,17 @@ import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import java.io.File
 
+val EVALUATOR = Evaluator(Scope(Library.SCOPE))
+
 fun main(args: Array<String>) {
     val input = Input(args[0], File(args[0]).readText())
     try {
         val ast = RhovasParser(input).parse("source")
         Library.initialize()
-        Evaluator(Scope(Library.SCOPE)).visit(ast)
+        EVALUATOR.visit(ast)
     } catch (e: ParseException) {
-        println(input.diagnostic(e))
+        println(input.diagnostic(e.summary, e.details, e.range, e.context))
     } catch (e: EvaluateException) {
-        println(e.message)
-    } catch (e: Exception) {
-        e.printStackTrace()
+        println(input.diagnostic(e.summary, e.details, e.range, e.context))
     }
 }

@@ -1,8 +1,11 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.EvaluateException
+import dev.rhovas.interpreter.parser.Input
+import java.lang.reflect.InvocationTargetException
 
 object Reflect {
 
@@ -33,11 +36,18 @@ object Reflect {
                     when (parameters[it].name) {
                         "Any" -> arguments[it]
                         arguments[it].type.name -> arguments[it].value
-                        else -> throw EvaluateException("Invalid argument to function ${name}/${parameters.size}: expected ${parameters[it].name}, received ${arguments[it].type.name}.")
+                        else -> throw EVALUATOR.error(
+                            "Invalid argument type.",
+                            "Function ${initializer.type.name}.${name} requires parameter ${it} to be type ${parameters[it].name}, received ${arguments[it].type.name}.",
+                        )
                     }
                 }
-                val result = method.invoke(initializer, *transformed.toTypedArray())
-                if (result is Object) result else Object(returns, result)
+                try {
+                    val result = method.invoke(initializer, *transformed.toTypedArray())
+                    if (result is Object) result else Object(returns, result)
+                } catch (e: InvocationTargetException) {
+                    throw e.targetException
+                }
             }
         }
         initializer.javaClass.methods

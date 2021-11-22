@@ -14,27 +14,25 @@ data class Input(
         val length: Int,
     )
 
-    fun diagnostic(e: ParseException): String {
+    fun diagnostic(summary: String, details: String, range: Range, context: List<Range>): String {
         val builder = StringBuilder()
-            .append("${source}:${e.range.line}:${e.range.column}-${e.range.column + e.range.length}")
-            .append("\nError: ${e.summary}")
+            .append("${source}:${range.line}:${range.column}-${range.column + range.length}")
+            .append("\nError: ${summary}")
         val context = TreeSet(compareBy(Range::line)).also {
-            it.add(e.range)
-            it.addAll(e.context)
+            it.add(range)
+            it.addAll(context)
         }
         val digits = context.last().line.toString().length
         context.forEach {
             val start = it.index - it.column
             val end = content.indexOfAny(charArrayOf('\n', '\r'), it.index).takeIf { it != -1 } ?: content.length
-            println(content)
-            println(content.substring(start, end))
             builder.append("\n ${it.line.toString().padStart(digits)} | ${content.substring(start, end)}")
-            if (it.line == e.range.line) {
-                builder.append("\n ${" ".repeat(digits)} | ${" ".repeat(e.range.column)}${"^".repeat(e.range.length)}")
+            if (it.line == range.line) {
+                builder.append("\n ${" ".repeat(digits)} | ${" ".repeat(range.column)}${"^".repeat(range.length)}")
             }
         }
-        if (e.details.isNotEmpty()) {
-            builder.append("\n${e.details}")
+        if (details.isNotEmpty()) {
+            builder.append("\n${details}")
         }
         return builder.toString()
     }

@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.evaluator
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -26,11 +27,11 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Expression): Object {
-        if (ast.expression is RhovasAst.Expression.Function) {
-            visit(ast.expression)
-        } else {
-            throw EvaluateException("Expression statement is not supported by expression of type ${ast.javaClass.simpleName}.")
-        }
+        require(ast.expression is RhovasAst.Expression.Function) { error(
+            "Invalid expression statement.",
+            "An expression statement requires the expression to be a function/method in order to perform a useful side-effect, but received ${ast.expression.javaClass.name}.",
+        ) }
+        visit(ast.expression)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -43,19 +44,22 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         scope.functions.define(Function(ast.name, parameters.map { it.second }, returns) { arguments ->
             scoped(current) {
                 for (i in parameters.indices) {
-                    if (!arguments[i].type.isSubtypeOf(parameters[i].second)) {
-                        throw EvaluateException("Invalid argument to function ${ast.name}/${parameters.size}: expected ${parameters[i].second.name}, received ${arguments[i].type.name}.")
-                    }
+                    require(arguments[i].type.isSubtypeOf(parameters[i].second)) { error(
+                        "Invalid function argument.",
+                        "The function ${ast.name}/${parameters.size} requires argument ${i} to be type ${parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                    ) }
                     scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i]))
                 }
                 try {
                     visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
-                    if (!(e.value?.type ?: Library.TYPES["Void"]!!).isSubtypeOf(returns)) {
-                        throw EvaluateException("Invalid return value from function ${ast.name}/${parameters.size}: expected ${returns.name}, received ${e.value?.type ?: Library.TYPES["Void"]!!}.")
-                    }
-                    e.value ?: Object(Library.TYPES["Void"]!!, Unit)
+                    val value = e.value ?: Object(Library.TYPES["Void"]!!, Unit)
+                    require(value.type.isSubtypeOf(returns)) { error(
+                        "Invalid function return value.",
+                        "The function ${ast.name}/${parameters.size} requires the return value to be type ${returns.name}, but received ${value.type.name}. This is an error with the implementation of the function.",
+                    ) }
+                    value
                 }
             }
         })
@@ -63,18 +67,19 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Declaration): Object {
-        //TODO: Immutable variables
-        if (!ast.mutable && ast.value == null) {
-            //TODO: Semantic analysis validation
-            throw EvaluateException("Immutable variable requires a value.")
-        }
+        //TODO: Enforce immutable variables
+        require(ast.mutable || ast.value != null) { error(
+            "Uninitialized immutable variable.",
+            "An immutable variable requires a value for initialization, as in `val name = value;`.",
+        ) }
         //TODO: Redeclaration/shadowing
         val type = ast.type?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!
         val value = ast.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        if (ast.value !== null && !value.type.isSubtypeOf(type)) {
-            //TODO: Proper handling of uninitialized variables
-            throw EvaluateException("Invalid value for variable ${ast.name}: expected ${type.name}, received ${value.type.name}.")
-        }
+        //TODO: Proper handling of uninitialized variables
+        require(ast.value == null || value.type.isSubtypeOf(type)) { error(
+            "Invalid variable value.",
+            "The variable ${ast.name} requires the value to be type ${type.name}, but received ${value.type.name}.",
+        ) }
         scope.variables.define(Variable(ast.name, type, value))
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -83,33 +88,42 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         if (ast.receiver is RhovasAst.Expression.Access) {
             if (ast.receiver.receiver != null) {
                 val receiver = visit(ast.receiver.receiver)
-                val property = receiver.properties[ast.receiver.name]
-                    ?: throw EvaluateException("Property ${ast.receiver.name} is not supported by type ${receiver.type.name}.")
+                val property = receiver.properties[ast.receiver.name] ?: throw error(
+                    "Undefined property.",
+                    "The property ${ast.receiver.name} is not defined by type ${receiver.type.name}.",
+                )
                 //TODO: Immutable properties
                 property.set(visit(ast.value))
             } else {
-                val variable = scope.variables[ast.receiver.name]
-                    ?: throw EvaluateException("Variable ${ast.receiver.name} is not defined.")
+                val variable = scope.variables[ast.receiver.name] ?: throw error(
+                    "Undefined variable.",
+                    "The variable ${ast.receiver.name} is not defined in the current scope.",
+                )
                 //TODO: Immutable variables
                 variable.set(visit(ast.value))
             }
         } else if (ast.receiver is RhovasAst.Expression.Index) {
             val receiver = visit(ast.receiver.receiver)
-            val method = receiver.methods["[]=", ast.receiver.arguments.size + 1]
-                ?: throw EvaluateException("Method []=/${ast.receiver.arguments.size + 1} is not supported by type ${receiver.type.name}.")
+            val method = receiver.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
+                "Undefined index operator.",
+                "The operator []=/${ast.receiver.arguments.size + 1} (index assignment) is not defined by type ${receiver.type.name}.",
+            )
             method.invoke(ast.receiver.arguments.map { visit(it) } + listOf(visit(ast.value)))
         } else {
-            //TODO: Semantic analysis validation
-            throw EvaluateException("Assignment is not supported by expression of type ${ast.receiver.javaClass.simpleName}.")
+            throw error(
+                "Invalid assignment statement.",
+                "An assignment statement requires the receiver to be an access (variable/field) or index expression, but received ${ast.receiver.javaClass.name}.",
+            )
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.If): Object {
         val condition = visit(ast.condition)
-        if (condition.type != Library.TYPES["Boolean"]!!) {
-            throw EvaluateException("If condition is not supported by type ${condition.type}.")
-        }
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            "Invalid if condition.",
+            "An if statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
         if (condition.value as Boolean) {
             visit(ast.thenStatement)
         } else if (ast.elseStatement != null) {
@@ -119,17 +133,19 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Conditional): Object {
-        val predicate = Predicate { condition: Object ->
-            if (condition.type != Library.TYPES["Boolean"]!!) {
-                throw EvaluateException("Match case condition is not supported by type ${condition.type.name}.")
-            }
-            condition.value as Boolean
+        val predicate = Predicate<Object> {
+            require(it.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                "Invalid match case condition.",
+                "A conditional match statement requires the condition to be type Boolean, but received ${it.type.name}.",
+            ) }
+            it.value as Boolean
         }
         val case = ast.cases.firstOrNull { predicate.test(visit(it.first)) }
             ?: ast.elseCase?.also {
-                if (it.first?.let { predicate.test(visit(it)) } == false) {
-                    throw EvaluateException("Match else condition returned false.")
-                }
+                require(it.first == null || predicate.test(visit(it.first!!))) { error(
+                    "Failed match else assertion.",
+                    "A condition match statement requires the else condition to be true.",
+                ) }
             }
         case?.let { visit(it.second) }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -137,32 +153,36 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Statement.Match.Structural): Object {
         val argument = visit(ast.argument)
-        val predicate = Predicate { pattern: RhovasAst.Pattern ->
+        val predicate = Predicate<RhovasAst.Pattern> {
             patternState = PatternState(Scope(this.scope), argument)
             scoped(patternState.scope) {
-                visit(pattern).value as Boolean
+                visit(it).value as Boolean
             }
         }
         val case = ast.cases.firstOrNull { predicate.test(it.first) }
             ?: ast.elseCase?.also {
-                if (it.first == null) {
-                    patternState = PatternState(Scope(this.scope), argument)
-                } else if (!predicate.test(it.first!!)) {
-                    throw EvaluateException("Match else condition returned false.")
-                }
+                require(predicate.test(it.first ?: RhovasAst.Pattern.Variable("_"))) { error(
+                    "Failed match else assertion.",
+                    "A structural match statement requires the else pattern to match.",
+                ) }
             }
-            ?: throw EvaluateException("Match patterns were not exhaustive.")
-        return scoped(patternState?.scope) {
+            ?: throw error(
+                "Non-exhaustive structural match patterns.",
+                "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods["toString", 0]!!.invoke(listOf()).value as String}.",
+            )
+        scoped(patternState.scope) {
             visit(case.second)
         }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
         val iterable = visit(ast.iterable)
         //TODO: Iterable type
-        if (iterable.type != Library.TYPES["List"]!!) {
-            throw EvaluateException("For iterable is not supported by type ${iterable.type}.")
-        }
+        require(iterable.type.isSubtypeOf(Library.TYPES["List"]!!)) { error(
+            "Invalid for loop argument.",
+            "A for loop requires the argument to be type List, but received ${iterable.type.name}.",
+        ) }
         val label = this.label
         this.label = null
         for (element in iterable.value as List<Object>) {
@@ -192,9 +212,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         this.label = null
         while (true) {
             val condition = visit(ast.condition)
-            if (condition.type != Library.TYPES["Boolean"]!!) {
-                throw EvaluateException("If condition is not supported by type ${condition.type}.")
-            }
+            require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                "Invalid while loop condition.",
+                "A while loop requires the condition to be type Boolean, but received ${ast.condition}.",
+            ) }
             if (condition.value as Boolean) {
                 try {
                     scoped(Scope(scope)) {
@@ -242,15 +263,16 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Label): Object {
-        if (ast.statement !is RhovasAst.Statement.For && ast.statement !is RhovasAst.Statement.While) {
-            throw EvaluateException("Label is not supported for statement of type ${ast.statement.javaClass.simpleName}.")
-        }
-        val original = label
-        label = ast.label
+        require(ast.statement is RhovasAst.Statement.For || ast.statement is RhovasAst.Statement.While) { error(
+            "Invalid label statement.",
+            "A label statement requires the statement to "
+        ) }
+        val label = label
+        this.label = ast.label
         try {
             visit(ast.statement)
         } finally {
-            label = original
+            this.label = label
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -309,8 +331,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Expression.Unary): Object {
         val expression = visit(ast.expression)
-        val method = expression.methods[ast.operator, 0]
-            ?: throw EvaluateException("Unary ${ast.operator} is not supported by type ${expression.type.name}.")
+        val method = expression.methods[ast.operator, 0] ?: throw error(
+            "Undefined unary operator.",
+            "The operator ${ast.operator}/0 is not defined by type ${expression.type.name}.",
+        )
         return method.invoke(listOf())
     }
 
@@ -318,36 +342,42 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         val left = visit(ast.left)
         return when (ast.operator) {
             "||" -> {
-                if (left.type != Library.TYPES["Boolean"]!!) {
-                    throw EvaluateException("Binary || is not supported by type ${left.type.name}")
-                }
+                require(left.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                    "Invalid binary operand.",
+                    "The binary operator || (logical or) requires the left operand to be type Boolean, but received ${left.type.name}.",
+                ) }
                 if (left.value as Boolean) {
                     Object(Library.TYPES["Boolean"]!!, true)
                 } else {
                     val right = visit(ast.right)
-                    if (right.type != Library.TYPES["Boolean"]!!) {
-                        throw EvaluateException("Binary || is not supported by type ${right.type.name}")
-                    }
+                    require(right.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                        "Invalid binary operand.",
+                        "The binary operator || (logical or) requires the right operand to be type Boolean, but received ${right.type.name}.",
+                    ) }
                     Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
                 }
             }
             "&&" -> {
-                if (left.type != Library.TYPES["Boolean"]!!) {
-                    throw EvaluateException("Binary && is not supported by type ${left.type.name}")
-                }
+                require(left.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                    "Invalid binary operand.",
+                    "The binary operator && (logical and) requires the left operand to be type Boolean, but received ${left.type.name}.",
+                ) }
                 if (left.value as Boolean) {
                     val right = visit(ast.right)
-                    if (right.type != Library.TYPES["Boolean"]!!) {
-                        throw EvaluateException("Binary && is not supported by type ${right.type.name}")
-                    }
+                    require(right.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                        "Invalid binary operand.",
+                        "The binary operator && (logical and) requires the right operand to be type Boolean, but received ${right.type.name}.",
+                    ) }
                     Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
                 } else {
                     Object(Library.TYPES["Boolean"]!!, false)
                 }
             }
             "==", "!=" -> {
-                val method = left.methods["==", 1]
-                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val method = left.methods["==", 1] ?: throw error(
+                    "Undefined binary operator.",
+                    "The operator ==/1 (equals) is not defined by type ${left.type.name}.",
+                )
                 val right = visit(ast.right)
                 val result = if (left.type == right.type) method.invoke(listOf(right)).value as Boolean else false
                 val value = if (ast.operator == "==") result else !result
@@ -361,12 +391,15 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "<", ">", "<=", ">=" -> {
-                val method = left.methods["<=>", 1]
-                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val method = left.methods["<=>", 1] ?: throw error(
+                    "Undefined binary operator.",
+                    "The operator <=>/1 (compare) is not defined by type ${left.type.name}.",
+                )
                 val right = visit(ast.right)
-                if (left.type != right.type) {
-                    throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name} with argument ${right.type.name}")
-                }
+                require(left.type == right.type) { error(
+                    "Invalid binary operand.",
+                    "Binary <=> is not supported by type ${left.type.name} with argument ${right.type.name}.",
+                ) }
                 val result = method.invoke(listOf(right)).value as BigInteger
                 val value = when (ast.operator) {
                     "<" -> result < BigInteger.ZERO
@@ -378,8 +411,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "+", "-", "*", "/" -> {
-                val method = left.methods[ast.operator, 1]
-                    ?: throw EvaluateException("Binary ${ast.operator} is not supported by type ${left.type.name}.")
+                val method = left.methods[ast.operator, 1] ?: throw error(
+                    "Undefined binary operator.",
+                    "The operator ${ast.operator}/1 is not defined by type ${left.type.name}.",
+                )
                 val right = visit(ast.right)
                 method.invoke(listOf(right))
             }
@@ -393,21 +428,27 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             if (ast.nullable && receiver.type == Library.TYPES["Null"]) {
                 receiver
             } else {
-                val property = receiver.properties[ast.name]
-                    ?: throw EvaluateException("Property ${ast.name} is not supported by type ${receiver.type.name}.")
+                val property = receiver.properties[ast.name] ?: throw error(
+                    "Undefined property.",
+                    "The property ${ast.name} is not defined by type ${receiver.type.name}.",
+                )
                 property.get()
             }
         } else {
-            val variable = scope.variables[ast.name]
-                ?: throw EvaluateException("Variable ${ast.name} is not defined.")
+            val variable = scope.variables[ast.name] ?: throw error(
+                "Undefined variable.",
+                "The property ${ast.name} is not defined in the current scope.",
+            )
             variable.get()
         }
     }
 
     override fun visit(ast: RhovasAst.Expression.Index): Object {
         val receiver = visit(ast.receiver)
-        val method = receiver.methods["[]", ast.arguments.size]
-            ?: throw EvaluateException("Method []/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
+        val method = receiver.methods["[]", ast.arguments.size] ?: throw error(
+            "Undefined index operator.",
+            "The operator []/${ast.arguments.size} (index access) is not defined by type ${receiver.type.name}.",
+        )
         return method.invoke(ast.arguments.map { visit(it) })
     }
 
@@ -419,29 +460,41 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             } else if (ast.pipeline) {
                 if (ast.name.contains(".")) {
                     val split = ast.name.split(".")
-                    var base = scope.variables[split.first()]?.get()
-                        ?: throw EvaluateException("Variable ${split.first()} is not defined.")
+                    var base = scope.variables[split.first()]?.get() ?: throw error(
+                        "Undefined variable.",
+                        "The variable ${ast.name} is not defined in the current scope.",
+                    )
                     for (name in split.slice(1..(split.size - 2))) {
-                        base = base.properties[name]?.get()
-                            ?: throw EvaluateException("Property ${name} is not supported by type ${base.type.name}.")
+                        base = base.properties[name]?.get() ?: throw error(
+                            "Undefined property.",
+                            "The property ${ast.name} is not defined by type ${base.type.name}.",
+                        )
                     }
-                    val method = base.methods[split.last(), ast.arguments.size + 1]
-                        ?: throw EvaluateException("Method ${split.last()}/${ast.arguments.size + 1} is not supported by type ${base.type.name}.")
+                    val method = base.methods[split.last(), ast.arguments.size + 1] ?: throw error(
+                        "Undefined method.",
+                        "The method ${split.last()}/${ast.arguments.size + 1} is not defined by type ${base.type.name}.",
+                    )
                     method.invoke(listOf(receiver) + ast.arguments.map { visit(it) })
                 } else {
-                    val function = scope.functions[ast.name, ast.arguments.size + 1]
-                        ?: throw EvaluateException("Function ${ast.name}/${ast.arguments.size + 1} is not defined.")
+                    val function = scope.functions[ast.name, ast.arguments.size + 1] ?: throw error(
+                        "Undefined function.",
+                        "The function ${ast.name}/${ast.arguments.size + 1} is not defined in the current scope.",
+                    )
                     function.invoke(listOf(receiver) + ast.arguments.map { visit(it) })
                 }
             } else {
-                val method = receiver.methods[ast.name, ast.arguments.size]
-                    ?: throw EvaluateException("Method ${ast.name}/${ast.arguments.size} is not supported by type ${receiver.type.name}.")
+                val method = receiver.methods[ast.name, ast.arguments.size] ?: throw error(
+                    "Undefined method.",
+                    "The method ${ast.name}/${ast.arguments.size} is not defined by type ${receiver.type.name}.",
+                )
                 method.invoke(ast.arguments.map { visit(it) })
             }
             if (ast.coalesce) receiver else result
         } else {
-            val function = scope.functions[ast.name, ast.arguments.size]
-                ?: throw EvaluateException("Function ${ast.name}/${ast.arguments.size} is not defined.")
+            val function = scope.functions[ast.name, ast.arguments.size] ?: throw error(
+                "Undefined function.",
+                "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
+            )
             function.invoke(ast.arguments.map { visit(it) })
         }
     }
@@ -468,8 +521,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     override fun visit(ast: RhovasAst.Pattern.Value): Object {
         val value = visit(ast.value)
-        val method = value.methods["==", 1]
-            ?: throw EvaluateException("Binary == is not supported by type ${value.type.name}.")
+        val method = value.methods["==", 1] ?: throw error(
+            "Undefined binary operator.",
+            "The operator ==/1 (equals) is not defined by type ${value.type.name}.",
+        )
         val result = if (value.type == patternState.value.type) method.invoke(listOf(patternState.value)).value as Boolean else false
         return Object(Library.TYPES["Boolean"]!!, result)
     }
@@ -478,9 +533,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         var result = visit(ast.pattern)
         if (result.value as Boolean) {
             result = visit(ast.predicate)
-            if (result.type != Library.TYPES["Boolean"]!!) {
-                throw EvaluateException("Predicate pattern is not supported by type ${result.type}.")
-            }
+            require(result.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                "Invalid predicate pattern.",
+                "A predicate pattern requires the predicate to be type Boolean, but received ${result.type.name}.",
+            ) }
         }
         return result
     }
@@ -494,9 +550,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         var vararg = false
         for (pattern in ast.patterns) {
             val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
-                if (vararg) {
-                    throw EvaluateException("Pattern cannot contain multiple varargs.")
-                }
+                require(!vararg) { error(
+                    "Multiple vararg patterns",
+                    "An ordered destructure requires no more than one vararg pattern.",
+                ) }
                 vararg = true
                 val value = list.subList(i, list.size - ast.patterns.size + i + 1)
                 i += value.size
@@ -526,9 +583,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         var vararg = false
         for ((key, pattern) in ast.patterns) {
             val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
-                if (vararg) {
-                    throw EvaluateException("Pattern cannot contain multiple varargs.")
-                }
+                require(!vararg) { error(
+                    "Multiple vararg patterns",
+                    "An ordered destructure requires no more than one vararg pattern.",
+                ) }
                 vararg = true
                 Object(Library.TYPES["Object"]!!, map.filterKeys { !named.contains(it) })
             } else {
@@ -557,7 +615,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Pattern.VarargDestructure): Object {
-        if (patternState.value.type == Library.TYPES["List"]) {
+        if (patternState.value.type.isSubtypeOf(Library.TYPES["List"]!!)) {
             val list = patternState.value.value as List<Object>
             if (ast.operator == "+" && list.isEmpty()) {
                 return Object(Library.TYPES["Boolean"]!!, false)
@@ -572,7 +630,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                     ast.pattern?.let { visit(it).value as Boolean } ?: true
                 })
             }
-        } else if (patternState.value.type == Library.TYPES["Object"]) {
+        } else if (patternState.value.type.isSubtypeOf(Library.TYPES["Object"]!!)) {
             val map = patternState.value.value as Map<String, Object>
             if (ast.operator == "+" && map.isEmpty()) {
                 return Object(Library.TYPES["Boolean"]!!, false)
@@ -594,7 +652,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Type): Object {
-        val type = Library.TYPES[ast.name] ?: throw EvaluateException("Undefined type ${ast.name}.")
+        val type = Library.TYPES[ast.name] ?: throw error(
+            "Undefined type.",
+            "The type ${ast.name} is not defined."
+        )
         return Object(Library.TYPES["Type"]!!, type)
     }
 
@@ -607,6 +668,21 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             this.scope = original
         }
     }
+
+    fun require(condition: Boolean, error: () -> EvaluateException) {
+        if (!condition) {
+            throw error()
+        }
+    }
+
+    fun error(summary: String, details: String): EvaluateException {
+        return EvaluateException(summary, details, Input.Range(0, 1, 0, 0), listOf())
+    }
+
+    /*fun error(ast: RhovasAst, summary: String, details: String): EvaluateException {
+        //TODO: Evaluator context
+        return EvaluateException(summary, details, ast.context.first(), ast.context)
+    }*/
 
     data class Break(val label: String?): Exception()
 
@@ -624,18 +700,21 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
         fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
             //TODO: Lambda identification information for errors
+            //TODO: Expected count depends on lambda invocation context (direct vs indirect)
             return evaluator.scoped(Scope(scope)) {
                 if (ast.parameters.isNotEmpty()) {
-                    if (ast.parameters.size != arguments.size) {
-                        throw EvaluateException("Invalid parameter count for lambda: expected ${arguments.size}, received ${ast.parameters.size}")
-                    }
+                    require(ast.parameters.size == arguments.size) { evaluator.error(
+                        "Invalid lambda parameter count.",
+                        "Expected ${arguments.size}, but received ${ast.parameters.size}.",
+                    ) }
                     val parameters = ast.parameters.map {
                         Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
                     }
                     for (i in parameters.indices) {
-                        if (!arguments[i].second.isSubtypeOf(parameters[i].second)) {
-                            throw EvaluateException("Invalid parameter type for lambda: expected ${arguments[i].second.name}, received ${parameters[i].second.name}.")
-                        }
+                        require(arguments[i].second.isSubtypeOf(parameters[i].second)) { evaluator.error(
+                            "Invalid lambda argument type.",
+                            "Expected argument ${i} to be type ${parameters[i].second.name}, but received ${arguments[i].second.name}.",
+                        ) }
                         evaluator.scope.variables.define(Variable(parameters[i].first, parameters[i].second, arguments[i].third))
                     }
                 } else if (arguments.size == 1) {
@@ -649,10 +728,12 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                     evaluator.visit(ast.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
-                    if (!(e.value?.type ?: Library.TYPES["Void"]!!).isSubtypeOf(returns)) {
-                        throw EvaluateException("Invalid return value from lambda: expected ${returns.name}, received ${e.value!!.type}.")
-                    }
-                    e.value ?: Object(Library.TYPES["Void"]!!, Unit)
+                    val value = e.value ?: Object(Library.TYPES["Void"]!!, Unit)
+                    require(value.type.isSubtypeOf(returns)) { evaluator.error(
+                        "Invalid lambda return value.",
+                        "Expected the return value to be type ${returns.name}, but received ${value.type.name}.",
+                    ) }
+                    value
                 }
             }
         }
