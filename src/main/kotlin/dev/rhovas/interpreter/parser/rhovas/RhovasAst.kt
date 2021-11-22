@@ -1,6 +1,10 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.parser.Input
+
 sealed class RhovasAst {
+
+    lateinit var context: List<Input.Range> internal set
 
     data class Source(
         val statements: List<Statement>,

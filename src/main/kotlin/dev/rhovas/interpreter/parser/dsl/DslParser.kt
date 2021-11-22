@@ -63,8 +63,9 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
             "Expected closing brace.",
             "A DSL expression requires braces around the source, as in `#dsl \${ source }`.",
         ) }
-        context.removeLast()
-        return DslAst.Source(literals, arguments)
+        return DslAst.Source(literals, arguments).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
 }

@@ -27,7 +27,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         while (tokens[0] != null) {
             statements.add(parseStatement())
         }
-        return RhovasAst.Source(statements)
+        return RhovasAst.Source(statements).also {
+            it.context = if (statements.isNotEmpty()) listOf(statements[0].context.first(), tokens[-1]!!.range) else listOf()
+        }
     }
 
     private fun parseStatement(): RhovasAst.Statement {
@@ -54,10 +56,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 if (match("=")) {
                     val value = parseExpression()
                     requireSemicolon { "An assignment statement must be followed by a semicolon, as in `name = value;`." }
-                    RhovasAst.Statement.Assignment(expression, value)
+                    RhovasAst.Statement.Assignment(expression, value).also {
+                        it.context = listOf(expression.context.first(), tokens[-1]!!.range)
+                    }
                 } else {
                     requireSemicolon { "An expression statement must be followed by a semicolon, as in `expression;`" }
-                    RhovasAst.Statement.Expression(expression)
+                    RhovasAst.Statement.Expression(expression).also {
+                        it.context = listOf(expression.context.first(), tokens[-1]!!.range)
+                    }
                 }
             }
         }
@@ -70,8 +76,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         while (!match("}")) {
             statements.add(parseStatement())
         }
-        context.removeLast()
-        return RhovasAst.Statement.Block(statements)
+        return RhovasAst.Statement.Block(statements).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseFunctionStatement(): RhovasAst.Statement.Function {
@@ -96,8 +103,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
         val returns = if (match(":")) parseType() else null
         val body = parseStatement()
-        context.removeLast()
-        return RhovasAst.Statement.Function(name, parameters, returns, body)
+        return RhovasAst.Statement.Function(name, parameters, returns, body).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseDeclarationStatement(): RhovasAst.Statement.Declaration {
@@ -108,8 +116,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val type = if (match(":")) parseType() else null
         val value = if (match("=")) parseExpression() else null
         requireSemicolon { "A variable declaration must be followed by a semicolon, as in `val name = value;` or `var name: Type;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Declaration(mutable, name, type, value)
+        return RhovasAst.Statement.Declaration(mutable, name, type, value).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseIfStatement(): RhovasAst.Statement.If {
@@ -131,8 +140,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             context.removeLast()
             elseStatement
         } else null
-        context.removeLast()
-        return RhovasAst.Statement.If(condition, thenStatement, elseStatement)
+        return RhovasAst.Statement.If(condition, thenStatement, elseStatement).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseMatchStatement(): RhovasAst.Statement.Match {
@@ -179,8 +189,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 context.removeLast()
             }
         }
-        context.removeLast()
-        return RhovasAst.Statement.Match.Conditional(cases, elseCase)
+        return RhovasAst.Statement.Match.Conditional(cases, elseCase).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseStructuralMatch(): RhovasAst.Statement.Match.Structural {
@@ -224,7 +235,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 context.removeLast()
             }
         }
-        return RhovasAst.Statement.Match.Structural(argument, cases, elseCase)
+        return RhovasAst.Statement.Match.Structural(argument, cases, elseCase).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseForStatement(): RhovasAst.Statement.For {
@@ -249,8 +262,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A for loop requires parenthesis around the argument, as in `for (val name in iterable) { ... }`.",
         ) }
         val body = parseStatement()
-        context.removeLast()
-        return RhovasAst.Statement.For(name, iterable, body)
+        return RhovasAst.Statement.For(name, iterable, body).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseWhileStatement(): RhovasAst.Statement.While {
@@ -266,8 +280,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A while loop requires parenthesis around the condition, as in `while (condition) { ... }`.",
         ) }
         val body = parseStatement()
-        context.removeLast()
-        return RhovasAst.Statement.While(condition, body)
+        return RhovasAst.Statement.While(condition, body).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseTryStatement(): RhovasAst.Statement.Try {
@@ -291,6 +306,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
             ) }
             val catchBody = parseStatement()
+            //TODO: Restructure AST for context
             catches.add(RhovasAst.Statement.Try.Catch(name, catchBody))
             context.removeLast()
         }
@@ -300,8 +316,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             context.removeLast()
             finallyStatement
         } else null
-        context.removeLast()
-        return RhovasAst.Statement.Try(body, catches, finallyStatement)
+        return RhovasAst.Statement.Try(body, catches, finallyStatement).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseWithStatement(): RhovasAst.Statement.With {
@@ -325,8 +342,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A with statement requires parenthesis around the argument, as in `with (argument) { ... }` or `with (val name = value) { ... }`.",
         ) }
         val body = parseStatement()
-        context.removeLast()
-        return RhovasAst.Statement.With(name, argument, body)
+        return RhovasAst.Statement.With(name, argument, body).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseLabelStatement(): RhovasAst.Statement.Label {
@@ -338,8 +356,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A label statement requires a label after the colon, as in `label: statement`.",
         ) }
         val statement = parseStatement()
-        context.removeLast()
-        return RhovasAst.Statement.Label(label, statement)
+        return RhovasAst.Statement.Label(label, statement).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseBreakStatement(): RhovasAst.Statement.Break {
@@ -347,8 +366,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         val label = if (match(RhovasTokenType.IDENTIFIER)) tokens[-1]!!.literal else null
         requireSemicolon { "A break statement must be followed by a semicolon, as in `break;` or `break label;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Break(label)
+        return RhovasAst.Statement.Break(label).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseContinueStatement(): RhovasAst.Statement.Continue {
@@ -356,8 +376,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         val label = if (match(RhovasTokenType.IDENTIFIER)) tokens[-1]!!.literal else null
         requireSemicolon { "A continue statement must be followed by a semicolon, as in `continue;` or `continue label;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Continue(label)
+        return RhovasAst.Statement.Continue(label).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseReturnStatement(): RhovasAst.Statement.Return {
@@ -365,8 +386,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         val value = if (!peek(";")) parseExpression() else null
         requireSemicolon { "A return statement must be followed by a semicolon, as in `return;` or `return value;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Return(value)
+        return RhovasAst.Statement.Return(value).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseThrowStatement(): RhovasAst.Statement.Throw {
@@ -374,8 +396,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         val exception = parseExpression()
         requireSemicolon { "A throw statement must be followed by a semicolon, as in `throw exception;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Throw(exception)
+        return RhovasAst.Statement.Throw(exception).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseAssertStatement(): RhovasAst.Statement.Assert {
@@ -384,8 +407,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val condition = parseExpression()
         val message = if (match(":")) parseExpression() else null
         requireSemicolon { "An assert statement must be followed by a semicolon, as in `assert condition;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Assert(condition, message)
+        return RhovasAst.Statement.Assert(condition, message).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseRequireStatement(): RhovasAst.Statement.Require {
@@ -394,8 +418,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val condition = parseExpression()
         val message = if (match(":")) parseExpression() else null
         requireSemicolon { "A require statement must be followed by a semicolon, as in `require condition;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Require(condition, message)
+        return RhovasAst.Statement.Require(condition, message).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseEnsureStatement(): RhovasAst.Statement.Ensure {
@@ -404,8 +429,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val condition = parseExpression()
         val message = if (match(":")) parseExpression() else null
         requireSemicolon { "An ensure statement must be followed by a semicolon, as in `ensure condition;`." }
-        context.removeLast()
-        return RhovasAst.Statement.Ensure(condition, message)
+        return RhovasAst.Statement.Ensure(condition, message).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseExpression(): RhovasAst.Expression {
@@ -437,19 +463,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     private fun parseBinaryExpression(parser: () -> RhovasAst.Expression, vararg operators: String): RhovasAst.Expression {
-        //TODO: Use AST for first/last context
-        var receiverContext = tokens[0]?.range
         var expression = parser()
-        context.addLast(receiverContext!!)
+        context.addLast(expression.context.first())
         while (true) {
-            context.addLast(receiverContext!!)
-            receiverContext = tokens[0]?.range
+            context.addLast(expression.context.first())
             val operator = operators.sorted().lastOrNull { o ->
                 match(*o.toCharArray().map { it.toString() }.toTypedArray())
             } ?: break
-            context.addLast(receiverContext!!)
+            context.addLast(tokens[-1]!!.range)
             val right = parser()
-            expression = RhovasAst.Expression.Binary(operator, expression, right)
+            expression = RhovasAst.Expression.Binary(operator, expression, right).also {
+                it.context = listOf(context[context.size - 3], right.context.last())
+            }
             context.removeLast()
             context.removeLast()
         }
@@ -460,22 +485,22 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     private fun parseUnaryExpression(): RhovasAst.Expression {
         return if (match(listOf("-", "!"))) {
+            context.addLast(tokens[-1]!!.range)
             val operator = tokens[-1]!!.literal
             val expression = parseUnaryExpression()
-            RhovasAst.Expression.Unary(operator, expression)
+            RhovasAst.Expression.Unary(operator, expression).also {
+                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+            }
         } else {
             parseSecondaryExpression()
         }
     }
 
     private fun parseSecondaryExpression(): RhovasAst.Expression {
-        //TODO: Use AST for first/last context
-        var receiverContext = tokens[0]?.range
         var expression = parsePrimaryExpression()
-        context.addLast(receiverContext!!)
+        context.addLast(expression.context.first())
         while (true) {
-            context.addLast(receiverContext!!)
-            receiverContext = tokens[0]?.range
+            context.addLast(expression.context.first())
             expression = when {
                 peek(".") || peek("?", ".") -> {
                     val nullable = match("?")
@@ -493,7 +518,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                             "An index expression must be followed by a closing bracket `]` or comma `,`, as in `expression[index]` or `expression[x, y, z]`.",
                         ) }
                     }
-                    RhovasAst.Expression.Index(expression, arguments)
+                    RhovasAst.Expression.Index(expression, arguments).also {
+                        it.context = listOf(context[context.size - 2], tokens[-1]!!.range)
+                    }
                 }
                 else -> break
             }
@@ -506,12 +533,26 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     private fun parsePrimaryExpression(): RhovasAst.Expression {
         return when {
-            match("null") -> RhovasAst.Expression.Literal(null)
-            match(listOf("true", "false")) -> RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBooleanStrict())
-            match(RhovasTokenType.INTEGER) ||
-            match(RhovasTokenType.DECIMAL) ||
-            match(RhovasTokenType.STRING) -> RhovasAst.Expression.Literal(tokens[-1]!!.value)
-            match(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal))
+            match("null") -> {
+                RhovasAst.Expression.Literal(null).also {
+                    it.context = listOf(tokens[-1]!!.range)
+                }
+            }
+            match(listOf("true", "false")) -> {
+                RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBooleanStrict()).also {
+                    it.context = listOf(tokens[-1]!!.range)
+                }
+            }
+            match(listOf(RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING)) -> {
+                RhovasAst.Expression.Literal(tokens[-1]!!.value).also {
+                    it.context = listOf(tokens[-1]!!.range)
+                }
+            }
+            match(":", RhovasTokenType.IDENTIFIER) -> {
+                RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal)).also {
+                    it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
+                }
+            }
             match("[") -> {
                 context.addLast(tokens[-1]!!.range)
                 val elements = mutableListOf<RhovasAst.Expression>()
@@ -524,8 +565,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     ) }
                     context.removeLast()
                 }
-                context.removeLast()
-                RhovasAst.Expression.Literal(elements)
+                RhovasAst.Expression.Literal(elements).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             match("{") -> {
                 context.addLast(tokens[-1]!!.range)
@@ -533,7 +575,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 while (!match("}")) {
                     val key = parseIdentifier { "An object literal entry requires a key, as in `{key: value}` or `{x, y, z}`." }
                     context.addLast(tokens[-1]!!.range)
-                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access(null, false, key)
+                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access(null, false, key).also {
+                        it.context = listOf(tokens[-1]!!.range)
+                    }
                     context.addLast(tokens[-1]!!.range)
                     require(peek("}") || match(",")) { error(
                         "Expected closing parenthesis or comma.",
@@ -542,16 +586,20 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     context.removeLast()
                     context.removeLast()
                 }
-                context.removeLast()
-                RhovasAst.Expression.Literal(properties)
+                RhovasAst.Expression.Literal(properties).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             match("(") -> {
+                context.addFirst(tokens[-1]!!.range)
                 val expression = parseExpression()
                 require(match(")")) { error(
                     "Expected closing parenthesis.",
                     "A group expression must be followed by a closing parenthesis, as in `(expression)`.",
                 ) }
-                RhovasAst.Expression.Group(expression)
+                RhovasAst.Expression.Group(expression).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             peek(RhovasTokenType.IDENTIFIER) -> parseAccessOrFunctionExpression(null, false, false, false)
             peek("#", RhovasTokenType.IDENTIFIER) -> parseMacroExpression()
@@ -590,10 +638,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             }
         }
         if (peek("|", RhovasTokenType.IDENTIFIER) || peek("{")) {
+            context.addLast(tokens[0]!!.range)
             arguments = arguments ?: mutableListOf()
             val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
             if (match("|")) {
-                context.addLast(tokens[-1]!!.range)
                 while (!match("|")) {
                     val name = parseIdentifier { "A lambda parameter requires a name, as in `lambda |name| { ... }`." }
                     context.addLast(tokens[-1]!!.range)
@@ -607,7 +655,6 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     context.removeLast()
                     context.removeLast()
                 }
-                context.removeLast()
             }
             require(peek("{")) { error(
                 "Expected opening brace.",
@@ -615,19 +662,23 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             ) }
             context.addLast(tokens[-1]!!.range)
             val body = parseStatement()
-            arguments.add(RhovasAst.Expression.Lambda(parameters, body))
             context.removeLast()
+            arguments.add(RhovasAst.Expression.Lambda(parameters, body).also {
+                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+            })
         }
         return if (arguments == null) {
             require(!coalesce) { error(
                 "Coalesce can only be used with a method.",
                 "The coalesce operator returns the receiver of a method instead of the method's return value, and therefore can't be used with a field access since it cannot perform a side effect.",
             ) }
-            context.removeLast()
-            RhovasAst.Expression.Access(receiver, nullable, name.toString())
+            RhovasAst.Expression.Access(receiver, nullable, name.toString()).also {
+                it.context = listOf(context.removeLast().let { receiver?.context?.first() ?: it }, tokens[-1]!!.range)
+            }
         } else {
-            context.removeLast()
-            RhovasAst.Expression.Function(receiver, nullable, coalesce, pipeline, name.toString(), arguments)
+            RhovasAst.Expression.Function(receiver, nullable, coalesce, pipeline, name.toString(), arguments).also {
+                it.context = listOf(context.removeLast().let { receiver?.context?.first() ?: it }, tokens[-1]!!.range)
+            }
         }
     }
 
@@ -664,27 +715,41 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 Pair(it.first.copy(index = it.first.index - 1, column = it.first.column - 1, length = 0), it.second)
             }
             require(match("}"))
-            context.removeLast()
-            arguments.add(RhovasAst.Expression.Dsl(name, ast))
+            arguments.add(RhovasAst.Expression.Dsl(name, ast).also {
+                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+            })
         }
-        return RhovasAst.Expression.Macro(name, arguments)
+        return RhovasAst.Expression.Macro(name, arguments).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parsePattern(): RhovasAst.Pattern {
         var pattern = when {
-            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING))
-                    || peek(":", RhovasTokenType.IDENTIFIER) -> RhovasAst.Pattern.Value(parsePrimaryExpression())
+            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING)) -> {
+                RhovasAst.Pattern.Value(parsePrimaryExpression()).also {
+                    it.context = listOf(tokens[-1]!!.range)
+                }
+            }
+            peek(":", RhovasTokenType.IDENTIFIER) -> {
+                RhovasAst.Pattern.Value(parsePrimaryExpression()).also {
+                    it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
+                }
+            }
             peek(RhovasTokenType.IDENTIFIER) -> {
                 if (tokens[0]!!.literal[0].isUpperCase()) {
-                    context.addLast(tokens[-1]!!.range)
+                    context.addLast(tokens[0]!!.range)
                     val type = parseType()
                     val pattern = if (peek(listOf(RhovasTokenType.IDENTIFIER, "[", "{", "$"))) parsePattern() else null
-                    context.removeLast()
-                    RhovasAst.Pattern.TypedDestructure(type, pattern)
+                    RhovasAst.Pattern.TypedDestructure(type, pattern).also {
+                        it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                    }
                 } else {
                     require(match(RhovasTokenType.IDENTIFIER))
                     val name = tokens[-1]!!.literal
-                    RhovasAst.Pattern.Variable(name)
+                    RhovasAst.Pattern.Variable(name).also {
+                        it.context = listOf(tokens[-1]!!.range)
+                    }
                 }
             }
             match("[") -> {
@@ -697,8 +762,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         "An ordered destructuring element must be followed by a closing bracket `]` or comma `,`, as in `[argument]` or `[x, y, z]`.",
                     ) }
                 }
-                context.removeLast()
-                RhovasAst.Pattern.OrderedDestructure(patterns)
+                RhovasAst.Pattern.OrderedDestructure(patterns).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             match("{") -> {
                 context.addLast(tokens[-1]!!.range)
@@ -721,11 +787,13 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     ) }
                     context.removeLast()
                 }
-                context.removeLast()
-                RhovasAst.Pattern.NamedDestructure(patterns)
+                RhovasAst.Pattern.NamedDestructure(patterns).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             peek(listOf("*", "+")) -> null
             match("$") -> {
+                context.addLast(tokens[-1]!!.range)
                 require(match("{")) { error(
                     "Expected opening brace.",
                     "A value pattern uses interpolation which requires braces around the expression, as in `\${value}`.",
@@ -735,7 +803,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     "Expected opening brace.",
                     "A value pattern uses interpolation which requires braces around the expression, as in `\${value}`.",
                 ) }
-                RhovasAst.Pattern.Value(value)
+                RhovasAst.Pattern.Value(value).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
             }
             else -> throw error(
                 "Expected pattern.",
@@ -744,7 +814,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
         if (match(listOf("*", "+"))) {
             val operator = tokens[-1]!!.literal
-            pattern = RhovasAst.Pattern.VarargDestructure(pattern, operator)
+            pattern = RhovasAst.Pattern.VarargDestructure(pattern, operator).also {
+                it.context = if (pattern != null) listOf(pattern!!.context.first(), tokens[-1]!!.range) else listOf(tokens[-1]!!.range)
+            }
         }
         if (match("$")) {
             context.addLast(tokens[-1]!!.range)
@@ -757,18 +829,22 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 "Expected closing brace.",
                 "A predicate pattern uses interpolation which requires braces around the expression, as in `\${predicate}`.",
             ) }
-            context.removeLast()
-            pattern = RhovasAst.Pattern.Predicate(pattern!!, predicate)
+            pattern = RhovasAst.Pattern.Predicate(pattern!!, predicate).also {
+                it.context = listOf(pattern!!.context.first(), tokens[-1]!!.range)
+            }
         }
         return pattern!!
     }
 
     private fun parseType(): RhovasAst.Type {
         val name = parseIdentifier { "A type requires a name, as in `Type`." }
-        return RhovasAst.Type(name)
+        return RhovasAst.Type(name).also {
+            it.context = listOf(tokens[-1]!!.range)
+        }
     }
 
     private fun parseInterpolation(): RhovasAst.Expression {
+        //TODO: Consider adding AST class for context
         require(match("$", "{"))
         val expression = parseExpression()
         require(match("}")) { error(
