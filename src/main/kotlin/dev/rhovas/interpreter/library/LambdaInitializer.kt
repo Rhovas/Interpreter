@@ -11,6 +11,7 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
     @Reflect.Method("invoke", parameters = ["List"], returns = "Any")
     fun invoke(instance: Evaluator.Lambda, arguments: List<Object>): Object {
         EVALUATOR.require(arguments.size == instance.ast.parameters.size) { EVALUATOR.error(
+            instance.ast,
             "Invalid lambda argument count.",
             "Lambda requires arguments of size ${instance.ast.parameters.size}, but received ${arguments.size}.",
         ) }

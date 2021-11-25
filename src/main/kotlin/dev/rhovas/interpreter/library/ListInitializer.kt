@@ -11,6 +11,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     @Reflect.Method("get", operator = "[]", parameters = ["Integer"], returns = "Any")
     fun get(instance: List<Object>, index: BigInteger): Object {
         EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.valueOf(instance.size.toLong())) { EVALUATOR.error(
+            null,
             "Invalid list index.",
             "Expected an index in range [0, ${instance.size}), but received ${index}.",
         ) }
@@ -20,6 +21,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     @Reflect.Method("set", operator = "[]=", parameters = ["Integer", "Any"])
     fun set(instance: MutableList<Object>, index: BigInteger, value: Object) {
         EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.valueOf(instance.size.toLong())) { EVALUATOR.error(
+            null,
             "Invalid list index.",
             "Expected an index in range [0, ${instance.size}), but received ${index}.",
         ) }
@@ -34,6 +36,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     @Reflect.Method("for", parameters = ["Lambda"])
     fun for_(instance: List<Object>, lambda: Evaluator.Lambda) {
         EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
+            lambda.ast,
             "Invalid lambda parameter count.",
             "Function List.for requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
         ) }
@@ -43,6 +46,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     @Reflect.Method("map", parameters = ["Lambda"], returns = "List")
     fun map(instance: List<Object>, lambda: Evaluator.Lambda): List<Object> {
         EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
+            lambda.ast,
             "Invalid lambda parameter count.",
             "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
         ) }
@@ -53,6 +57,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     fun equals(instance: List<Object>, other: List<Object>): Boolean {
         return instance.size == other.size && instance.zip(other).all {
             val method = it.first.methods["==", 1] ?: throw EVALUATOR.error(
+                null,
                 "Undefined binary operator.",
                 "The operator ==/1 (equals) is not defined by type ${it.first.type.name}.",
             )

@@ -37,6 +37,7 @@ object Reflect {
                         "Any" -> arguments[it]
                         arguments[it].type.name -> arguments[it].value
                         else -> throw EVALUATOR.error(
+                            null,
                             "Invalid argument type.",
                             "Function ${initializer.type.name}.${name} requires parameter ${it} to be type ${parameters[it].name}, received ${arguments[it].type.name}.",
                         )

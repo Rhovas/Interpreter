@@ -21,6 +21,7 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
     fun equals(instance: Map<String, Object>, other: Map<String, Object>): Boolean {
         return instance.keys == other.keys && instance.keys.all {
             val method = instance[it]!!.methods["==", 1] ?: throw EVALUATOR.error(
+                null,
                 "Undefined binary operator.",
                 "The operator ==/1 (equals) is not defined by type ${instance[it]!!.type.name}.",
             )
