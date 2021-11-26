@@ -150,25 +150,50 @@ sealed class RhovasAst {
             val right: Expression,
         ) : Expression()
 
-        data class Access(
-            val receiver: Expression?,
-            val nullable: Boolean,
-            val name: String,
-        ) : Expression()
+        sealed class Access : Expression() {
 
-        data class Index(
-            val receiver: Expression,
-            val arguments: List<Expression>,
-        ) : Expression()
+            data class Variable(
+                val name: String,
+            ) : Access()
 
-        data class Function(
-            val receiver: Expression?,
-            val nullable: Boolean,
-            val coalesce: Boolean,
-            val pipeline: Boolean,
-            val name: String,
-            val arguments: List<Expression>,
-        ) : Expression()
+            data class Property(
+                val receiver: Expression,
+                val coalesce: Boolean,
+                val name: String,
+            ) : Access()
+
+            data class Index(
+                val receiver: Expression,
+                val arguments: List<Expression>,
+            ) : Access()
+
+        }
+
+        sealed class Invoke : Expression() {
+
+            data class Function(
+                val name: String,
+                val arguments: List<Expression>,
+            ) : Invoke()
+
+            data class Method(
+                val receiver: Expression,
+                val coalesce: Boolean,
+                val cascade: Boolean,
+                val name: String,
+                val arguments: List<Expression>,
+            ) : Invoke()
+
+            data class Pipeline(
+                val receiver: Expression,
+                val coalesce: Boolean,
+                val cascade: Boolean,
+                val qualifier: Access?,
+                val name: String,
+                val arguments: List<Expression>,
+            ) : Invoke()
+
+        }
 
         data class Lambda(
             val parameters: List<Pair<String, Type?>>,
@@ -258,9 +283,12 @@ sealed class RhovasAst {
                 is Expression.Group -> visit(ast)
                 is Expression.Unary -> visit(ast)
                 is Expression.Binary -> visit(ast)
-                is Expression.Access -> visit(ast)
-                is Expression.Index -> visit(ast)
-                is Expression.Function -> visit(ast)
+                is Expression.Access.Variable -> visit(ast)
+                is Expression.Access.Property -> visit(ast)
+                is Expression.Access.Index -> visit(ast)
+                is Expression.Invoke.Function -> visit(ast)
+                is Expression.Invoke.Method -> visit(ast)
+                is Expression.Invoke.Pipeline -> visit(ast)
                 is Expression.Lambda -> visit(ast)
                 is Expression.Macro -> visit(ast)
                 is Expression.Dsl -> visit(ast)
@@ -304,9 +332,12 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Group): T
         fun visit(ast: Expression.Unary): T
         fun visit(ast: Expression.Binary): T
-        fun visit(ast: Expression.Access): T
-        fun visit(ast: Expression.Index): T
-        fun visit(ast: Expression.Function): T
+        fun visit(ast: Expression.Access.Variable): T
+        fun visit(ast: Expression.Access.Property): T
+        fun visit(ast: Expression.Access.Index): T
+        fun visit(ast: Expression.Invoke.Function): T
+        fun visit(ast: Expression.Invoke.Method): T
+        fun visit(ast: Expression.Invoke.Pipeline): T
         fun visit(ast: Expression.Lambda): T
         fun visit(ast: Expression.Macro): T
         fun visit(ast: Expression.Dsl): T

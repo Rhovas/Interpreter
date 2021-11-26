@@ -1,10 +1,8 @@
 package dev.rhovas.interpreter.environment
 
 data class Method(
-    val name: String,
-    val arity: Int,
-    private val receiver: Object,
-    private val function: Function,
+    val receiver: Object,
+    val function: Function,
 ) {
 
     fun invoke(arguments: List<Object>): Object {

@@ -503,15 +503,51 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             context.addLast(expression.context.first())
             expression = when {
                 peek(".") || peek("?", ".") -> {
-                    val nullable = match("?")
+                    val coalesce = match("?")
                     require(match("."))
-                    val coalesce = match(".")
-                    val pipeline = match("|")
-                    require(peek(RhovasTokenType.IDENTIFIER)) { error(
-                        "Expected identifier.",
-                        "An access or method expression requires a name, as in `receiver.property` or `receiver.method()`.",
-                    ) }
-                    parseAccessOrFunctionExpression(expression, nullable, coalesce, pipeline)
+                    val cascade = match(".")
+                    if (match("|")) {
+                        var name = parseIdentifier { "A pipeline expression requires a name, as in `receiver.property` or `receiver.method()`." }
+                        context.addLast(tokens[-1]!!.range)
+                        var qualifier: RhovasAst.Expression.Access? = null
+                        while (match(".", RhovasTokenType.IDENTIFIER)) {
+                            qualifier = if (qualifier == null) {
+                                RhovasAst.Expression.Access.Variable(name).also {
+                                    it.context = listOf(tokens[-3]!!.range)
+                                }
+                            } else {
+                                RhovasAst.Expression.Access.Property(qualifier, false, name).also {
+                                    it.context = listOf(qualifier!!.context.first(), tokens[-3]!!.range)
+                                }
+                            }
+                            name = tokens[-1]!!.literal
+                        }
+                        require(peek(listOf("(", "|", "{"))) { error(
+                            "Expected opening parenthesis, pipe, or brace.",
+                            "A pipeline expression requires an invocation, as in `receiver.|function()`, `receiver.|function |name| { ... }`, or `receiver.|function { ... }`.",
+                        ) }
+                        val arguments = parseInvokeExpressionArguments()
+                        RhovasAst.Expression.Invoke.Pipeline(expression, coalesce, cascade, qualifier, name, arguments).also {
+                            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                        }
+                    } else {
+                        val name = parseIdentifier { "A property or method expression requires a name, as in `receiver.property` or `receiver.method()`." }
+                        context.addLast(tokens[-1]!!.range)
+                        if (peek(listOf("(", "|", "{"))) {
+                            val arguments = parseInvokeExpressionArguments()
+                            RhovasAst.Expression.Invoke.Method(expression, coalesce, cascade, name, arguments).also {
+                                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                            }
+                        } else {
+                            require(!cascade) { error(
+                                "Expected opening parenthesis, pipe, or brace.",
+                                "A pipeline expression requires an invocation, as in `receiver.|function()`, `receiver.|function |name| { ... }`, or `receiver.|function { ... }`.",
+                            ) }
+                            RhovasAst.Expression.Access.Property(expression, coalesce, name).also {
+                                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                            }
+                        }
+                    }
                 }
                 match("[") -> {
                     val arguments = mutableListOf<RhovasAst.Expression>()
@@ -522,7 +558,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                             "An index expression must be followed by a closing bracket `]` or comma `,`, as in `expression[index]` or `expression[x, y, z]`.",
                         ) }
                     }
-                    RhovasAst.Expression.Index(expression, arguments).also {
+                    RhovasAst.Expression.Access.Index(expression, arguments).also {
                         it.context = listOf(context[context.size - 2], tokens[-1]!!.range)
                     }
                 }
@@ -579,7 +615,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 while (!match("}")) {
                     val key = parseIdentifier { "An object literal entry requires a key, as in `{key: value}` or `{x, y, z}`." }
                     context.addLast(tokens[-1]!!.range)
-                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access(null, false, key).also {
+                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access.Variable(key).also {
                         it.context = listOf(tokens[-1]!!.range)
                     }
                     context.addLast(tokens[-1]!!.range)
@@ -595,7 +631,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 }
             }
             match("(") -> {
-                context.addFirst(tokens[-1]!!.range)
+                context.addLast(tokens[-1]!!.range)
                 val expression = parseExpression()
                 require(match(")")) { error(
                     "Expected closing parenthesis.",
@@ -605,7 +641,20 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
-            peek(RhovasTokenType.IDENTIFIER) -> parseAccessOrFunctionExpression(null, false, false, false)
+            match(RhovasTokenType.IDENTIFIER) -> {
+                context.addLast(tokens[-1]!!.range)
+                val name = tokens[-1]!!.literal
+                if (peek(listOf("(", "{")) || peek("|", RhovasTokenType.IDENTIFIER)) {
+                    val arguments = parseInvokeExpressionArguments()
+                    RhovasAst.Expression.Invoke.Function(name, arguments).also {
+                        it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                    }
+                } else {
+                    RhovasAst.Expression.Access.Variable(name).also {
+                        it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                    }
+                }
+            }
             peek("#", RhovasTokenType.IDENTIFIER) -> parseMacroExpression()
             else -> throw error(
                 "Expected expression.",
@@ -614,23 +663,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
     }
 
-    private fun parseAccessOrFunctionExpression(receiver: RhovasAst.Expression?, nullable: Boolean, coalesce: Boolean, pipeline: Boolean): RhovasAst.Expression {
-        require(match(RhovasTokenType.IDENTIFIER))
-        context.addLast(tokens[-1]!!.range)
-        val name = StringBuilder(tokens[-1]!!.literal)
-        //TODO: Proper qualified access
-        if (pipeline) {
-            while (match(".", RhovasTokenType.IDENTIFIER)) {
-                name.append(".").append(tokens[-1]!!.literal)
-            }
-            require(peek("(")) { error(
-                "Expected opening parenthesis.",
-                "A pipelined function name must be followed by an opening parenthesis `(`, as in `receiver.|Component.function()`.",
-            ) }
-        }
-        var arguments: MutableList<RhovasAst.Expression>? = null
+    private fun parseInvokeExpressionArguments(): List<RhovasAst.Expression> {
+        require(peek(listOf("(", "|", "{")))
+        val arguments = mutableListOf<RhovasAst.Expression>()
         if (match("(")) {
-            arguments = mutableListOf()
             while (!match(")")) {
                 arguments.add(parseExpression())
                 context.addLast(tokens[-1]!!.range)
@@ -643,7 +679,6 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
         if (peek("|", RhovasTokenType.IDENTIFIER) || peek("{")) {
             context.addLast(tokens[0]!!.range)
-            arguments = arguments ?: mutableListOf()
             val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
             if (match("|")) {
                 while (!match("|")) {
@@ -671,19 +706,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 it.context = listOf(context.removeLast(), tokens[-1]!!.range)
             })
         }
-        return if (arguments == null) {
-            require(!coalesce) { error(
-                "Coalesce can only be used with a method.",
-                "The coalesce operator returns the receiver of a method instead of the method's return value, and therefore can't be used with a field access since it cannot perform a side effect.",
-            ) }
-            RhovasAst.Expression.Access(receiver, nullable, name.toString()).also {
-                it.context = listOf(context.removeLast().let { receiver?.context?.first() ?: it }, tokens[-1]!!.range)
-            }
-        } else {
-            RhovasAst.Expression.Function(receiver, nullable, coalesce, pipeline, name.toString(), arguments).also {
-                it.context = listOf(context.removeLast().let { receiver?.context?.first() ?: it }, tokens[-1]!!.range)
-            }
-        }
+        return arguments
     }
 
     private fun parseMacroExpression(): RhovasAst.Expression {

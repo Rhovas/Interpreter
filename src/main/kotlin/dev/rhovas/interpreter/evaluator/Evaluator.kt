@@ -30,10 +30,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Expression): Object {
-        require(ast.expression is RhovasAst.Expression.Function) { error(
+        require(ast.expression is RhovasAst.Expression.Invoke) { error(
             ast,
             "Invalid expression statement.",
-            "An expression statement requires the expression to be a function/method in order to perform a useful side-effect, but received ${ast.expression.javaClass.name}.",
+            "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression.javaClass.name}.",
         ) }
         visit(ast.expression)
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -93,8 +93,21 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Assignment): Object {
-        if (ast.receiver is RhovasAst.Expression.Access) {
-            if (ast.receiver.receiver != null) {
+        require(ast.receiver is RhovasAst.Expression.Access) { error(
+            ast,
+            "Invalid assignment statement.",
+            "An assignment statement requires the receiver to be an access expression (variable/property/index), but received ${ast.receiver.javaClass.name}.",
+        ) }
+        when (ast.receiver) {
+            is RhovasAst.Expression.Access.Variable -> {
+                val variable = scope.variables[ast.receiver.name] ?: throw error(
+                    ast.receiver,
+                    "Undefined variable.",
+                    "The variable ${ast.receiver.name} is not defined in the current scope.",
+                )
+                variable.set(visit(ast.value))
+            }
+            is RhovasAst.Expression.Access.Property -> {
                 val receiver = visit(ast.receiver.receiver)
                 val property = receiver.properties[ast.receiver.name] ?: throw error(
                     ast.receiver,
@@ -103,29 +116,16 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                 )
                 //TODO: Immutable properties
                 property.set(visit(ast.value))
-            } else {
-                val variable = scope.variables[ast.receiver.name] ?: throw error(
-                    ast.receiver,
-                    "Undefined variable.",
-                    "The variable ${ast.receiver.name} is not defined in the current scope.",
-                )
-                //TODO: Immutable variables
-                variable.set(visit(ast.value))
             }
-        } else if (ast.receiver is RhovasAst.Expression.Index) {
-            val receiver = visit(ast.receiver.receiver)
-            val method = receiver.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
-                ast.receiver,
-                "Undefined index operator.",
-                "The operator []=/${ast.receiver.arguments.size + 1} (index assignment) is not defined by type ${receiver.type.name}.",
-            )
-            method.invoke(ast.receiver.arguments.map { visit(it) } + listOf(visit(ast.value)))
-        } else {
-            throw error(
-                ast,
-                "Invalid assignment statement.",
-                "An assignment statement requires the receiver to be an access (variable/field) or index expression, but received ${ast.receiver.javaClass.name}.",
-            )
+            is RhovasAst.Expression.Access.Index -> {
+                val receiver = visit(ast.receiver.receiver)
+                val method = receiver.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
+                    ast.receiver,
+                    "Undefined index operator.",
+                    "The operator []=/${ast.receiver.arguments.size + 1} (index assignment) is not defined by type ${receiver.type.name}.",
+                )
+                method.invoke(ast.receiver.arguments.map { visit(it) } + listOf(visit(ast.value)))
+            }
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -286,7 +286,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         require(ast.statement is RhovasAst.Statement.For || ast.statement is RhovasAst.Statement.While) { error(
             ast,
             "Invalid label statement.",
-            "A label statement requires the statement to be a loop, received ${ast.statement.javaClass.name}."
+            "A label statement requires the statement to be a loop, but received ${ast.statement.javaClass.name}."
         ) }
         val label = label
         this.label = ast.label
@@ -452,30 +452,30 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access): Object {
-        return if (ast.receiver != null) {
-            val receiver = visit(ast.receiver)
-            if (ast.nullable && receiver.type == Library.TYPES["Null"]) {
-                receiver
-            } else {
-                val property = receiver.properties[ast.name] ?: throw error(
-                    ast,
-                    "Undefined property.",
-                    "The property ${ast.name} is not defined by type ${receiver.type.name}.",
-                )
-                property.get()
-            }
+    override fun visit(ast: RhovasAst.Expression.Access.Variable): Object {
+        val variable = scope.variables[ast.name] ?: throw error(
+            ast,
+            "Undefined variable.",
+            "The variable ${ast.name} is not defined in the current scope.",
+        )
+        return variable.get()
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Access.Property): Object {
+        val receiver = visit(ast.receiver)
+        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+            receiver
         } else {
-            val variable = scope.variables[ast.name] ?: throw error(
+            val property = receiver.properties[ast.name] ?: throw error(
                 ast,
-                "Undefined variable.",
-                "The variable ${ast.name} is not defined in the current scope.",
+                "Undefined property.",
+                "The property ${ast.name} is not defined by type ${receiver.type.name}.",
             )
-            variable.get()
+            property.get()
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Index): Object {
+    override fun visit(ast: RhovasAst.Expression.Access.Index): Object {
         val receiver = visit(ast.receiver)
         val method = receiver.methods["[]", ast.arguments.size] ?: throw error(
             ast,
@@ -485,69 +485,64 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return method.invoke(ast.arguments.map { visit(it) })
     }
 
-    override fun visit(ast: RhovasAst.Expression.Function): Object {
-        //TODO: Context for function name
-        return if (ast.receiver != null) {
-            val receiver = visit(ast.receiver)
-            val result = if (ast.nullable && receiver.type == Library.TYPES["Null"]) {
-                receiver
-            } else if (ast.pipeline) {
-                if (ast.name.contains(".")) {
-                    val split = ast.name.split(".")
-                    var base = scope.variables[split.first()]?.get() ?: throw error(
-                        ast,
-                        "Undefined variable.",
-                        "The variable ${ast.name} is not defined in the current scope.",
-                    )
-                    for (name in split.slice(1..(split.size - 2))) {
-                        base = base.properties[name]?.get() ?: throw error(
-                            ast,
-                            "Undefined property.",
-                            "The property ${ast.name} is not defined by type ${base.type.name}.",
-                        )
-                    }
-                    val method = base.methods[split.last(), ast.arguments.size + 1] ?: throw error(
-                        ast,
-                        "Undefined method.",
-                        "The method ${split.last()}/${ast.arguments.size + 1} is not defined by type ${base.type.name}.",
-                    )
-                    val arguments = ast.arguments.map { visit(it) }
-                    trace("${base.type.name}.${method.name}/${arguments.size + 1}", ast.context.first()) {
-                        method.invoke(listOf(receiver) + arguments)
-                    }
-                } else {
-                    val function = scope.functions[ast.name, ast.arguments.size + 1] ?: throw error(
-                        ast,
-                        "Undefined function.",
-                        "The function ${ast.name}/${ast.arguments.size + 1} is not defined in the current scope.",
-                    )
-                    val arguments = ast.arguments.map { visit(it) }
-                    trace("Source.${function.name}/${arguments.size + 1}", ast.context.first()) {
-                        function.invoke(listOf(receiver) + arguments)
-                    }
-                }
-            } else {
-                val method = receiver.methods[ast.name, ast.arguments.size] ?: throw error(
-                    ast,
-                    "Undefined method.",
-                    "The method ${ast.name}/${ast.arguments.size} is not defined by type ${receiver.type.name}.",
-                )
-                val arguments = ast.arguments.map { visit(it) }
-                trace("${receiver.type.name}.${method.name}/${arguments.size}", ast.context.first()) {
-                    method.invoke(arguments)
-                }
-            }
-            if (ast.coalesce) receiver else result
+    override fun visit(ast: RhovasAst.Expression.Invoke.Function): Object {
+        val function = scope.functions[ast.name, ast.arguments.size] ?: throw error(
+            ast,
+            "Undefined function.",
+            "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
+        )
+        val arguments = ast.arguments.map { visit(it) }
+        return trace("Source.${function.name}/${arguments.size}", ast.context.first()) {
+            function.invoke(arguments)
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Invoke.Method): Object {
+        val receiver = visit(ast.receiver)
+        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+            Object(Library.TYPES["Null"]!!, null)
         } else {
-            val function = scope.functions[ast.name, ast.arguments.size] ?: throw error(
+            val method = receiver.methods[ast.name, ast.arguments.size] ?: throw error(
                 ast,
-                "Undefined function.",
-                "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
+                "Undefined method.",
+                "The method ${ast.name}/${ast.arguments.size} is not defined by type ${receiver.type.name}.",
             )
             val arguments = ast.arguments.map { visit(it) }
-            trace("Source.${function.name}/${arguments.size}", ast.context.first()) {
-                function.invoke(arguments)
+            val result = trace("${receiver.type.name}.${method.function.name}/${arguments.size}", ast.context.first()) {
+                method.invoke(arguments)
             }
+            return if (ast.cascade) receiver else result
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): Object {
+        val receiver = visit(ast.receiver)
+        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+            Object(Library.TYPES["Null"]!!, null)
+        } else {
+            val result = if (ast.qualifier == null) {
+                val function = scope.functions[ast.name, ast.arguments.size + 1] ?: throw error(
+                    ast,
+                    "Undefined function.",
+                    "The function ${ast.name}/${ast.arguments.size + 1} is not defined in the current scope.",
+                )
+                val arguments = ast.arguments.map { visit(it) }
+                trace("Source.${function.name}/${arguments.size + 1}", ast.context.first()) {
+                    function.invoke(listOf(receiver) + arguments)
+                }
+            } else {
+                val qualifier = visit(ast.qualifier)
+                val method = qualifier.methods[ast.name, ast.arguments.size + 1] ?: throw error(
+                    ast,
+                    "Undefined method.",
+                    "The method ${ast.name}/${ast.arguments.size + 1} is not defined by type ${qualifier.type.name}.",
+                )
+                val arguments = ast.arguments.map { visit(it) }
+                trace("${qualifier.type.name}.${method.function.name}/${arguments.size + 1}", ast.context.first()) {
+                    method.invoke(listOf(receiver) + arguments)
+                }
+            }
+            return if (ast.cascade) receiver else result
         }
     }
 

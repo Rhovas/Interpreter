@@ -838,157 +838,200 @@ class EvaluatorTests {
         @Nested
         inner class AccessTests {
 
-            @ParameterizedTest(name = "{0}")
-            @MethodSource
-            fun testVariable(name: String, input: String, expected: Object?) {
-                test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
-                })
-            }
+            @Nested
+            inner class VariableTests {
 
-            fun testVariable(): Stream<Arguments> {
-                return Stream.of(
-                    Arguments.of("Variable", "variable",
-                        Object(Library.TYPES["String"]!!, "variable")
-                    ),
-                    Arguments.of("Undefined", "undefined", null)
-                )
-            }
-
-            @ParameterizedTest(name = "{0}")
-            @MethodSource
-            fun testProperty(name: String, input: String, expected: Object?) {
-                test(input, expected, Scope(null).also {
-                    val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("property", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
-                            (arguments[0].value as Map<String, Object>)["property"]!!
-                        })
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testVariable(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
                     })
-                    it.variables.define(Variable("object", type, Object(type, mapOf(
-                        Pair("property",  Object(Library.TYPES["String"]!!, "property")),
-                    ))))
-                })
+                }
+
+                fun testVariable(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Variable", "variable",
+                            Object(Library.TYPES["String"]!!, "variable")
+                        ),
+                        Arguments.of("Undefined", "undefined", null)
+                    )
+                }
+
             }
 
-            fun testProperty(): Stream<Arguments> {
-                return Stream.of(
-                    Arguments.of("Property", "object.property",
-                        Object(Library.TYPES["String"]!!, "property")
-                    ),
-                    Arguments.of("Nullable", "null?.property",
-                        Object(Library.TYPES["Null"]!!, null),
-                    ),
-                    Arguments.of("Undefined", "object.undefined", null)
-                )
+            @Nested
+            inner class PropertyTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testProperty(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        val type = Type("TestObject", Scope(null).also {
+                            it.functions.define(Function("property", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                                (arguments[0].value as Map<String, Object>)["property"]!!
+                            })
+                        })
+                        it.variables.define(Variable("object", type, Object(type, mapOf(
+                            Pair("property",  Object(Library.TYPES["String"]!!, "property")),
+                        ))))
+                    })
+                }
+
+                fun testProperty(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Property", "object.property",
+                            Object(Library.TYPES["String"]!!, "property")
+                        ),
+                        Arguments.of("Nullable", "null?.property",
+                            Object(Library.TYPES["Null"]!!, null),
+                        ),
+                        Arguments.of("Undefined", "object.undefined", null)
+                    )
+                }
+
+            }
+
+            @Nested
+            inner class IndexTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testIndex(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
+                        it.variables.define(Variable("list", Library.TYPES["List"]!!, Object(Library.TYPES["List"]!!, mutableListOf(
+                            Object(Library.TYPES["String"]!!, "element"),
+                        ))))
+                        it.variables.define(Variable("object", Library.TYPES["Object"]!!, Object(Library.TYPES["Object"]!!, mutableMapOf(
+                            Pair("key", Object(Library.TYPES["String"]!!, "value")),
+                        ))))
+                    })
+                }
+
+                fun testIndex(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("List", "list[0]",
+                            Object(Library.TYPES["String"]!!, "element"),
+                        ),
+                        Arguments.of("Object", "object[:key]",
+                            Object(Library.TYPES["String"]!!, "value"),
+                        ),
+                        Arguments.of("Invalid Arity", "list[]", null),
+                        Arguments.of("Undefined", "variable[:key]", null), //TODO: Depends on Strings not supporting indexing
+                    )
+                }
+
             }
 
         }
 
         @Nested
-        inner class IndexTests {
+        inner class InvokeTests {
 
-            @ParameterizedTest(name = "{0}")
-            @MethodSource
-            fun testIndex(name: String, input: String, expected: Object?) {
-                test(input, expected, Scope(null).also {
-                    it.variables.define(Variable("variable", Library.TYPES["String"]!!, Object(Library.TYPES["String"]!!, "variable")))
-                    it.variables.define(Variable("list", Library.TYPES["List"]!!, Object(Library.TYPES["List"]!!, mutableListOf(
-                        Object(Library.TYPES["String"]!!, "element"),
-                    ))))
-                    it.variables.define(Variable("object", Library.TYPES["Object"]!!, Object(Library.TYPES["Object"]!!, mutableMapOf(
-                        Pair("key", Object(Library.TYPES["String"]!!, "value")),
-                    ))))
-                })
-            }
+            @Nested
+            inner class FunctionTests {
 
-            fun testIndex(): Stream<Arguments> {
-                return Stream.of(
-                    Arguments.of("List", "list[0]",
-                        Object(Library.TYPES["String"]!!, "element"),
-                    ),
-                    Arguments.of("Object", "object[:key]",
-                        Object(Library.TYPES["String"]!!, "value"),
-                    ),
-                    Arguments.of("Invalid Arity", "list[]", null),
-                    Arguments.of("Undefined", "variable[:key]", null), //TODO: Depends on Strings not supporting indexing
-                )
-            }
-
-        }
-
-        @Nested
-        inner class FunctionTests {
-
-            @ParameterizedTest(name = "{0}")
-            @MethodSource
-            fun testFunction(name: String, input: String, expected: Object?) {
-                test(input, expected, Scope(null).also {
-                    it.functions.define(Function("function", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
-                        arguments[0]
-                    })
-                })
-            }
-
-            fun testFunction(): Stream<Arguments> {
-                return Stream.of(
-                    Arguments.of("Function", "function(\"argument\")",
-                        Object(Library.TYPES["String"]!!, "argument")
-                    ),
-                    Arguments.of("Invalid Arity", "function()", null),
-                    Arguments.of("Undefined", "undefined", null)
-                )
-            }
-
-            @ParameterizedTest(name = "{0}")
-            @MethodSource
-            fun testMethod(name: String, input: String, expected: Object?) {
-                test(input, expected, Scope(null).also {
-                    val type = Type("TestObject", Scope(null).also {
-                        it.functions.define(Function("method", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
-                            arguments[1]
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testFunction(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        it.functions.define(Function("function", listOf(Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                            arguments[0]
                         })
                     })
-                    it.variables.define(Variable("object", type, Object(type, mapOf(
-                        Pair("property",  Object(Library.TYPES["String"]!!, "property")),
-                    ))))
-                    it.functions.define(Library.SCOPE.functions["range", 3]!!)
-                    val pipeline = Type("Pipeline", Scope(null).also {
+                }
+
+                fun testFunction(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Function", "function(\"argument\")",
+                            Object(Library.TYPES["String"]!!, "argument")
+                        ),
+                        Arguments.of("Invalid Arity", "function()", null),
+                        Arguments.of("Undefined", "undefined", null),
+                    )
+                }
+
+            }
+
+            @Nested
+            inner class MethodTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testMethod(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        val type = Type("TestObject", Scope(null).also {
+                            it.functions.define(Function("method", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                                arguments[1]
+                            })
+                        })
+                        it.variables.define(Variable("object", type, Object(type, mapOf(
+                            Pair("property",  Object(Library.TYPES["String"]!!, "property")),
+                        ))))
+                        it.functions.define(Library.SCOPE.functions["range", 3]!!)
+                    })
+                }
+
+                fun testMethod(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Method", "object.method(\"argument\")",
+                            Object(Library.TYPES["String"]!!, "argument")
+                        ),
+                        Arguments.of("Nullable", "null?.method(\"argument\")",
+                            Object(Library.TYPES["Null"]!!, null),
+                        ),
+                        Arguments.of("Coalesce", "1..add(2)",
+                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                        ),
+                        Arguments.of("Invalid Arity", "object.method()", null),
+                        Arguments.of("Undefined", "object.undefined()", null),
+                    )
+                }
+
+            }
+
+            @Nested
+            inner class PipelineTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testPipeline(name: String, input: String, expected: Object?) {
+                    test(input, expected, Scope(null).also {
+                        val type = Type("TestObject", Scope(null).also {
+                            it.functions.define(Function("method", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
+                                arguments[1]
+                            })
+                        })
+                        it.variables.define(Variable("object", type, Object(type, mapOf(
+                            Pair("property",  Object(Library.TYPES["String"]!!, "property")),
+                        ))))
+                        it.functions.define(Library.SCOPE.functions["range", 3]!!)
                         val qualified = Type("Qualified", Scope(null).also {
                             it.functions.define(Function("function", listOf(Library.TYPES["Any"]!!, Library.TYPES["Any"]!!), Library.TYPES["Any"]!!) { arguments ->
                                 arguments[1]
                             })
                         })
-                        it.functions.define(Function("Qualified", listOf(Library.TYPES["Any"]!!), qualified) { arguments ->
-                            Object(qualified, Unit)
-                        })
+                        it.variables.define(Variable("Qualified", qualified, Object(qualified, Unit)))
                     })
-                    it.variables.define(Variable("Pipeline", pipeline, Object(pipeline, Unit)))
-                })
-            }
+                }
 
-            fun testMethod(): Stream<Arguments> {
-                return Stream.of(
-                    Arguments.of("Method", "object.method(\"argument\")",
-                        Object(Library.TYPES["String"]!!, "argument")
-                    ),
-                    Arguments.of("Nullable", "null?.method(\"argument\")",
-                        Object(Library.TYPES["Null"]!!, null),
-                    ),
-                    Arguments.of("Coalesce", "1..add(2)",
-                        Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                    ),
-                    Arguments.of("Pipeline", "1.|range(2, :incl)",
-                        Object(Library.TYPES["List"]!!, listOf(
+                fun testPipeline(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Pipeline", "1.|range(2, :incl)",
+                            Object(Library.TYPES["List"]!!, listOf(
+                                Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                                Object(Library.TYPES["Integer"]!!, BigInteger("2")),
+                            )),
+                        ),
+                        Arguments.of("Qualified", "1.|Qualified.function()",
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                            Object(Library.TYPES["Integer"]!!, BigInteger("2")),
-                        )),
-                    ),
-                    Arguments.of("Pipeline Qualified", "1.|Pipeline.Qualified.function()",
-                        Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                    ),
-                    Arguments.of("Invalid Arity", "object.method()", null),
-                    Arguments.of("Undefined", "object.undefined()", null)
-                )
+                        ),
+                        Arguments.of("Invalid Arity", "1.|range()", null),
+                        Arguments.of("Undefined", "1.|undefined()", null),
+                    )
+                }
+
             }
 
         }

@@ -11,9 +11,7 @@ data class Object(
     inner class PropertiesDelegate {
 
         operator fun get(name: String): Property? {
-            return type.methods[name, 1]?.let { getter ->
-                Property(name, getter.returns, this@Object, getter, type.methods[name, 2])
-            }
+            return type.methods[name, 1]?.let { Property(this@Object, it, type.methods[name, 2]) }
         }
 
     }
@@ -21,9 +19,7 @@ data class Object(
     inner class MethodsDelegate {
 
         operator fun get(name: String, arity: Int): Method? {
-            return type.methods[name, arity + 1]?.let { function ->
-                Method(name, arity, this@Object, function)
-            }
+            return type.methods[name, arity + 1]?.let { Method(this@Object, it) }
         }
 
     }
