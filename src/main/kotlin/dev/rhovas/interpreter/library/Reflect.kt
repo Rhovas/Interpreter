@@ -3,8 +3,6 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.evaluator.EvaluateException
-import dev.rhovas.interpreter.parser.Input
 import java.lang.reflect.InvocationTargetException
 
 object Reflect {
@@ -33,14 +31,11 @@ object Reflect {
             val returns = Library.TYPES[returns]!!
             return Function(name, parameters, returns) { arguments ->
                 val transformed = parameters.indices.map {
-                    when (parameters[it].name) {
-                        "Any" -> arguments[it]
-                        arguments[it].type.name -> arguments[it].value
-                        else -> throw EVALUATOR.error(
-                            null,
-                            "Invalid argument type.",
-                            "Function ${initializer.type.name}.${name} requires parameter ${it} to be type ${parameters[it].name}, received ${arguments[it].type.name}.",
-                        )
+                    if (parameters[it] == Library.TYPES["Any"]!!) {
+                        arguments[it]
+                    } else {
+                        EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it]))
+                        arguments[it].value
                     }
                 }
                 try {
