@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.library
 
+import java.math.BigDecimal
 import java.math.BigInteger
 
 object IntegerInitializer : Library.TypeInitializer("Integer") {
@@ -42,6 +43,11 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
     @Reflect.Method("compare", operator = "<=>", parameters = ["Integer"], returns = "Integer")
     fun compare(instance: BigInteger, other: BigInteger): BigInteger {
         return BigInteger.valueOf(instance.compareTo(other).toLong())
+    }
+
+    @Reflect.Method("toDecimal", returns = "Decimal")
+    fun toDecimal(instance: BigInteger): BigDecimal {
+        return instance.toBigDecimal()
     }
 
     @Reflect.Method("toString", returns = "String")

@@ -5,6 +5,11 @@ import java.math.BigInteger
 
 object AtomInitializer : Library.TypeInitializer("Atom") {
 
+    @Reflect.Property("name", type = "String")
+    fun name(instance: RhovasAst.Atom): String {
+        return instance.name
+    }
+
     @Reflect.Method("equals", operator = "==", parameters = ["Atom"], returns = "Boolean")
     fun equals(instance: RhovasAst.Atom, other: RhovasAst.Atom): Boolean {
         return instance == other

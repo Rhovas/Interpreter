@@ -7,6 +7,11 @@ import java.lang.reflect.InvocationTargetException
 
 object Reflect {
 
+    annotation class Property(
+        val value: String,
+        val type: String,
+    )
+
     annotation class Function(
         val value: String,
         val parameters: Array<String> = [],
@@ -46,6 +51,13 @@ object Reflect {
                 }
             }
         }
+        initializer.javaClass.methods
+            .filter { it.isAnnotationPresent(Property::class.java) }
+            .forEach { method ->
+                val annotation = method.getAnnotation(Property::class.java)
+                val function = function(method, annotation.value, arrayOf(initializer.type.name), annotation.type)
+                initializer.type.methods.define(function)
+            }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Function::class.java) }
             .forEach { method ->
