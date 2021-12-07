@@ -525,6 +525,78 @@ class EvaluatorTests {
 
         }
 
+        @Nested
+        inner class AssertTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testAssert(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testAssert(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", """
+                        assert true;
+                    """.trimIndent(), ""),
+                    Arguments.of("False", """
+                        assert false;
+                    """.trimIndent(), null),
+                    //TODO: Test invalid condition
+                    //TODO: Test message
+                )
+            }
+
+        }
+
+        @Nested
+        inner class RequireTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testRequire(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testRequire(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", """
+                        require true;
+                    """.trimIndent(), ""),
+                    Arguments.of("False", """
+                        require false;
+                    """.trimIndent(), null),
+                    //TODO: Test invalid condition
+                    //TODO: Test message
+                )
+            }
+
+        }
+
+        @Nested
+        inner class EnsureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testEnsure(name: String, input: String, expected: String?) {
+                test(input, expected)
+            }
+
+            fun testEnsure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("True", """
+                        ensure true;
+                    """.trimIndent(), ""),
+                    Arguments.of("False", """
+                        ensure false;
+                    """.trimIndent(), null),
+                    //TODO: Test invalid condition
+                    //TODO: Test message
+                )
+            }
+
+        }
+
         //TODO: Scope tests
 
         private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {

@@ -333,15 +333,48 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.Assert): Object {
-        TODO()
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid assert condition.",
+            "An assert statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        require(condition.value as Boolean) { error(
+            ast,
+            "Failed assertion",
+            "The assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+        ) }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Require): Object {
-        TODO()
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid require condition.",
+            "An require statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        require(condition.value as Boolean) { error(
+            ast,
+            "Failed precondition assertion.",
+            "The precondition assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+        ) }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Statement.Ensure): Object {
-        TODO()
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid ensure condition.",
+            "An ensure statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        require(condition.value as Boolean) { error(
+            ast,
+            "Failed postcondition assertion.",
+            "The postcondition assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+        ) }
+        return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal): Object {
