@@ -62,7 +62,7 @@ sealed class RhovasAst {
 
         data class For(
             val name: String,
-            val iterable: RhovasAst.Expression,
+            val argument: RhovasAst.Expression,
             val body: Statement,
         ) : Statement()
 
@@ -81,7 +81,7 @@ sealed class RhovasAst {
                 val name: String,
                 //TODO: val type: Type,
                 val body: Statement,
-            )
+            ) : RhovasAst()
 
         }
 
@@ -210,6 +210,10 @@ sealed class RhovasAst {
             val ast: Any,
         ) : Expression()
 
+        data class Interpolation(
+            val expression: Expression,
+        ) : Expression()
+
     }
 
     sealed class Pattern : RhovasAst() {
@@ -269,6 +273,7 @@ sealed class RhovasAst {
                 is Statement.For -> visit(ast)
                 is Statement.While -> visit(ast)
                 is Statement.Try -> visit(ast)
+                is Statement.Try.Catch -> visit(ast)
                 is Statement.With -> visit(ast)
                 is Statement.Label -> visit(ast)
                 is Statement.Break -> visit(ast)
@@ -292,6 +297,7 @@ sealed class RhovasAst {
                 is Expression.Lambda -> visit(ast)
                 is Expression.Macro -> visit(ast)
                 is Expression.Dsl -> visit(ast)
+                is Expression.Interpolation -> visit(ast)
 
                 is Pattern.Variable -> visit(ast)
                 is Pattern.Value -> visit(ast)
@@ -318,6 +324,7 @@ sealed class RhovasAst {
         fun visit(ast: Statement.For): T
         fun visit(ast: Statement.While): T
         fun visit(ast: Statement.Try): T
+        fun visit(ast: Statement.Try.Catch): T
         fun visit(ast: Statement.With): T
         fun visit(ast: Statement.Label): T
         fun visit(ast: Statement.Break): T
@@ -341,6 +348,7 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Lambda): T
         fun visit(ast: Expression.Macro): T
         fun visit(ast: Expression.Dsl): T
+        fun visit(ast: Expression.Interpolation): T
 
         fun visit(ast: Pattern.Variable): T
         fun visit(ast: Pattern.Value): T

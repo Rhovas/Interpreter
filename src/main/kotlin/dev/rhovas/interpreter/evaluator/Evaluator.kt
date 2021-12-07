@@ -213,10 +213,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Statement.For): Object {
-        val iterable = visit(ast.iterable)
+        val iterable = visit(ast.argument)
         //TODO: Iterable type
         require(iterable.type.isSubtypeOf(Library.TYPES["List"]!!)) { error(
-            ast.iterable,
+            ast.argument,
             "Invalid for loop argument.",
             "A for loop requires the argument to be type List, but received ${iterable.type.name}.",
         ) }
@@ -294,6 +294,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             ast.finallyStatement?.let { visit(it) }
         }
         return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Try.Catch): Object {
+        throw UnsupportedOperationException()
     }
 
     override fun visit(ast: RhovasAst.Statement.With): Object {
@@ -612,6 +616,10 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
     }
 
     override fun visit(ast: RhovasAst.Expression.Dsl): Object {
+        TODO()
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Interpolation): Object {
         TODO()
     }
 

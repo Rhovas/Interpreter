@@ -290,25 +290,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         val body = parseStatement()
         val catches = mutableListOf<RhovasAst.Statement.Try.Catch>()
-        while (match("catch")) {
-            context.addLast(tokens[-1]!!.range)
-            require(match("(")) { error(
-                "Expected opening parenthesis.",
-                "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
-            ) }
-            require(match("val")) { error(
-                "Expected `val`.",
-                "A catch block variable requires `val`, as in `try { ... } catch (val name) { ... }`.",
-            ) }
-            val name = parseIdentifier { "A catch block variable requires a name, as in `try { ... } catch (val name) { ... }`." }
-            require(match(")")) { error(
-                "Expected closing parenthesis.",
-                "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
-            ) }
-            val catchBody = parseStatement()
-            //TODO: Restructure AST for context
-            catches.add(RhovasAst.Statement.Try.Catch(name, catchBody))
-            context.removeLast()
+        while (peek("catch")) {
+            catches.add(parseTryStatementCatch())
         }
         val finallyStatement = if (match("finally")) {
             context.addLast(tokens[-1]!!.range)
@@ -317,6 +300,28 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             finallyStatement
         } else null
         return RhovasAst.Statement.Try(body, catches, finallyStatement).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    private fun parseTryStatementCatch(): RhovasAst.Statement.Try.Catch {
+        require(match("catch"))
+        context.addLast(tokens[-1]!!.range)
+        require(match("(")) { error(
+            "Expected opening parenthesis.",
+            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
+        ) }
+        require(match("val")) { error(
+            "Expected `val`.",
+            "A catch block variable requires `val`, as in `try { ... } catch (val name) { ... }`.",
+        ) }
+        val name = parseIdentifier { "A catch block variable requires a name, as in `try { ... } catch (val name) { ... }`." }
+        require(match(")")) { error(
+            "Expected closing parenthesis.",
+            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
+        ) }
+        val catchBody = parseStatement()
+        return RhovasAst.Statement.Try.Catch(name, catchBody).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -870,15 +875,17 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
     }
 
-    private fun parseInterpolation(): RhovasAst.Expression {
-        //TODO: Consider adding AST class for context
+    private fun parseInterpolation(): RhovasAst.Expression.Interpolation {
         require(match("$", "{"))
+        context.addLast(tokens[-2]!!.range)
         val expression = parseExpression()
         require(match("}")) { error(
             "Expected closing brace.",
             "An interpolated value requires braces around the expression, as in `\${value}`.",
         ) }
-        return expression
+        return RhovasAst.Expression.Interpolation(expression).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
     }
 
     private fun parseIdentifier(details: () -> String): String {

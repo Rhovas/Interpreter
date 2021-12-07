@@ -102,7 +102,7 @@ class DslParserTests {
                     }
                 """.trimIndent(),
                     DslAst.Source(listOf("", ""), listOf(
-                        RhovasAst.Expression.Access.Variable("value"),
+                        RhovasAst.Expression.Interpolation(RhovasAst.Expression.Access.Variable("value")),
                     ))
                 ),
                 Arguments.of("Empty", """
