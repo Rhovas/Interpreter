@@ -34,7 +34,8 @@ object Reflect {
         ): dev.rhovas.interpreter.environment.Function {
             val parameters = parameters.map { Library.TYPES[it]!! }
             val returns = Library.TYPES[returns]!!
-            return Function(name, parameters, returns) { arguments ->
+            val function = Function(name, parameters, returns)
+            function.implementation = { arguments ->
                 val transformed = parameters.indices.map {
                     if (parameters[it] == Library.TYPES["Any"]!!) {
                         arguments[it]
@@ -50,6 +51,7 @@ object Reflect {
                     throw e.targetException
                 }
             }
+            return function
         }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Property::class.java) }
@@ -72,7 +74,9 @@ object Reflect {
                 val function = function(method, annotation.value, arrayOf(initializer.type.name) + annotation.parameters, annotation.returns)
                 initializer.type.methods.define(function)
                 if (annotation.operator.isNotEmpty()) {
-                    initializer.type.methods.define(function.copy(name = annotation.operator))
+                    val overload = function.copy(name = annotation.operator)
+                    overload.implementation = function.implementation
+                    initializer.type.methods.define(overload)
                 }
             }
     }

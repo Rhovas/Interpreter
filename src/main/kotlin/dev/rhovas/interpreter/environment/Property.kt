@@ -1,18 +1,17 @@
 package dev.rhovas.interpreter.environment
 
 data class Property(
-    val receiver: Object,
-    val getter: Function,
-    val setter: Function?,
+    val getter: Method,
+    val setter: Method?,
 ) {
 
-    fun get(): Object {
-        return getter.invoke(listOf(receiver))
+    fun get(receiver: Object): Object {
+        return getter.invoke(receiver, listOf())
     }
 
-    fun set(value: Object) {
+    fun set(receiver: Object, value: Object) {
         //TODO: Handle immutable properties
-        setter?.invoke(listOf(receiver, value))
+        setter!!.invoke(receiver, listOf(value))
     }
 
 }

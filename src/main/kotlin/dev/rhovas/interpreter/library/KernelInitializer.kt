@@ -9,7 +9,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel", Library.SCOPE) {
 
     @Reflect.Function("print", parameters = ["Any"])
     fun print(obj: Object) {
-        println(obj.methods["toString", 0]!!.invoke(listOf()).value as String)
+        println(obj.methods["toString", 0]!!.invoke(obj, listOf()).value as String)
     }
 
     @Reflect.Function("range", parameters = ["Integer", "Integer", "Atom"], "List")
