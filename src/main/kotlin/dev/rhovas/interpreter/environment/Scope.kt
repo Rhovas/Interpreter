@@ -13,6 +13,10 @@ class Scope(private val parent: Scope?) {
             return variables[name] ?: parent?.variables?.get(name)
         }
 
+        fun isDefined(name: String, current: Boolean): Boolean {
+            return variables.containsKey(name) || !current && parent?.variables?.isDefined(name, current) ?: false
+        }
+
         fun define(variable: Variable) {
             variables[variable.name] = variable
         }
@@ -31,6 +35,10 @@ class Scope(private val parent: Scope?) {
 
         operator fun get(name: String, arity: Int): Function? {
             return functions[Pair(name, arity)] ?: parent?.functions?.get(name, arity)
+        }
+
+        fun isDefined(name: String, arity: Int, current: Boolean): Boolean {
+            return functions.containsKey(Pair(name, arity)) || !current && parent?.variables?.isDefined(name, current) ?: false
         }
 
         fun define(function: Function) {
