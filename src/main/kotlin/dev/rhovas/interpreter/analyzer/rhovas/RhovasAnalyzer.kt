@@ -1,8 +1,10 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.analyzer.Analyzer
+import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Method
 import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.lang.AssertionError
@@ -11,8 +13,9 @@ import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr> {
 
-    override fun visit(ast: RhovasAst.Source): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
+        val statements = ast.statements.map { visit(it) }
+        return RhovasIr.Source(statements)
     }
 
     private fun visit(ast: RhovasAst.Statement): RhovasIr.Statement {
@@ -20,27 +23,135 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Statement.Block): RhovasIr {
-        TODO()
+        return scoped(Scope(scope)) {
+            val statements = ast.statements.map { visit(it) }
+            RhovasIr.Statement.Block(statements)
+        }
     }
 
     override fun visit(ast: RhovasAst.Statement.Expression): RhovasIr {
-        TODO()
+        require(ast.expression is RhovasAst.Expression.Invoke) { error(
+            ast.expression,
+            "Invalid expression statement.",
+            "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression.javaClass.name}.",
+        ) }
+        val expression = visit(ast.expression) as RhovasIr.Expression.Invoke
+        return RhovasIr.Statement.Expression(expression)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Function): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Function): RhovasIr.Statement.Function {
+        require(!scope.functions.isDefined(ast.name, ast.parameters.size, true)) { error(
+            ast,
+            "Redefined function.",
+            "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
+        ) }
+        val parameters = ast.parameters.map { it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!! }
+        val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!!
+        val function = Function(ast.name, parameters, returns)
+        scope.functions.define(function)
+        //TODO: Validate thrown exceptions
+        val body = visit(ast.body) as RhovasIr.Statement.Block
+        return RhovasIr.Statement.Function(function, body)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Declaration): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Declaration): RhovasIr.Statement.Declaration {
+        require(!scope.variables.isDefined(ast.name, true)) { error(
+            ast,
+            "Redefined variable.",
+            "The variable ${ast.name} is already defined in this scope.",
+        ) }
+        require(ast.type != null || ast.value != null) { error(
+            ast,
+            "Undefined variable type.",
+            "A variable declaration requires either a type or an initial value.",
+        ) }
+        val type = ast.type?.let { visit(it) }
+        val value = ast.value?.let { visit(it) }
+        val variable = Variable(ast.name, type?.type ?: value!!.type)
+        scope.variables.define(variable)
+        return RhovasIr.Statement.Declaration(variable, value)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assignment): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Assignment): RhovasIr.Statement.Assignment {
+        require(ast.receiver is RhovasAst.Expression.Access) { error(
+            ast.receiver,
+            "Invalid assignment receiver.",
+            "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver.javaClass.name}.",
+        ) }
+        return when (ast.receiver) {
+            is RhovasAst.Expression.Access.Variable -> {
+                val variable = scope.variables[ast.receiver.name] ?: throw error(
+                    ast,
+                    "Undefined variable.",
+                    "The variable ${ast.receiver.name} is not defined in the current scope.",
+                )
+                //TODO: Require mutable variable
+                val value = visit(ast.value)
+                require(value.type.isSubtypeOf(variable.type)) { error(
+                    ast.value,
+                    "Invalid assignment value type.",
+                    "The variable ${variable.name} requires the value to be type ${variable.type.name}, but received ${value.type.name}.",
+                ) }
+                RhovasIr.Statement.Assignment.Variable(variable, value)
+            }
+            is RhovasAst.Expression.Access.Property -> {
+                require(!ast.receiver.coalesce) { error(
+                    ast.receiver,
+                    "Invalid assignment receiver.",
+                    "An assignment statement requires the receiver property access to be non-coalescing.",
+                ) }
+                val receiver = visit(ast.receiver)
+                val method = receiver.type.methods[ast.receiver.name, 2]?.let { Method(it) } ?: throw error(
+                    ast,
+                    "Undefined property.",
+                    "The property setter ${receiver.type.name}.${ast.receiver.name}/1 is not defined.",
+                )
+                //TODO: Require mutable variable
+                val value = visit(ast.value)
+                require(value.type.isSubtypeOf(receiver.method.parameters[0])) { error(
+                    ast.value,
+                    "Invalid assignment value type.",
+                    "The property ${receiver.method.name} requires the value to be type ${receiver.method.parameters[0].name}, but received ${value.type.name}.",
+                ) }
+                RhovasIr.Statement.Assignment.Property(receiver, method, value)
+            }
+            is RhovasAst.Expression.Access.Index -> {
+                val receiver = visit(ast.receiver.receiver)
+                val method = receiver.type.methods["[]=", 1 + ast.receiver.arguments.size + 1]?.let { Method(it) } ?: throw error(
+                    ast,
+                    "Undefined method.",
+                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} is not defined.",
+                )
+                val arguments = ast.receiver.arguments.map { visit(it) }
+                for (i in arguments.indices) {
+                    require(arguments[i].type.isSubtypeOf(method.parameters[i])) { throw error(
+                        ast.receiver.arguments[i],
+                        "Invalid method argument type.",
+                        "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].name}, but received ${arguments[i].type.name}",
+                    ) }
+                }
+                val value = visit(ast.value)
+                require(value.type.isSubtypeOf(method.returns)) { error(
+                    ast.value,
+                    "Invalid assignment value type.",
+                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().name}, but received ${value.type.name}.",
+                ) }
+                RhovasIr.Statement.Assignment.Index(method, receiver, arguments, value)
+            }
+            else -> throw AssertionError()
+        }
     }
 
-    override fun visit(ast: RhovasAst.Statement.If): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.If): RhovasIr.Statement.If {
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid if condition type.",
+            "An if statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        val thenStatement = visit(ast.thenStatement)
+        val elseStatement = ast.elseStatement?.let { visit(it) }
+        return RhovasIr.Statement.If(condition, thenStatement, elseStatement)
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Conditional): RhovasIr {
@@ -51,56 +162,143 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         TODO()
     }
 
-    override fun visit(ast: RhovasAst.Statement.For): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For {
+        val argument = visit(ast.argument)
+        //TODO: Iterable type
+        require(argument.type.isSubtypeOf(Library.TYPES["List"]!!)) { error(
+            ast.argument,
+            "Invalid for loop argument type.",
+            "A for loop requires the argument to be type List, but received ${argument.type.name}.",
+        ) }
+        return scoped(Scope(scope)) {
+            //TODO: Generic types
+            scope.variables.define(Variable(ast.name, Library.TYPES["Any"]!!))
+            val body = visit(ast.body)
+            RhovasIr.Statement.For(ast.name, argument, body)
+        }
     }
 
-    override fun visit(ast: RhovasAst.Statement.While): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.While): RhovasIr.Statement.While {
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid while condition type.",
+            "An while statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        val body = visit(ast.body)
+        return RhovasIr.Statement.While(condition, body)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Try): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try {
+        val body = visit(ast.body)
+        //TODO: Validate thrown exceptions
+        val catches = ast.catches.map { visit(it) }
+        //TODO: Validate special control flow (and spec)
+        val finallyStatement = ast.finallyStatement?.let { visit(it) }
+        return RhovasIr.Statement.Try(body, catches, finallyStatement)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr.Statement.Try.Catch {
+        return scoped(Scope(scope)) {
+            //TODO: Catch type
+            scope.variables.define(Variable(ast.name, Library.TYPES["Exception"]!!))
+            val body = visit(ast.body)
+            RhovasIr.Statement.Try.Catch(ast.name, body)
+        }
     }
 
-    override fun visit(ast: RhovasAst.Statement.With): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With {
+        val argument = visit(ast.argument)
+        return scoped(Scope(scope)) {
+            ast.name?.let { scope.variables.define(Variable(ast.name, argument.type)) }
+            val body = visit(ast.body)
+            RhovasIr.Statement.With(ast.name, argument, body)
+        }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Label): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Label): RhovasIr.Statement.Label {
+        require(ast.statement is RhovasAst.Statement.For || ast.statement is RhovasAst.Statement.While) { error(
+            ast.statement,
+            "Invalid label statement.",
+            "A label statement requires the statement to be a for/while loop.",
+        ) }
+        //TODO: Validate label
+        val statement = visit(ast.statement)
+        return RhovasIr.Statement.Label(ast.label, statement)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Break): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Break): RhovasIr.Statement.Break {
+        //TODO: Validate label
+        return RhovasIr.Statement.Break(ast.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Continue): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Continue): RhovasIr.Statement.Continue {
+        //TODO: Validate label
+        return RhovasIr.Statement.Continue(ast.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Return): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Return): RhovasIr.Statement.Return {
+        //TODO: Validate return value type
+        val value = ast.value?.let { visit(it) }
+        return RhovasIr.Statement.Return(value)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw {
+        val exception = visit(ast.exception)
+        require(exception.type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
+            ast.exception,
+            "Invalid throw expression type.",
+            "An throw statement requires the expression to be type Exception, but received ${exception.type.name}.",
+        ) }
+        return RhovasIr.Statement.Throw(exception)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assert): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Assert): RhovasIr.Statement.Assert {
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid assert condition type.",
+            "An assert statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        val message = ast.message?.let { visit(it) }
+        require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
+            ast.message,
+            "Invalid assert message type.",
+            "An assert statement requires the message to be type String, but received ${message!!.type.name}.",
+        ) }
+        return RhovasIr.Statement.Assert(condition, message)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Require): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Require): RhovasIr.Statement.Require {
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid require condition type.",
+            "A require statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        val message = ast.message?.let { visit(it) }
+        require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
+            ast.message,
+            "Invalid require message type.",
+            "A require statement requires the message to be type String, but received ${message!!.type.name}.",
+        ) }
+        return RhovasIr.Statement.Require(condition, message)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Ensure): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Statement.Ensure): RhovasIr.Statement.Ensure {
+        val condition = visit(ast.condition)
+        require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.condition,
+            "Invalid ensure condition type.",
+            "An ensure statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+        ) }
+        val message = ast.message?.let { visit(it) }
+        require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
+            ast.message,
+            "Invalid ensure message type.",
+            "An ensure statement requires the message to be type String, but received ${message!!.type.name}.",
+        ) }
+        return RhovasIr.Statement.Ensure(condition, message)
     }
 
     private fun visit(ast: RhovasAst.Expression): RhovasIr.Expression {
