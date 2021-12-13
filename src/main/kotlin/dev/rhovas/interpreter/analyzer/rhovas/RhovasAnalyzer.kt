@@ -155,11 +155,42 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Conditional): RhovasIr {
-        TODO()
+        fun visitCondition(ast: RhovasAst.Expression): RhovasIr.Expression {
+            val condition = visit(ast)
+            require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+                ast,
+                "Invalid match condition type.",
+                "A conditional match statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            ) }
+            return condition
+        }
+        val cases = ast.cases.map {
+            val condition = visitCondition(it.first)
+            val statement = visit(it.second)
+            Pair(condition, statement)
+        }
+        val elseCase = ast.elseCase?.let {
+            val condition = it.first?.let { visitCondition(it) }
+            val statement = visit(it.second)
+            Pair(condition, statement)
+        }
+        return RhovasIr.Statement.Match.Conditional(cases, elseCase)
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Structural): RhovasIr {
-        TODO()
+        val argument = visit(ast.argument)
+        //TODO: Typecheck patterns
+        val cases = ast.cases.map {
+            val pattern = visit(it.first)
+            val statement = visit(it.second)
+            Pair(pattern, statement)
+        }
+        val elseCase = ast.elseCase?.let {
+            val pattern = it.first?.let { visit(it) }
+            val statement = visit(it.second)
+            Pair(pattern, statement)
+        }
+        return RhovasIr.Statement.Match.Structural(argument, cases, elseCase)
     }
 
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For {
@@ -500,32 +531,92 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         return RhovasIr.Expression.Interpolation(expression)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr {
-        TODO()
+    private fun visit(ast: RhovasAst.Pattern): RhovasIr.Pattern {
+        return super.visit(ast) as RhovasIr.Pattern
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
+        //TODO: Validate variable name
+        //TODO: Infer type
+        val variable = Variable(ast.name, Library.TYPES["Any"]!!)
+        return RhovasIr.Pattern.Variable(variable)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value {
+        //TODO: Value typechecking
+        val value = visit(ast.value)
+        return RhovasIr.Pattern.Value(value)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate {
+        val pattern = visit(ast.pattern)
+        //TODO: Bind variables
+        val predicate = scoped(Scope(scope)) {
+            scope.variables.define(Variable("val", pattern.type))
+            visit(ast.predicate)
+        }
+        require(predicate.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
+            ast.predicate,
+            "Invalid pattern predicate type.",
+            "A predicate pattern requires the predicate to be type Boolean, but received ${predicate.type}.",
+        ) }
+        return RhovasIr.Pattern.Predicate(pattern, predicate)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure {
+        //TODO: Value typechecking
+        var vararg = false
+        val patterns = ast.patterns.withIndex().map {
+            if (it.value is RhovasAst.Pattern.VarargDestructure) {
+                require(!vararg) { error(
+                    it.value,
+                    "Invalid multiple varargs.",
+                    "An ordered destructure requires no more than one vararg pattern.",
+                ) }
+                vararg = true
+                val ast = it.value as RhovasAst.Pattern.VarargDestructure
+                val pattern = ast.pattern?.let { visit(it) }
+                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["List"]!!)
+            } else {
+                visit(it.value)
+            }
+        }
+        return RhovasIr.Pattern.OrderedDestructure(patterns, Library.TYPES["List"]!!)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
+        //TODO: Value typechecking
+        //TODO: Validate keys/variable names
+        var vararg = false
+        val patterns = ast.patterns.withIndex().map {
+            val pattern = if (it.value.second is RhovasAst.Pattern.VarargDestructure) {
+                //TODO: Consider requiring varargs as the last pattern
+                require(!vararg) { error(
+                    it.value.second,
+                    "Invalid multiple varargs.",
+                    "A named destructure requires no more than one vararg pattern.",
+                ) }
+                vararg = true
+                val ast = it.value.second as RhovasAst.Pattern.VarargDestructure
+                val pattern = ast.pattern?.let { visit(it) }
+                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["Map"]!!)
+            } else {
+                it.value.second?.let { visit(it) }
+            }
+            Pair(it.value.first, pattern)
+        }
+        return RhovasIr.Pattern.NamedDestructure(patterns, Library.TYPES["Map"]!!)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.VarargDestructure): RhovasIr {
-        TODO()
+    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure {
+        val type = visit(ast.type)
+        //TODO: Value typechecking
+        val pattern = ast.pattern?.let { visit(it) }
+        return RhovasIr.Pattern.TypedDestructure(type.type, pattern)
+    }
+
+    override fun visit(ast: RhovasAst.Pattern.VarargDestructure): RhovasIr.Pattern.VarargDestructure {
+        throw AssertionError()
     }
 
     override fun visit(ast: RhovasAst.Type): RhovasIr.Type {

@@ -238,38 +238,43 @@ sealed class RhovasIr {
 
     }
 
-    sealed class Pattern : RhovasIr() {
+    sealed class Pattern(
+        open val type: dev.rhovas.interpreter.environment.Type,
+    ) : RhovasIr() {
 
         data class Variable(
-            val name: String,
-        ) : Pattern()
+            val variable: dev.rhovas.interpreter.environment.Variable,
+        ) : Pattern(variable.type)
 
         data class Value(
             val value: Expression,
-        ) : Pattern()
+        ) : Pattern(value.type)
 
         data class Predicate(
             val pattern: Pattern,
             val predicate: Expression,
-        ) : Pattern()
+        ) : Pattern(pattern.type)
 
         data class OrderedDestructure(
-            val patterns: List<Pattern>
-        ) : Pattern()
+            val patterns: List<Pattern>,
+            override val type: dev.rhovas.interpreter.environment.Type,
+        ) : Pattern(type)
 
         data class NamedDestructure(
-            val patterns: List<Pair<String, Pattern?>>
-        ) : Pattern()
+            val patterns: List<Pair<String, Pattern?>>,
+            override val type: dev.rhovas.interpreter.environment.Type,
+        ) : Pattern(type)
 
         data class TypedDestructure(
-            val type: Type,
+            override val type: dev.rhovas.interpreter.environment.Type,
             val pattern: Pattern?,
-        ): Pattern()
+        ): Pattern(type)
 
         data class VarargDestructure(
             val pattern: Pattern?,
             val operator: String,
-        ) : Pattern()
+            override val type: dev.rhovas.interpreter.environment.Type,
+        ) : Pattern(type)
 
     }
 
