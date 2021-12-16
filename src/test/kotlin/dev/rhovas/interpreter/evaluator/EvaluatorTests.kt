@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.analyzer.AnalyzeException
+import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
@@ -56,7 +58,15 @@ class EvaluatorTests {
                 Evaluator(scope).visit(ast)
                 Assertions.assertEquals(expected, log.toString())
             } else {
-                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                try {
+                    RhovasAnalyzer(scope).visit(ast)
+                    Evaluator(scope).visit(ast)
+                    Assertions.fail()
+                } catch (e: AnalyzeException) {
+                    //ignore
+                } catch (e: EvaluateException) {
+                    //ignore
+                }
             }
         }
 
@@ -632,7 +642,15 @@ class EvaluatorTests {
                 Evaluator(scope).visit(ast)
                 Assertions.assertEquals(expected, log.toString())
             } else {
-                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                try {
+                    RhovasAnalyzer(scope).visit(ast)
+                    Evaluator(scope).visit(ast)
+                    Assertions.fail()
+                } catch (e: AnalyzeException) {
+                    //ignore
+                } catch (e: EvaluateException) {
+                    //ignore
+                }
             }
         }
 
@@ -1175,7 +1193,15 @@ class EvaluatorTests {
                     Evaluator(scope).visit(ast)
                     Assertions.assertEquals(expected, log.toString())
                 } else {
-                    Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                    try {
+                        RhovasAnalyzer(scope).visit(ast)
+                        Evaluator(scope).visit(ast)
+                        Assertions.fail()
+                    } catch (e: AnalyzeException) {
+                        //ignore
+                    } catch (e: EvaluateException) {
+                        //ignore
+                    }
                 }
             }
 
@@ -1198,7 +1224,15 @@ class EvaluatorTests {
             if (expected != null) {
                 Assertions.assertEquals(expected, Evaluator(scope).visit(ast))
             } else {
-                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                try {
+                    RhovasAnalyzer(scope).visit(ast)
+                    Evaluator(scope).visit(ast)
+                    Assertions.fail()
+                } catch (e: AnalyzeException) {
+                    //ignore
+                } catch (e: EvaluateException) {
+                    //ignore
+                }
             }
         }
 
@@ -1464,7 +1498,15 @@ class EvaluatorTests {
                 Evaluator(scope).visit(ast)
                 Assertions.assertEquals(expected, log.toString())
             } else {
-                Assertions.assertThrows(EvaluateException::class.java) { Evaluator(scope).visit(ast) }
+                try {
+                    RhovasAnalyzer(scope).visit(ast)
+                    Evaluator(scope).visit(ast)
+                    Assertions.fail()
+                } catch (e: AnalyzeException) {
+                    //ignore
+                } catch (e: EvaluateException) {
+                    //ignore
+                }
             }
         }
 
