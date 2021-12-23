@@ -45,12 +45,15 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Redefined function.",
             "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
         ) }
-        val parameters = ast.parameters.map { it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!! }
+        val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
         val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!!
         val function = Function(ast.name, parameters, returns)
         scope.functions.define(function)
         //TODO: Validate thrown exceptions
-        val body = visit(ast.body) as RhovasIr.Statement.Block
+        val body = scoped(Scope(scope)) {
+            parameters.forEach { scope.variables.define(Variable(it.first, it.second)) }
+            visit(ast.body) as RhovasIr.Statement.Block
+        }
         return RhovasIr.Statement.Function(function, body)
     }
 
@@ -108,10 +111,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 )
                 //TODO: Require mutable variable
                 val value = visit(ast.value)
-                require(value.type.isSubtypeOf(receiver.method.parameters[0])) { error(
+                require(value.type.isSubtypeOf(receiver.method.parameters[0].second)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The property ${receiver.method.name} requires the value to be type ${receiver.method.parameters[0].name}, but received ${value.type.name}.",
+                    "The property ${receiver.method.name} requires the value to be type ${receiver.method.parameters[0].second.name}, but received ${value.type.name}.",
                 ) }
                 RhovasIr.Statement.Assignment.Property(receiver, method, value)
             }
@@ -124,17 +127,17 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 )
                 val arguments = ast.receiver.arguments.map { visit(it) }
                 for (i in arguments.indices) {
-                    require(arguments[i].type.isSubtypeOf(method.parameters[i])) { throw error(
+                    require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { throw error(
                         ast.receiver.arguments[i],
                         "Invalid method argument type.",
-                        "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].name}, but received ${arguments[i].type.name}",
+                        "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
                     ) }
                 }
                 val value = visit(ast.value)
                 require(value.type.isSubtypeOf(method.returns)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().name}, but received ${value.type.name}.",
+                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().second.name}, but received ${value.type.name}.",
                 ) }
                 RhovasIr.Statement.Assignment.Index(method, receiver, arguments, value)
             }
@@ -181,14 +184,18 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val argument = visit(ast.argument)
         //TODO: Typecheck patterns
         val cases = ast.cases.map {
-            val pattern = visit(it.first)
-            val statement = visit(it.second)
-            Pair(pattern, statement)
+            scoped(Scope(scope)) {
+                val pattern = visit(it.first)
+                val statement = visit(it.second)
+                Pair(pattern, statement)
+            }
         }
         val elseCase = ast.elseCase?.let {
-            val pattern = it.first?.let { visit(it) }
-            val statement = visit(it.second)
-            Pair(pattern, statement)
+            scoped(Scope(scope)) {
+                val pattern = it.first?.let { visit(it) }
+                val statement = visit(it.second)
+                Pair(pattern, statement)
+            }
         }
         return RhovasIr.Statement.Match.Structural(argument, cases, elseCase)
     }
@@ -384,10 +391,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "The method ${left.type.name}.${ast.operator}/1 is not defined.",
         )
         val right = visit(ast.right)
-        require(right.type.isSubtypeOf(method.parameters[1])) { throw error(
+        require(right.type.isSubtypeOf(method.parameters[1].second)) { throw error(
             ast.right,
             "Invalid method argument type.",
-            "The method ${left.type.name}.${ast.operator}/1 requires argument ${0} to be type ${method.parameters[1].name}, but received ${right.type.name}",
+            "The method ${left.type.name}.${ast.operator}/1 requires argument ${0} to be type ${method.parameters[1].second.name}, but received ${right.type.name}",
         ) }
         return RhovasIr.Expression.Binary(ast.operator, left, right, method)
     }
@@ -421,10 +428,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         )
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i])) { throw error(
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { throw error(
                 ast.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].name}, but received ${arguments[i].type.name}",
+                "The method ${receiver.type.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
             ) }
         }
         return RhovasIr.Expression.Access.Index(receiver, method, arguments)
@@ -438,10 +445,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         )
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(function.parameters[i])) { throw error(
+            require(arguments[i].type.isSubtypeOf(function.parameters[i].second)) { throw error(
                 ast.arguments[i],
                 "Invalid function argument type.",
-                "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].name}, but received ${arguments[i].type.name}",
+                "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].second.name}, but received ${arguments[i].type.name}",
             ) }
         }
         return RhovasIr.Expression.Invoke.Function(function, arguments)
@@ -456,10 +463,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         )
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i])) { throw error(
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { throw error(
                 ast.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].name}, but received ${arguments[i].type.name}",
+                "The method ${receiver.type.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
             ) }
         }
         //TODO: Coalesce typechecking (requires nullable types)
@@ -476,10 +483,10 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             )
             val arguments = listOf(receiver) + ast.arguments.map { visit(it) }
             for (i in arguments.indices) {
-                require(arguments[i].type.isSubtypeOf(function.parameters[i])) { throw error(
+                require(arguments[i].type.isSubtypeOf(function.parameters[i].second)) { throw error(
                     ast.arguments[i],
                     "Invalid function argument type.",
-                    "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].name}, but received ${arguments[i].type.name}",
+                    "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].second.name}, but received ${arguments[i].type.name}",
                 ) }
             }
             //TODO: Coalesce typechecking (requires nullable types)
@@ -492,17 +499,17 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 "Undefined method.",
                 "The method ${qualifier.type.name}.${ast.name}/${1 + ast.arguments.size} is not defined.",
             )
-            require(receiver.type.isSubtypeOf(method.parameters[0])) { error(
+            require(receiver.type.isSubtypeOf(method.parameters[0].second)) { error(
                 ast,
                 "Invalid method argument type.",
-                "The method ${qualifier.type.name}.${ast.name}/${1 + ast.arguments.size} requires argument 0 to be type ${method.parameters[0].name}, but received ${receiver.type.name}",
+                "The method ${qualifier.type.name}.${ast.name}/${1 + ast.arguments.size} requires argument 0 to be type ${method.parameters[0].second.name}, but received ${receiver.type.name}",
             ) }
             val arguments = ast.arguments.map { visit(it) }
             for (i in arguments.indices) {
-                require(arguments[i].type.isSubtypeOf(method.parameters[i + 1])) { throw error(
+                require(arguments[i].type.isSubtypeOf(method.parameters[1 + i].second)) { throw error(
                     ast.arguments[i],
                     "Invalid method argument type.",
-                    "The method ${qualifier.type.name}.${ast.name}/${1 + arguments.size} requires argument ${i} to be type ${method.parameters[i + 1].name}, but received ${arguments[i].type.name}",
+                    "The method ${qualifier.type.name}.${ast.name}/${1 + arguments.size} requires argument ${i} to be type ${method.parameters[1 + i].second.name}, but received ${arguments[i].type.name}",
                 ) }
             }
             //TODO: Coalesce typechecking (requires nullable types)

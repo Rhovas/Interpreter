@@ -72,7 +72,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             "The binary operator == (equals) is not defined by type ${value.type.name}.",
         )
         return instance.any {
-            it.type.isSubtypeOf(method.function.parameters[0]) && method.invoke(value, listOf(it)).value as Boolean
+            it.type.isSubtypeOf(method.function.parameters[0].second) && method.invoke(value, listOf(it)).value as Boolean
         }
     }
 

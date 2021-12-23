@@ -1,6 +1,11 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
+import dev.rhovas.interpreter.parser.Input
+
 sealed class RhovasIr {
+
+    var context: List<Input.Range>? = null
+        internal set
 
     data class Source(
         val statements: List<Statement>,
@@ -281,5 +286,115 @@ sealed class RhovasIr {
     data class Type(
         val type: dev.rhovas.interpreter.environment.Type
     ) : RhovasIr()
+
+    interface Visitor<T> {
+
+        fun visit(ir: RhovasIr): T {
+            return when (ir) {
+                is Source -> visit(ir)
+
+                is Statement.Block -> visit(ir)
+                is Statement.Expression -> visit(ir)
+                is Statement.Function -> visit(ir)
+                is Statement.Declaration -> visit(ir)
+                is Statement.Assignment.Variable -> visit(ir)
+                is Statement.Assignment.Property -> visit(ir)
+                is Statement.Assignment.Index -> visit(ir)
+                is Statement.If -> visit(ir)
+                is Statement.Match.Conditional -> visit(ir)
+                is Statement.Match.Structural -> visit(ir)
+                is Statement.For -> visit(ir)
+                is Statement.While -> visit(ir)
+                is Statement.Try -> visit(ir)
+                is Statement.Try.Catch -> visit(ir)
+                is Statement.With -> visit(ir)
+                is Statement.Label -> visit(ir)
+                is Statement.Break -> visit(ir)
+                is Statement.Continue -> visit(ir)
+                is Statement.Return -> visit(ir)
+                is Statement.Throw -> visit(ir)
+                is Statement.Assert -> visit(ir)
+                is Statement.Ensure -> visit(ir)
+                is Statement.Require -> visit(ir)
+
+                is Expression.Literal -> visit(ir)
+                is Expression.Group -> visit(ir)
+                is Expression.Unary -> visit(ir)
+                is Expression.Binary -> visit(ir)
+                is Expression.Access.Variable -> visit(ir)
+                is Expression.Access.Property -> visit(ir)
+                is Expression.Access.Index -> visit(ir)
+                is Expression.Invoke.Function -> visit(ir)
+                is Expression.Invoke.Method -> visit(ir)
+                is Expression.Invoke.Pipeline -> visit(ir)
+                is Expression.Lambda -> visit(ir)
+                is Expression.Macro -> visit(ir)
+                is Expression.Dsl -> visit(ir)
+                is Expression.Interpolation -> visit(ir)
+
+                is Pattern.Variable -> visit(ir)
+                is Pattern.Value -> visit(ir)
+                is Pattern.Predicate -> visit(ir)
+                is Pattern.OrderedDestructure -> visit(ir)
+                is Pattern.NamedDestructure -> visit(ir)
+                is Pattern.TypedDestructure -> visit(ir)
+                is Pattern.VarargDestructure -> visit(ir)
+
+                is Type -> visit(ir)
+            }
+        }
+
+        fun visit(ir: Source): T
+
+        fun visit(ir: Statement.Block): T
+        fun visit(ir: Statement.Expression): T
+        fun visit(ir: Statement.Function): T
+        fun visit(ir: Statement.Declaration): T
+        fun visit(ir: Statement.Assignment.Variable): T
+        fun visit(ir: Statement.Assignment.Property): T
+        fun visit(ir: Statement.Assignment.Index): T
+        fun visit(ir: Statement.If): T
+        fun visit(ir: Statement.Match.Conditional): T
+        fun visit(ir: Statement.Match.Structural): T
+        fun visit(ir: Statement.For): T
+        fun visit(ir: Statement.While): T
+        fun visit(ir: Statement.Try): T
+        fun visit(ir: Statement.Try.Catch): T
+        fun visit(ir: Statement.With): T
+        fun visit(ir: Statement.Label): T
+        fun visit(ir: Statement.Break): T
+        fun visit(ir: Statement.Continue): T
+        fun visit(ir: Statement.Return): T
+        fun visit(ir: Statement.Throw): T
+        fun visit(ir: Statement.Assert): T
+        fun visit(ir: Statement.Require): T
+        fun visit(ir: Statement.Ensure): T
+
+        fun visit(ir: Expression.Literal): T
+        fun visit(ir: Expression.Group): T
+        fun visit(ir: Expression.Unary): T
+        fun visit(ir: Expression.Binary): T
+        fun visit(ir: Expression.Access.Variable): T
+        fun visit(ir: Expression.Access.Property): T
+        fun visit(ir: Expression.Access.Index): T
+        fun visit(ir: Expression.Invoke.Function): T
+        fun visit(ir: Expression.Invoke.Method): T
+        fun visit(ir: Expression.Invoke.Pipeline): T
+        fun visit(ir: Expression.Lambda): T
+        fun visit(ir: Expression.Macro): T
+        fun visit(ir: Expression.Dsl): T
+        fun visit(ir: Expression.Interpolation): T
+
+        fun visit(ir: Pattern.Variable): T
+        fun visit(ir: Pattern.Value): T
+        fun visit(ir: Pattern.Predicate): T
+        fun visit(ir: Pattern.OrderedDestructure): T
+        fun visit(ir: Pattern.NamedDestructure): T
+        fun visit(ir: Pattern.TypedDestructure): T
+        fun visit(ir: Pattern.VarargDestructure): T
+
+        fun visit(ir: Type): T
+
+    }
 
 }

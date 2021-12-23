@@ -2,7 +2,7 @@ package dev.rhovas.interpreter.environment
 
 data class Function(
     val name: String,
-    val parameters: List<Type>,
+    val parameters: List<Pair<String, Type>>,
     val returns: Type,
 ) {
 

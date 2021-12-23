@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
@@ -9,7 +10,7 @@ import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.function.Predicate
 
-class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
+class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     private var label: String? = null
     private lateinit var patternState: PatternState
@@ -17,101 +18,85 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         it.addLast(StackFrame("Source", Input.Range(0, 1, 0, 0)))
     }
 
-    override fun visit(ast: RhovasAst.Source): Object {
-        ast.statements.forEach { visit(it) }
+    override fun visit(ir: RhovasIr.Source): Object {
+        ir.statements.forEach { visit(it) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Block): Object {
+    override fun visit(ir: RhovasIr.Statement.Block): Object {
         scoped(Scope(scope)) {
-            ast.statements.forEach { visit(it) }
+            ir.statements.forEach { visit(it) }
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Expression): Object {
-        visit(ast.expression)
+    override fun visit(ir: RhovasIr.Statement.Expression): Object {
+        visit(ir.expression)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Function): Object {
+    override fun visit(ir: RhovasIr.Statement.Function): Object {
         val current = scope
-        val function = Function(
-            ast.name,
-            //TODO: Consider including name in function parameters
-            ast.parameters.map { it.second?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!! },
-            ast.returns?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!,
-        )
-        function.implementation = { arguments ->
+        ir.function.implementation = { arguments ->
             scoped(current) {
-                for (i in function.parameters.indices) {
-                    val variable = Variable(ast.parameters[i].first, function.parameters[i])
+                for (i in ir.function.parameters.indices) {
+                    val variable = Variable(ir.function.parameters[i].first, ir.function.parameters[i].second)
                     variable.value = arguments[i]
                     scope.variables.define(variable)
                 }
                 try {
-                    visit(ast.body)
+                    visit(ir.body)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Return) {
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }
             }
         }
-        scope.functions.define(function)
+        scope.functions.define(ir.function)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Declaration): Object {
-        val type = ast.type?.let { visit(it).value as Type } ?: Library.TYPES["Any"]!!
-        val value = ast.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        val variable = Variable(ast.name, type)
-        variable.value = value
-        scope.variables.define(variable)
+    override fun visit(ir: RhovasIr.Statement.Declaration): Object {
+        ir.variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        scope.variables.define(ir.variable)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assignment): Object {
-        when (ast.receiver) {
-            is RhovasAst.Expression.Access.Variable -> {
-                val variable = scope.variables[ast.receiver.name]!!
-                variable.set(visit(ast.value))
-            }
-            is RhovasAst.Expression.Access.Property -> {
-                val receiver = visit(ast.receiver.receiver)
-                val property = receiver.properties[ast.receiver.name]!!
-                val value = visit(ast.value)
-                trace("${receiver.type.name}.${ast.receiver.name}/1", ast.context.first()) {
-                    property.set(receiver, value)
-                }
-            }
-            is RhovasAst.Expression.Access.Index -> {
-                val receiver = visit(ast.receiver.receiver)
-                val method = receiver.methods["[]=", ast.receiver.arguments.size + 1]!!
-                invoke(method, receiver, ast.receiver.arguments + listOf(ast.value), ast)
-            }
-        }
+    override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
+        val variable = scope.variables[ir.variable.name]!!
+        variable.value = visit(ir.value)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.If): Object {
-        val condition = visit(ast.condition)
+    override fun visit(ir: RhovasIr.Statement.Assignment.Property): Object {
+        val receiver = visit(ir.receiver)
+        val arguments = listOf(visit(ir.value))
+        ir.setter.invoke(receiver, arguments)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Statement.Assignment.Index): Object {
+        val receiver = visit(ir.receiver)
+        val arguments = ir.arguments.map { visit(it) } + listOf(visit(ir.value))
+        ir.method.invoke(receiver, arguments)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Statement.If): Object {
+        val condition = visit(ir.condition)
         if (condition.value as Boolean) {
-            visit(ast.thenStatement)
-        } else if (ast.elseStatement != null) {
-            visit(ast.elseStatement)
+            visit(ir.thenStatement)
+        } else if (ir.elseStatement != null) {
+            visit(ir.elseStatement)
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Match.Conditional): Object {
-        val predicate = Predicate<RhovasAst> {
-            val condition = visit(it)
-            condition.value as Boolean
-        }
-        val case = ast.cases.firstOrNull { predicate.test(it.first) }
-            ?: ast.elseCase?.also {
-                require(it.first == null || predicate.test(it.first!!)) { error(
-                    ast.elseCase.first,
+    override fun visit(ir: RhovasIr.Statement.Match.Conditional): Object {
+        val case = ir.cases.firstOrNull { visit(it.first).value as Boolean }
+            ?: ir.elseCase?.also {
+                require(it.first == null || visit(it.first!!).value as Boolean) { error(
+                    ir.elseCase.first,
                     "Failed match else assertion.",
                     "A condition match statement requires the else condition to be true.",
                 ) }
@@ -120,24 +105,24 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Match.Structural): Object {
-        val argument = visit(ast.argument)
-        val predicate = Predicate<RhovasAst.Pattern> {
+    override fun visit(ir: RhovasIr.Statement.Match.Structural): Object {
+        val argument = visit(ir.argument)
+        val predicate = Predicate<RhovasIr.Pattern> {
             patternState = PatternState(Scope(this.scope), argument)
             scoped(patternState.scope) {
                 visit(it).value as Boolean
             }
         }
-        val case = ast.cases.firstOrNull { predicate.test(it.first) }
-            ?: ast.elseCase?.also {
-                require(predicate.test(it.first ?: RhovasAst.Pattern.Variable("_"))) { error(
-                    ast.elseCase.first,
+        val case = ir.cases.firstOrNull { predicate.test(it.first) }
+            ?: ir.elseCase?.also {
+                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable("_", argument.type)))) { error(
+                    ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
                 ) }
             }
             ?: throw error(
-                ast,
+                ir,
                 "Non-exhaustive structural match patterns.",
                 "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods["toString", 0]!!.invoke(argument, listOf()).value as String}.",
             )
@@ -147,18 +132,18 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.For): Object {
-        val iterable = visit(ast.argument)
+    override fun visit(ir: RhovasIr.Statement.For): Object {
+        val iterable = visit(ir.iterable)
         val label = this.label
         this.label = null
         for (element in iterable.value as List<Object>) {
             try {
                 scoped(Scope(scope)) {
                     //TODO: Generic types
-                    val variable = Variable(ast.name, Library.TYPES["Any"]!!)
+                    val variable = Variable(ir.name, Library.TYPES["Any"]!!)
                     variable.value = element
                     scope.variables.define(variable)
-                    visit(ast.body)
+                    visit(ir.body)
                 }
             } catch (e: Break) {
                 if (e.label != null && e.label != label) {
@@ -175,15 +160,15 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.While): Object {
+    override fun visit(ir: RhovasIr.Statement.While): Object {
         val label = this.label
         this.label = null
         while (true) {
-            val condition = visit(ast.condition)
+            val condition = visit(ir.condition)
             if (condition.value as Boolean) {
                 try {
                     scoped(Scope(scope)) {
-                        visit(ast.body)
+                        visit(ir.body)
                     }
                 } catch (e: Break) {
                     if (e.label != null && e.label != label) {
@@ -203,12 +188,12 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Try): Object {
+    override fun visit(ir: RhovasIr.Statement.Try): Object {
         try {
-            visit(ast.body)
+            visit(ir.body)
         } catch (e: Throw) {
             //TODO: Catch exception types
-            ast.catches.firstOrNull()?.let {
+            ir.catches.firstOrNull()?.let {
                 scoped(Scope(scope)) {
                     //TODO: Exception types
                     val variable = Variable(it.name, Library.TYPES["Exception"]!!)
@@ -219,120 +204,120 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             }
         } finally {
             //TODO: Ensure finally doesn't run for internal exceptions
-            ast.finallyStatement?.let { visit(it) }
+            ir.finallyStatement?.let { visit(it) }
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Try.Catch): Object {
-        throw UnsupportedOperationException()
+    override fun visit(ir: RhovasIr.Statement.Try.Catch): Object {
+        throw AssertionError()
     }
 
-    override fun visit(ast: RhovasAst.Statement.With): Object {
+    override fun visit(ir: RhovasIr.Statement.With): Object {
         TODO()
     }
 
-    override fun visit(ast: RhovasAst.Statement.Label): Object {
+    override fun visit(ir: RhovasIr.Statement.Label): Object {
         val label = label
-        this.label = ast.label
+        this.label = ir.label
         try {
-            visit(ast.statement)
+            visit(ir.statement)
         } finally {
             this.label = label
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Break): Object {
-        throw Break(ast.label)
+    override fun visit(ir: RhovasIr.Statement.Break): Object {
+        throw Break(ir.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Continue): Object {
-        throw Continue(ast.label)
+    override fun visit(ir: RhovasIr.Statement.Continue): Object {
+        throw Continue(ir.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Return): Object {
-        throw Return(ast, ast.value?.let { visit(it) })
+    override fun visit(ir: RhovasIr.Statement.Return): Object {
+        throw Return(ir, ir.value?.let { visit(it) })
     }
 
-    override fun visit(ast: RhovasAst.Statement.Throw): Object {
-        throw Throw(visit(ast.exception))
+    override fun visit(ir: RhovasIr.Statement.Throw): Object {
+        throw Throw(visit(ir.exception))
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assert): Object {
-        val condition = visit(ast.condition)
+    override fun visit(ir: RhovasIr.Statement.Assert): Object {
+        val condition = visit(ir.condition)
         require(condition.value as Boolean) { error(
-            ast,
+            ir,
             "Failed assertion",
-            "The assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+            "The assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Require): Object {
-        val condition = visit(ast.condition)
+    override fun visit(ir: RhovasIr.Statement.Require): Object {
+        val condition = visit(ir.condition)
         require(condition.value as Boolean) { error(
-            ast,
+            ir,
             "Failed precondition assertion.",
-            "The precondition assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+            "The precondition assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Ensure): Object {
-        val condition = visit(ast.condition)
+    override fun visit(ir: RhovasIr.Statement.Ensure): Object {
+        val condition = visit(ir.condition)
         require(condition.value as Boolean) { error(
-            ast,
+            ir,
             "Failed postcondition assertion.",
-            "The postcondition assertion failed" + ast.message?.let { " (${visit(it).value})" } + ".",
+            "The postcondition assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal): Object {
-        return when (ast.value) {
+    override fun visit(ir: RhovasIr.Expression.Literal): Object {
+        return when (ir.value) {
             null -> Object(Library.TYPES["Null"]!!, null)
-            is Boolean -> Object(Library.TYPES["Boolean"]!!, ast.value)
-            is BigInteger -> Object(Library.TYPES["Integer"]!!, ast.value)
-            is BigDecimal -> Object(Library.TYPES["Decimal"]!!, ast.value)
-            is String -> Object(Library.TYPES["String"]!!, ast.value)
-            is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ast.value)
+            is Boolean -> Object(Library.TYPES["Boolean"]!!, ir.value)
+            is BigInteger -> Object(Library.TYPES["Integer"]!!, ir.value)
+            is BigDecimal -> Object(Library.TYPES["Decimal"]!!, ir.value)
+            is String -> Object(Library.TYPES["String"]!!, ir.value)
+            is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ir.value)
             is List<*> -> {
-                val value = (ast.value as List<RhovasAst.Expression>).map { visit(it) }
+                val value = (ir.value as List<RhovasIr.Expression>).map { visit(it) }
                 Object(Library.TYPES["List"]!!, value.toMutableList())
             }
             is Map<*, *> -> {
-                val value = (ast.value as Map<String, RhovasAst.Expression>).mapValues { visit(it.value) }
+                val value = (ir.value as Map<String, RhovasIr.Expression>).mapValues { visit(it.value) }
                 Object(Library.TYPES["Object"]!!, value.toMutableMap())
             }
             else -> throw AssertionError()
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Group): Object {
-        return visit(ast.expression)
+    override fun visit(ir: RhovasIr.Expression.Group): Object {
+        return visit(ir.expression)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Unary): Object {
-        val expression = visit(ast.expression)
-        val method = expression.methods[ast.operator, 0]!!
+    override fun visit(ir: RhovasIr.Expression.Unary): Object {
+        val expression = visit(ir.expression)
+        val method = expression.methods[ir.operator, 0]!!
         return method.invoke(expression, listOf())
     }
 
-    override fun visit(ast: RhovasAst.Expression.Binary): Object {
-        val left = visit(ast.left)
-        return when (ast.operator) {
+    override fun visit(ir: RhovasIr.Expression.Binary): Object {
+        val left = visit(ir.left)
+        return when (ir.operator) {
             "||" -> {
                 if (left.value as Boolean) {
                     Object(Library.TYPES["Boolean"]!!, true)
                 } else {
-                    val right = visit(ast.right)
+                    val right = visit(ir.right)
                     Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
                 }
             }
             "&&" -> {
                 if (left.value as Boolean) {
-                    val right = visit(ast.right)
+                    val right = visit(ir.right)
                     Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
                 } else {
                     Object(Library.TYPES["Boolean"]!!, false)
@@ -340,24 +325,24 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             }
             "==", "!=" -> {
                 val method = left.methods["==", 1]!!
-                val right = visit(ast.right)
-                val result = if (right.type.isSubtypeOf(method.parameters[0])) {
+                val right = visit(ir.right)
+                val result = if (right.type.isSubtypeOf(method.parameters[0].second)) {
                     method.invoke(left, listOf(right)).value as Boolean
                 } else false
-                val value = if (ast.operator == "==") result else !result
+                val value = if (ir.operator == "==") result else !result
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "===", "!==" -> {
-                val right = visit(ast.right)
+                val right = visit(ir.right)
                 //TODO: Implementation non-primitives (Integer/Decimal/String/Atom)
                 val result = if (left.type == right.type) left.value === right.value else false
-                val value = if (ast.operator == "===") result else !result
+                val value = if (ir.operator == "===") result else !result
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "<", ">", "<=", ">=" -> {
                 val method = left.methods["<=>", 1]!!
-                val result = invoke(method, left, listOf(ast.right), ast).value as BigInteger
-                val value = when (ast.operator) {
+                val result = invoke(method, left, listOf(ir.right), ir).value as BigInteger
+                val value = when (ir.operator) {
                     "<" -> result < BigInteger.ZERO
                     ">" -> result > BigInteger.ZERO
                     "<=" -> result <= BigInteger.ZERO
@@ -367,123 +352,120 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "+", "-", "*", "/" -> {
-                val method = left.methods[ast.operator, 1]!!
-                invoke(method, left, listOf(ast.right), ast)
+                val method = left.methods[ir.operator, 1]!!
+                invoke(method, left, listOf(ir.right), ir)
             }
             else -> throw AssertionError()
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Variable): Object {
-        val variable = scope.variables[ast.name]!!
-        return variable.get()
+    override fun visit(ir: RhovasIr.Expression.Access.Variable): Object {
+        return ir.variable.get()
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Property): Object {
-        val receiver = visit(ast.receiver)
-        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+    override fun visit(ir: RhovasIr.Expression.Access.Property): Object {
+        val receiver = visit(ir.receiver)
+        return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             receiver
         } else {
-            val property = receiver.properties[ast.name]!!
-            property.get(receiver)
+            invoke(ir.method, receiver, listOf(), ir)
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Index): Object {
-        val receiver = visit(ast.receiver)
-        val method = receiver.methods["[]", ast.arguments.size]!!
-        return invoke(method, receiver, ast.arguments, ast)
+    override fun visit(ir: RhovasIr.Expression.Access.Index): Object {
+        val receiver = visit(ir.receiver)
+        return invoke(ir.method, receiver, ir.arguments, ir)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Function): Object {
-        val function = scope.functions[ast.name, ast.arguments.size]!!
-        return invoke(function, ast.arguments, ast)
+    override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
+        return invoke(ir.function, ir.arguments, ir)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Method): Object {
-        val receiver = visit(ast.receiver)
-        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+    override fun visit(ir: RhovasIr.Expression.Invoke.Method): Object {
+        val receiver = visit(ir.receiver)
+        return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             Object(Library.TYPES["Null"]!!, null)
         } else {
-            val method = receiver.methods[ast.name, ast.arguments.size]!!
-            val result = invoke(method, receiver, ast.arguments, ast)
-            return if (ast.cascade) receiver else result
+            val result = invoke(ir.method, receiver, ir.arguments, ir)
+            return if (ir.cascade) receiver else result
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): Object {
-        val receiver = visit(ast.receiver)
-        return if (ast.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
+    override fun visit(ir: RhovasIr.Expression.Invoke.Pipeline): Object {
+        val receiver = visit(ir.receiver)
+        return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             Object(Library.TYPES["Null"]!!, null)
         } else {
-            val result = if (ast.qualifier == null) {
-                val function = scope.functions[ast.name, ast.arguments.size + 1]!!
-                val arguments = listOf(receiver) + ast.arguments.map { visit(it) }
-                trace("Source.${function.name}/${arguments.size}", ast.context.first()) {
-                    function.invoke(arguments)
+            val result = if (ir.qualifier == null) {
+                val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
+                trace("Source.${ir.function.name}/${arguments.size}", ir.context?.first()) {
+                    ir.function.invoke(arguments)
                 }
             } else {
-                val qualifier = visit(ast.qualifier)
-                val method = qualifier.methods[ast.name, ast.arguments.size + 1]!!
-                val arguments = listOf(receiver) + ast.arguments.map { visit(it) }
-                trace("${qualifier.type.name}.${method.name}/${arguments.size}", ast.context.first()) {
-                    method.invoke(qualifier, arguments)
+                val qualifier = visit(ir.qualifier)
+                val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
+                trace("${qualifier.type.name}.${ir.function.name}/${arguments.size}", ir.context?.first()) {
+                    ir.function.invoke(listOf(qualifier) + arguments)
                 }
             }
-            return if (ast.cascade) receiver else result
+            return if (ir.cascade) receiver else result
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Lambda): Object {
+    override fun visit(ir: RhovasIr.Expression.Lambda): Object {
         //TODO: Limit access to variables defined in the scope after this lambda at runtime?
-        return Object(Library.TYPES["Lambda"]!!, Lambda(ast, scope, this))
+        return Object(Library.TYPES["Lambda"]!!, Lambda(ir, scope, this))
     }
 
-    override fun visit(ast: RhovasAst.Expression.Macro): Object {
+    override fun visit(ir: RhovasIr.Expression.Macro): Object {
         TODO()
     }
 
-    override fun visit(ast: RhovasAst.Expression.Dsl): Object {
+    override fun visit(ir: RhovasIr.Expression.Dsl): Object {
         TODO()
     }
 
-    override fun visit(ast: RhovasAst.Expression.Interpolation): Object {
+    override fun visit(ir: RhovasIr.Expression.Interpolation): Object {
         TODO()
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Variable): Object {
-        if (ast.name != "_") {
-            val variable = Variable(ast.name, patternState.value.type)
-            variable.value = patternState.value
-            patternState.scope.variables.define(variable)
+    override fun visit(ir: RhovasIr.Pattern.Variable): Object {
+        if (ir.variable.name != "_") {
+            ir.variable.value = patternState.value
+            patternState.scope.variables.define(ir.variable)
         }
         return Object(Library.TYPES["Boolean"]!!, true)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Value): Object {
-        val value = visit(ast.value)
+    override fun visit(ir: RhovasIr.Pattern.Value): Object {
+        val value = visit(ir.value)
         val method = value.methods["==", 1]!!
-        val result = if (value.type == patternState.value.type) method.invoke(value, listOf(patternState.value)).value as Boolean else false
+        val result = if (value.type == patternState.value.type) {
+            trace("${value.type.name}.${method.name}/1", ir.context?.first()) {
+                method.invoke(value, listOf(patternState.value)).value as Boolean
+            }
+        } else false
         return Object(Library.TYPES["Boolean"]!!, result)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Predicate): Object {
-        var result = visit(ast.pattern)
+    override fun visit(ir: RhovasIr.Pattern.Predicate): Object {
+        var result = visit(ir.pattern)
         if (result.value as Boolean) {
-            result = visit(ast.predicate)
+            //TODO: Variable bindings
+            result = visit(ir.predicate)
         }
         return result
     }
 
-    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): Object {
+    override fun visit(ir: RhovasIr.Pattern.OrderedDestructure): Object {
         if (patternState.value.type != Library.TYPES["List"]) {
             return Object(Library.TYPES["Boolean"]!!, false)
         }
         val list = patternState.value.value as List<Object>
         var i = 0
-        for (pattern in ast.patterns) {
-            val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
-                val value = list.subList(i, list.size - ast.patterns.size + i + 1)
+        for (pattern in ir.patterns) {
+            val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
+                val value = list.subList(i, list.size - ir.patterns.size + i + 1)
                 i += value.size
                 Object(Library.TYPES["List"]!!, value)
             } else {
@@ -501,15 +483,15 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Boolean"]!!, true)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): Object {
+    override fun visit(ir: RhovasIr.Pattern.NamedDestructure): Object {
         if (patternState.value.type != Library.TYPES["Object"]) {
             return Object(Library.TYPES["Boolean"]!!, false)
         }
         val map = patternState.value.value as Map<String, Object>
-        val named = ast.patterns.map { it.first }.toSet()
+        val named = ir.patterns.map { it.first }.toSet()
         var vararg = false
-        for ((key, pattern) in ast.patterns) {
-            val value = if (pattern is RhovasAst.Pattern.VarargDestructure) {
+        for ((key, pattern) in ir.patterns) {
+            val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 vararg = true
                 Object(Library.TYPES["Object"]!!, map.filterKeys { !named.contains(it) })
             } else {
@@ -532,47 +514,45 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         return Object(Library.TYPES["Boolean"]!!, true)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): Object {
-        if (patternState.value.type != visit(ast.type).value as Type) {
+    override fun visit(ir: RhovasIr.Pattern.TypedDestructure): Object {
+        if (!patternState.value.type.isSubtypeOf(ir.type)) {
             return Object(Library.TYPES["Boolean"]!!, false)
         }
-        return ast.pattern?.let { visit(it) } ?: Object(Library.TYPES["Boolean"]!!, true)
+        return ir.pattern?.let { visit(it) } ?: Object(Library.TYPES["Boolean"]!!, true)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.VarargDestructure): Object {
+    override fun visit(ir: RhovasIr.Pattern.VarargDestructure): Object {
         if (patternState.value.type.isSubtypeOf(Library.TYPES["List"]!!)) {
             val list = patternState.value.value as List<Object>
-            if (ast.operator == "+" && list.isEmpty()) {
+            if (ir.operator == "+" && list.isEmpty()) {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
-            return if (ast.pattern is RhovasAst.Pattern.Variable) {
-                val variable = Variable(ast.pattern.name, Library.TYPES["List"]!!)
-                variable.value = Object(Library.TYPES["List"]!!, list)
-                scope.variables.define(variable)
+            return if (ir.pattern is RhovasIr.Pattern.Variable) {
+                ir.pattern.variable.value = Object(Library.TYPES["List"]!!, list)
+                scope.variables.define(ir.pattern.variable)
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
                 Object(Library.TYPES["Boolean"]!!, list.all {
                     patternState = patternState.copy(value = it)
-                    ast.pattern?.let { visit(it).value as Boolean } ?: true
+                    ir.pattern?.let { visit(it).value as Boolean } ?: true
                 })
             }
         } else if (patternState.value.type.isSubtypeOf(Library.TYPES["Object"]!!)) {
             val map = patternState.value.value as Map<String, Object>
-            if (ast.operator == "+" && map.isEmpty()) {
+            if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
-            return if (ast.pattern is RhovasAst.Pattern.Variable) {
-                val variable = Variable(ast.pattern.name, Library.TYPES["Object"]!!)
-                variable.value = Object(Library.TYPES["Object"]!!, map)
-                scope.variables.define(variable)
+            return if (ir.pattern is RhovasIr.Pattern.Variable) {
+                ir.pattern.variable.value = Object(Library.TYPES["Object"]!!, map)
+                scope.variables.define(ir.pattern.variable)
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
                 Object(Library.TYPES["Boolean"]!!, map.all {
                     //TODO: Consider allowing matching on key
                     patternState = patternState.copy(value = it.value)
-                    ast.pattern?.let { visit(it).value as Boolean } ?: true
+                    ir.pattern?.let { visit(it).value as Boolean } ?: true
                 })
             }
         } else {
@@ -580,24 +560,23 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
     }
 
-    override fun visit(ast: RhovasAst.Type): Object {
-        val type = Library.TYPES[ast.name]!!
-        return Object(Library.TYPES["Type"]!!, type)
+    override fun visit(ir: RhovasIr.Type): Object {
+        return Object(Library.TYPES["Type"]!!, ir.type)
     }
 
-    private fun invoke(function: Function, arguments: List<RhovasAst.Expression>, ast: RhovasAst): Object {
+    private fun invoke(function: Function, arguments: List<RhovasIr.Expression>, ir: RhovasIr): Object {
         //TODO: Evaluation/typechecking order
         val evaluated = arguments.map { visit(it) }
         //TODO: Function namespaces
-        return trace("Source.${function.name}/${evaluated.size}", ast.context.first()) {
+        return trace("Source.${function.name}/${evaluated.size}", ir.context?.first()) {
             function.invoke(evaluated)
         }
     }
 
-    private fun invoke(method: Method, receiver: Object, arguments: List<RhovasAst.Expression>, ast: RhovasAst): Object {
+    private fun invoke(method: Method, receiver: Object, arguments: List<RhovasIr.Expression>, ir: RhovasIr): Object {
         val evaluated = arguments.map { visit(it) }
         //TODO: Method namespaces (for inheritance)
-        return trace("${receiver.type.name}.${method.name}/${evaluated.size}", ast.context.first()) {
+        return trace("${receiver.type.name}.${method.name}/${evaluated.size}", ir.context?.first()) {
             method.invoke(receiver, evaluated)
         }
     }
@@ -612,8 +591,9 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
     }
 
-    private fun <T> trace(source: String, range: Input.Range, block: () -> T): T {
-        stacktrace.addLast(stacktrace.removeLast().copy(range = range))
+    private fun <T> trace(source: String, range: Input.Range?, block: () -> T): T {
+        //TODO: RhovasIr context
+        stacktrace.addLast(stacktrace.removeLast().copy(range = range ?: Input.Range(0, 1, 0, 0)))
         stacktrace.addLast(StackFrame(source, Input.Range(0, 1, 0, 0)))
         try {
             return block()
@@ -627,7 +607,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
             null,
             "Broken evaluator invariant.", """
                 This is an internal compiler error, please report this!
-                
+
                 ${Exception().stackTraceToString()}
             """.trimIndent()
         ) }
@@ -639,7 +619,7 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
         }
     }
 
-    fun error(ast: RhovasAst?, summary: String, details: String): EvaluateException {
+    fun error(ast: RhovasIr?, summary: String, details: String): EvaluateException {
         val range = ast?.context?.first() ?: Input.Range(0, 1, 0, 0)
         stacktrace.addLast(stacktrace.removeLast().copy(range = range))
         return EvaluateException(
@@ -654,12 +634,12 @@ class Evaluator(private var scope: Scope) : RhovasAst.Visitor<Object> {
 
     data class Continue(val label: String?): Exception()
 
-    data class Return(val ast: RhovasAst, val value: Object?): Exception()
+    data class Return(val ast: RhovasIr, val value: Object?): Exception()
 
     data class Throw(val exception: Object): Exception()
 
     data class Lambda(
-        val ast: RhovasAst.Expression.Lambda,
+        val ast: RhovasIr.Expression.Lambda,
         val scope: Scope,
         val evaluator: Evaluator,
     ) {

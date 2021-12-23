@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Variable
 import java.lang.reflect.InvocationTargetException
 
 object Reflect {
@@ -32,15 +33,15 @@ object Reflect {
             parameters: Array<String>,
             returns: String
         ): dev.rhovas.interpreter.environment.Function {
-            val parameters = parameters.map { Library.TYPES[it]!! }
+            val parameters = parameters.map { Pair(it, Library.TYPES[it]!!) }
             val returns = Library.TYPES[returns]!!
             val function = Function(name, parameters, returns)
             function.implementation = { arguments ->
                 val transformed = parameters.indices.map {
-                    if (parameters[it] == Library.TYPES["Any"]!!) {
+                    if (parameters[it].second == Library.TYPES["Any"]!!) {
                         arguments[it]
                     } else {
-                        EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it]))
+                        EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second))
                         arguments[it].value
                     }
                 }
