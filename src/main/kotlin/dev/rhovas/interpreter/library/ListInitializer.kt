@@ -72,7 +72,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             "The binary operator == (equals) is not defined by type ${value.type.name}.",
         )
         return instance.any {
-            it.type.isSubtypeOf(method.function.parameters[0].second) && method.invoke(value, listOf(it)).value as Boolean
+            it.type.isSubtypeOf(method.parameters[0].second) && method.invoke(listOf(it)).value as Boolean
         }
     }
 
@@ -157,13 +157,13 @@ object ListInitializer : Library.TypeInitializer("List") {
                 "Undefined binary operator.",
                 "The operator ==/1 (equals) is not defined by type ${it.first.type.name}.",
             )
-            if (it.first.type == it.second.type) method.invoke(it.first, listOf(it.second)).value as Boolean else false
+            if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
         }
     }
 
     @Reflect.Method("toString", returns = "String")
     fun toString(instance: List<Object>): String {
-        return instance.map { it.methods["toString", 0]!!.invoke(it, listOf()).value as String }.toString()
+        return instance.map { it.methods["toString", 0]!!.invoke(listOf()).value as String }.toString()
     }
 
 }

@@ -32,10 +32,10 @@ object Reflect {
             name: String,
             parameters: Array<String>,
             returns: String
-        ): dev.rhovas.interpreter.environment.Function {
+        ): dev.rhovas.interpreter.environment.Function.Definition {
             val parameters = parameters.map { Pair(it, Library.TYPES[it]!!) }
             val returns = Library.TYPES[returns]!!
-            val function = Function(name, parameters, returns)
+            val function = dev.rhovas.interpreter.environment.Function.Definition(name, parameters, returns)
             function.implementation = { arguments ->
                 val transformed = parameters.indices.map {
                     if (parameters[it].second == Library.TYPES["Any"]!!) {
@@ -59,25 +59,25 @@ object Reflect {
             .forEach { method ->
                 val annotation = method.getAnnotation(Property::class.java)
                 val function = function(method, annotation.value, arrayOf(initializer.type.name), annotation.type)
-                initializer.type.methods.define(function)
+                initializer.type.functions.define(function)
             }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Function::class.java) }
             .forEach { method ->
                 val annotation = method.getAnnotation(Function::class.java)
                 val function = function(method, annotation.value, annotation.parameters, annotation.returns)
-                initializer.type.methods.define(function)
+                initializer.type.functions.define(function)
             }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Method::class.java) }
             .forEach { method ->
                 val annotation = method.getAnnotation(Method::class.java)
                 val function = function(method, annotation.value, arrayOf(initializer.type.name) + annotation.parameters, annotation.returns)
-                initializer.type.methods.define(function)
+                initializer.type.functions.define(function)
                 if (annotation.operator.isNotEmpty()) {
                     val overload = function.copy(name = annotation.operator)
                     overload.implementation = function.implementation
-                    initializer.type.methods.define(overload)
+                    initializer.type.functions.define(overload)
                 }
             }
     }

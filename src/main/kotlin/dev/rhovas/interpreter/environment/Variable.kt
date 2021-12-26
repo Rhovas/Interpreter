@@ -1,18 +1,32 @@
 package dev.rhovas.interpreter.environment
 
-data class Variable(
-    val name: String,
-    val type: Type,
+sealed class Variable(
+    open val name: String,
+    open val type: Type,
 ) {
 
-    lateinit var value: Object
+    open class Local(
+        override val name: String,
+        override val type: Type,
+    ) : Variable(name, type) {
 
-    fun get(): Object {
-        return value
+        data class Runtime(
+            val variable: Local,
+            var value: Object,
+        ) : Local(variable.name, variable.type)
+
     }
 
-    fun set(value: Object) {
-        this.value = value
+    data class Property(
+        val getter: Function.Method,
+        val setter: Function.Method?,
+    ) : Variable(getter.name, getter.returns) {
+
+        data class Bound(
+            val getter: Function.Method.Bound,
+            val setter: Function.Method.Bound?,
+        ) : Variable(getter.name, getter.returns)
+
     }
 
 }

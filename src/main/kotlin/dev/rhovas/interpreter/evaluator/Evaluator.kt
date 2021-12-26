@@ -40,9 +40,9 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         ir.function.implementation = { arguments ->
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
-                    val variable = Variable(ir.function.parameters[i].first, ir.function.parameters[i].second)
-                    variable.value = arguments[i]
-                    scope.variables.define(variable)
+                    //TODO: Variable.Parameter class?
+                    val parameter = Variable.Local(ir.function.parameters[i].first, ir.function.parameters[i].second)
+                    scope.variables.define(Variable.Local.Runtime(parameter, arguments[i]))
                 }
                 try {
                     visit(ir.body)
@@ -57,13 +57,13 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration): Object {
-        ir.variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        scope.variables.define(ir.variable)
+        val value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        scope.variables.define(Variable.Local.Runtime(ir.variable, value))
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
-        val variable = scope.variables[ir.variable.name]!!
+        val variable = scope.variables[ir.variable.name]!! as Variable.Local.Runtime
         variable.value = visit(ir.value)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -71,14 +71,14 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     override fun visit(ir: RhovasIr.Statement.Assignment.Property): Object {
         val receiver = visit(ir.receiver)
         val arguments = listOf(visit(ir.value))
-        ir.setter.invoke(receiver, arguments)
+        receiver[ir.property].setter!!.invoke(arguments)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Index): Object {
         val receiver = visit(ir.receiver)
         val arguments = ir.arguments.map { visit(it) } + listOf(visit(ir.value))
-        ir.method.invoke(receiver, arguments)
+        receiver[ir.method].invoke(arguments)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -115,7 +115,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         }
         val case = ir.cases.firstOrNull { predicate.test(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable("_", argument.type)))) { error(
+                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Local("_", argument.type)))) { error(
                     ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
@@ -124,7 +124,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             ?: throw error(
                 ir,
                 "Non-exhaustive structural match patterns.",
-                "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods["toString", 0]!!.invoke(argument, listOf()).value as String}.",
+                "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods["toString", 0]!!.invoke(listOf()).value as String}.",
             )
         scoped(patternState.scope) {
             visit(case.second)
@@ -140,9 +140,8 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             try {
                 scoped(Scope(scope)) {
                     //TODO: Generic types
-                    val variable = Variable(ir.name, Library.TYPES["Any"]!!)
-                    variable.value = element
-                    scope.variables.define(variable)
+                    val variable = Variable.Local(ir.name, Library.TYPES["Any"]!!)
+                    scope.variables.define(Variable.Local.Runtime(variable, element))
                     visit(ir.body)
                 }
             } catch (e: Break) {
@@ -196,9 +195,8 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             ir.catches.firstOrNull()?.let {
                 scoped(Scope(scope)) {
                     //TODO: Exception types
-                    val variable = Variable(it.name, Library.TYPES["Exception"]!!)
-                    variable.value = e.exception
-                    scope.variables.define(variable)
+                    val variable = Variable.Local(it.name, Library.TYPES["Exception"]!!)
+                    scope.variables.define(Variable.Local.Runtime(variable, e.exception))
                     visit(it.body)
                 }
             }
@@ -301,33 +299,21 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     override fun visit(ir: RhovasIr.Expression.Unary): Object {
         val expression = visit(ir.expression)
         val method = expression.methods[ir.operator, 0]!!
-        return method.invoke(expression, listOf())
+        return trace("${expression.type.name}.${ir.operator}/0", ir.context?.first()) {
+            method.invoke(listOf())
+        }
     }
 
     override fun visit(ir: RhovasIr.Expression.Binary): Object {
         val left = visit(ir.left)
         return when (ir.operator) {
-            "||" -> {
-                if (left.value as Boolean) {
-                    Object(Library.TYPES["Boolean"]!!, true)
-                } else {
-                    val right = visit(ir.right)
-                    Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
-                }
-            }
-            "&&" -> {
-                if (left.value as Boolean) {
-                    val right = visit(ir.right)
-                    Object(Library.TYPES["Boolean"]!!, right.value as Boolean)
-                } else {
-                    Object(Library.TYPES["Boolean"]!!, false)
-                }
-            }
+            "||" -> Object(Library.TYPES["Boolean"]!!, left.value as Boolean || visit(ir.right).value as Boolean)
+            "&&" -> Object(Library.TYPES["Boolean"]!!, left.value as Boolean && visit(ir.right).value as Boolean)
             "==", "!=" -> {
-                val method = left.methods["==", 1]!!
                 val right = visit(ir.right)
+                val method = left.methods["==", 1]!!
                 val result = if (right.type.isSubtypeOf(method.parameters[0].second)) {
-                    method.invoke(left, listOf(right)).value as Boolean
+                    method.invoke(listOf(right)).value as Boolean
                 } else false
                 val value = if (ir.operator == "==") result else !result
                 Object(Library.TYPES["Boolean"]!!, value)
@@ -340,8 +326,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "<", ">", "<=", ">=" -> {
-                val method = left.methods["<=>", 1]!!
-                val result = invoke(method, left, listOf(ir.right), ir).value as BigInteger
+                val right = visit(ir.right)
+                val result = trace("${left.type.name}.<=>/1", ir.context?.first()) {
+                    left.methods["<=>", 1]!!.invoke(listOf(right)).value as BigInteger
+                }
                 val value = when (ir.operator) {
                     "<" -> result < BigInteger.ZERO
                     ">" -> result > BigInteger.ZERO
@@ -352,15 +340,18 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 Object(Library.TYPES["Boolean"]!!, value)
             }
             "+", "-", "*", "/" -> {
-                val method = left.methods[ir.operator, 1]!!
-                invoke(method, left, listOf(ir.right), ir)
+                val right = visit(ir.right)
+                trace("${left.type.name}.${ir.operator}/1", ir.context?.first()) {
+                    left.methods[ir.operator, 1]!!.invoke(listOf(right))
+                }
             }
             else -> throw AssertionError()
         }
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Variable): Object {
-        return ir.variable.get()
+        val variable = scope.variables[ir.variable.name] as Variable.Local.Runtime
+        return variable.value
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Property): Object {
@@ -368,17 +359,23 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             receiver
         } else {
-            invoke(ir.method, receiver, listOf(), ir)
+            trace("${receiver.type.name}.${ir.property.name}/0", ir.context?.first()) {
+                receiver[ir.property].getter.invoke(listOf())
+            }
         }
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Index): Object {
         val receiver = visit(ir.receiver)
-        return invoke(ir.method, receiver, ir.arguments, ir)
+        val arguments = ir.arguments.map { visit(it) }
+        return trace("${receiver.type.name}.[]/${arguments.size}", ir.context?.first()) {
+            receiver[ir.method].invoke(arguments)
+        }
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
-        return invoke(ir.function, ir.arguments, ir)
+        val arguments = ir.arguments.map { visit(it) }
+        return ir.function.invoke(arguments)
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Method): Object {
@@ -386,7 +383,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             Object(Library.TYPES["Null"]!!, null)
         } else {
-            val result = invoke(ir.method, receiver, ir.arguments, ir)
+            val arguments = ir.arguments.map { visit(it) }
+            val result = trace("${receiver.type.name}.[]/${arguments.size}", ir.context?.first()) {
+                receiver[ir.method].invoke(arguments)
+            }
             return if (ir.cascade) receiver else result
         }
     }
@@ -396,19 +396,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             Object(Library.TYPES["Null"]!!, null)
         } else {
-            val result = if (ir.qualifier == null) {
-                val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
-                trace("Source.${ir.function.name}/${arguments.size}", ir.context?.first()) {
-                    ir.function.invoke(arguments)
-                }
-            } else {
-                val qualifier = visit(ir.qualifier)
-                val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
-                trace("${qualifier.type.name}.${ir.function.name}/${arguments.size}", ir.context?.first()) {
-                    ir.function.invoke(listOf(qualifier) + arguments)
-                }
+            val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
+            return trace("Source.${ir.function.name}/${arguments.size}", ir.context?.first()) {
+                val result = ir.function.invoke(arguments)
+                if (ir.cascade) receiver else result
             }
-            return if (ir.cascade) receiver else result
         }
     }
 
@@ -430,19 +422,15 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
-        if (ir.variable.name != "_") {
-            ir.variable.value = patternState.value
-            patternState.scope.variables.define(ir.variable)
-        }
+        ir.variable?.let { patternState.scope.variables.define(Variable.Local.Runtime(it, patternState.value)) }
         return Object(Library.TYPES["Boolean"]!!, true)
     }
 
     override fun visit(ir: RhovasIr.Pattern.Value): Object {
         val value = visit(ir.value)
-        val method = value.methods["==", 1]!!
-        val result = if (value.type == patternState.value.type) {
-            trace("${value.type.name}.${method.name}/1", ir.context?.first()) {
-                method.invoke(value, listOf(patternState.value)).value as Boolean
+        val result = if (value.type.isSubtypeOf(patternState.value.type)) {
+            trace("${value.type.name}.==/1", ir.context?.first()) {
+                value.methods["==", 1]!!.invoke(listOf(patternState.value)).value as Boolean
             }
         } else false
         return Object(Library.TYPES["Boolean"]!!, result)
@@ -503,9 +491,8 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                     return Object(Library.TYPES["Boolean"]!!, false)
                 }
             } else {
-                val variable = Variable(key, value.type)
-                variable.value = value
-                patternState.scope.variables.define(variable)
+                val variable = Variable.Local(key, value.type)
+                patternState.scope.variables.define(Variable.Local.Runtime(variable, value))
             }
         }
         if (!vararg && map.size != named.size) {
@@ -528,8 +515,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable.value = Object(Library.TYPES["List"]!!, list)
-                scope.variables.define(ir.pattern.variable)
+                ir.pattern.variable?.let { scope.variables.define(Variable.Local.Runtime(it, Object(Library.TYPES["List"]!!, list))) }
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
@@ -544,8 +530,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable.value = Object(Library.TYPES["Object"]!!, map)
-                scope.variables.define(ir.pattern.variable)
+                ir.pattern.variable?.let { scope.variables.define(Variable.Local.Runtime(it, Object(Library.TYPES["Object"]!!, map))) }
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
@@ -562,23 +547,6 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     override fun visit(ir: RhovasIr.Type): Object {
         return Object(Library.TYPES["Type"]!!, ir.type)
-    }
-
-    private fun invoke(function: Function, arguments: List<RhovasIr.Expression>, ir: RhovasIr): Object {
-        //TODO: Evaluation/typechecking order
-        val evaluated = arguments.map { visit(it) }
-        //TODO: Function namespaces
-        return trace("Source.${function.name}/${evaluated.size}", ir.context?.first()) {
-            function.invoke(evaluated)
-        }
-    }
-
-    private fun invoke(method: Method, receiver: Object, arguments: List<RhovasIr.Expression>, ir: RhovasIr): Object {
-        val evaluated = arguments.map { visit(it) }
-        //TODO: Method namespaces (for inheritance)
-        return trace("${receiver.type.name}.${method.name}/${evaluated.size}", ir.context?.first()) {
-            method.invoke(receiver, evaluated)
-        }
     }
 
     private fun <T> scoped(scope: Scope, block: () -> T): T {
@@ -653,19 +621,19 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                         Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
                     }
                     for (i in parameters.indices) {
-                        val variable = Variable(parameters[i].first, parameters[i].second)
-                        variable.value = arguments[i].third
+                        val variable = Variable.Local(parameters[i].first, parameters[i].second)
+                        val value = arguments[i].third
                         evaluator.scope.variables.define(variable)
                     }
                 } else if (arguments.size == 1) {
                     //TODO: entry name is (intentionally) unused
-                    val variable = Variable("val", arguments[0].second)
-                    variable.value = arguments[0].third
-                    evaluator.scope.variables.define(variable)
+                    val variable = Variable.Local("val", arguments[0].second)
+                    val value = arguments[0].third
+                    evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
                 } else {
-                    val variable = Variable("val", Library.TYPES["Object"]!!)
-                    variable.value = Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })
-                    evaluator.scope.variables.define(variable)
+                    val variable = Variable.Local("val", Library.TYPES["Object"]!!)
+                    val value = Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })
+                    evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
                 }
                 try {
                     evaluator.visit(ast.body)

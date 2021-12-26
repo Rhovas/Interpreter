@@ -8,18 +8,30 @@ data class Object(
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
 
+    operator fun get(property: Variable.Property): Variable.Property.Bound {
+        return properties[property.name]!!
+    }
+
+    operator fun get(method: Function.Method): Function.Method.Bound {
+        return methods[method.name, method.parameters.size]!!
+    }
+
     inner class PropertiesDelegate {
 
-        operator fun get(name: String): Property? {
-            return type.methods[name, 1]?.let { Property(Method(it), type.methods[name, 2]?.let { Method(it) }) }
+        operator fun get(name: String): Variable.Property.Bound? {
+            return methods[name, 0]?.let { getter ->
+                Variable.Property.Bound(getter, methods[name, 1])
+            }
         }
 
     }
 
     inner class MethodsDelegate {
 
-        operator fun get(name: String, arity: Int): Method? {
-            return type.methods[name, arity + 1]?.let { Method(it) }
+        operator fun get(name: String, arity: Int): Function.Method.Bound? {
+            return type.functions[name, 1 + arity]?.let { function ->
+                Function.Method.Bound(this@Object, function as Function.Definition)
+            }
         }
 
     }
