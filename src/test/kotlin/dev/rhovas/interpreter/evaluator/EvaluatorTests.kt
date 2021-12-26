@@ -1210,10 +1210,9 @@ class EvaluatorTests {
                     Arguments.of("Lambda", """
                         [1, 2, 3].for { log(val); }
                     """.trimIndent(), "123"),
-                    //TODO: Parameter type inference
-                    /*Arguments.of("Return", """
+                    Arguments.of("Return", """
                         log([1, 2, 3].map { return val * val; })
-                    """.trimIndent(), "[1, 4, 9]")*/
+                    """.trimIndent(), "[1, 4, 9]")
                     //TODO: Lambda scoping
                 )
             }
@@ -1341,8 +1340,7 @@ class EvaluatorTests {
                             else: log(2);
                         }
                     """.trimIndent(), "2"),
-                    //TODO: Requires type inference
-                    /*Arguments.of("Variable True", """
+                    Arguments.of("Variable True", """
                         match (0) {
                             num ${'$'}{num == 0}: log(1);
                         }
@@ -1355,15 +1353,15 @@ class EvaluatorTests {
                     """.trimIndent(), "2"),
                     Arguments.of("Vararg True", """
                         match ([]) {
-                            list* ${'$'}{list == []}: log(1);
+                            [list*] ${'$'}{list == []}: log(1);
                         }
                     """.trimIndent(), "1"),
                     Arguments.of("Vararg False", """
                         match ([1]) {
-                            list* ${'$'}{list == []}: log(1);
+                            [list*] ${'$'}{list == []}: log(1);
                             else: log(2);
                         }
-                    """.trimIndent(), "2"),*/
+                    """.trimIndent(), "2"),
                 )
             }
 

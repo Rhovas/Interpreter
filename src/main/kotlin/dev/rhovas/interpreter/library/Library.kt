@@ -10,6 +10,7 @@ object Library {
 
     fun initialize() {
         TYPES["Any"] = Type("Any", Scope(null))
+        TYPES["Dynamic"] = Type("Dynamic", Scope(null))
         TYPES["Type"] = Type("Type", Scope(null))
         val initializers = listOf(
             KernelInitializer,

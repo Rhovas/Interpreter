@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.library.Library
+
 data class Type(
     val name: String,
     private val scope: Scope,
@@ -11,7 +13,7 @@ data class Type(
     val methods = MethodsDelegate()
 
     fun isSubtypeOf(type: Type): Boolean {
-        return type.name == "Any" || type.name == name
+        return name == type.name || type.name == "Any" || name == "Dynamic" || type.name == "Dynamic"
     }
 
     override fun toString(): String {
@@ -31,8 +33,12 @@ data class Type(
     inner class MethodsDelegate {
 
         operator fun get(name: String, arity: Int): Function.Method? {
-            return functions[name, 1 + arity]?.let {
-                Function.Method(it.name, it.parameters.subList(1, it.parameters.size), it.returns)
+            return if (this@Type.name == "Dynamic") {
+                Function.Method(name, 0.until(arity).map { Pair("val_${it}", this@Type) }, this@Type)
+            } else {
+                functions[name, 1 + arity]?.let {
+                    Function.Method(it.name, it.parameters.subList(1, it.parameters.size), it.returns)
+                }
             }
         }
 

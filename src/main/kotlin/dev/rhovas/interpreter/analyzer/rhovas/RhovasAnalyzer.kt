@@ -43,8 +43,8 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Redefined function.",
             "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
         ) }
-        val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
-        val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!!
+        val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!) }
+        val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
         val function = Function.Definition(ast.name, parameters, returns)
         scope.functions.define(function)
         //TODO: Validate thrown exceptions
@@ -203,7 +203,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         ) }
         return scoped(Scope(scope)) {
             //TODO: Generic types
-            scope.variables.define(Variable.Local(ast.name, Library.TYPES["Any"]!!))
+            scope.variables.define(Variable.Local(ast.name, Library.TYPES["Dynamic"]!!))
             val body = visit(ast.body)
             RhovasIr.Statement.For(ast.name, argument, body)
         }
@@ -548,9 +548,9 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
         val body = scoped(Scope(scope)) {
             if (parameters.isNotEmpty()) {
-                parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Any"]!!)) }
+                parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!)) }
             } else {
-                scope.variables.define(Variable.Local("val", Library.TYPES["Any"]!!))
+                scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!))
             }
             visit(ast.body)
         }
@@ -578,7 +578,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
         //TODO: Validate variable name
         //TODO: Infer type
-        val variable = if (ast.name != "_") Variable.Local(ast.name, Library.TYPES["Any"]!!) else null
+        val variable = if (ast.name != "_") Variable.Local(ast.name, Library.TYPES["Dynamic"]!!) else null
         variable?.let { scope.variables.define(it) }
         return RhovasIr.Pattern.Variable(variable)
     }
@@ -644,7 +644,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             } else if (it.value.second != null) {
                 visit(it.value.second!!)
             } else {
-                scope.variables.define(Variable.Local(it.value.first, Library.TYPES["Any"]!!))
+                scope.variables.define(Variable.Local(it.value.first, Library.TYPES["Dynamic"]!!))
                 null
             }
             Pair(it.value.first, pattern)

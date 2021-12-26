@@ -8,12 +8,12 @@ data class Object(
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
 
-    operator fun get(property: Variable.Property): Variable.Property.Bound {
-        return properties[property.name]!!
+    operator fun get(property: Variable.Property): Variable.Property.Bound? {
+        return properties[property.name]
     }
 
-    operator fun get(method: Function.Method): Function.Method.Bound {
-        return methods[method.name, method.parameters.size]!!
+    operator fun get(method: Function.Method): Function.Method.Bound? {
+        return methods[method.name, method.parameters.size]
     }
 
     inner class PropertiesDelegate {
