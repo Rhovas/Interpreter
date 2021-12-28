@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
@@ -664,11 +665,25 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Type): RhovasIr.Type {
-        val type = Library.TYPES[ast.name] ?: throw error(
+        val base = Library.TYPES[ast.name] ?: throw error(
             ast,
             "Undefined type.",
             "The type ${ast.name} is not defined."
         )
+        val generics = ast.generics?.map { visit(ast).type } ?: listOf()
+        require(base.generics.size == generics.size) { error(
+            ast,
+            "Invalid generic parameters.",
+            "The type ${base.name} requires ${base.generics.size} generic parameters, but received ${generics.size}.",
+        ) }
+        for (i in generics.indices) {
+            require(generics[i].isSubtypeOf(base.generics[i].bound)) { error(
+                ast.generics!![i],
+                "Invalid generic parameter.",
+                "The type ${base.name} requires generic parameter ${i} to be type ${base.generics[i].bound.name}, but received ${generics[i].name}.",
+            ) }
+        }
+        val type = Type.Reference(base, generics)
         return RhovasIr.Type(type)
     }
 

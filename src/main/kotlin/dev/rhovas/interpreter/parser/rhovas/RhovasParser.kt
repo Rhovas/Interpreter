@@ -12,6 +12,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "statement" -> parseStatement()
             "expression" -> parseExpression()
             "pattern" -> parsePattern()
+            "type" -> parseType()
             "interpolation" -> parseInterpolation()
             else -> throw AssertionError()
         }.also { require(rule == "interpolation" || tokens[0] == null) {
@@ -870,7 +871,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     private fun parseType(): RhovasAst.Type {
         val name = parseIdentifier { "A type requires a name, as in `Type`." }
-        return RhovasAst.Type(name).also {
+        var generics: MutableList<RhovasAst.Type>? = null
+        if (match("<")) {
+            generics = mutableListOf()
+            while (!match(">")) {
+                generics.add(parseType())
+                require(match(",") || peek(">")) { error(
+                    "Expected closing bracket or comma.",
+                    "A generic parameter must be followed by a closing bracket `>` or comma `,`, as in `Type<T>` or `Type<X, Y, Z>`",
+                ) }
+            }
+        }
+        return RhovasAst.Type(name, generics).also {
             it.context = listOf(tokens[-1]!!.range)
         }
     }

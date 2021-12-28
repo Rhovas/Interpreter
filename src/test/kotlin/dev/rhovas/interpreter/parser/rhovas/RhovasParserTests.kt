@@ -137,13 +137,13 @@ class RhovasParserTests {
                         RhovasAst.Statement.Function("name", listOf("first" to null, "second" to null, "third" to null), null, block()),
                     ),
                     Arguments.of("Typed Parameter", "func name(parameter: Type) {}",
-                        RhovasAst.Statement.Function("name", listOf("parameter" to RhovasAst.Type("Type")), null, block()),
+                        RhovasAst.Statement.Function("name", listOf("parameter" to RhovasAst.Type("Type", null)), null, block()),
                     ),
                     Arguments.of("Trailing Comma", "func name(parameter,) {}",
                         RhovasAst.Statement.Function("name", listOf("parameter" to null), null, block()),
                     ),
                     Arguments.of("Return Type", "func name(): Type {}",
-                        RhovasAst.Statement.Function("name", listOf(), RhovasAst.Type("Type"), block()),
+                        RhovasAst.Statement.Function("name", listOf(), RhovasAst.Type("Type", null), block()),
                     ),
                     Arguments.of("Missing Name", "func () {}", null),
                     Arguments.of("Missing Parenthesis", "func name {}", null),
@@ -173,7 +173,7 @@ class RhovasParserTests {
                         RhovasAst.Statement.Declaration(true, "name", null, null),
                     ),
                     Arguments.of("Type", "val name: Type;",
-                        RhovasAst.Statement.Declaration(false, "name", RhovasAst.Type("Type"), null),
+                        RhovasAst.Statement.Declaration(false, "name", RhovasAst.Type("Type", null), null),
                     ),
                     Arguments.of("Value", "var name = value;",
                         RhovasAst.Statement.Declaration(true, "name", null, expression("value")),
@@ -1280,7 +1280,7 @@ class RhovasParserTests {
                     ),
                     Arguments.of("Typed Parameter", "function |parameter: Type| {}",
                         RhovasAst.Expression.Invoke.Function("function", listOf(
-                            RhovasAst.Expression.Lambda(listOf("parameter" to RhovasAst.Type("Type")), block()),
+                            RhovasAst.Expression.Lambda(listOf("parameter" to RhovasAst.Type("Type", null)), block()),
                         )),
                     ),
                     Arguments.of("Trailing Comma", "function |parameter,| {}",
@@ -1570,6 +1570,35 @@ class RhovasParserTests {
                 )
             }
 
+        }
+
+    }
+
+    @Nested
+    inner class TypeTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testType(name: String, input: String, expected: RhovasAst) {
+            test("type", input, expected)
+        }
+
+        fun testType(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Type", "Type", RhovasAst.Type("Type", null)),
+                Arguments.of("Empty Generics", "Type<>", RhovasAst.Type("Type", listOf())),
+                Arguments.of("Single Generic", "Type<Generic>", RhovasAst.Type("Type", listOf(
+                    RhovasAst.Type("Generic", null),
+                ))),
+                Arguments.of("Multiple Generics", "Type<First, Second, Third>", RhovasAst.Type("Type", listOf(
+                    RhovasAst.Type("First", null),
+                    RhovasAst.Type("Second", null),
+                    RhovasAst.Type("Third", null),
+                ))),
+                Arguments.of("Trailing Comma", "Type<Generic,>", RhovasAst.Type("Type", listOf(
+                    RhovasAst.Type("Generic", null),
+                ))),
+            )
         }
 
     }

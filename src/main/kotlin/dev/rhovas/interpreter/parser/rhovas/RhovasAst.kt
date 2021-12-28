@@ -253,6 +253,7 @@ sealed class RhovasAst {
 
     data class Type(
         val name: String,
+        val generics: List<Type>?,
     ) : RhovasAst()
 
     data class Atom(val name: String)
