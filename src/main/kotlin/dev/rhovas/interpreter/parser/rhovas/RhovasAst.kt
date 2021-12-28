@@ -10,7 +10,7 @@ sealed class RhovasAst {
         val statements: List<Statement>,
     ) : RhovasAst()
 
-    sealed class Statement: RhovasAst() {
+    sealed class Statement : RhovasAst() {
 
         data class Block(
             val statements: List<Statement>,
@@ -45,7 +45,7 @@ sealed class RhovasAst {
             val elseStatement: Statement?,
         ) : Statement()
 
-        sealed class Match: Statement() {
+        sealed class Match : Statement() {
 
             data class Conditional(
                 val cases: List<Pair<RhovasAst.Expression, Statement>>,
@@ -129,11 +129,11 @@ sealed class RhovasAst {
 
     }
 
-    sealed class Expression: RhovasAst() {
+    sealed class Expression : RhovasAst() {
 
         data class Literal(
             val value: Any?,
-        ): Expression()
+        ) : Expression()
 
         data class Group(
             val expression: Expression,
@@ -242,7 +242,7 @@ sealed class RhovasAst {
         data class TypedDestructure(
             val type: Type,
             val pattern: Pattern?,
-        ): Pattern()
+        ) : Pattern()
 
         data class VarargDestructure(
             val pattern: Pattern?,

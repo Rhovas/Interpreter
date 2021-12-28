@@ -29,8 +29,8 @@ data class Object(
     inner class MethodsDelegate {
 
         operator fun get(name: String, arity: Int): Function.Method.Bound? {
-            return type.functions[name, 1 + arity]?.let { function ->
-                Function.Method.Bound(this@Object, function as Function.Definition)
+            return type.functions[name, 1 + arity]?.let {
+                Function.Method.Bound(this@Object, it)
             }
         }
 

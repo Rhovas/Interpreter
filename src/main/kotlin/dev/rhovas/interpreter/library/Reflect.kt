@@ -59,25 +59,25 @@ object Reflect {
             .forEach { method ->
                 val annotation = method.getAnnotation(Property::class.java)
                 val function = function(method, annotation.value, arrayOf(initializer.type.name), annotation.type)
-                initializer.type.functions.define(function)
+                initializer.type.scope.functions.define(function)
             }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Function::class.java) }
             .forEach { method ->
                 val annotation = method.getAnnotation(Function::class.java)
                 val function = function(method, annotation.value, annotation.parameters, annotation.returns)
-                initializer.type.functions.define(function)
+                initializer.type.scope.functions.define(function)
             }
         initializer.javaClass.methods
             .filter { it.isAnnotationPresent(Method::class.java) }
             .forEach { method ->
                 val annotation = method.getAnnotation(Method::class.java)
                 val function = function(method, annotation.value, arrayOf(initializer.type.name) + annotation.parameters, annotation.returns)
-                initializer.type.functions.define(function)
+                initializer.type.scope.functions.define(function)
                 if (annotation.operator.isNotEmpty()) {
                     val overload = function.copy(name = annotation.operator)
                     overload.implementation = function.implementation
-                    initializer.type.functions.define(overload)
+                    initializer.type.scope.functions.define(overload)
                 }
             }
     }

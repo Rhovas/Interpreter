@@ -9,9 +9,9 @@ object Library {
     val SCOPE: Scope = Scope(null)
 
     fun initialize() {
-        TYPES["Any"] = Type("Any", Scope(null))
-        TYPES["Dynamic"] = Type("Dynamic", Scope(null))
-        TYPES["Type"] = Type("Type", Scope(null))
+        TYPES["Any"] = Type.Base("Any", listOf(), listOf(), Scope(null))
+        TYPES["Dynamic"] = Type.Base("Dynamic", listOf(), listOf(), Scope(null))
+        TYPES["Type"] = Type.Base("Type", listOf(), listOf(), Scope(null))
         val initializers = listOf(
             KernelInitializer,
             VoidInitializer,
@@ -38,7 +38,7 @@ object Library {
         scope: Scope = Scope(null),
     ) {
 
-        val type = Type(name, scope)
+        val type = Type.Base(name, listOf(), listOf(), scope)
 
         open fun initialize() {}
 
