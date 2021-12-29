@@ -184,7 +184,7 @@ class EvaluatorTests {
                             Object(Library.TYPES["Void"]!!, Unit)
                         }
                         it.functions.define(setter)
-                    })
+                    }).reference
                     it.variables.define(Variable.Local.Runtime(
                         Variable.Local("object", type),
                         Object(type, mutableMapOf(
@@ -210,8 +210,8 @@ class EvaluatorTests {
                         Object(Library.TYPES["String"]!!, "initial"),
                     ))
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("list", Library.TYPES["List"]!!),
-                        Object(Library.TYPES["List"]!!, mutableListOf(
+                        Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
                             Object(Library.TYPES["String"]!!, "initial"),
                         )),
                     ))
@@ -694,15 +694,15 @@ class EvaluatorTests {
             fun testList(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Empty", "[]",
-                        Object(Library.TYPES["List"]!!, listOf<Object>()),
+                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf<Object>()),
                     ),
                     Arguments.of("Single", "[1]",
-                        Object(Library.TYPES["List"]!!, listOf(
+                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                         )),
                     ),
                     Arguments.of("Multiple", "[1, 2, 3]",
-                        Object(Library.TYPES["List"]!!, listOf(
+                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                             Object(Library.TYPES["Integer"]!!, BigInteger("2")),
                             Object(Library.TYPES["Integer"]!!, BigInteger("3")),
@@ -932,7 +932,7 @@ class EvaluatorTests {
                         Object(Library.TYPES["String"]!!, "firstsecond"),
                     ),
                     Arguments.of("List Concat", "[1] + [2]",
-                        Object(Library.TYPES["List"]!!, listOf(
+                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                             Object(Library.TYPES["Integer"]!!, BigInteger("2")),
                         )),
@@ -984,7 +984,7 @@ class EvaluatorTests {
                                 (arguments[0].value as Map<String, Object>)["property"]!!
                             }
                             it.functions.define(property)
-                        })
+                        }).reference
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("object", type),
                             Object(type, mapOf(
@@ -1021,8 +1021,8 @@ class EvaluatorTests {
                             Object(Library.TYPES["String"]!!, "variable"),
                         ))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("list", Library.TYPES["List"]!!),
-                            Object(Library.TYPES["List"]!!, mutableListOf(
+                            Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                            Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
                                 Object(Library.TYPES["String"]!!, "element"),
                             )),
                         ))
@@ -1095,7 +1095,7 @@ class EvaluatorTests {
                                 arguments[1]
                             }
                             it.functions.define(function)
-                        })
+                        }).reference
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("object", type),
                             Object(type, mapOf(
@@ -1138,7 +1138,7 @@ class EvaluatorTests {
                                 arguments[1]
                             }
                             it.functions.define(function)
-                        })
+                        }).reference
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("object", type),
                             Object(type, mapOf(
@@ -1152,7 +1152,7 @@ class EvaluatorTests {
                                 arguments[0]
                             }
                             it.functions.define(function)
-                        })
+                        }).reference
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("Qualified", qualified),
                             Object(qualified, Unit),
@@ -1163,7 +1163,7 @@ class EvaluatorTests {
                 fun testPipeline(): Stream<Arguments> {
                     return Stream.of(
                         Arguments.of("Pipeline", "1.|range(2, :incl)",
-                            Object(Library.TYPES["List"]!!, listOf(
+                            Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!)), listOf(
                                 Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                                 Object(Library.TYPES["Integer"]!!, BigInteger("2")),
                             )),

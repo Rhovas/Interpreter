@@ -5,13 +5,13 @@ import dev.rhovas.interpreter.environment.Type
 
 object Library {
 
-    val TYPES = mutableMapOf<String, Type.Base>()
+    val TYPES = mutableMapOf<String, Type.Reference>()
     val SCOPE: Scope = Scope(null)
 
     fun initialize() {
-        TYPES["Any"] = Type.Base("Any", listOf(), listOf(), Scope(null))
-        TYPES["Dynamic"] = Type.Base("Dynamic", listOf(), listOf(), Scope(null))
-        TYPES["Type"] = Type.Base("Type", listOf(), listOf(), Scope(null))
+        TYPES["Any"] = Type.Base("Any", listOf(), listOf(), Scope(null)).reference
+        TYPES["Dynamic"] = Type.Base("Dynamic", listOf(), listOf(), Scope(null)).reference
+        TYPES["Type"] = Type.Base("Type", listOf(), listOf(), Scope(null)).reference
         val initializers = listOf(
             KernelInitializer,
             VoidInitializer,
@@ -26,21 +26,22 @@ object Library {
             LambdaInitializer,
             ExceptionInitializer,
         )
-        initializers.forEach { TYPES[it.name] = it.type }
+        initializers.forEach { TYPES[it.name] = it.type.reference }
         initializers.forEach {
             Reflect.initialize(it)
             it.initialize()
         }
+        KernelInitializer.scope.functions.collect().values.forEach { SCOPE.functions.define(it) }
     }
 
-    abstract class TypeInitializer(
-        val name: String,
-        scope: Scope = Scope(null),
-    ) {
+    abstract class TypeInitializer(val name: String) {
 
-        val type = Type.Base(name, listOf(), listOf(), scope)
+        val generics = mutableListOf<Type.Generic>()
+        val inherits = mutableListOf<Type>()
+        val scope = Scope(null)
+        val type = Type.Base(name, generics, inherits, scope)
 
-        open fun initialize() {}
+        abstract fun initialize()
 
     }
 

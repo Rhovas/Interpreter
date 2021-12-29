@@ -1,7 +1,7 @@
 package dev.rhovas.interpreter.environment
 
 sealed class Type(
-    open val name: String,
+    open val base: Base,
 ) {
 
     val functions = FunctionsDelegate()
@@ -43,34 +43,35 @@ sealed class Type(
     }
 
     data class Base(
-        override val name: String,
+        val name: String,
         val generics: List<Generic>,
         val inherits: List<Type>,
         val scope: Scope,
-    ) : Type(name) {
+    ) {
 
-        override fun getFunction(name: String, arity: Int): Function.Definition? {
-            return Reference(this, generics).getFunction(name, arity)
+        val reference = Reference(this, generics)
+
+        override fun toString(): String {
+            //TODO: Descriptor printing
+            return "Base(" +
+                    "name='$name', " +
+                    "generics=$generics, " +
+                    "inherits=$inherits, " +
+                    "scope=$scope, " +
+                    ")"
         }
 
-        override fun bind(parameters: Map<String, Type>): Reference {
-            return Reference(this, generics).bind(parameters)
-        }
-
-        override fun isSubtypeOf(other: Type): Boolean {
-            return Reference(this, generics).isSubtypeOf(other)
-        }
 
     }
 
     data class Reference(
-        val base: Base,
+        override val base: Base,
         val generics: List<Type>,
-    ) : Type(base.name) {
+    ) : Type(base) {
 
         override fun getFunction(name: String, arity: Int): Function.Definition? {
             return if (base.name == "Dynamic") {
-                Function.Definition(name, 0.until(arity).map { Pair("val_${it}", base) }, base)
+                Function.Definition(name, 0.until(arity).map { Pair("val_${it}", this) }, this)
             } else {
                 base.scope.functions[name, arity]?.let { function ->
                     val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
@@ -91,9 +92,8 @@ sealed class Type(
 
         override fun isSubtypeOf(other: Type): Boolean {
             return when (other) {
-                is Base -> isSubtypeOf(Reference(other, other.generics))
                 is Reference -> {
-                    if (base.name == "Dynamic" || other.name == "Dynamic" || other.name == "Any") {
+                    if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
                         return true
                     } else if (base.name == other.base.name) {
                         generics.zip(other.generics).all { it.first.isSubtypeOf(it.second) }
@@ -102,16 +102,20 @@ sealed class Type(
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other) }
                     }
                 }
-                is Generic -> false
+                is Generic -> base.name == "Dynamic"
             }
+        }
+
+        override fun toString(): String {
+            return "${base.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
         }
 
     }
 
     data class Generic(
-        override val name: String,
+        val name: String,
         val bound: Type,
-    ) : Type(name) {
+    ) : Type(bound.base) {
 
         override fun getFunction(name: String, arity: Int): Function.Definition? {
             return bound.getFunction(name, arity)
@@ -128,6 +132,9 @@ sealed class Type(
             }
         }
 
+        override fun toString(): String {
+            return "${name}: ${bound}"
+        }
     }
 
 }

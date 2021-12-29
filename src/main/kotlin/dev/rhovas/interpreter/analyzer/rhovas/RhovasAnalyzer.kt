@@ -92,7 +92,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 require(value.type.isSubtypeOf(variable.type)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The variable ${variable.name} requires the value to be type ${variable.type.name}, but received ${value.type.name}.",
+                    "The variable ${variable.name} requires the value to be type ${variable.type}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Variable(variable, value)
             }
@@ -108,30 +108,31 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 require(value.type.isSubtypeOf(receiver.property.type)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The property ${receiver.property.name} requires the value to be type ${receiver.property.type.name}, but received ${value.type.name}.",
+                    "The property ${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value)
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
+                println(receiver.type)
                 val method = receiver.type.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
                     ast,
                     "Undefined method.",
-                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} is not defined.",
+                    "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} is not defined.",
                 )
                 val arguments = ast.receiver.arguments.map { visit(it) }
                 for (i in arguments.indices) {
                     require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
                         ast.receiver.arguments[i],
                         "Invalid method argument type.",
-                        "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
+                        "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
                     ) }
                 }
                 val value = visit(ast.value)
                 require(value.type.isSubtypeOf(method.parameters.last().second)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The method ${receiver.type.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().second.name}, but received ${value.type.name}.",
+                    "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().second}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Index(receiver, method, arguments, value)
             }
@@ -144,7 +145,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.condition,
             "Invalid if condition type.",
-            "An if statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            "An if statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val thenStatement = visit(ast.thenStatement)
         val elseStatement = ast.elseStatement?.let { visit(it) }
@@ -157,7 +158,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
                 ast,
                 "Invalid match condition type.",
-                "A conditional match statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+                "A conditional match statement requires the condition to be type Boolean, but received ${condition.type}.",
             ) }
             return condition
         }
@@ -200,11 +201,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(argument.type.isSubtypeOf(Library.TYPES["List"]!!)) { error(
             ast.argument,
             "Invalid for loop argument type.",
-            "A for loop requires the argument to be type List, but received ${argument.type.name}.",
+            "A for loop requires the argument to be type List, but received ${argument.type}.",
         ) }
+        //TODO: Proper generic type access
+        val type = argument.type.methods["get", 1]!!.returns
         return scoped(Scope(scope)) {
             //TODO: Generic types
-            scope.variables.define(Variable.Local(ast.name, Library.TYPES["Dynamic"]!!))
+            scope.variables.define(Variable.Local(ast.name, type))
             val body = visit(ast.body)
             RhovasIr.Statement.For(ast.name, argument, body)
         }
@@ -215,7 +218,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.condition,
             "Invalid while condition type.",
-            "An while statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val body = visit(ast.body)
         return RhovasIr.Statement.While(condition, body)
@@ -280,7 +283,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(exception.type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
             ast.exception,
             "Invalid throw expression type.",
-            "An throw statement requires the expression to be type Exception, but received ${exception.type.name}.",
+            "An throw statement requires the expression to be type Exception, but received ${exception.type}.",
         ) }
         return RhovasIr.Statement.Throw(exception)
     }
@@ -290,13 +293,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.condition,
             "Invalid assert condition type.",
-            "An assert statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            "An assert statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it) }
         require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
             ast.message,
             "Invalid assert message type.",
-            "An assert statement requires the message to be type String, but received ${message!!.type.name}.",
+            "An assert statement requires the message to be type String, but received ${message!!.type}.",
         ) }
         return RhovasIr.Statement.Assert(condition, message)
     }
@@ -306,13 +309,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.condition,
             "Invalid require condition type.",
-            "A require statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            "A require statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it) }
         require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
             ast.message,
             "Invalid require message type.",
-            "A require statement requires the message to be type String, but received ${message!!.type.name}.",
+            "A require statement requires the message to be type String, but received ${message!!.type}.",
         ) }
         return RhovasIr.Statement.Require(condition, message)
     }
@@ -322,13 +325,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         require(condition.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.condition,
             "Invalid ensure condition type.",
-            "An ensure statement requires the condition to be type Boolean, but received ${condition.type.name}.",
+            "An ensure statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it) }
         require(message == null || message.type.isSubtypeOf(Library.TYPES["String"]!!)) { error(
             ast.message,
             "Invalid ensure message type.",
-            "An ensure statement requires the message to be type String, but received ${message!!.type.name}.",
+            "An ensure statement requires the message to be type String, but received ${message!!.type}.",
         ) }
         return RhovasIr.Statement.Ensure(condition, message)
     }
@@ -341,7 +344,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         return when (ast.value) {
             is List<*> -> {
                 val value = (ast.value as List<RhovasAst.Expression>).map { visit(it) }
-                RhovasIr.Expression.Literal(value, Library.TYPES["List"]!!)
+                RhovasIr.Expression.Literal(value, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)))
             }
             is Map<*, *> -> {
                 val value = (ast.value as Map<String, RhovasAst.Expression>).mapValues { visit(it.value) }
@@ -372,7 +375,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val method = expression.type.methods[ast.operator, 0] ?: throw error(
             ast,
             "Undefined method.",
-            "The method ${expression.type.name}.${ast.operator}/0 is not defined.",
+            "The method ${expression.type.base.name}.${ast.operator}/0 is not defined.",
         )
         return RhovasIr.Expression.Unary(ast.operator, expression, method)
     }
@@ -385,12 +388,12 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 require(left.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
                     ast.left,
                     "Invalid binary operand.",
-                    "A logical binary expression requires the left operand to be type Boolean, but received ${left.type.name}.",
+                    "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
                 require(right.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
                     ast.right,
                     "Invalid binary operand.",
-                    "A logical binary expression requires the left operand to be type Boolean, but received ${left.type.name}.",
+                    "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
                 Library.TYPES["Boolean"]!!
             }
@@ -398,7 +401,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 require(left.type.methods["==", 1] != null) { error(
                     ast,
                     "Undefined method.",
-                    "The method ${left.type.name}.==/1 is not defined.",
+                    "The method ${left.type.base.name}.==/1 is not defined.",
                 ) }
                 Library.TYPES["Boolean"]!!
             }
@@ -409,12 +412,12 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 val method = left.type.methods["<=>", 1] ?: throw error(
                     ast,
                     "Undefined method.",
-                    "The method ${left.type.name}.<=>/1 is not defined.",
+                    "The method ${left.type.base.name}.<=>/1 is not defined.",
                 )
                 require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
                     ast.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.name}.<=>/1 requires argument ${0} to be type ${method.parameters[0].second.name}, but received ${right.type.name}",
+                    "The method ${left.type.base.name}.<=>/1 requires argument ${0} to be type ${method.parameters[0].second}, but received ${right.type}",
                 ) }
                 Library.TYPES["Boolean"]!!
             }
@@ -422,12 +425,12 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 val method = left.type.methods[ast.operator, 1] ?: throw error(
                     ast,
                     "Undefined method.",
-                    "The method ${left.type.name}.${ast.operator}/1 is not defined.",
+                    "The method ${left.type.base.name}.${ast.operator}/1 is not defined.",
                 )
                 require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
                     ast.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.name}.${ast.operator}/1 requires argument ${0} to be type ${method.parameters[0].second.name}, but received ${right.type.name}",
+                    "The method ${left.type.base.name}.${ast.operator}/1 requires argument ${0} to be type ${method.parameters[0].second}, but received ${right.type}",
                 ) }
                 method.returns
             }
@@ -450,7 +453,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val method = receiver.type.properties[ast.name] ?: throw error(
             ast,
             "Undefined property.",
-            "The property getter ${receiver.type.name}.${ast.name}/0 is not defined.",
+            "The property getter ${receiver.type.base.name}.${ast.name}/0 is not defined.",
         )
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Access.Property(receiver, method, ast.coalesce)
@@ -461,14 +464,14 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val method = receiver.type.methods["[]", ast.arguments.size] ?: throw error(
             ast,
             "Undefined method.",
-            "The method ${receiver.type.name}.[]/${ast.arguments.size} is not defined.",
+            "The method ${receiver.type.base.name}.[]/${ast.arguments.size} is not defined.",
         )
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
                 ast.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
+                "The method ${receiver.type.base.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
             ) }
         }
         return RhovasIr.Expression.Access.Index(receiver, method, arguments)
@@ -485,7 +488,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             require(arguments[i].type.isSubtypeOf(function.parameters[i].second)) { error(
                 ast.arguments[i],
                 "Invalid function argument type.",
-                "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].second.name}, but received ${arguments[i].type.name}",
+                "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].second}, but received ${arguments[i].type}",
             ) }
         }
         return RhovasIr.Expression.Invoke.Function(function, arguments)
@@ -496,14 +499,14 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val method = receiver.type.methods[ast.name, ast.arguments.size] ?: throw error(
             ast,
             "Undefined method.",
-            "The method ${receiver.type.name}.${ast.name}/${ast.arguments.size} is not defined.",
+            "The method ${receiver.type.base.name}.${ast.name}/${ast.arguments.size} is not defined.",
         )
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
                 ast.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}",
+                "The method ${receiver.type.base.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
             ) }
         }
         //TODO: Coalesce typechecking (requires nullable types)
@@ -520,23 +523,23 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             )
         } else {
             val qualifier = visit(ast.qualifier) as RhovasIr.Expression.Access
-            qualifier.type.functions[ast.name, 1 + ast.arguments.size] as Function.Definition? ?: throw error(
+            qualifier.type.functions[ast.name, 1 + ast.arguments.size] ?: throw error(
                 ast,
                 "Undefined function.",
-                "The function ${qualifier.type.name}.${ast.name}/${1 + ast.arguments.size} is not defined.",
+                "The function ${qualifier.type.base.name}.${ast.name}/${1 + ast.arguments.size} is not defined.",
             )
         }
         require(receiver.type.isSubtypeOf(function.parameters[0].second)) { error(
             ast.receiver,
             "Invalid function argument type.",
-            "The function ${function.name}/${1 + function.parameters.size} requires argument ${0} to be type ${function.parameters[0].second.name}, but received ${receiver.type.name}",
+            "The function ${function.name}/${1 + function.parameters.size} requires argument ${0} to be type ${function.parameters[0].second}, but received ${receiver.type}",
         ) }
         val arguments = ast.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(function.parameters[1 + i].second)) { error(
                 ast.arguments[i],
                 "Invalid function argument type.",
-                "The function ${function.name}/${1 + function.parameters.size} requires argument ${1 + i} to be type ${function.parameters[1 + i].second.name}, but received ${arguments[i].type.name}",
+                "The function ${function.name}/${1 + function.parameters.size} requires argument ${1 + i} to be type ${function.parameters[1 + i].second}, but received ${arguments[i].type}",
             ) }
         }
         //TODO: Coalesce typechecking (requires nullable types)
@@ -555,7 +558,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             }
             visit(ast.body)
         }
-        val type = Library.TYPES["Lambda"]!!
+        val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
         return RhovasIr.Expression.Lambda(parameters, body, type)
     }
 
@@ -618,12 +621,12 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                 vararg = true
                 val ast = it.value as RhovasAst.Pattern.VarargDestructure
                 val pattern = ast.pattern?.let { visit(it) }
-                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["List"]!!)
+                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)))
             } else {
                 visit(it.value)
             }
         }
-        return RhovasIr.Pattern.OrderedDestructure(patterns, Library.TYPES["List"]!!)
+        return RhovasIr.Pattern.OrderedDestructure(patterns, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)))
     }
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
@@ -665,7 +668,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Type): RhovasIr.Type {
-        val base = Library.TYPES[ast.name] ?: throw error(
+        val base = Library.TYPES[ast.name]?.base ?: throw error(
             ast,
             "Undefined type.",
             "The type ${ast.name} is not defined."
@@ -680,7 +683,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             require(generics[i].isSubtypeOf(base.generics[i].bound)) { error(
                 ast.generics!![i],
                 "Invalid generic parameter.",
-                "The type ${base.name} requires generic parameter ${i} to be type ${base.generics[i].bound.name}, but received ${generics[i].name}.",
+                "The type ${base.name} requires generic parameter ${i} to be type ${base.generics[i].bound}, but received ${generics[i]}.",
             ) }
         }
         val type = Type.Reference(base, generics)

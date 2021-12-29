@@ -74,19 +74,19 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         val property = receiver[ir.property] ?: throw error(
             ir,
             "Undefined property.",
-            "The property ${receiver.type.name}.${ir.property.name} is undefined.",
+            "The property ${receiver.type.base.name}.${ir.property.name} is undefined.",
         )
         val method = property.setter ?: throw error(
             ir,
             "Unassignable property.",
-            "The property ${receiver.type.name}.${ir.property.name} is unassignable.",
+            "The property ${receiver.type.base.name}.${ir.property.name} is unassignable.",
         )
         require(value.type.isSubtypeOf(method.parameters[0].second)) { error(
             ir.value,
             "Invalid property value type.",
-            "The property ${receiver.type.name}.${method.name} requires the value to be type ${method.parameters[0].second.name}, but received ${value.type.name}.",
+            "The property ${receiver.type.base.name}.${method.name} requires the value to be type ${method.parameters[0].second}, but received ${value.type}.",
         ) }
-        trace("${receiver.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+        trace("${receiver.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
             method.invoke(listOf(value))
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -98,16 +98,16 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         val method = receiver[ir.method]  ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${receiver.type.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
+            "The method ${receiver.type.base.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
         )
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
-                ir.arguments[i],
+                ir.arguments.getOrNull(i) ?: ir.value,
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                "The method ${receiver.type.base.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${receiver.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+        return trace("${receiver.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
             method.invoke(arguments)
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -313,7 +313,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ir.value)
             is List<*> -> {
                 val value = (ir.value as List<RhovasIr.Expression>).map { visit(it) }
-                Object(Library.TYPES["List"]!!, value.toMutableList())
+                Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), value.toMutableList())
             }
             is Map<*, *> -> {
                 val value = (ir.value as Map<String, RhovasIr.Expression>).mapValues { visit(it.value) }
@@ -332,9 +332,9 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         val method = expression.methods[ir.operator, 0] ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${expression.type.name}.${ir.operator}/0 is undefined.",
+            "The method ${expression.type.base.name}.${ir.operator}/0 is undefined.",
         )
-        return trace("${expression.type.name}.${ir.operator}/0", ir.context?.first()) {
+        return trace("${expression.type.base.name}.${ir.operator}/0", ir.context?.first()) {
             method.invoke(listOf())
         }
     }
@@ -349,10 +349,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 val method = left.methods["==", 1] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method ${left.type.name}.==/1 is undefined.",
+                    "The method ${left.type.base.name}.==/1 is undefined.",
                 )
                 val result = if (right.type.isSubtypeOf(method.parameters[0].second)) {
-                    trace("${left.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+                    trace("${left.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                         method.invoke(listOf(right)).value as Boolean
                     }
                 } else false
@@ -371,14 +371,14 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 val method = left.methods["<=>", 1] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method ${left.type.name}.<=>/1 is undefined.",
+                    "The method ${left.type.base.name}.<=>/1 is undefined.",
                 )
                 require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
                     ir.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.name}.${method.name}/${method.parameters.size} requires argument 0 to be type ${method.parameters[0].second.name}, but received ${right.type.name}."
+                    "The method ${left.type.base.name}.${method.name}/${method.parameters.size} requires argument 0 to be type ${method.parameters[0].second}, but received ${right.type}."
                 ) }
-                val result = trace("${left.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+                val result = trace("${left.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                     method.invoke(listOf(right)).value as BigInteger
                 }
                 val value = when (ir.operator) {
@@ -395,14 +395,14 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 val method = left.methods[ir.operator, 1] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method ${left.type.name}.${ir.operator}/1 is undefined.",
+                    "The method ${left.type.base.name}.${ir.operator}/1 is undefined.",
                 )
                 require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
                     ir.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.name}.${method.name}/${method.parameters.size} requires argument 0 to be type ${method.parameters[0].second.name}, but received ${right.type.name}."
+                    "The method ${left.type.base.name}.${method.name}/${method.parameters.size} requires argument 0 to be type ${method.parameters[0].second.base.name}, but received ${right.type.base.name}."
                 ) }
-                trace("${left.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+                trace("${left.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                     method.invoke(listOf(right))
                 }
             }
@@ -423,9 +423,9 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             val method = receiver[ir.property]?.getter ?: throw error(
                 ir,
                 "Undefined property.",
-                "The property ${receiver.type.name}.${ir.property.name} is undefined.",
+                "The property ${receiver.type.base.name}.${ir.property.name} is undefined.",
             )
-            trace("${receiver.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+            trace("${receiver.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                 method.invoke(listOf())
             }
         }
@@ -437,16 +437,16 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         val method = receiver[ir.method]  ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${receiver.type.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
+            "The method ${receiver.type.base.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
         )
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
                 ir.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                "The method ${receiver.type.base.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${receiver.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+        return trace("${receiver.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
             method.invoke(arguments)
         }
     }
@@ -457,7 +457,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].second)) { error(
                 ir.arguments[i],
                 "Invalid function argument type.",
-                "The function Source.${ir.function.name}/${ir.function.parameters.size} requires argument ${i} to be type ${ir.function.parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                "The function Source.${ir.function.name}/${ir.function.parameters.size} requires argument ${i} to be type ${ir.function.parameters[i].second}, but received ${arguments[i].type}.",
             ) }
         }
         return trace("Source.${ir.function.name}/${ir.function.parameters.size}", ir.context?.first()) {
@@ -474,16 +474,16 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             val method = receiver[ir.method]  ?: throw error(
                 ir,
                 "Undefined method.",
-                "The method ${receiver.type.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
+                "The method ${receiver.type.base.name}.${ir.method.name}/${ir.method.parameters.size} is undefined.",
             )
             for (i in arguments.indices) {
                 require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
                     ir.arguments[i],
                     "Invalid method argument type.",
-                    "The method ${receiver.type.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                    "The method ${receiver.type.base.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
                 ) }
             }
-            val result = trace("${receiver.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+            val result = trace("${receiver.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                 method.invoke(arguments)
             }
             return if (ir.cascade) receiver else result
@@ -500,7 +500,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].second)) { error(
                     ir.arguments[i],
                     "Invalid function argument type.",
-                    "The function Source.${ir.function.name}/${ir.function.parameters.size} requires argument ${i} to be type ${ir.function.parameters[i].second.name}, but received ${arguments[i].type.name}.",
+                    "The function Source.${ir.function.name}/${ir.function.parameters.size} requires argument ${i} to be type ${ir.function.parameters[i].second}, but received ${arguments[i].type}.",
                 ) }
             }
             val result = trace("Source.${ir.function.name}/${ir.function.parameters.size}", ir.context?.first()) {
@@ -512,7 +512,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     override fun visit(ir: RhovasIr.Expression.Lambda): Object {
         //TODO: Limit access to variables defined in the scope after this lambda at runtime?
-        return Object(Library.TYPES["Lambda"]!!, Lambda(ir, scope, this))
+        return Object(
+            Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!)),
+            Lambda(ir, scope, this)
+        )
     }
 
     override fun visit(ir: RhovasIr.Expression.Macro): Object {
@@ -537,10 +540,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         val method = value.methods["==", 1] ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${value.type.name}.==/1 is undefined.",
+            "The method ${value.type.base.name}.==/1 is undefined.",
         )
         val result = if (patternState.value.type.isSubtypeOf(method.parameters[0].second)) {
-            trace("${value.type.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
+            trace("${value.type.base.name}.${method.name}/${method.parameters.size}", ir.context?.first()) {
                 method.invoke(listOf(patternState.value)).value as Boolean
             }
         } else false
@@ -557,7 +560,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Pattern.OrderedDestructure): Object {
-        if (patternState.value.type != Library.TYPES["List"]) {
+        if (!patternState.value.type.isSubtypeOf(Library.TYPES["List"]!!)) {
             return Object(Library.TYPES["Boolean"]!!, false)
         }
         val list = patternState.value.value as List<Object>
