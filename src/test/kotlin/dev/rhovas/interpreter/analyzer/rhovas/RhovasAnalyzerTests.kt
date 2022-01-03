@@ -21,9 +21,418 @@ import java.util.stream.Stream
 
 class RhovasAnalyzerTests {
 
+    lateinit var STMT_0: Function.Definition
+    lateinit var STMT_1: Function.Definition
+
     @BeforeAll
     fun beforeAll() {
         Library.initialize()
+        STMT_0 = Function.Definition("stmt", listOf(), Library.TYPES["Void"]!!)
+        STMT_1 = Function.Definition("stmt", listOf(Pair("position", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!)
+    }
+
+    @Nested
+    inner class SourceTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testSource(name: String, input: String, expected: RhovasIr.Source?) {
+            test("source", input, expected)
+        }
+
+        fun testSource(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", "",
+                    RhovasIr.Source(listOf()),
+                ),
+                Arguments.of("Single", """
+                    stmt();
+                """.trimIndent(),
+                    RhovasIr.Source(listOf(stmt())),
+                ),
+                Arguments.of("Multiple", """
+                    stmt(1); stmt(2); stmt(3);
+                """.trimIndent(),
+                    RhovasIr.Source(listOf(stmt(1), stmt(2), stmt(3))),
+                ),
+            )
+        }
+
+    }
+
+    @Nested
+    inner class StatementTests {
+
+        @Nested
+        inner class BlockTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testBlock(name: String, input: String, expected: RhovasIr.Statement.Block?) {
+                test("statement", input, expected)
+            }
+
+            fun testBlock(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", """
+                        {}
+                    """.trimIndent(),
+                        RhovasIr.Statement.Block(listOf()),
+                    ),
+                    Arguments.of("Single", """
+                        { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Block(listOf(stmt())),
+                    ),
+                    Arguments.of("Multiple", """
+                        { stmt(1); stmt(2); stmt(3); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Block(listOf(stmt(1), stmt(2), stmt(3))),
+                    ),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ExpressionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testExpression(name: String, input: String, expected: RhovasIr.Statement.Expression?) {
+                test("statement", input, expected)
+            }
+
+            fun testExpression(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Function", """
+                        stmt();
+                    """.trimIndent(), stmt()),
+                    Arguments.of("Invalid", """
+                        1;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class FunctionTests {}
+
+        @Nested
+        inner class DeclarationTests {}
+
+        @Nested
+        inner class AssignmentTests {}
+
+        @Nested
+        inner class IfTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIf(name: String, input: String, expected: RhovasIr.Statement.If?) {
+                test("statement", input, expected)
+            }
+
+            fun testIf(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("If", """
+                        if (true) { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.If(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Statement.Block(listOf(stmt())),
+                            null,
+                        ),
+                    ),
+                    Arguments.of("Else", """
+                        if (true) { stmt(1); } else { stmt(2); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.If(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Statement.Block(listOf(stmt(1))),
+                            RhovasIr.Statement.Block(listOf(stmt(2))),
+                        ),
+                    ),
+                    Arguments.of("Invalid Condition", """
+                        if (1) { stmt(); }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class MatchTests {}
+
+        @Nested
+        inner class ForTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFor(name: String, input: String, expected: RhovasIr.Statement.For?) {
+                test("statement", input, expected)
+            }
+
+            fun testFor(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("For", """
+                        for (val element in []) { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.For("element",
+                            RhovasIr.Expression.Literal(
+                                listOf<RhovasIr.Expression>(),
+                                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
+                            ),
+                            RhovasIr.Statement.Block(listOf(stmt())),
+                        ),
+                    ),
+                    Arguments.of("Element", """
+                        for (val element in [1]) { stmt(element); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.For("element",
+                            RhovasIr.Expression.Literal(
+                                listOf(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
+                            ),
+                            RhovasIr.Statement.Block(listOf(
+                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("element", Library.TYPES["Dynamic"]!!))),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Invalid Iterable", """
+                        for (val element in {}) { stmt(); }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class WhileTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testWhile(name: String, input: String, expected: RhovasIr.Statement.While?) {
+                test("statement", input, expected)
+            }
+
+            fun testWhile(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("While", """
+                        while (true) { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.While(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Statement.Block(listOf(stmt())),
+                        )
+                    ),
+                    Arguments.of("Invalid Condition", """
+                        while (1) { stmt(); }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class TryTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testTry(name: String, input: String, expected: RhovasIr.Statement.Try?) {
+                test("statement", input, expected)
+            }
+
+            fun testTry(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Try", """
+                        try { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Try(
+                            RhovasIr.Statement.Block(listOf(stmt())),
+                            listOf(),
+                            null,
+                        ),
+                    ),
+                    //TODO: Exception validation
+                    Arguments.of("Catch", """
+                        try { stmt(1); } catch (val e) { stmt(2); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Try(
+                            RhovasIr.Statement.Block(listOf(stmt(1))),
+                            listOf(RhovasIr.Statement.Try.Catch("e", RhovasIr.Statement.Block(listOf(stmt(2))))),
+                            null,
+                        ),
+                    ),
+                    Arguments.of("Finally", """
+                        try { stmt(1); } finally { stmt(2); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Try(
+                            RhovasIr.Statement.Block(listOf(stmt(1))),
+                            listOf(),
+                            RhovasIr.Statement.Block(listOf(stmt(2))),
+                        ),
+                    ),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class WithTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testWith(name: String, input: String, expected: RhovasIr.Statement.With?) {
+                test("statement", input, expected)
+            }
+
+            fun testWith(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("With", """
+                        with (1) { stmt(); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.With(null,
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(stmt())),
+                        ),
+                    ),
+                    Arguments.of("Named Argument", """
+                        with (val name = 1) { stmt(name); }
+                    """.trimIndent(),
+                        RhovasIr.Statement.With("name",
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("name", Library.TYPES["Integer"]!!))),
+                            )),
+                        ),
+                    ),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class LabelTests {}
+
+        @Nested
+        inner class BreakTests {}
+
+        @Nested
+        inner class ContinueTests {}
+
+        @Nested
+        inner class ReturnTests {}
+
+        @Nested
+        inner class ThrowTests {}
+
+        @Nested
+        inner class AssertTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testAssert(name: String, input: String, expected: RhovasIr.Statement.Assert?) {
+                test("statement", input, expected)
+            }
+
+            fun testAssert(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Assert", """
+                        assert true;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assert(RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!), null),
+                    ),
+                    Arguments.of("Message", """
+                        assert true: "message";
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assert(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Expression.Literal("message", Library.TYPES["String"]!!),
+                        ),
+                    ),
+                    Arguments.of("Invalid Condition", """
+                        assert 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Message", """
+                        assert true: 1;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class RequireTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testRequire(name: String, input: String, expected: RhovasIr.Statement.Require?) {
+                test("statement", input, expected)
+            }
+
+            fun testRequire(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Require", """
+                        require true;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Require(RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!), null),
+                    ),
+                    Arguments.of("Message", """
+                        require true: "message";
+                    """.trimIndent(),
+                        RhovasIr.Statement.Require(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Expression.Literal("message", Library.TYPES["String"]!!),
+                        ),
+                    ),
+                    Arguments.of("Invalid Condition", """
+                        require 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Message", """
+                        require true: 1;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class EnsureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testEnsure(name: String, input: String, expected: RhovasIr.Statement.Ensure?) {
+                test("statement", input, expected)
+            }
+
+            fun testEnsure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Ensure", """
+                        ensure true;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Ensure(RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!), null),
+                    ),
+                    Arguments.of("Message", """
+                        ensure true: "message";
+                    """.trimIndent(),
+                        RhovasIr.Statement.Ensure(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Expression.Literal("message", Library.TYPES["String"]!!),
+                        ),
+                    ),
+                    Arguments.of("Invalid Condition", """
+                        ensure 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Message", """
+                        ensure true: 1;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
     }
 
     @Nested
@@ -581,11 +990,11 @@ class RhovasAnalyzerTests {
             fun testLambda(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Lambda", """
-                        lambda {}
+                        lambda { stmt(); }
                     """.trimIndent(),
                         RhovasIr.Expression.Lambda(
                             listOf(),
-                            RhovasIr.Statement.Block(listOf()),
+                            RhovasIr.Statement.Block(listOf(stmt())),
                             Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!)),
                         ),
                     ),
@@ -597,7 +1006,20 @@ class RhovasAnalyzerTests {
 
     }
 
+    private fun stmt(position: Int): RhovasIr.Statement {
+        return stmt(RhovasIr.Expression.Literal(position.toBigInteger(), Library.TYPES["Integer"]!!))
+    }
+
+    private fun stmt(argument: RhovasIr.Expression? = null): RhovasIr.Statement {
+        return RhovasIr.Statement.Expression(when (argument) {
+            null -> RhovasIr.Expression.Invoke.Function(STMT_0, listOf())
+            else -> RhovasIr.Expression.Invoke.Function(STMT_1, listOf(argument))
+        })
+    }
+
     private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(null)) {
+        scope.functions.define(STMT_0)
+        scope.functions.define(STMT_1)
         val ast = RhovasParser(Input("AnalyzerTests.test", input)).parse(rule)
         if (expected != null) {
             val ir = RhovasAnalyzer(scope).visit(ast)

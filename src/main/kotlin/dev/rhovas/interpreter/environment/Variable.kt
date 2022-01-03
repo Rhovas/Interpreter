@@ -5,7 +5,7 @@ sealed class Variable(
     open val type: Type,
 ) {
 
-    open class Local(
+    data class Local(
         override val name: String,
         override val type: Type,
     ) : Variable(name, type) {
@@ -13,7 +13,7 @@ sealed class Variable(
         data class Runtime(
             val variable: Local,
             var value: Object,
-        ) : Local(variable.name, variable.type)
+        ) : Variable(variable.name, variable.type)
 
     }
 

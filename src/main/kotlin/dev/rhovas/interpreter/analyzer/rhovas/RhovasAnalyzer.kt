@@ -82,19 +82,15 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         ) }
         return when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
-                val variable = scope.variables[ast.receiver.name] as Variable.Local? ?: throw error(
-                    ast,
-                    "Undefined variable.",
-                    "The variable ${ast.receiver.name} is not defined in the current scope.",
-                )
+                val receiver = visit(ast.receiver)
                 //TODO: Require mutable variable
                 val value = visit(ast.value)
-                require(value.type.isSubtypeOf(variable.type)) { error(
+                require(value.type.isSubtypeOf(receiver.variable.type)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The variable ${variable.name} requires the value to be type ${variable.type}, but received ${value.type}.",
+                    "The variable ${receiver.variable.name} requires the value to be type ${receiver.variable.type}, but received ${value.type}.",
                 ) }
-                RhovasIr.Statement.Assignment.Variable(variable, value)
+                RhovasIr.Statement.Assignment.Variable(receiver.variable, value)
             }
             is RhovasAst.Expression.Access.Property -> {
                 require(!ast.receiver.coalesce) { error(
@@ -440,12 +436,17 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable {
-        val variable = scope.variables[ast.name] as Variable.Local? ?: throw error(
+        val variable = scope.variables[ast.name] ?: throw error(
             ast,
             "Undefined variable.",
             "The variable ${ast.name} is not defined in the current scope."
         )
-        return RhovasIr.Expression.Access.Variable(variable)
+        //TODO: Variable.Local handling
+        return RhovasIr.Expression.Access.Variable(when (variable) {
+            is Variable.Local -> variable
+            is Variable.Local.Runtime -> variable.variable
+            else -> throw AssertionError()
+        })
     }
 
     override fun visit(ast: RhovasAst.Expression.Access.Property): RhovasIr.Expression.Access.Property {
