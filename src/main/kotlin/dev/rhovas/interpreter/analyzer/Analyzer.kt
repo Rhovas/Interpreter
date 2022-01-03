@@ -1,7 +1,6 @@
 package dev.rhovas.interpreter.analyzer
 
 import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.evaluator.EvaluateException
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
@@ -17,15 +16,15 @@ abstract class Analyzer(protected var scope: Scope) {
         }
     }
 
-    fun require(condition: Boolean, error: () -> EvaluateException) {
+    fun require(condition: Boolean, error: () -> AnalyzeException) {
         if (!condition) {
             throw error()
         }
     }
 
-    fun error(ast: RhovasAst?, summary: String, details: String): EvaluateException {
+    fun error(ast: RhovasAst?, summary: String, details: String): AnalyzeException {
         val range = ast?.context?.first() ?: Input.Range(0, 1, 0, 0)
-        return EvaluateException(
+        return AnalyzeException(
             summary,
             details,
             range,
