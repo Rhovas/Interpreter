@@ -80,7 +80,8 @@ sealed class Type(
                         function.parameters.map { Pair(it.first, it.second.bind(parameters)) },
                         function.returns.bind(parameters)
                     ).also {
-                        it.implementation = (function as Function.Definition).implementation
+                        //TODO: Better solution?
+                        it.implementation = { (function as Function.Definition).implementation.invoke(it) }
                     }
                 }
             }

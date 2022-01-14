@@ -120,10 +120,228 @@ class RhovasAnalyzerTests {
         inner class FunctionTests {}
 
         @Nested
-        inner class DeclarationTests {}
+        inner class DeclarationTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testDeclaration(name: String, input: String, expected: RhovasIr.Statement.Declaration?) {
+                val expected = expected?.let {
+                    RhovasIr.Source(listOf(
+                        it,
+                        stmt(RhovasIr.Expression.Access.Variable(it.variable)),
+                    ))
+                }
+                test("source", input, expected, Scope(null).also {
+                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!))
+                })
+            }
+
+            fun testDeclaration(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Val Declaration", """
+                        val name: Integer;
+                        stmt(name);
+                    """.trimIndent(),
+                        RhovasIr.Statement.Declaration(
+                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            null,
+                        )
+                    ),
+                    Arguments.of("Var Declaration", """
+                        var name: Integer;
+                        stmt(name);
+                    """.trimIndent(),
+                        RhovasIr.Statement.Declaration(
+                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            null,
+                        ),
+                    ),
+                    Arguments.of("Initialization", """
+                        val name = 1;
+                        stmt(name);
+                    """.trimIndent(),
+                        RhovasIr.Statement.Declaration(
+                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Subtype Value", """
+                        val name: Dynamic = 1;
+                        stmt(name);
+                    """.trimIndent(),
+                        RhovasIr.Statement.Declaration(
+                            Variable.Local("name", Library.TYPES["Dynamic"]!!),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Undefined Type", """
+                        val name;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Value", """
+                        val name: Integer = 1.0;
+                    """.trimIndent(), null),
+                    Arguments.of("Supertype Value", """
+                        val name: Integer = any;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
-        inner class AssignmentTests {}
+        inner class AssignmentTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: RhovasIr.Statement.Assignment.Variable?) {
+                val expected = expected?.let {
+                    RhovasIr.Source(listOf(
+                        RhovasIr.Statement.Declaration(it.variable, null),
+                        it,
+                    ))
+                }
+                test("source", input, expected, Scope(null).also {
+                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!))
+                })
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    //TODO: Variable mutability
+                    Arguments.of("Assignment", """
+                        var variable: Integer;
+                        variable = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Variable(
+                            Variable.Local("variable", Library.TYPES["Integer"]!!),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Subtype Value", """
+                        var variable: Dynamic;
+                        variable = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Variable(
+                            Variable.Local("variable", Library.TYPES["Dynamic"]!!),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Undefined Variable", """
+                        undefined = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Value", """
+                        var variable: Integer;
+                        variable = 1.0;
+                    """.trimIndent(), null),
+                    Arguments.of("Supertype Value", """
+                        var variable: Integer;
+                        variable = any;
+                    """.trimIndent(), null),
+                )
+            }
+
+            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null).also {
+                it.functions.define(Function.Definition("property", listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!))
+                it.functions.define(Function.Definition("property", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!))
+                it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Dynamic"]!!))
+                it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Dynamic"]!!)), Library.TYPES["Void"]!!))
+            }).reference
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testProperty(name: String, input: String, expected: RhovasIr.Statement.Assignment.Property?) {
+                test("statement", input, expected, Scope(null).also {
+                    it.variables.define(Variable.Local("object", ObjectType))
+                })
+            }
+
+            fun testProperty(): Stream<Arguments> {
+                return Stream.of(
+                    //TODO: Property mutability
+                    Arguments.of("Assignment", """
+                        object.property = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Property(
+                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType)),
+                            ObjectType.properties["property"]!!,
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Subtype Value", """
+                        object.dynamic = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Property(
+                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType)),
+                            ObjectType.properties["dynamic"]!!,
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Undefined Property", """
+                        object.undefined = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Value", """
+                        object.property = 1.0;
+                    """.trimIndent(), null),
+                    Arguments.of("Supertype Value", """
+                        object.property = any;
+                    """.trimIndent(), null),
+                )
+            }
+
+            val IntegerList = Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!))
+            val DynamicList = Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testIndex(name: String, input: String, expected: RhovasIr.Statement.Assignment.Index?) {
+                test("statement", input, expected, Scope(null).also { scope ->
+                    scope.variables.define(Variable.Local("list", IntegerList))
+                    scope.variables.define(Variable.Local("dynamic", DynamicList))
+                })
+            }
+
+            fun testIndex(): Stream<Arguments> {
+                return Stream.of(
+                    //TODO: Property mutability
+                    Arguments.of("Assignment", """
+                        list[0] = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Index(
+                            RhovasIr.Expression.Access.Variable(Variable.Local("list", IntegerList)),
+                            IntegerList.methods["[]=", 2]!!,
+                            listOf(RhovasIr.Expression.Literal(BigInteger("0"), Library.TYPES["Integer"]!!)),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Subtype Value", """
+                        dynamic[0] = 1;
+                    """.trimIndent(),
+                        RhovasIr.Statement.Assignment.Index(
+                            RhovasIr.Expression.Access.Variable(Variable.Local("dynamic", DynamicList)),
+                            DynamicList.methods["[]=", 2]!!,
+                            listOf(RhovasIr.Expression.Literal(BigInteger("0"), Library.TYPES["Integer"]!!)),
+                            RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
+                        ),
+                    ),
+                    Arguments.of("Undefined Method", """
+                        any[0] = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Arity", """
+                        list[0, 1, 2] = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Argument", """
+                        list[0.0] = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Value", """
+                        list[0] = 1.0;
+                    """.trimIndent(), null),
+                    Arguments.of("Supertype Value", """
+                        list[0] = any;
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
         inner class IfTests {

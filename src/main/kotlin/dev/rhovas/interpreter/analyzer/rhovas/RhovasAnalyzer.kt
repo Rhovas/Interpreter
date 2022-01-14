@@ -70,6 +70,11 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val type = ast.type?.let { visit(it) }
         val value = ast.value?.let { visit(it) }
         val variable = Variable.Local(ast.name, type?.type ?: value!!.type)
+        require(value == null || value.type.isSubtypeOf(variable.type)) { error(
+            ast,
+            "Invalid value type.",
+            "The variable ${ast.name} requires a value of type ${variable.type}, but received ${value!!.type}."
+        ) }
         scope.variables.define(variable)
         return RhovasIr.Statement.Declaration(variable, value)
     }
