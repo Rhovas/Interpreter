@@ -132,7 +132,7 @@ class RhovasAnalyzerTests {
                     ))
                 }
                 test("source", input, expected, Scope(null).also {
-                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!))
+                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!, false))
                 })
             }
 
@@ -143,7 +143,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(),
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            Variable.Local("name", Library.TYPES["Integer"]!!, false),
                             null,
                         )
                     ),
@@ -152,7 +152,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(),
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            Variable.Local("name", Library.TYPES["Integer"]!!, true),
                             null,
                         ),
                     ),
@@ -161,7 +161,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(),
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", Library.TYPES["Integer"]!!),
+                            Variable.Local("name", Library.TYPES["Integer"]!!, false),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
                     ),
@@ -170,7 +170,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(),
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", Library.TYPES["Dynamic"]!!),
+                            Variable.Local("name", Library.TYPES["Dynamic"]!!, false),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
                     ),
@@ -201,7 +201,7 @@ class RhovasAnalyzerTests {
                     ))
                 }
                 test("source", input, expected, Scope(null).also {
-                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!))
+                    it.variables.define(Variable.Local("any", Library.TYPES["Any"]!!, false))
                 })
             }
 
@@ -213,7 +213,7 @@ class RhovasAnalyzerTests {
                         variable = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Variable(
-                            Variable.Local("variable", Library.TYPES["Integer"]!!),
+                            Variable.Local("variable", Library.TYPES["Integer"]!!, true),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
                     ),
@@ -222,12 +222,16 @@ class RhovasAnalyzerTests {
                         variable = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Variable(
-                            Variable.Local("variable", Library.TYPES["Dynamic"]!!),
+                            Variable.Local("variable", Library.TYPES["Dynamic"]!!, true),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
                     ),
                     Arguments.of("Undefined Variable", """
                         undefined = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Unassignable Variable", """
+                        val unassignable = 1;
+                        unassignable = 1;
                     """.trimIndent(), null),
                     Arguments.of("Invalid Value", """
                         var variable: Integer;
@@ -245,13 +249,14 @@ class RhovasAnalyzerTests {
                 it.functions.define(Function.Definition("property", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!))
                 it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Dynamic"]!!))
                 it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Dynamic"]!!)), Library.TYPES["Void"]!!))
+                it.functions.define(Function.Definition("property", listOf(Pair("unassignable", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!))
             }).reference
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: RhovasIr.Statement.Assignment.Property?) {
                 test("statement", input, expected, Scope(null).also {
-                    it.variables.define(Variable.Local("object", ObjectType))
+                    it.variables.define(Variable.Local("object", ObjectType, false))
                 })
             }
 
@@ -262,7 +267,7 @@ class RhovasAnalyzerTests {
                         object.property = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Property(
-                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType)),
+                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType, false)),
                             ObjectType.properties["property"]!!,
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
@@ -271,13 +276,16 @@ class RhovasAnalyzerTests {
                         object.dynamic = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Property(
-                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType)),
+                            RhovasIr.Expression.Access.Variable(Variable.Local("object", ObjectType, false)),
                             ObjectType.properties["dynamic"]!!,
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                         ),
                     ),
                     Arguments.of("Undefined Property", """
                         object.undefined = 1;
+                    """.trimIndent(), null),
+                    Arguments.of("Unassignable Property", """
+                        object.unassignable = 1;
                     """.trimIndent(), null),
                     Arguments.of("Invalid Value", """
                         object.property = 1.0;
@@ -295,8 +303,8 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testIndex(name: String, input: String, expected: RhovasIr.Statement.Assignment.Index?) {
                 test("statement", input, expected, Scope(null).also { scope ->
-                    scope.variables.define(Variable.Local("list", IntegerList))
-                    scope.variables.define(Variable.Local("dynamic", DynamicList))
+                    scope.variables.define(Variable.Local("list", IntegerList, false))
+                    scope.variables.define(Variable.Local("dynamic", DynamicList, false))
                 })
             }
 
@@ -307,7 +315,7 @@ class RhovasAnalyzerTests {
                         list[0] = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Index(
-                            RhovasIr.Expression.Access.Variable(Variable.Local("list", IntegerList)),
+                            RhovasIr.Expression.Access.Variable(Variable.Local("list", IntegerList, false)),
                             IntegerList.methods["[]=", 2]!!,
                             listOf(RhovasIr.Expression.Literal(BigInteger("0"), Library.TYPES["Integer"]!!)),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
@@ -317,7 +325,7 @@ class RhovasAnalyzerTests {
                         dynamic[0] = 1;
                     """.trimIndent(),
                         RhovasIr.Statement.Assignment.Index(
-                            RhovasIr.Expression.Access.Variable(Variable.Local("dynamic", DynamicList)),
+                            RhovasIr.Expression.Access.Variable(Variable.Local("dynamic", DynamicList, false)),
                             DynamicList.methods["[]=", 2]!!,
                             listOf(RhovasIr.Expression.Literal(BigInteger("0"), Library.TYPES["Integer"]!!)),
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
@@ -414,7 +422,7 @@ class RhovasAnalyzerTests {
                                 Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
                             ),
                             RhovasIr.Statement.Block(listOf(
-                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("element", Library.TYPES["Dynamic"]!!))),
+                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("element", Library.TYPES["Dynamic"]!!, false))),
                             )),
                         ),
                     ),
@@ -522,7 +530,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.With("name",
                             RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!),
                             RhovasIr.Statement.Block(listOf(
-                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("name", Library.TYPES["Integer"]!!))),
+                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("name", Library.TYPES["Integer"]!!, false))),
                             )),
                         ),
                     ),
@@ -1001,7 +1009,7 @@ class RhovasAnalyzerTests {
             @Nested
             inner class VariableTests {
 
-                val VARIABLE = Variable.Local("variable", Library.TYPES["Any"]!!)
+                val VARIABLE = Variable.Local("variable", Library.TYPES["Any"]!!, false)
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
@@ -1050,8 +1058,8 @@ class RhovasAnalyzerTests {
             @Nested
             inner class IndexTests {
 
-                val LIST = Variable.Local("list", Library.TYPES["List"]!!)
-                val ANY = Variable.Local("any", Library.TYPES["Any"]!!)
+                val LIST = Variable.Local("list", Library.TYPES["List"]!!, false)
+                val ANY = Variable.Local("any", Library.TYPES["Any"]!!, false)
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
@@ -1148,7 +1156,7 @@ class RhovasAnalyzerTests {
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: RhovasIr.Expression.Invoke.Pipeline?) {
                     test("expression", input, expected, Scope(Library.SCOPE).also {
-                        it.variables.define(Variable.Local("Kernel", Library.TYPES["Kernel"]!!))
+                        it.variables.define(Variable.Local("Kernel", Library.TYPES["Kernel"]!!, false))
                     })
                 }
 

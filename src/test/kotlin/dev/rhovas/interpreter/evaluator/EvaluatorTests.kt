@@ -155,7 +155,11 @@ class EvaluatorTests {
             fun testVariable(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("variable", Library.TYPES["String"]!!),
+                        Variable.Local("variable", Library.TYPES["String"]!!, true),
+                        Object(Library.TYPES["String"]!!, "initial"),
+                    ))
+                    it.variables.define(Variable.Local.Runtime(
+                        Variable.Local("unassignable", Library.TYPES["String"]!!, false),
                         Object(Library.TYPES["String"]!!, "initial"),
                     ))
                 })
@@ -165,6 +169,7 @@ class EvaluatorTests {
                 return Stream.of(
                     Arguments.of("Variable", "{ variable = \"final\"; log(variable); }", "final"),
                     Arguments.of("Undefined", "{ undefined = \"final\"; }", null),
+                    Arguments.of("Unassignable", "{ unassignable = \"final\"; }", null),
                 )
             }
 
@@ -186,7 +191,7 @@ class EvaluatorTests {
                         it.functions.define(setter)
                     }).reference
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("object", type),
+                        Variable.Local("object", type, false),
                         Object(type, mutableMapOf(
                             Pair("property", Object(Library.TYPES["String"]!!, "initial")),
                         )),
@@ -206,17 +211,17 @@ class EvaluatorTests {
             fun testIndex(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("variable", Library.TYPES["String"]!!),
+                        Variable.Local("variable", Library.TYPES["String"]!!, false),
                         Object(Library.TYPES["String"]!!, "initial"),
                     ))
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                        Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), false),
                         Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
                             Object(Library.TYPES["String"]!!, "initial"),
                         )),
                     ))
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("object", Library.TYPES["Object"]!!),
+                        Variable.Local("object", Library.TYPES["Object"]!!, false),
                         Object(Library.TYPES["Object"]!!, mutableMapOf(
                             Pair("key", Object(Library.TYPES["String"]!!, "initial")),
                         )),
@@ -431,7 +436,7 @@ class EvaluatorTests {
             fun testWhile(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("number", Library.TYPES["Integer"]!!),
+                        Variable.Local("number", Library.TYPES["Integer"]!!, true),
                         Object(Library.TYPES["Integer"]!!, BigInteger.ZERO),
                     ))
                 })
@@ -954,7 +959,7 @@ class EvaluatorTests {
                 fun testVariable(name: String, input: String, expected: Object?) {
                     test(input, expected, Scope(null).also {
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("variable", Library.TYPES["String"]!!),
+                            Variable.Local("variable", Library.TYPES["String"]!!, false),
                             Object(Library.TYPES["String"]!!, "variable"),
                         ))
                     })
@@ -986,7 +991,7 @@ class EvaluatorTests {
                             it.functions.define(property)
                         }).reference
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type),
+                            Variable.Local("object", type, false),
                             Object(type, mapOf(
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
@@ -1017,17 +1022,17 @@ class EvaluatorTests {
                 fun testIndex(name: String, input: String, expected: Object?) {
                     test(input, expected, Scope(null).also {
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("variable", Library.TYPES["String"]!!),
+                            Variable.Local("variable", Library.TYPES["String"]!!, false),
                             Object(Library.TYPES["String"]!!, "variable"),
                         ))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                            Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), false),
                             Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
                                 Object(Library.TYPES["String"]!!, "element"),
                             )),
                         ))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", Library.TYPES["Object"]!!),
+                            Variable.Local("object", Library.TYPES["Object"]!!, false),
                             Object(Library.TYPES["Object"]!!, mutableMapOf(
                                 Pair("key", Object(Library.TYPES["String"]!!, "value")),
                             )),
@@ -1097,7 +1102,7 @@ class EvaluatorTests {
                             it.functions.define(function)
                         }).reference
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type),
+                            Variable.Local("object", type, false),
                             Object(type, mapOf(
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
@@ -1140,7 +1145,7 @@ class EvaluatorTests {
                             it.functions.define(function)
                         }).reference
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type),
+                            Variable.Local("object", type, false),
                             Object(type, mapOf(
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
@@ -1154,7 +1159,7 @@ class EvaluatorTests {
                             it.functions.define(function)
                         }).reference
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("Qualified", qualified),
+                            Variable.Local("Qualified", qualified, false),
                             Object(qualified, Unit),
                         ))
                     })

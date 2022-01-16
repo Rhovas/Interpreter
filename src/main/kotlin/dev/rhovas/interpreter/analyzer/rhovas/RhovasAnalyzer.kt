@@ -50,7 +50,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         scope.functions.define(function)
         //TODO: Validate thrown exceptions
         val body = scoped(Scope(scope)) {
-            parameters.forEach { scope.variables.define(Variable.Local(it.first, it.second)) }
+            parameters.forEach { scope.variables.define(Variable.Local(it.first, it.second, false)) }
             visit(ast.body) as RhovasIr.Statement.Block
         }
         return RhovasIr.Statement.Function(function, body)
@@ -69,7 +69,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         ) }
         val type = ast.type?.let { visit(it) }
         val value = ast.value?.let { visit(it) }
-        val variable = Variable.Local(ast.name, type?.type ?: value!!.type)
+        val variable = Variable.Local(ast.name, type?.type ?: value!!.type, ast.mutable)
         require(value == null || value.type.isSubtypeOf(variable.type)) { error(
             ast,
             "Invalid value type.",
@@ -88,7 +88,11 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         return when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
                 val receiver = visit(ast.receiver)
-                //TODO: Require mutable variable
+                require(receiver.variable.mutable) { error(
+                    ast.receiver,
+                    "Unassignable variable.",
+                    "The variable ${receiver.variable.name} is not assignable.",
+                ) }
                 val value = visit(ast.value)
                 require(value.type.isSubtypeOf(receiver.variable.type)) { error(
                     ast.value,
@@ -104,12 +108,16 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
                     "An assignment statement requires the receiver property access to be non-coalescing.",
                 ) }
                 val receiver = visit(ast.receiver)
-                //TODO: Require mutable property
+                require(receiver.property.mutable) { error(
+                    ast.receiver,
+                    "Unassignable property.",
+                    "The property ${receiver.property.type.base.name}.${receiver.property.name} is not assignable.",
+                ) }
                 val value = visit(ast.value)
                 require(value.type.isSubtypeOf(receiver.property.type)) { error(
                     ast.value,
                     "Invalid assignment value type.",
-                    "The property ${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
+                    "The property ${receiver.property.type.base.name}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value)
             }
@@ -208,7 +216,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val type = argument.type.methods["get", 1]!!.returns
         return scoped(Scope(scope)) {
             //TODO: Generic types
-            scope.variables.define(Variable.Local(ast.name, type))
+            scope.variables.define(Variable.Local(ast.name, type, false))
             val body = visit(ast.body)
             RhovasIr.Statement.For(ast.name, argument, body)
         }
@@ -237,7 +245,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr.Statement.Try.Catch {
         return scoped(Scope(scope)) {
             //TODO: Catch type
-            scope.variables.define(Variable.Local(ast.name, Library.TYPES["Exception"]!!))
+            scope.variables.define(Variable.Local(ast.name, Library.TYPES["Exception"]!!, false))
             val body = visit(ast.body)
             RhovasIr.Statement.Try.Catch(ast.name, body)
         }
@@ -246,7 +254,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With {
         val argument = visit(ast.argument)
         return scoped(Scope(scope)) {
-            ast.name?.let { scope.variables.define(Variable.Local(ast.name, argument.type)) }
+            ast.name?.let { scope.variables.define(Variable.Local(ast.name, argument.type, false)) }
             val body = visit(ast.body)
             RhovasIr.Statement.With(ast.name, argument, body)
         }
@@ -558,9 +566,9 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
         val body = scoped(Scope(scope)) {
             if (parameters.isNotEmpty()) {
-                parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!)) }
+                parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }
             } else {
-                scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!))
+                scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!, false))
             }
             visit(ast.body)
         }
@@ -588,7 +596,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
         //TODO: Validate variable name
         //TODO: Infer type
-        val variable = if (ast.name != "_") Variable.Local(ast.name, Library.TYPES["Dynamic"]!!) else null
+        val variable = if (ast.name != "_") Variable.Local(ast.name, Library.TYPES["Dynamic"]!!, false) else null
         variable?.let { scope.variables.define(it) }
         return RhovasIr.Pattern.Variable(variable)
     }
@@ -603,7 +611,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val pattern = visit(ast.pattern)
         //TODO: Bind variables
         val predicate = scoped(Scope(scope)) {
-            scope.variables.define(Variable.Local("val", pattern.type))
+            scope.variables.define(Variable.Local("val", pattern.type, false))
             visit(ast.predicate)
         }
         require(predicate.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
@@ -654,7 +662,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             } else if (it.value.second != null) {
                 visit(it.value.second!!)
             } else {
-                scope.variables.define(Variable.Local(it.value.first, Library.TYPES["Dynamic"]!!))
+                scope.variables.define(Variable.Local(it.value.first, Library.TYPES["Dynamic"]!!, false))
                 null
             }
             Pair(it.value.first, pattern)

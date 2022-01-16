@@ -40,7 +40,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
                     //TODO: Variable.Parameter class?
-                    val parameter = Variable.Local(ir.function.parameters[i].first, ir.function.parameters[i].second)
+                    val parameter = Variable.Local(ir.function.parameters[i].first, ir.function.parameters[i].second, false)
                     scope.variables.define(Variable.Local.Runtime(parameter, arguments[i]))
                 }
                 try {
@@ -63,6 +63,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
         val variable = scope.variables[ir.variable.name]!! as Variable.Local.Runtime
+        require(variable.mutable) { error(
+            ir,
+            "Unassignable variable.",
+            "The variable ${variable.name} is unassignable.",
+        ) }
         variable.value = visit(ir.value)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -146,7 +151,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         }
         val case = ir.cases.firstOrNull { predicate.test(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Local("_", argument.type)))) { error(
+                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Local("_", argument.type, false)))) { error(
                     ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
@@ -171,7 +176,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             try {
                 scoped(Scope(scope)) {
                     //TODO: Generic types
-                    val variable = Variable.Local(ir.name, Library.TYPES["Any"]!!)
+                    val variable = Variable.Local(ir.name, Library.TYPES["Any"]!!, false)
                     scope.variables.define(Variable.Local.Runtime(variable, element))
                     visit(ir.body)
                 }
@@ -226,7 +231,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             ir.catches.firstOrNull()?.let {
                 scoped(Scope(scope)) {
                     //TODO: Exception types
-                    val variable = Variable.Local(it.name, Library.TYPES["Exception"]!!)
+                    val variable = Variable.Local(it.name, Library.TYPES["Exception"]!!, false)
                     scope.variables.define(Variable.Local.Runtime(variable, e.exception))
                     visit(it.body)
                 }
@@ -605,7 +610,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                     return Object(Library.TYPES["Boolean"]!!, false)
                 }
             } else {
-                val variable = Variable.Local(key, value.type)
+                val variable = Variable.Local(key, value.type, false)
                 patternState.scope.variables.define(Variable.Local.Runtime(variable, value))
             }
         }
@@ -735,17 +740,17 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                         Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
                     }
                     for (i in parameters.indices) {
-                        val variable = Variable.Local(parameters[i].first, parameters[i].second)
+                        val variable = Variable.Local(parameters[i].first, parameters[i].second, false)
                         val value = arguments[i].third
                         evaluator.scope.variables.define(variable)
                     }
                 } else if (arguments.size == 1) {
                     //TODO: entry name is (intentionally) unused
-                    val variable = Variable.Local("val", arguments[0].second)
+                    val variable = Variable.Local("val", arguments[0].second, false)
                     val value = arguments[0].third
                     evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
                 } else {
-                    val variable = Variable.Local("val", Library.TYPES["Object"]!!)
+                    val variable = Variable.Local("val", Library.TYPES["Object"]!!, false)
                     val value = Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })
                     evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
                 }
