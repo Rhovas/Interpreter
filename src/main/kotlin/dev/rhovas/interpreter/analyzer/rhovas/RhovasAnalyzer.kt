@@ -12,6 +12,10 @@ import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr> {
 
+    private val context = object {
+        var function: Function.Definition? = null
+    }
+
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
         val statements = ast.statements.map { visit(it) }
         return RhovasIr.Source(statements)
@@ -49,11 +53,14 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         val function = Function.Definition(ast.name, parameters, returns)
         scope.functions.define(function)
         //TODO: Validate thrown exceptions
-        val body = scoped(Scope(scope)) {
+        return scoped(Scope(scope)) {
+            val previous = context.function
+            context.function = function
             parameters.forEach { scope.variables.define(Variable.Local(it.first, it.second, false)) }
-            visit(ast.body) as RhovasIr.Statement.Block
+            val body = visit(ast.body) as RhovasIr.Statement.Block
+            context.function = previous
+            RhovasIr.Statement.Function(function, body)
         }
-        return RhovasIr.Statement.Function(function, body)
     }
 
     override fun visit(ast: RhovasAst.Statement.Declaration): RhovasIr.Statement.Declaration {
@@ -282,8 +289,17 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
     }
 
     override fun visit(ast: RhovasAst.Statement.Return): RhovasIr.Statement.Return {
-        //TODO: Validate return value type
+        require(context.function != null) { error(
+            ast,
+            "Invalid return statement.",
+            "A return statement requires an enclosing function definition.",
+        ) }
         val value = ast.value?.let { visit(it) }
+        require((value?.type ?: Library.TYPES["Void"]!!).isSubtypeOf(context.function!!.returns)) { error(
+            ast,
+            "Invalid return value type.",
+            "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${value?.type ?: Library.TYPES["Void"]!!}.",
+        ) }
         return RhovasIr.Statement.Return(value)
     }
 
@@ -564,16 +580,19 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         //TODO: Validate using same requirements as function statements
         //TODO: Type inference/unification for parameter types
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
-        val body = scoped(Scope(scope)) {
+        return scoped(Scope(scope)) {
+            val previous = context.function
+            context.function = Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!)
             if (parameters.isNotEmpty()) {
                 parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }
             } else {
                 scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!, false))
             }
-            visit(ast.body)
+            val body = visit(ast.body)
+            context.function = previous
+            val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
+            RhovasIr.Expression.Lambda(parameters, body, type)
         }
-        val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
-        return RhovasIr.Expression.Lambda(parameters, body, type)
     }
 
     override fun visit(ast: RhovasAst.Expression.Macro): RhovasIr.Expression.Macro {

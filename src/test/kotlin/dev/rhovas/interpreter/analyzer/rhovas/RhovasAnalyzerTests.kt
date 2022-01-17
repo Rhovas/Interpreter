@@ -117,7 +117,60 @@ class RhovasAnalyzerTests {
         }
 
         @Nested
-        inner class FunctionTests {}
+        inner class FunctionTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testFunction(name: String, input: String, expected: RhovasIr.Statement.Function?) {
+                test("statement", input, expected)
+            }
+
+            fun testFunction(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Definition", """
+                        func name() {
+                            name();
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("name", listOf(), Library.TYPES["Void"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
+                                    Function.Definition("name", listOf(), Library.TYPES["Void"]!!),
+                                    listOf(),
+                                )),
+                            )),
+                        )
+                    ),
+                    Arguments.of("Parameter", """
+                        func name(parameter: Integer) {
+                            stmt(parameter);
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("name", listOf(Pair("parameter", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                stmt(RhovasIr.Expression.Access.Variable(Variable.Local("parameter", Library.TYPES["Integer"]!!, false))),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Return Value", """
+                        func name(): Integer {
+                            return 1;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("name", listOf(), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                            )),
+                        ),
+                    ),
+                    //TODO: Control flow analysis for return value
+                )
+            }
+
+        }
 
         @Nested
         inner class DeclarationTests {
@@ -549,7 +602,52 @@ class RhovasAnalyzerTests {
         inner class ContinueTests {}
 
         @Nested
-        inner class ReturnTests {}
+        inner class ReturnTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testReturn(name: String, input: String, expected: RhovasIr.Statement?) {
+                test("statement", input, expected)
+            }
+
+            fun testReturn(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Return Void", """
+                        func test() {
+                            return;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("test", listOf(), Library.TYPES["Void"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Return(null),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Return Value", """
+                        func test(): Integer {
+                            return 1;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Invalid Return", """
+                        return;
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Return Type", """
+                        func test(): Integer {
+                            return 1.0;
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
         inner class ThrowTests {}
@@ -1221,6 +1319,17 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Lambda(
                             listOf(),
                             RhovasIr.Statement.Block(listOf(stmt())),
+                            Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!)),
+                        ),
+                    ),
+                    Arguments.of("Return Value", """
+                        lambda { return 1; }
+                    """.trimIndent(),
+                        RhovasIr.Expression.Lambda(
+                            listOf(),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                            )),
                             Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!)),
                         ),
                     ),

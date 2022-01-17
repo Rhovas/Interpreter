@@ -120,7 +120,7 @@ class EvaluatorTests {
                     Arguments.of("Declaration", "{ func name() { log(1); } name(); }", "1"),
                     Arguments.of("Single Parameter", "{ func name(x) { log(x); } name(1); }", "1"),
                     Arguments.of("Multiple Parameters", "{ func name(x, y, z) { log(x); log(y); log(z); } name(1, 2, 3); }", "123"),
-                    Arguments.of("Return Value", "{ func name() { return 1; } log(name()); }", "1"),
+                    Arguments.of("Return Value", "{ func name(): Integer { return 1; } log(name()); }", "1"),
                 )
             }
 
