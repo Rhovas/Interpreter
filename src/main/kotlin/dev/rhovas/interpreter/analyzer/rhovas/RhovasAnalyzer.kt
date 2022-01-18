@@ -12,9 +12,12 @@ import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr> {
 
-    private val context = object {
-        var function: Function.Definition? = null
-    }
+    private var context = Context(null)
+
+    data class Context(
+        val function: Function.Definition?,
+        val labels: MutableMap<String?, Boolean> = mutableMapOf(),
+    )
 
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
         val statements = ast.statements.map { visit(it) }
@@ -54,11 +57,11 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         scope.functions.define(function)
         //TODO: Validate thrown exceptions
         return scoped(Scope(scope)) {
-            val previous = context.function
-            context.function = function
+            val previous = context
+            context = Context(function)
             parameters.forEach { scope.variables.define(Variable.Local(it.first, it.second, false)) }
             val body = visit(ast.body) as RhovasIr.Statement.Block
-            context.function = previous
+            context = previous
             RhovasIr.Statement.Function(function, body)
         }
     }
@@ -224,7 +227,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         return scoped(Scope(scope)) {
             //TODO: Generic types
             scope.variables.define(Variable.Local(ast.name, type, false))
+            val previous = context.labels.putIfAbsent(null, false)
             val body = visit(ast.body)
+            if (previous != null) {
+                context.labels[null] = previous
+            } else {
+                context.labels.remove(null)
+            }
             RhovasIr.Statement.For(ast.name, argument, body)
         }
     }
@@ -236,7 +245,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Invalid while condition type.",
             "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
+        val previous = context.labels.putIfAbsent(null, false)
         val body = visit(ast.body)
+        if (previous != null) {
+            context.labels[null] = previous
+        } else {
+            context.labels.remove(null)
+        }
         return RhovasIr.Statement.While(condition, body)
     }
 
@@ -273,18 +288,50 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Invalid label statement.",
             "A label statement requires the statement to be a for/while loop.",
         ) }
-        //TODO: Validate label
+        require(!context.labels.contains(ast.label)) { error(
+            ast,
+            "Redefined label.",
+            "The label ${ast.label} is already defined in this scope.",
+        ) }
+        context.labels[ast.label] = false
         val statement = visit(ast.statement)
+        //TODO: Validate unused labels
+        require(context.labels[ast.label] == true) { error(
+            ast,
+            "Unused label.",
+            "The label ${ast.label} is unused within the statement.",
+        ) }
+        context.labels.remove(ast.label)
         return RhovasIr.Statement.Label(ast.label, statement)
     }
 
     override fun visit(ast: RhovasAst.Statement.Break): RhovasIr.Statement.Break {
-        //TODO: Validate label
+        require(context.labels.contains(null)) { error(
+            ast,
+            "Invalid continue statement.",
+            "A continue statement requires an enclosing for/while loop.",
+        ) }
+        require(context.labels.contains(ast.label)) { error(
+            ast,
+            "Undefined label.",
+            "The label ${ast.label} is not defined in this scope.",
+        ) }
+        context.labels[ast.label] = true
         return RhovasIr.Statement.Break(ast.label)
     }
 
     override fun visit(ast: RhovasAst.Statement.Continue): RhovasIr.Statement.Continue {
-        //TODO: Validate label
+        require(context.labels.contains(null)) { error(
+            ast,
+            "Invalid continue statement.",
+            "A continue statement requires an enclosing for/while loop.",
+        ) }
+        require(context.labels.contains(ast.label)) { error(
+            ast,
+            "Undefined label.",
+            "The label ${ast.label} is not defined in this scope.",
+        ) }
+        context.labels[ast.label] = true
         return RhovasIr.Statement.Continue(ast.label)
     }
 
@@ -581,15 +628,15 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         //TODO: Type inference/unification for parameter types
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
         return scoped(Scope(scope)) {
-            val previous = context.function
-            context.function = Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!)
+            val previous = context
+            context = Context(Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!))
             if (parameters.isNotEmpty()) {
                 parameters.forEach { scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }
             } else {
                 scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!, false))
             }
             val body = visit(ast.body)
-            context.function = previous
+            context = previous
             val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
             RhovasIr.Expression.Lambda(parameters, body, type)
         }

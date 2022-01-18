@@ -593,13 +593,163 @@ class RhovasAnalyzerTests {
         }
 
         @Nested
-        inner class LabelTests {}
+        inner class LabelTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testLabel(name: String, input: String, expected: RhovasIr.Statement.Label?) {
+                test("statement", input, expected)
+            }
+
+            fun testLabel(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("For", """
+                        label: for (val element in []) {
+                            break label;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Label("label",
+                            RhovasIr.Statement.For("element",
+                                RhovasIr.Expression.Literal(listOf<RhovasIr.Expression>(), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))),
+                                RhovasIr.Statement.Block(listOf(
+                                    RhovasIr.Statement.Break("label"),
+                                )),
+                            ),
+                        ),
+                    ),
+                    Arguments.of("While", """
+                        label: while (true) {
+                            break label;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Label("label",
+                            RhovasIr.Statement.While(
+                                RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                RhovasIr.Statement.Block(listOf(
+                                    RhovasIr.Statement.Break("label"),
+                                )),
+                            ),
+                        ),
+                    ),
+                    Arguments.of("Invalid Statement", """
+                        label: stmt(0);
+                    """.trimIndent(), null),
+                    Arguments.of("Redefined Label", """
+                        label: while (true) {
+                            label: while (true) {
+                                break label;
+                            }
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Unused Label", """
+                        label: while (true) {
+                            break;
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
-        inner class BreakTests {}
+        inner class BreakTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testBreak(name: String, input: String, expected: RhovasIr.Statement?) {
+                test("statement", input, expected)
+            }
+
+            fun testBreak(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Break", """
+                        while (true) {
+                            break;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.While(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Break(null),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Label", """
+                        label: while (true) {
+                            break label;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Label("label",
+                            RhovasIr.Statement.While(
+                                RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                RhovasIr.Statement.Block(listOf(
+                                    RhovasIr.Statement.Break("label"),
+                                )),
+                            ),
+                        ),
+                    ),
+                    Arguments.of("Invalid Statement", """
+                        break;
+                    """.trimIndent(), null),
+                    Arguments.of("Undefined Label", """
+                        while (true) {
+                            break label;
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
-        inner class ContinueTests {}
+        inner class ContinueTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testContinue(name: String, input: String, expected: RhovasIr.Statement?) {
+                test("statement", input, expected)
+            }
+
+            fun testContinue(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Continue", """
+                        while (true) {
+                            continue;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.While(
+                            RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Continue(null),
+                            )),
+                        ),
+                    ),
+                    Arguments.of("Label", """
+                        label: while (true) {
+                            continue label;
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Label("label",
+                            RhovasIr.Statement.While(
+                                RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                RhovasIr.Statement.Block(listOf(
+                                    RhovasIr.Statement.Continue("label"),
+                                )),
+                            ),
+                        ),
+                    ),
+                    Arguments.of("Invalid Statement", """
+                        continue;
+                    """.trimIndent(), null),
+                    Arguments.of("Undefined Label", """
+                        while (true) {
+                            continue label;
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
 
         @Nested
         inner class ReturnTests {
