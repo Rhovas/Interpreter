@@ -89,6 +89,9 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Statement.Block(listOf(stmt(1), stmt(2), stmt(3))),
                     ),
+                    Arguments.of("Unreachable", """
+                        { return; stmt(); }
+                    """.trimIndent(), null),
                 )
             }
 
@@ -166,7 +169,91 @@ class RhovasAnalyzerTests {
                             )),
                         ),
                     ),
-                    //TODO: Control flow analysis for return value
+                    Arguments.of("If Return", """
+                        func test(): Integer {
+                            if (true) {
+                                return 1;
+                            } else {
+                                return 2;
+                            }
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.If(
+                                    RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                    RhovasIr.Statement.Block(listOf(
+                                        RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                                    )),
+                                    RhovasIr.Statement.Block(listOf(
+                                        RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("2"), Library.TYPES["Integer"]!!)),
+                                    )),
+                                ),
+                            ))
+                        ),
+                    ),
+                    Arguments.of("Conditional Match Return", """
+                        func test(): Integer {
+                            match {
+                                true: return 1;
+                                else: return 2;
+                            }
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Match.Conditional(
+                                    listOf(Pair(
+                                        RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                        RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                                    )),
+                                    Pair(null, RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("2"), Library.TYPES["Integer"]!!))),
+                                ),
+                            ))
+                        ),
+                    ),
+                    Arguments.of("Structural Match Return", """
+                        func test(): Integer {
+                            match (true) {
+                                true: return 1;
+                            }
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Statement.Function(
+                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!),
+                            RhovasIr.Statement.Block(listOf(
+                                RhovasIr.Statement.Match.Structural(
+                                    RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!),
+                                    listOf(Pair(
+                                        RhovasIr.Pattern.Value(RhovasIr.Expression.Literal(true, Library.TYPES["Boolean"]!!)),
+                                        RhovasIr.Statement.Return(RhovasIr.Expression.Literal(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                                    )),
+                                    null,
+                                ),
+                            ))
+                        ),
+                    ),
+                    Arguments.of("Missing Return Value", """
+                        func test(): Integer {
+                            stmt();
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Incomplete If Return", """
+                        func test(): Integer {
+                            if (true) {
+                                return 1;
+                            }
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Incomplete Conditional Match Return", """
+                        func test(): Integer {
+                            match {
+                                true: return 1;
+                            }
+                        }
+                    """.trimIndent(), null),
                 )
             }
 

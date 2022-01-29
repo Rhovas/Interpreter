@@ -12,13 +12,6 @@ import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr> {
 
-    private var context = Context(null)
-
-    data class Context(
-        val function: Function.Definition?,
-        val labels: MutableMap<String?, Boolean> = mutableMapOf(),
-    )
-
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
         val statements = ast.statements.map { visit(it) }
         return RhovasIr.Source(statements)
@@ -30,7 +23,14 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
 
     override fun visit(ast: RhovasAst.Statement.Block): RhovasIr {
         return scoped(Scope(scope)) {
-            val statements = ast.statements.map { visit(it) }
+            val statements = ast.statements.withIndex().map {
+                require(it.index == ast.statements.lastIndex || context.jumps.isEmpty()) { error(
+                    ast,
+                    "Unreachable statement.",
+                    "The previous statement changes control flow to always jump past this statement.",
+                ) }
+                visit(it.value)
+            }
             RhovasIr.Statement.Block(statements)
         }
     }
@@ -61,6 +61,11 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             context = Context(function)
             parameters.forEach { scope.variables.define(Variable.Local(it.first, it.second, false)) }
             val body = visit(ast.body) as RhovasIr.Statement.Block
+            require(function.returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
+                ast,
+                "Missing return value.",
+                "The function ${ast.name}/${ast.parameters.size} requires a return value.",
+            ) }
             context = previous
             RhovasIr.Statement.Function(function, body)
         }
@@ -133,7 +138,6 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
-                println(receiver.type)
                 val method = receiver.type.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
                     ast,
                     "Undefined method.",
@@ -166,8 +170,12 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Invalid if condition type.",
             "An if statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
+        val previous = context
+        context = previous.child()
         val thenStatement = visit(ast.thenStatement)
+        context = previous.child()
         val elseStatement = ast.elseStatement?.let { visit(it) }
+        context = previous.collect()
         return RhovasIr.Statement.If(condition, thenStatement, elseStatement)
     }
 
@@ -181,24 +189,30 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             ) }
             return condition
         }
+        val previous = context
         val cases = ast.cases.map {
+            context = previous.child()
             val condition = visitCondition(it.first)
             val statement = visit(it.second)
             Pair(condition, statement)
         }
+        context = previous.child()
         val elseCase = ast.elseCase?.let {
             val condition = it.first?.let { visitCondition(it) }
             val statement = visit(it.second)
             Pair(condition, statement)
         }
+        context = previous.collect()
         return RhovasIr.Statement.Match.Conditional(cases, elseCase)
     }
 
     override fun visit(ast: RhovasAst.Statement.Match.Structural): RhovasIr {
         val argument = visit(ast.argument)
         //TODO: Typecheck patterns
+        val previous = context
         val cases = ast.cases.map {
             scoped(Scope(scope)) {
+                context = previous.child()
                 val pattern = visit(it.first)
                 val statement = visit(it.second)
                 Pair(pattern, statement)
@@ -206,11 +220,13 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         }
         val elseCase = ast.elseCase?.let {
             scoped(Scope(scope)) {
+                context = previous.child()
                 val pattern = it.first?.let { visit(it) }
                 val statement = visit(it.second)
                 Pair(pattern, statement)
             }
         }
+        context = context.collect()
         return RhovasIr.Statement.Match.Structural(argument, cases, elseCase)
     }
 
@@ -234,6 +250,8 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             } else {
                 context.labels.remove(null)
             }
+            //TODO: Validate jump context
+            context.jumps.clear()
             RhovasIr.Statement.For(ast.name, argument, body)
         }
     }
@@ -252,6 +270,8 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         } else {
             context.labels.remove(null)
         }
+        //TODO: Validate jump context
+        context.jumps.clear()
         return RhovasIr.Statement.While(condition, body)
     }
 
@@ -302,6 +322,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "The label ${ast.label} is unused within the statement.",
         ) }
         context.labels.remove(ast.label)
+        //TODO: Validate jump locations (constant conditions / dependent types)
         return RhovasIr.Statement.Label(ast.label, statement)
     }
 
@@ -317,6 +338,7 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "The label ${ast.label} is not defined in this scope.",
         ) }
         context.labels[ast.label] = true
+        context.jumps.add(ast.label)
         return RhovasIr.Statement.Break(ast.label)
     }
 
@@ -347,6 +369,8 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
             "Invalid return value type.",
             "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${value?.type ?: Library.TYPES["Void"]!!}.",
         ) }
+        context.jumps.add("")
+        println("Return Post Context: " + context.jumps.size)
         return RhovasIr.Statement.Return(value)
     }
 
