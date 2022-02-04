@@ -1576,6 +1576,65 @@ class RhovasAnalyzerTests {
 
         }
 
+        @Nested
+        inner class DslTests {
+
+            val DSL = Function.Definition("dsl",
+                listOf(
+                    Pair("literals", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                    Pair("arguments", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))),
+                ),
+                Library.TYPES["Dynamic"]!!
+            )
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testDsl(name: String, input: String, expected: RhovasIr.Expression?) {
+                test("expression", input, expected, Scope(Library.SCOPE).also {
+                    it.functions.define(DSL)
+                })
+            }
+
+            fun testDsl(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("DSL", """
+                        #dsl {
+                            literal
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Expression.Invoke.Function(DSL, listOf(
+                            RhovasIr.Expression.Literal(listOf(
+                                RhovasIr.Expression.Literal("literal", Library.TYPES["String"]!!),
+                            ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                            RhovasIr.Expression.Literal(
+                                listOf<RhovasIr.Expression>(),
+                                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))
+                            ),
+                        ))
+                    ),
+                    Arguments.of("Argument", """
+                        #dsl {
+                            argument = ${'$'}{"argument"}
+                        }
+                    """.trimIndent(),
+                        RhovasIr.Expression.Invoke.Function(DSL, listOf(
+                            RhovasIr.Expression.Literal(listOf(
+                                RhovasIr.Expression.Literal("argument = ", Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal("", Library.TYPES["String"]!!),
+                            ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
+                            RhovasIr.Expression.Literal(listOf(
+                                RhovasIr.Expression.Interpolation(RhovasIr.Expression.Literal("argument", Library.TYPES["String"]!!)),
+                            ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))),
+                        ))
+                    ),
+                    Arguments.of("Undefined DSL", """
+                        #undefined {}
+                    """.trimIndent(), null)
+                )
+            }
+
+        }
+
     }
 
     private fun stmt(position: Int): RhovasIr.Statement {

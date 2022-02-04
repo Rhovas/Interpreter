@@ -6,6 +6,7 @@ import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
+import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -666,12 +667,37 @@ class RhovasAnalyzer(scope: Scope) : Analyzer(scope), RhovasAst.Visitor<RhovasIr
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Macro): RhovasIr.Expression.Macro {
-        TODO()
+    override fun visit(ast: RhovasAst.Expression.Macro): RhovasIr.Expression {
+        return if (ast.arguments.last() is RhovasAst.Expression.Dsl) {
+            //TODO: Syntax macro arguments
+            visit(ast.arguments.last())
+        } else {
+            TODO()
+        }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Dsl): RhovasIr.Expression.Dsl {
-        TODO()
+    override fun visit(ast: RhovasAst.Expression.Dsl): RhovasIr.Expression {
+        //TODO: Delegation of AST analysis
+        val source = ast.ast as? DslAst.Source ?: throw error(
+            ast,
+            "Invalid DSL AST.",
+            "The AST of type " + ast.ast + " is not supported by the analyzer.",
+        )
+        val function = scope.functions[ast.name, 2] as Function.Definition? ?: throw error(
+            ast,
+            "Undefined DSL transformer.",
+            "The DSL ${ast.name} requires a transformer macro #${ast.name}/2 or function ${ast.name}/2.",
+        )
+        val literals = RhovasIr.Expression.Literal(
+            source.literals.map { RhovasIr.Expression.Literal(it, Library.TYPES["String"]!!) },
+            Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)),
+        )
+        val arguments = RhovasIr.Expression.Literal(
+            source.arguments.map { visit(it as RhovasAst) },
+            Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
+        )
+        //TODO: Compile time invocation
+        return RhovasIr.Expression.Invoke.Function(function, listOf(literals, arguments))
     }
 
     override fun visit(ast: RhovasAst.Expression.Interpolation): RhovasIr.Expression.Interpolation {
