@@ -1,44 +1,56 @@
 package dev.rhovas.interpreter.analyzer
 
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
-abstract class Analyzer(protected var scope: Scope) {
-
-    internal var context = Context(null, mutableMapOf(), mutableSetOf())
+abstract class Analyzer(internal var context: Context) {
 
     data class Context(
-        val function: Function.Definition?,
-        val labels: MutableMap<String?, Boolean> = mutableMapOf(),
-        val jumps: MutableSet<String?> = mutableSetOf(),
+        val function: Function.Definition?, //TODO: Convert to ContextItem?
+        val items: Map<Class<*>, Item<*>>,
     ) {
 
         private val children = mutableListOf<Context>()
 
-        fun child(): Context {
-            return Context(function, labels).also { children.add(it) }
+        operator fun <C: Item<T>, T>get(item: Class<C>): T {
+            return items[item]!!.value as T
         }
 
-        fun collect(): Context {
-            if (children.any { it.jumps.isEmpty() }) {
-                jumps.clear()
-            } else {
-                children.forEach { jumps.addAll(it.jumps) }
+        fun child(): Context {
+            return Context(function, items.mapValues { it.value.child() }).also { children.add(it) }
+        }
+
+        fun merge() {
+            items.forEach { (k, v) ->
+                (v as Item<Any?>).merge(children.map { it.items[k]!!.value })
             }
-            return this.also { children.clear() }
+            children.clear()
+        }
+
+        abstract class Item<T>(
+            val value: T,
+        ) {
+
+            abstract fun child(): Item<T>
+
+            abstract fun merge(children: List<T>)
+
         }
 
     }
 
-    fun <T> scoped(scope: Scope, block: () -> T): T {
-        val original = this.scope
-        this.scope = scope
+    fun <T> analyze(context: Context? = null, block: () -> T): T {
+        val original = this.context
+        this.context = context ?: original.child()
         try {
             return block()
         } finally {
-            this.scope = original
+            this.context = original.also {
+                if (context == null) {
+                    it.merge()
+                }
+            }
         }
     }
 
