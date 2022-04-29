@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 sealed class RhovasIr {
 
@@ -148,10 +149,26 @@ sealed class RhovasIr {
         open val type: dev.rhovas.interpreter.environment.Type,
     ): RhovasIr() {
 
-        data class Literal(
-            val value: Any?,
-            override val type: dev.rhovas.interpreter.environment.Type
-        ): Expression(type)
+        sealed class Literal(
+            override val type: dev.rhovas.interpreter.environment.Type,
+        ) : Expression(type) {
+
+            data class Scalar(
+                val value: Any?,
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Literal(type)
+
+            data class List(
+                val elements: kotlin.collections.List<Expression>,
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Literal(type)
+
+            data class Object(
+                val properties: Map<String, Expression>,
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Literal(type)
+
+        }
 
         data class Group(
             val expression: Expression,
@@ -318,7 +335,9 @@ sealed class RhovasIr {
                 is Statement.Ensure -> visit(ir)
                 is Statement.Require -> visit(ir)
 
-                is Expression.Literal -> visit(ir)
+                is Expression.Literal.Scalar -> visit(ir)
+                is Expression.Literal.List -> visit(ir)
+                is Expression.Literal.Object -> visit(ir)
                 is Expression.Group -> visit(ir)
                 is Expression.Unary -> visit(ir)
                 is Expression.Binary -> visit(ir)
@@ -371,7 +390,9 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Require): T
         fun visit(ir: Statement.Ensure): T
 
-        fun visit(ir: Expression.Literal): T
+        fun visit(ir: Expression.Literal.Scalar): T
+        fun visit(ir: Expression.Literal.List): T
+        fun visit(ir: Expression.Literal.Object): T
         fun visit(ir: Expression.Group): T
         fun visit(ir: Expression.Unary): T
         fun visit(ir: Expression.Binary): T

@@ -308,24 +308,18 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ir: RhovasIr.Expression.Literal): Object {
-        return when (ir.value) {
-            null -> Object(Library.TYPES["Null"]!!, null)
-            is Boolean -> Object(Library.TYPES["Boolean"]!!, ir.value)
-            is BigInteger -> Object(Library.TYPES["Integer"]!!, ir.value)
-            is BigDecimal -> Object(Library.TYPES["Decimal"]!!, ir.value)
-            is String -> Object(Library.TYPES["String"]!!, ir.value)
-            is RhovasAst.Atom -> Object(Library.TYPES["Atom"]!!, ir.value)
-            is List<*> -> {
-                val value = (ir.value as List<RhovasIr.Expression>).map { visit(it) }
-                Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), value.toMutableList())
-            }
-            is Map<*, *> -> {
-                val value = (ir.value as Map<String, RhovasIr.Expression>).mapValues { visit(it.value) }
-                Object(Library.TYPES["Object"]!!, value.toMutableMap())
-            }
-            else -> throw AssertionError()
-        }
+    override fun visit(ir: RhovasIr.Expression.Literal.Scalar): Object {
+        return Object(ir.type, ir.value)
+    }
+
+    override fun visit(ir: RhovasIr.Expression.Literal.List): Object {
+        val value = ir.elements.map { visit(it) }
+        return Object(ir.type, value)
+    }
+
+    override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
+        val value = ir.properties.mapValues { visit(it.value) }
+        return Object(ir.type, value)
     }
 
     override fun visit(ir: RhovasIr.Expression.Group): Object {

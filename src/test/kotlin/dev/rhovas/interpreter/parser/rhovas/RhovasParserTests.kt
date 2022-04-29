@@ -749,7 +749,7 @@ class RhovasParserTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testScalar(name: String, input: String, expected: Any?) {
-                test("expression", input, RhovasAst.Expression.Literal(expected))
+                test("expression", input, RhovasAst.Expression.Literal.Scalar(expected))
             }
 
             fun testScalar(): Stream<Arguments> {
@@ -770,7 +770,7 @@ class RhovasParserTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testList(name: String, input: String, expected: List<RhovasAst.Expression>?) {
-                test("expression", input, expected?.let { RhovasAst.Expression.Literal(it) })
+                test("expression", input, expected?.let { RhovasAst.Expression.Literal.List(it) })
             }
 
             fun testList(): Stream<Arguments> {
@@ -796,7 +796,7 @@ class RhovasParserTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testObject(name: String, input: String, expected: Map<String, RhovasAst.Expression>?) {
-                test("expression", input, expected?.let { RhovasAst.Expression.Literal(it) })
+                test("expression", input, expected?.let { RhovasAst.Expression.Literal.Object(it) })
             }
 
             fun testObject(): Stream<Arguments> {
@@ -1412,13 +1412,13 @@ class RhovasParserTests {
 
             fun testValue(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Null", "null", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(null))),
-                    Arguments.of("Boolean True", "true", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(true))),
-                    Arguments.of("Boolean False", "false", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(false))),
-                    Arguments.of("Integer", "0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(BigInteger("0")))),
-                    Arguments.of("Decimal", "0.0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(BigDecimal("0.0")))),
-                    Arguments.of("String", "\"string\"", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal("string"))),
-                    Arguments.of("Atom", ":atom", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal(RhovasAst.Atom("atom")))),
+                    Arguments.of("Null", "null", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(null))),
+                    Arguments.of("Boolean True", "true", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(true))),
+                    Arguments.of("Boolean False", "false", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(false))),
+                    Arguments.of("Integer", "0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigInteger("0")))),
+                    Arguments.of("Decimal", "0.0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigDecimal("0.0")))),
+                    Arguments.of("String", "\"string\"", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar("string"))),
+                    Arguments.of("Atom", ":atom", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom")))),
                     Arguments.of("Interpolation", "\${value}", RhovasAst.Pattern.Value(expression("value"))),
                     Arguments.of("Missing Opening Brace", "\$value}", null),
                     Arguments.of("Missing Closing Brace", "\${value", null),
@@ -1615,13 +1615,13 @@ class RhovasParserTests {
         fun testInteraction(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of("Keyword Label Atom", "statement", "return :atom;",
-                    RhovasAst.Statement.Return(RhovasAst.Expression.Literal(RhovasAst.Atom("atom"))),
+                    RhovasAst.Statement.Return(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom"))),
                 ),
                 //expression
                 Arguments.of("Lambda Zero Parameters", "expression", "function || {} ",
                     RhovasAst.Expression.Binary("||",
                         expression("function"),
-                        RhovasAst.Expression.Literal(mapOf<String, RhovasAst.Expression>())
+                        RhovasAst.Expression.Literal.Object(mapOf())
                     ),
                 ),
             )

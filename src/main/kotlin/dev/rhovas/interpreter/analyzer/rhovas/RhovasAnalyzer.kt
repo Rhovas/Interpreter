@@ -484,29 +484,29 @@ class RhovasAnalyzer(scope: Scope) :
         return super.visit(ast) as RhovasIr.Expression
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal): RhovasIr.Expression.Literal {
-        return when (ast.value) {
-            is List<*> -> {
-                val value = (ast.value as List<RhovasAst.Expression>).map { visit(it) }
-                RhovasIr.Expression.Literal(value, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)))
-            }
-            is Map<*, *> -> {
-                val value = (ast.value as Map<String, RhovasAst.Expression>).mapValues { visit(it.value) }
-                RhovasIr.Expression.Literal(value, Library.TYPES["Object"]!!)
-            }
-            else -> {
-                val type = when (ast.value) {
-                    null -> Library.TYPES["Null"]!!
-                    is Boolean -> Library.TYPES["Boolean"]!!
-                    is BigInteger -> Library.TYPES["Integer"]!!
-                    is BigDecimal -> Library.TYPES["Decimal"]!!
-                    is String -> Library.TYPES["String"]!!
-                    is RhovasAst.Atom -> Library.TYPES["Atom"]!!
-                    else -> throw AssertionError()
-                }
-                RhovasIr.Expression.Literal(ast.value, type)
-            }
+    override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr {
+        val type = when (ast.value) {
+            null -> Library.TYPES["Null"]!!
+            is Boolean -> Library.TYPES["Boolean"]!!
+            is BigInteger -> Library.TYPES["Integer"]!!
+            is BigDecimal -> Library.TYPES["Decimal"]!!
+            is String -> Library.TYPES["String"]!!
+            is RhovasAst.Atom -> Library.TYPES["Atom"]!!
+            else -> throw AssertionError()
         }
+        return RhovasIr.Expression.Literal.Scalar(ast.value, type)
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr {
+        val elements = ast.elements.map { visit(it) }
+        val type = Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))
+        return RhovasIr.Expression.Literal.List(elements, type)
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
+        val properties = ast.properties.mapValues { visit(it.value) }
+        val type = Library.TYPES["Object"]!!
+        return RhovasIr.Expression.Literal.Object(properties, type)
     }
 
     override fun visit(ast: RhovasAst.Expression.Group): RhovasIr.Expression.Group {
@@ -733,12 +733,12 @@ class RhovasAnalyzer(scope: Scope) :
             "Undefined DSL transformer.",
             "The DSL ${ast.name} requires a transformer macro #${ast.name}/2 or function ${ast.name}/2.",
         )
-        val literals = RhovasIr.Expression.Literal(
-            source.literals.map { RhovasIr.Expression.Literal(it, Library.TYPES["String"]!!) },
+        val literals = RhovasIr.Expression.Literal.List(
+            source.literals.map { RhovasIr.Expression.Literal.Scalar(it, Library.TYPES["String"]!!) },
             Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)),
         )
-        val arguments = RhovasIr.Expression.Literal(
-            source.arguments.map { visit(it as RhovasAst) },
+        val arguments = RhovasIr.Expression.Literal.List(
+            source.arguments.map { visit(it as RhovasAst.Expression) },
             Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
         )
         //TODO: Compile time invocation

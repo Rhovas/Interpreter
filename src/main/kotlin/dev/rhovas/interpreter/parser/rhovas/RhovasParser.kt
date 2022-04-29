@@ -580,22 +580,22 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parsePrimaryExpression(): RhovasAst.Expression {
         return when {
             match("null") -> {
-                RhovasAst.Expression.Literal(null).also {
+                RhovasAst.Expression.Literal.Scalar(null).also {
                     it.context = listOf(tokens[-1]!!.range)
                 }
             }
             match(listOf("true", "false")) -> {
-                RhovasAst.Expression.Literal(tokens[-1]!!.literal.toBooleanStrict()).also {
+                RhovasAst.Expression.Literal.Scalar(tokens[-1]!!.literal.toBooleanStrict()).also {
                     it.context = listOf(tokens[-1]!!.range)
                 }
             }
             match(listOf(RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING)) -> {
-                RhovasAst.Expression.Literal(tokens[-1]!!.value).also {
+                RhovasAst.Expression.Literal.Scalar(tokens[-1]!!.value).also {
                     it.context = listOf(tokens[-1]!!.range)
                 }
             }
             match(":", RhovasTokenType.IDENTIFIER) -> {
-                RhovasAst.Expression.Literal(RhovasAst.Atom(tokens[-1]!!.literal)).also {
+                RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom(tokens[-1]!!.literal)).also {
                     it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
                 }
             }
@@ -611,7 +611,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     ) }
                     context.removeLast()
                 }
-                RhovasAst.Expression.Literal(elements).also {
+                RhovasAst.Expression.Literal.List(elements).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
@@ -632,7 +632,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     context.removeLast()
                     context.removeLast()
                 }
-                RhovasAst.Expression.Literal(properties).also {
+                RhovasAst.Expression.Literal.Object(properties).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
