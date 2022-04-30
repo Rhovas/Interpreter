@@ -137,12 +137,17 @@ sealed class RhovasAst {
                 val value: Any?,
             ) : Literal()
 
+            data class String(
+                val literals: kotlin.collections.List<kotlin.String>,
+                val arguments: kotlin.collections.List<Expression>,
+            ): Literal()
+
             data class List(
                 val elements: kotlin.collections.List<Expression>,
             ) : Literal()
 
             data class Object(
-                val properties: Map<String, Expression>,
+                val properties: Map<kotlin.String, Expression>,
             ) : Literal()
 
         }
@@ -298,6 +303,7 @@ sealed class RhovasAst {
                 is Statement.Require -> visit(ast)
 
                 is Expression.Literal.Scalar -> visit(ast)
+                is Expression.Literal.String -> visit(ast)
                 is Expression.Literal.List -> visit(ast)
                 is Expression.Literal.Object -> visit(ast)
                 is Expression.Group -> visit(ast)
@@ -351,6 +357,7 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Ensure): T
 
         fun visit(ast: Expression.Literal.Scalar): T
+        fun visit(ast: Expression.Literal.String): T
         fun visit(ast: Expression.Literal.List): T
         fun visit(ast: Expression.Literal.Object): T
         fun visit(ast: Expression.Group): T

@@ -589,9 +589,44 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     it.context = listOf(tokens[-1]!!.range)
                 }
             }
-            match(listOf(RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING)) -> {
+            match(listOf(RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL)) -> {
                 RhovasAst.Expression.Literal.Scalar(tokens[-1]!!.value).also {
                     it.context = listOf(tokens[-1]!!.range)
+                }
+            }
+            match("\"") -> {
+                context.addLast(tokens[-1]!!.range)
+                lexer.mode = "string"
+                val literals = mutableListOf<String>()
+                val arguments = mutableListOf<RhovasAst.Expression>()
+                if (!peek(RhovasTokenType.STRING)) {
+                    literals.add("")
+                }
+                while (!match("\"")) {
+                    if (match("\${")) {
+                        context.addLast(tokens[-1]!!.range)
+                        lexer.mode = ""
+                        arguments.add(parseExpression())
+                        require(match("}")) { error(
+                            "Expected closing brace.",
+                            "An interpolated argument must be followed by a closing brace, as in `\"variable = \${variable}\"`.",
+                        ) }
+                        lexer.mode = "string"
+                        if (!peek(RhovasTokenType.STRING)) {
+                            literals.add("")
+                        }
+                        context.removeLast()
+                    } else {
+                        require(match(RhovasTokenType.STRING)) { error(
+                            "Unterminated string literal.",
+                            "A string literal must end with a double quote (\") and cannot span multiple lines.",
+                        ) }
+                        literals.add(tokens[-1]!!.value as String)
+                    }
+                }
+                lexer.mode = ""
+                RhovasAst.Expression.Literal.String(literals, arguments).also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
             match(":", RhovasTokenType.IDENTIFIER) -> {
@@ -759,14 +794,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     private fun parsePattern(): RhovasAst.Pattern {
         var pattern = when {
-            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, RhovasTokenType.STRING)) -> {
-                RhovasAst.Pattern.Value(parsePrimaryExpression()).also {
-                    it.context = listOf(tokens[-1]!!.range)
-                }
-            }
+            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL)) ||
+            peek("\"") ||
             peek(":", RhovasTokenType.IDENTIFIER) -> {
                 RhovasAst.Pattern.Value(parsePrimaryExpression()).also {
-                    it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
+                    it.context = it.value.context.toMutableList()
                 }
             }
             peek(RhovasTokenType.IDENTIFIER) -> {

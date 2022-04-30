@@ -761,9 +761,38 @@ class RhovasParserTests {
                     Arguments.of("Integer Above Long Max", "1" + "0".repeat(19), BigInteger("1" + "0".repeat(19))),
                     Arguments.of("Decimal", "123.456", BigDecimal("123.456")),
                     Arguments.of("Decimal Above Double Max", "1" + "0".repeat(308) + ".0", BigDecimal("1" + "0".repeat(308) + ".0")),
-                    Arguments.of("String", "\"string\"", "string"),
-                    Arguments.of("String Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
                     Arguments.of("Atom", ":atom", RhovasAst.Atom("atom")),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testString(name: String, input: String, expected: RhovasAst.Expression.Literal.String?) {
+                test("expression", input, expected)
+            }
+
+            fun testString(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", "\"\"", RhovasAst.Expression.Literal.String(listOf(""), listOf())),
+                    Arguments.of("String", "\"string\"", RhovasAst.Expression.Literal.String(listOf("string"), listOf())),
+                    Arguments.of("Interpolation", "\"start\${argument}end\"", RhovasAst.Expression.Literal.String(
+                        listOf("start", "end"),
+                        listOf(RhovasAst.Expression.Access.Variable("argument")),
+                    )),
+                    Arguments.of("Interpolation Multiple", "\"start\${first}middle\${second}end\"", RhovasAst.Expression.Literal.String(
+                        listOf("start", "middle", "end"),
+                        listOf(RhovasAst.Expression.Access.Variable("first"), RhovasAst.Expression.Access.Variable("second")),
+                    )),
+                    Arguments.of("Interpolation Only", "\"\${argument}\"", RhovasAst.Expression.Literal.String(
+                        listOf("", ""),
+                        listOf(RhovasAst.Expression.Access.Variable("argument")),
+                    )),
+                    Arguments.of("Interpolation Only Multiple", "\"\${first}\${second}\"", RhovasAst.Expression.Literal.String(
+                        listOf("", "", ""),
+                        listOf(RhovasAst.Expression.Access.Variable("first"), RhovasAst.Expression.Access.Variable("second")),
+                    )),
+                    Arguments.of("Unterminated", "\"unterminated", null),
+                    Arguments.of("Unterminated Newline", "\"unterminated\n", null),
                 )
             }
 
@@ -1417,7 +1446,7 @@ class RhovasParserTests {
                     Arguments.of("Boolean False", "false", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(false))),
                     Arguments.of("Integer", "0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigInteger("0")))),
                     Arguments.of("Decimal", "0.0", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigDecimal("0.0")))),
-                    Arguments.of("String", "\"string\"", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar("string"))),
+                    Arguments.of("String", "\"string\"", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.String(listOf("string"), listOf()))),
                     Arguments.of("Atom", ":atom", RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom")))),
                     Arguments.of("Interpolation", "\${value}", RhovasAst.Pattern.Value(expression("value"))),
                     Arguments.of("Missing Opening Brace", "\$value}", null),

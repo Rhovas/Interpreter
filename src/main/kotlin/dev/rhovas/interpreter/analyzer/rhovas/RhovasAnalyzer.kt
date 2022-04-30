@@ -490,11 +490,16 @@ class RhovasAnalyzer(scope: Scope) :
             is Boolean -> Library.TYPES["Boolean"]!!
             is BigInteger -> Library.TYPES["Integer"]!!
             is BigDecimal -> Library.TYPES["Decimal"]!!
-            is String -> Library.TYPES["String"]!!
             is RhovasAst.Atom -> Library.TYPES["Atom"]!!
             else -> throw AssertionError()
         }
         return RhovasIr.Expression.Literal.Scalar(ast.value, type)
+    }
+
+    override fun visit(ast: RhovasAst.Expression.Literal.String): RhovasIr {
+        val arguments = ast.arguments.map { visit(it) }
+        val type = Library.TYPES["String"]!!
+        return RhovasIr.Expression.Literal.String(ast.literals, arguments, type)
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr {
@@ -734,7 +739,7 @@ class RhovasAnalyzer(scope: Scope) :
             "The DSL ${ast.name} requires a transformer macro #${ast.name}/2 or function ${ast.name}/2.",
         )
         val literals = RhovasIr.Expression.Literal.List(
-            source.literals.map { RhovasIr.Expression.Literal.Scalar(it, Library.TYPES["String"]!!) },
+            source.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Library.TYPES["String"]!!) },
             Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)),
         )
         val arguments = RhovasIr.Expression.Literal.List(

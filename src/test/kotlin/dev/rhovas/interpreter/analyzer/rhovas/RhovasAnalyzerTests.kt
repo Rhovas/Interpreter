@@ -910,7 +910,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Statement.Assert(
                             RhovasIr.Expression.Literal.Scalar(true, Library.TYPES["Boolean"]!!),
-                            RhovasIr.Expression.Literal.Scalar("message", Library.TYPES["String"]!!),
+                            RhovasIr.Expression.Literal.String(listOf("message"), listOf(), Library.TYPES["String"]!!),
                         ),
                     ),
                     Arguments.of("Invalid Condition", """
@@ -945,7 +945,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Statement.Require(
                             RhovasIr.Expression.Literal.Scalar(true, Library.TYPES["Boolean"]!!),
-                            RhovasIr.Expression.Literal.Scalar("message", Library.TYPES["String"]!!),
+                            RhovasIr.Expression.Literal.String(listOf("message"), listOf(), Library.TYPES["String"]!!),
                         ),
                     ),
                     Arguments.of("Invalid Condition", """
@@ -980,7 +980,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Statement.Ensure(
                             RhovasIr.Expression.Literal.Scalar(true, Library.TYPES["Boolean"]!!),
-                            RhovasIr.Expression.Literal.Scalar("message", Library.TYPES["String"]!!),
+                            RhovasIr.Expression.Literal.String(listOf("message"), listOf(), Library.TYPES["String"]!!),
                         ),
                     ),
                     Arguments.of("Invalid Condition", """
@@ -1023,7 +1023,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Literal.Scalar(BigDecimal("123.456"), Library.TYPES["Decimal"]!!),
                     ),
                     Arguments.of("String", "\"string\"",
-                        RhovasIr.Expression.Literal.Scalar("string", Library.TYPES["String"]!!),
+                        RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!),
                     ),
                     Arguments.of("Atom", ":atom",
                         RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("atom"), Library.TYPES["Atom"]!!),
@@ -1080,16 +1080,16 @@ class RhovasAnalyzerTests {
                     ),
                     Arguments.of("Single", "{key: \"value\"}",
                         RhovasIr.Expression.Literal.Object(
-                            mapOf(Pair("key", RhovasIr.Expression.Literal.Scalar("value", Library.TYPES["String"]!!))),
+                            mapOf(Pair("key", RhovasIr.Expression.Literal.String(listOf("value"), listOf(), Library.TYPES["String"]!!))),
                             Library.TYPES["Object"]!!,
                         ),
                     ),
                     Arguments.of("Multiple", "{k1: \"v1\", k2: \"v2\", k3: \"v3\"}",
                         RhovasIr.Expression.Literal.Object(
                             mapOf(
-                                Pair("k1", RhovasIr.Expression.Literal.Scalar("v1", Library.TYPES["String"]!!)),
-                                Pair("k2", RhovasIr.Expression.Literal.Scalar("v2", Library.TYPES["String"]!!)),
-                                Pair("k3", RhovasIr.Expression.Literal.Scalar("v3", Library.TYPES["String"]!!)),
+                                Pair("k1", RhovasIr.Expression.Literal.String(listOf("v1"), listOf(), Library.TYPES["String"]!!)),
+                                Pair("k2", RhovasIr.Expression.Literal.String(listOf("v2"), listOf(), Library.TYPES["String"]!!)),
+                                Pair("k3", RhovasIr.Expression.Literal.String(listOf("v3"), listOf(), Library.TYPES["String"]!!)),
                             ),
                             Library.TYPES["Object"]!!,
                         ),
@@ -1111,18 +1111,18 @@ class RhovasAnalyzerTests {
             fun testGroup(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Literal", "(\"expression\")",
-                        RhovasIr.Expression.Group(RhovasIr.Expression.Literal.Scalar("expression", Library.TYPES["String"]!!)),
+                        RhovasIr.Expression.Group(RhovasIr.Expression.Literal.String(listOf("expression"), listOf(), Library.TYPES["String"]!!)),
                     ),
                     Arguments.of("Binary", "(\"first\" + \"second\")",
                         RhovasIr.Expression.Group(RhovasIr.Expression.Binary("+",
-                            RhovasIr.Expression.Literal.Scalar("first", Library.TYPES["String"]!!),
-                            RhovasIr.Expression.Literal.Scalar("second", Library.TYPES["String"]!!),
+                            RhovasIr.Expression.Literal.String(listOf("first"), listOf(), Library.TYPES["String"]!!),
+                            RhovasIr.Expression.Literal.String(listOf("second"), listOf(), Library.TYPES["String"]!!),
                             Library.TYPES["String"]!!,
                         ),
                     ),
                     Arguments.of("Nested", "((\"expression\"))",
                         RhovasIr.Expression.Group(RhovasIr.Expression.Group(
-                            RhovasIr.Expression.Literal.Scalar("expression", Library.TYPES["String"]!!)),
+                            RhovasIr.Expression.Literal.String(listOf("expression"), listOf(), Library.TYPES["String"]!!)),
                         )),
                     ),
                 )
@@ -1378,7 +1378,7 @@ class RhovasAnalyzerTests {
                     return Stream.of(
                         Arguments.of("Property", "\"string\".size",
                             RhovasIr.Expression.Access.Property(
-                                RhovasIr.Expression.Literal.Scalar("string", Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!),
                                 Library.TYPES["String"]!!.properties["size"]!!,
                                 false,
                             ),
@@ -1444,7 +1444,7 @@ class RhovasAnalyzerTests {
                     return Stream.of(
                         Arguments.of("Function", "function(\"argument\")",
                             RhovasIr.Expression.Invoke.Function(FUNCTION, listOf(
-                                RhovasIr.Expression.Literal.Scalar("argument", Library.TYPES["String"]!!)
+                                RhovasIr.Expression.Literal.String(listOf("argument"), listOf(), Library.TYPES["String"]!!)
                             )),
                         ),
                         Arguments.of("Invalid Arity", "function()", null),
@@ -1467,11 +1467,11 @@ class RhovasAnalyzerTests {
                     return Stream.of(
                         Arguments.of("Method", "\"string\".contains(\"\")",
                             RhovasIr.Expression.Invoke.Method(
-                                RhovasIr.Expression.Literal.Scalar("string", Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!),
                                 Library.TYPES["String"]!!.methods["contains", 1]!!,
                                 false,
                                 false,
-                                listOf(RhovasIr.Expression.Literal.Scalar("", Library.TYPES["String"]!!))
+                                listOf(RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!))
                             ),
                         ),
                         //TODO: Coalesce (requires nullable type)
@@ -1604,10 +1604,10 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Expression.Invoke.Function(DSL, listOf(
                             RhovasIr.Expression.Literal.List(listOf(
-                                RhovasIr.Expression.Literal.Scalar("literal", Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal.String(listOf("literal"), listOf(), Library.TYPES["String"]!!),
                             ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
                             RhovasIr.Expression.Literal.List(
-                                listOf<RhovasIr.Expression>(),
+                                listOf(),
                                 Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))
                             ),
                         ))
@@ -1619,11 +1619,11 @@ class RhovasAnalyzerTests {
                     """.trimIndent(),
                         RhovasIr.Expression.Invoke.Function(DSL, listOf(
                             RhovasIr.Expression.Literal.List(listOf(
-                                RhovasIr.Expression.Literal.Scalar("argument = ", Library.TYPES["String"]!!),
-                                RhovasIr.Expression.Literal.Scalar("", Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal.String(listOf("argument = "), listOf(), Library.TYPES["String"]!!),
+                                RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!),
                             ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
                             RhovasIr.Expression.Literal.List(listOf(
-                                RhovasIr.Expression.Interpolation(RhovasIr.Expression.Literal.Scalar("argument", Library.TYPES["String"]!!)),
+                                RhovasIr.Expression.Interpolation(RhovasIr.Expression.Literal.String(listOf("argument"), listOf(), Library.TYPES["String"]!!)),
                             ), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))),
                         ))
                     ),

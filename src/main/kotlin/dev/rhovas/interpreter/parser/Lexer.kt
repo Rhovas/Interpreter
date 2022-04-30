@@ -5,6 +5,7 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
     protected val chars = CharStream()
     private val context = ArrayDeque<Input.Range>()
 
+    var mode = ""
     var state
         get() = Pair(chars.range, context)
         set(value) {

@@ -12,6 +12,7 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.stream.Stream
+import kotlin.math.exp
 
 class RhovasLexerTests {
 
@@ -145,37 +146,6 @@ class RhovasLexerTests {
     }
 
     @Nested
-    inner class StringTests {
-
-        @ParameterizedTest(name = "{0}")
-        @MethodSource
-        fun testString(name: String, input: String, expected: String?) {
-            test(input, listOf(
-                Token(RhovasTokenType.STRING, input, expected, Input.Range(0, 1, 0, input.length))
-            ), expected != null)
-        }
-
-        fun testString(): Stream<Arguments> {
-            return Stream.of(
-                Arguments.of("Empty", "\"\"", ""),
-                Arguments.of("Single Character", "\"c\"", "c"),
-                Arguments.of("Multiple Characters", "\"abc\"", "abc"),
-                Arguments.of("Digits", "\"123\"", "123"),
-                Arguments.of("Symbols", "\"!@#\"", "!@#"),
-                Arguments.of("Whitespace", "\" \t\u000B\"", " \t\u000B"),
-                Arguments.of("Unicode", "\"ρ⚡♖\"", "ρ⚡♖"),
-                Arguments.of("Escapes", "\"\\n\\r\\t\\\"\\\$\\\\\"", "\n\r\t\"\$\\"),
-                Arguments.of("Unicode Escapes", "\"\\u1234\\uABCD\"", "\u1234\uABCD"),
-                Arguments.of("Invalid Escape", "\"\\e\"", null),
-                Arguments.of("Invalid Unicode Escape", "\"\\uXXXX\"", null),
-                Arguments.of("Unterminated", "\"string", null),
-                Arguments.of("Unterminated Newline", "\"string\n\"", null),
-            )
-        }
-
-    }
-
-    @Nested
     inner class OperatorTests {
 
         @ParameterizedTest(name = "{0}")
@@ -283,11 +253,11 @@ class RhovasLexerTests {
                     Token(RhovasTokenType.IDENTIFIER, "e", null, Input.Range(7, 1, 7, 1)),
                     Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(8, 1, 8, 1)),
                 )),
-                //string
-                Arguments.of("Triple Quotes", "\"\"\"string\"\"\"", listOf(
-                    Token(RhovasTokenType.STRING, "\"\"", "", Input.Range(0, 1, 0, 2)),
-                    Token(RhovasTokenType.STRING, "\"string\"", "string", Input.Range(2, 1, 2, 8)),
-                    Token(RhovasTokenType.STRING, "\"\"", "", Input.Range(10, 1, 10, 2)),
+                //string (without string mode)
+                Arguments.of("String", "\"string\"", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.IDENTIFIER, "string", null, Input.Range(1, 1, 1, 6)),
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(7, 1, 7, 1)),
                 )),
                 //operator
                 Arguments.of("Multiple Operators", "<=", listOf(
@@ -322,7 +292,12 @@ class RhovasLexerTests {
 
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(18, 2, 4, 5)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(23, 2, 9, 1)),
-                Token(RhovasTokenType.STRING, "\"Hello, World!\"", "Hello, World!", Input.Range(24, 2, 10, 15)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(24, 2, 10, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "Hello", null, Input.Range(25, 2, 11, 5)),
+                Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(30, 2, 16, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "World", null, Input.Range(32, 2, 18, 5)),
+                Token(RhovasTokenType.OPERATOR, "!", null, Input.Range(37, 2, 23, 1)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(38, 2, 24, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(39, 2, 25, 1)),
                 Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(40, 2, 26, 1)),
 
@@ -394,7 +369,9 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(122, 4, 18, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(124, 4, 20, 5)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(129, 4, 25, 1)),
-                Token(RhovasTokenType.STRING, "\"FizzBuzz\"", "FizzBuzz", Input.Range(130, 4, 26, 10)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(130, 4, 26, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "FizzBuzz", null, Input.Range(131, 4, 27, 8)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(139, 4, 35, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(140, 4, 36, 1)),
                 Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(141, 4, 37, 1)),
 
@@ -406,7 +383,9 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(161, 5, 18, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(163, 5, 20, 5)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(168, 5, 25, 1)),
-                Token(RhovasTokenType.STRING, "\"Fizz\"", "Fizz", Input.Range(169, 5, 26, 6)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(169, 5, 26, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "Fizz", null, Input.Range(170, 5, 27, 4)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(174, 5, 31, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(175, 5, 32, 1)),
                 Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(176, 5, 33, 1)),
 
@@ -418,7 +397,9 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(196, 6, 18, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(198, 6, 20, 5)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(203, 6, 25, 1)),
-                Token(RhovasTokenType.STRING, "\"Buzz\"", "Buzz", Input.Range(204, 6, 26, 6)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(204, 6, 26, 1)),
+                Token(RhovasTokenType.IDENTIFIER, "Buzz", null, Input.Range(205, 6, 27, 4)),
+                Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(209, 6, 31, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(210, 6, 32, 1)),
                 Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(211, 6, 33, 1)),
 
@@ -440,50 +421,110 @@ class RhovasLexerTests {
 
     }
 
-    @Nested
-    inner class ErrorTests {
-
-        @ParameterizedTest(name = "{0}")
-        @MethodSource
-        fun testError(name: String, input: String, summary: String, range: Input.Range) {
-            val exception = Assertions.assertThrows(ParseException::class.java) {
-                RhovasLexer(Input("Test", input)).lex()
-            }
-            Assertions.assertAll(
-                { Assertions.assertEquals(summary, exception.summary) },
-                { Assertions.assertEquals(range, exception.range) },
-            )
-        }
-
-        fun testError(): Stream<Arguments> {
-            return Stream.of(
-                Arguments.of("Invalid Character Escape", "\"\\e\"",
-                    "Invalid character escape.",
-                    Input.Range(1, 1, 1, 2),
-                ),
-                Arguments.of("Invalid Unicode Escape", "\"\\u1A?\"",
-                    "Invalid unicode escape.",
-                    Input.Range(1, 1, 1, 5),
-                ),
-                Arguments.of("Unterminated String Literal", "\"unterminated",
-                    "Unterminated string literal.",
-                    Input.Range(0, 1, 0, 13),
-                ),
-            )
-        }
-
-    }
-
     private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
+        val lexer = RhovasLexer(Input("Test", input))
         if (success) {
-            Assertions.assertEquals(expected, RhovasLexer(Input("Test", input)).lex())
+            Assertions.assertEquals(expected, lexer.lex())
         } else {
             try {
-                Assertions.assertNotEquals(expected, RhovasLexer(Input("Test", input)).lex())
+                Assertions.assertNotEquals(expected, lexer.lex())
             } catch (e: ParseException) {
                 Assertions.assertNotEquals("Broken lexer invariant.", e.summary)
             }
         }
+    }
+
+    @Nested
+    inner class StringModeTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testOperator(name: String, input: String) {
+            test(input, listOf(
+                Token(RhovasTokenType.OPERATOR, input, null, Input.Range(0, 1, 0, input.length))
+            ), true)
+        }
+
+        fun testOperator(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Double Quote", "\""),
+                Arguments.of("Interpolation", "\${"),
+            )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testString(name: String, input: String, expected: String?) {
+            test(input, listOf(
+                Token(RhovasTokenType.STRING, input, expected, Input.Range(0, 1, 0, input.length))
+            ), expected != null)
+        }
+
+        fun testString(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Alphanumeric", "abc123", "abc123"),
+                Arguments.of("Special", "!@#ρ⚡♖", "!@#ρ⚡♖"),
+                Arguments.of("Whitespace", " \t\u000B", " \t\u000B"),
+                Arguments.of("Escapes", "\\n\\r\\t\\\"\\\$\\\\", "\n\r\t\"\$\\"),
+                Arguments.of("Unicode Escapes", "\\u1234\\uABCD", "\u1234\uABCD"),
+                Arguments.of("Invalid Escape", "\"\\e\"", null),
+                Arguments.of("Invalid Unicode Escape", "\"\\uXXXX\"", null),
+            )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testInteraction(name: String, input: String, expected: List<Token<RhovasTokenType>>) {
+            test(input, expected, true)
+        }
+
+        fun testInteraction(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", "\"\"", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(1, 1, 1, 1)),
+                )),
+                Arguments.of("String", "\"string\"", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.STRING, "string", "string", Input.Range(1, 1, 1, 6)),
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(7, 1, 7, 1)),
+                )),
+                Arguments.of("Interpolation", "\"start\${argument}end\"", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.STRING, "start", "start", Input.Range(1, 1, 1, 5)),
+                    Token(RhovasTokenType.OPERATOR, "\${", null, Input.Range(6, 1, 6, 2)),
+                    Token(RhovasTokenType.STRING, "argument}end", "argument}end", Input.Range(8, 1, 8, 12)),
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(20, 1, 20, 1)),
+                )),
+                Arguments.of("Interpolation Multiple", "\"\${first}\${second}\"", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.OPERATOR, "\${", null, Input.Range(1, 1, 1, 2)),
+                    Token(RhovasTokenType.STRING, "first}", "first}", Input.Range(3, 1, 3, 6)),
+                    Token(RhovasTokenType.OPERATOR, "\${", null, Input.Range(9, 1, 9, 2)),
+                    Token(RhovasTokenType.STRING, "second}", "second}", Input.Range(11, 1, 11, 7)),
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(18, 1, 18, 1)),
+                )),
+                Arguments.of("Unterminated Newline", "\"unterminated\n", listOf(
+                    Token(RhovasTokenType.OPERATOR, "\"", null, Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.STRING, "unterminated", "unterminated", Input.Range(1, 1, 1, 12)),
+                    Token(RhovasTokenType.OPERATOR, "\n", null, Input.Range(13, 1, 13, 1)),
+                )),
+            )
+        }
+
+        private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
+            val lexer = RhovasLexer(Input("Test", input)).also { it.mode = "string" }
+            if (success) {
+                Assertions.assertEquals(expected, lexer.lex())
+            } else {
+                try {
+                    Assertions.assertNotEquals(expected, lexer.lex())
+                } catch (e: ParseException) {
+                    Assertions.assertNotEquals("Broken lexer invariant.", e.summary)
+                }
+            }
+        }
+
     }
 
 }

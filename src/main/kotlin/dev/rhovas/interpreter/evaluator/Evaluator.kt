@@ -312,6 +312,16 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return Object(ir.type, ir.value)
     }
 
+    override fun visit(ir: RhovasIr.Expression.Literal.String): Object {
+        val builder = StringBuilder()
+        ir.arguments.indices.forEach {
+            builder.append(ir.literals[it])
+            builder.append(visit(ir.arguments[it]).methods["toString", 0]!!.invoke(listOf()).value as String)
+        }
+        builder.append(ir.literals.last())
+        return Object(Library.TYPES["String"]!!, builder.toString())
+    }
+
     override fun visit(ir: RhovasIr.Expression.Literal.List): Object {
         val value = ir.elements.map { visit(it) }
         return Object(ir.type, value)
