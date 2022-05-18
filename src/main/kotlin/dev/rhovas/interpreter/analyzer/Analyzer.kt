@@ -6,6 +6,8 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 abstract class Analyzer(internal var context: Context) {
 
+    protected val Context.inputs get() = this[InputContext::class.java]
+
     data class Context(
         val function: Function.Definition?, //TODO: Convert to ContextItem?
         val items: Map<Class<*>, Item<*>>,
@@ -40,6 +42,18 @@ abstract class Analyzer(internal var context: Context) {
 
     }
 
+    data class InputContext(
+        val inputs: ArrayDeque<Input.Range>,
+    ) : Context.Item<ArrayDeque<Input.Range>>(inputs) {
+
+        override fun child(): Context.Item<ArrayDeque<Input.Range>> {
+            return this
+        }
+
+        override fun merge(children: List<ArrayDeque<Input.Range>>) {}
+
+    }
+
     fun <T> analyze(context: Context? = null, block: () -> T): T {
         val original = this.context
         this.context = context ?: original.child()
@@ -60,14 +74,12 @@ abstract class Analyzer(internal var context: Context) {
         }
     }
 
-    fun error(ast: RhovasAst?, summary: String, details: String): AnalyzeException {
-        val range = ast?.context?.first() ?: Input.Range(0, 1, 0, 0)
-        return AnalyzeException(
-            summary,
-            details,
-            range,
-            listOf(), //TODO context
-        )
+    fun error(ast: RhovasAst, summary: String, details: String): AnalyzeException {
+        return error(summary, details, ast.context?.first() ?: Input.Range(0, 1, 0, 0))
+    }
+
+    fun error(summary: String, details: String, range: Input.Range): AnalyzeException {
+        return AnalyzeException(summary, details, range, context.inputs)
     }
 
 }

@@ -1649,12 +1649,15 @@ class RhovasAnalyzerTests {
     }
 
     private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(null)) {
-        scope.functions.define(STMT_0)
-        scope.functions.define(STMT_1)
         val ast = RhovasParser(Input("AnalyzerTests.test", input)).parse(rule)
+        val analyzer = RhovasAnalyzer(scope.also {
+            it.functions.define(STMT_0)
+            it.functions.define(STMT_1)
+        })
         if (expected != null) {
-            val ir = RhovasAnalyzer(scope).visit(ast)
+            val ir = analyzer.visit(ast)
             Assertions.assertEquals(expected, ir)
+            Assertions.assertTrue(ast.context.isNotEmpty() || input.isEmpty())
         } else {
             Assertions.assertThrows(AnalyzeException::class.java) { RhovasAnalyzer(scope).visit(ast) }
         }

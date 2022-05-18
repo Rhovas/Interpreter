@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter
 
+import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.evaluator.EvaluateException
@@ -19,6 +20,8 @@ fun main(args: Array<String>) {
         Library.initialize()
         EVALUATOR.visit(RhovasAnalyzer(Library.SCOPE).visit(ast))
     } catch (e: ParseException) {
+        println(input.diagnostic(e.summary, e.details, e.range, e.context))
+    } catch (e: AnalyzeException) {
         println(input.diagnostic(e.summary, e.details, e.range, e.context))
     } catch (e: EvaluateException) {
         println(input.diagnostic(e.summary, e.details, e.range, e.context))

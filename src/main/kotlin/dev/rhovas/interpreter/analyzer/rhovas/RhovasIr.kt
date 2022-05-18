@@ -2,11 +2,10 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 sealed class RhovasIr {
 
-    var context: List<Input.Range>? = null
+    var context: List<Input.Range> = listOf()
         internal set
 
     data class Source(
