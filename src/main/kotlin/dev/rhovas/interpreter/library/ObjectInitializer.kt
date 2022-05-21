@@ -32,10 +32,10 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
     )
     fun equals(instance: Map<String, Object>, other: Map<String, Object>): Boolean {
         return instance.keys == other.keys && instance.keys.all {
-            val method = instance[it]!!.methods["==", 1] ?: throw EVALUATOR.error(
+            val method = instance[it]!!.methods["==", listOf(instance[it]!!.type)] ?: throw EVALUATOR.error(
                 null,
                 "Undefined method.",
-                "The method ${instance[it]!!.type.base.name}.==/1 is undefined.",
+                "The method ${instance[it]!!.type.base.name}.==(${instance[it]!!.type}) is undefined.",
             )
             if (instance[it]!!.type == other[it]!!.type) method.invoke(listOf(other[it]!!)).value as Boolean else false
         }
@@ -43,7 +43,7 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
 
     @Reflect.Method("toString", returns = Reflect.Type("String"))
     fun toString(instance: Map<String, Object>): String {
-        return instance.mapValues { it.value.methods["toString", 0]!!.invoke(listOf()).value as String }.toString()
+        return instance.mapValues { it.value.methods["toString", listOf()]!!.invoke(listOf()).value as String }.toString()
     }
 
 }

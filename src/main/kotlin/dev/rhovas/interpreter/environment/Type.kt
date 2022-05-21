@@ -8,7 +8,7 @@ sealed class Type(
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
 
-    internal abstract fun getFunction(name: String, arity: Int): Function.Definition?
+    internal abstract fun getFunction(name: String, arguments: List<Type>): Function.Definition?
 
     abstract fun bind(parameters: Map<String, Type>): Type
 
@@ -16,8 +16,8 @@ sealed class Type(
 
     inner class FunctionsDelegate {
 
-        operator fun get(name: String, arity: Int): Function.Definition? {
-            return getFunction(name, arity)
+        operator fun get(name: String, arguments: List<Type>): Function.Definition? {
+            return getFunction(name, arguments)
         }
 
     }
@@ -25,8 +25,8 @@ sealed class Type(
     inner class PropertiesDelegate {
 
         operator fun get(name: String): Variable.Property? {
-            return methods[name, 0]?.let { getter ->
-                Variable.Property(getter, methods[name, 1])
+            return methods[name, listOf()]?.let { getter ->
+                Variable.Property(getter, methods[name, listOf(getter.returns)])
             }
         }
 
@@ -34,8 +34,8 @@ sealed class Type(
 
     inner class MethodsDelegate {
 
-        operator fun get(name: String, arity: Int): Function.Method? {
-            return functions[name, 1 + arity]?.let {
+        operator fun get(name: String, arguments: List<Type>): Function.Method? {
+            return functions[name, listOf(this@Type) + arguments]?.let {
                 Function.Method(it.name, it.parameters.drop(1), it.returns)
             }
         }
@@ -69,11 +69,11 @@ sealed class Type(
         val generics: List<Type>,
     ) : Type(base) {
 
-        override fun getFunction(name: String, arity: Int): Function.Definition? {
+        override fun getFunction(name: String, arguments: List<Type>): Function.Definition? {
             return if (base.name == "Dynamic") {
-                Function.Definition(name, 0.until(arity).map { Pair("val_${it}", this) }, this)
+                Function.Definition(name, arguments.indices.map { Pair("val_${it}", this) }, this)
             } else {
-                base.scope.functions[name, arity]?.let { function ->
+                base.scope.functions[name, arguments]?.let { function ->
                     val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
                     Function.Definition(
                         function.name,
@@ -82,6 +82,9 @@ sealed class Type(
                     ).also {
                         //TODO: Better solution?
                         it.implementation = { (function as Function.Definition).implementation.invoke(it) }
+                    }.takeIf {
+                        //TODO: Better handling of generic types?
+                        arguments.zip(it.parameters).all { it.first.isSubtypeOf(it.second.second) }
                     }
                 }
             }
@@ -103,7 +106,7 @@ sealed class Type(
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other) }
                     }
                 }
-                is Generic -> base.name == "Dynamic"
+                is Generic -> base.name == "Dynamic" || this.isSubtypeOf(other.bound)
             }
         }
 
@@ -118,8 +121,8 @@ sealed class Type(
         val bound: Type,
     ) : Type(bound.base) {
 
-        override fun getFunction(name: String, arity: Int): Function.Definition? {
-            return bound.getFunction(name, arity)
+        override fun getFunction(name: String, arguments: List<Type>): Function.Definition? {
+            return bound.getFunction(name, arguments)
         }
 
         override fun bind(parameters: Map<String, Type>): Type {

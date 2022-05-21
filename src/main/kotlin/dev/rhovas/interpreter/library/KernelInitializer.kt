@@ -14,7 +14,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         parameters = [Reflect.Type("Any")]
     )
     fun print(obj: Object) {
-        println(obj.methods["toString", 0]!!.invoke(listOf()).value as String)
+        println(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
     }
 
     @Reflect.Function("range",

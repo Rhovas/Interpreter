@@ -85,10 +85,10 @@ object ListInitializer : Library.TypeInitializer("List") {
         returns = Reflect.Type("List", [Reflect.Type("T")]),
     )
     fun contains(instance: List<Object>, value: Object): Boolean {
-        val method = value.methods["==", 1] ?: throw EVALUATOR.error(
+        val method = value.methods["==", listOf(value.type)] ?: throw EVALUATOR.error(
             null,
             "Undefined method.",
-            "The method ${value.type.base.name}.==/1 is undefined.",
+            "The method ${value.type.base.name}.==(${value.type}) is undefined.",
         )
         return instance.any {
             it.type.isSubtypeOf(method.parameters[0].second) && method.invoke(listOf(it)).value as Boolean
@@ -194,10 +194,10 @@ object ListInitializer : Library.TypeInitializer("List") {
     )
     fun equals(instance: List<Object>, other: List<Object>): Boolean {
         return instance.size == other.size && instance.zip(other).all {
-            val method = it.first.methods["==", 1] ?: throw EVALUATOR.error(
+            val method = it.first.methods["==", listOf(it.first.type)] ?: throw EVALUATOR.error(
                 null,
-                "Undefined binary operator.",
-                "The operator ==/1 (equals) is not defined by type ${it.first.type}.",
+                "Undefined method.",
+                "The method ${it.first.type.base.name}.==(${it.first.type}) is undefined.",
             )
             if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
         }
@@ -205,7 +205,7 @@ object ListInitializer : Library.TypeInitializer("List") {
 
     @Reflect.Method("toString", returns = Reflect.Type("String"))
     fun toString(instance: List<Object>): String {
-        return instance.map { it.methods["toString", 0]!!.invoke(listOf()).value as String }.toString()
+        return instance.map { it.methods["toString", listOf()]!!.invoke(listOf()).value as String }.toString()
     }
 
 }

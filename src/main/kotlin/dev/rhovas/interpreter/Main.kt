@@ -17,7 +17,6 @@ fun main(args: Array<String>) {
     val input = Input(args[0], File(args[0]).readText())
     try {
         val ast = RhovasParser(input).parse("source")
-        Library.initialize()
         EVALUATOR.visit(RhovasAnalyzer(Library.SCOPE).visit(ast))
     } catch (e: ParseException) {
         println(input.diagnostic(e.summary, e.details, e.range, e.context))

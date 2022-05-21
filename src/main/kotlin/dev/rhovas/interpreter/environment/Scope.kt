@@ -31,10 +31,21 @@ class Scope(private val parent: Scope?) {
 
     inner class FunctionsDelegate {
 
-        private val functions = mutableMapOf<Pair<String, Int>, Function>()
+        private val functions = mutableMapOf<Pair<String, Int>, MutableList<Function>>()
 
-        operator fun get(name: String, arity: Int): Function? {
-            return functions[Pair(name, arity)] ?: parent?.functions?.get(name, arity)
+        private fun get(name: String, arity: Int): List<Function> {
+            //TODO: Overriding
+            return functions[Pair(name, arity)] ?: parent?.functions?.get(name, arity) ?: listOf()
+        }
+
+        operator fun get(name: String, arguments: List<Type>): Function? {
+            val candidates = get(name, arguments.size)
+                .filter { arguments.zip(it.parameters).all { it.first.isSubtypeOf(it.second.second) } }
+            return when (candidates.size) {
+                0 -> null
+                1 -> candidates[0]
+                else -> throw AssertionError()
+            }
         }
 
         fun isDefined(name: String, arity: Int, current: Boolean): Boolean {
@@ -42,10 +53,11 @@ class Scope(private val parent: Scope?) {
         }
 
         fun define(function: Function) {
-            functions[Pair(function.name, function.parameters.size)] = function
+            functions.getOrPut(Pair(function.name, function.parameters.size), ::mutableListOf).add(function)
         }
 
-        internal fun collect(): MutableMap<Pair<String, Int>, Function> {
+        internal fun collect(): MutableMap<Pair<String, Int>, List<Function>> {
+            //TODO
             val map = parent?.functions?.collect() ?: mutableMapOf()
             map.putAll(functions)
             return map

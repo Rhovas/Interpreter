@@ -189,6 +189,7 @@ sealed class RhovasIr {
             val operator: String,
             val left: Expression,
             val right: Expression,
+            val method: dev.rhovas.interpreter.environment.Function.Method?,
             override val type: dev.rhovas.interpreter.environment.Type,
         ): Expression(type)
 

@@ -23,11 +23,6 @@ import java.util.stream.Stream
 
 class EvaluatorTests {
 
-    @BeforeAll
-    fun beforeAll() {
-        Library.initialize()
-    }
-
     @Nested
     inner class SourceTests {
 
@@ -49,7 +44,7 @@ class EvaluatorTests {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!)
             function.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]
             }
             scope.functions.define(function)
@@ -638,7 +633,7 @@ class EvaluatorTests {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!)
             function.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]
             }
             scope.functions.define(function)
@@ -1107,7 +1102,7 @@ class EvaluatorTests {
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
                         ))
-                        it.functions.define(Library.SCOPE.functions["range", 3]!!)
+                        it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
                     })
                 }
 
@@ -1150,7 +1145,7 @@ class EvaluatorTests {
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
                         ))
-                        it.functions.define(Library.SCOPE.functions["range", 3]!!)
+                        it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
                         val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(null).also {
                             val function = Function.Definition("function", listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!)
                             function.implementation = { arguments ->
@@ -1195,7 +1190,7 @@ class EvaluatorTests {
                 val scope = Scope(null)
                 val function = Function.Definition("log", listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!)
                 function.implementation = { arguments ->
-                    log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                    log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                     arguments[0]
                 }
                 scope.functions.define(function)
@@ -1501,7 +1496,7 @@ class EvaluatorTests {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!)
             function.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", 0]!!.invoke(listOf()).value as String)
+                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]
             }
             scope.functions.define(function)

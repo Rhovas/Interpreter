@@ -18,17 +18,23 @@ class TypeTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testGetFunction(name: String, type: Type, fname: String, farity: Int, expected: Type) {
-        Assertions.assertEquals(expected, type.functions[fname, farity]?.returns)
+    fun testGetFunction(test: String, type: Type, name: String, arguments: List<Type>, expected: Type?) {
+        Assertions.assertEquals(expected, type.functions[name, arguments]?.returns)
     }
 
     fun testGetFunction(): Stream<Arguments> {
+        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(Pair("other", NUMBER)), INTEGER).also {
+            it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
+        })
         LIST.base.scope.functions.define(Function.Definition("get", listOf(Pair("index", INTEGER)), Type.Generic("T", ANY)).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
         return Stream.of(
-            Arguments.of("Unbound", LIST, "get", 1, Type.Generic("T", ANY)),
-            Arguments.of("Bound", LIST.bind(mapOf(Pair("T", INTEGER))), "get", 1, INTEGER),
+            Arguments.of("Equal", NUMBER, "<=>", listOf(NUMBER), INTEGER),
+            Arguments.of("Subtype", NUMBER, "<=>", listOf(INTEGER), INTEGER),
+            Arguments.of("Supertype", NUMBER, "<=>", listOf(ANY), null),
+            Arguments.of("Generic Unbound", LIST, "get", listOf(INTEGER), Type.Generic("T", ANY)),
+            Arguments.of("Generic Bound", LIST.bind(mapOf(Pair("T", INTEGER))), "get", listOf(INTEGER), INTEGER),
         )
     }
 
@@ -52,6 +58,7 @@ class TypeTests {
             Arguments.of("Generic Bound Subtype", Type.Reference(LIST.base, listOf(INTEGER)), Type.Reference(LIST.base, listOf(NUMBER)), true),
             Arguments.of("Generic Bound Supertype", Type.Reference(LIST.base, listOf(NUMBER)), Type.Reference(LIST.base, listOf(INTEGER)), false),
             Arguments.of("Generic Bound Grandchild", Type.Reference(LIST.base, listOf(INTEGER)), Type.Reference(LIST.base, listOf(ANY)), true),
+            Arguments.of("Generic Unbound", Type.Reference(LIST.base, listOf(INTEGER)), LIST, true),
             Arguments.of("Dynamic Subtype", DYNAMIC, ANY, true),
             Arguments.of("Dynamic Supertype", ANY, DYNAMIC, true),
             Arguments.of("Generic Dynamic Bound Subtype", Type.Reference(LIST.base, listOf(DYNAMIC)), LIST, true),

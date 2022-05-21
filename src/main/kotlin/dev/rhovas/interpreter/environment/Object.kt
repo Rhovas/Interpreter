@@ -13,14 +13,14 @@ data class Object(
     }
 
     operator fun get(method: Function.Method): Function.Method.Bound? {
-        return methods[method.name, method.parameters.size]
+        return methods[method.name, method.parameters.map { it.second }]
     }
 
     inner class PropertiesDelegate {
 
         operator fun get(name: String): Variable.Property.Bound? {
-            return methods[name, 0]?.let { getter ->
-                Variable.Property.Bound(getter, methods[name, 1])
+            return methods[name, listOf()]?.let { getter ->
+                Variable.Property.Bound(getter, methods[name, listOf(getter.returns)])
             }
         }
 
@@ -28,8 +28,8 @@ data class Object(
 
     inner class MethodsDelegate {
 
-        operator fun get(name: String, arity: Int): Function.Method.Bound? {
-            return type.functions[name, 1 + arity]?.let {
+        operator fun get(name: String, arguments: List<Type>): Function.Method.Bound? {
+            return type.functions[name, listOf(type) + arguments]?.let {
                 Function.Method.Bound(this@Object, it)
             }
         }

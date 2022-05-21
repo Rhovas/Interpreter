@@ -214,25 +214,13 @@ class RhovasAnalyzer(scope: Scope) :
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
-                val method = receiver.type.methods["[]=", ast.receiver.arguments.size + 1] ?: throw error(
-                    ast,
-                    "Undefined method.",
-                    "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} is not defined.",
-                )
                 val arguments = ast.receiver.arguments.map { visit(it) }
-                for (i in arguments.indices) {
-                    require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
-                        ast.receiver.arguments[i],
-                        "Invalid method argument type.",
-                        "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
-                    ) }
-                }
                 val value = visit(ast.value)
-                require(value.type.isSubtypeOf(method.parameters.last().second)) { error(
-                    ast.value,
-                    "Invalid assignment value type.",
-                    "The method ${receiver.type.base.name}.[]=/${ast.receiver.arguments.size + 1} requires the value to be type ${method.parameters.last().second}, but received ${value.type}.",
-                ) }
+                val method = receiver.type.methods["[]=", arguments.map { it.type } + listOf(value.type)] ?: throw error(
+                    ast,
+                    "Unresolved method.",
+                    "The signature []=(${(arguments.map { it.type } + listOf(value.type)).joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
+                )
                 RhovasIr.Statement.Assignment.Index(receiver, method, arguments, value).also {
                     it.context = ast.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -338,7 +326,7 @@ class RhovasAnalyzer(scope: Scope) :
             "A for loop requires the argument to be type List, but received ${argument.type}.",
         ) }
         //TODO: Proper generic type access
-        val type = argument.type.methods["get", 1]!!.returns
+        val type = argument.type.methods["get", listOf(Library.TYPES["Integer"]!!)]!!.returns
         return analyze {
             //TODO: Generic types
             context.scope.variables.define(Variable.Local(ast.name, type, false))
@@ -508,7 +496,7 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw {
-        ast.context?.first()?.let { context.inputs.addLast(it) }
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val exception = visit(ast.exception)
         require(exception.type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
             ast.exception,
@@ -517,6 +505,7 @@ class RhovasAnalyzer(scope: Scope) :
         ) }
         return RhovasIr.Statement.Throw(exception).also {
             it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
 
@@ -638,10 +627,10 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Unary): RhovasIr.Expression.Unary {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val expression = visit(ast.expression)
-        val method = expression.type.methods[ast.operator, 0] ?: throw error(
+        val method = expression.type.methods[ast.operator, listOf()] ?: throw error(
             ast,
             "Undefined method.",
-            "The method ${expression.type.base.name}.${ast.operator}/0 is not defined.",
+            "The method op${ast.operator}() is not defined in ${expression.type.base.name}.",
         )
         return RhovasIr.Expression.Unary(ast.operator, expression, method).also {
             it.context = ast.context
@@ -653,7 +642,7 @@ class RhovasAnalyzer(scope: Scope) :
         val left = visit(ast.left)
         val right = visit(ast.right)
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val type = when (ast.operator) {
+        val (type, method) = when (ast.operator) {
             "&&", "||" -> {
                 require(left.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
                     ast.left,
@@ -665,48 +654,39 @@ class RhovasAnalyzer(scope: Scope) :
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
-                Library.TYPES["Boolean"]!!
+                Pair(Library.TYPES["Boolean"]!!, null)
             }
             "==", "!=" -> {
-                require(left.type.methods["==", 1] != null) { error(
+                //TODO: Equatable<T> interface
+                val method = left.type.methods["==", listOf(left.type)] ?: throw error(
                     ast,
                     "Undefined method.",
-                    "The method ${left.type.base.name}.==/1 is not defined.",
-                ) }
-                Library.TYPES["Boolean"]!!
+                    "The method op==(${left.type}) is not defined in ${left.type.base.name}.",
+                )
+                Pair(Library.TYPES["Boolean"]!!, method)
             }
             "===", "!==" -> {
-                Library.TYPES["Boolean"]!!
+                Pair(Library.TYPES["Boolean"]!!, null)
             }
             "<", ">", "<=", ">=" -> {
-                val method = left.type.methods["<=>", 1] ?: throw error(
+                val method = left.type.methods["<=>", listOf(right.type)] ?: throw error(
                     ast,
-                    "Undefined method.",
-                    "The method ${left.type.base.name}.<=>/1 is not defined.",
+                    "Unresolved method.",
+                    "The signature op<=>(${listOf(right.type)} could not be resolved to a method in ${left.type.base.name}.",
                 )
-                require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
-                    ast.right,
-                    "Invalid method argument type.",
-                    "The method ${left.type.base.name}.<=>/1 requires argument ${0} to be type ${method.parameters[0].second}, but received ${right.type}",
-                ) }
-                Library.TYPES["Boolean"]!!
+                Pair(Library.TYPES["Boolean"]!!, method)
             }
             "+", "-", "*", "/" -> {
-                val method = left.type.methods[ast.operator, 1] ?: throw error(
+                val method = left.type.methods[ast.operator, listOf(right.type)] ?: throw error(
                     ast,
-                    "Undefined method.",
-                    "The method ${left.type.base.name}.${ast.operator}/1 is not defined.",
+                    "Unresolved method.",
+                    "The signature op${ast.operator}(${listOf(right.type)} could not be resolved to a method in ${left.type.base.name}.",
                 )
-                require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
-                    ast.right,
-                    "Invalid method argument type.",
-                    "The method ${left.type.base.name}.${ast.operator}/1 requires argument ${0} to be type ${method.parameters[0].second}, but received ${right.type}",
-                ) }
-                method.returns
+                Pair(method.returns, method)
             }
             else -> throw AssertionError()
         }
-        return RhovasIr.Expression.Binary(ast.operator, left, right, type).also {
+        return RhovasIr.Expression.Binary(ast.operator, left, right, method, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -736,7 +716,7 @@ class RhovasAnalyzer(scope: Scope) :
         val method = receiver.type.properties[ast.name] ?: throw error(
             ast,
             "Undefined property.",
-            "The property getter ${receiver.type.base.name}.${ast.name}/0 is not defined.",
+            "The property getter ${ast.name}() is not defined in ${receiver.type.base.name}.",
         )
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Access.Property(receiver, method, ast.coalesce).also {
@@ -748,19 +728,12 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val method = receiver.type.methods["[]", ast.arguments.size] ?: throw error(
-            ast,
-            "Undefined method.",
-            "The method ${receiver.type.base.name}.[]/${ast.arguments.size} is not defined.",
-        )
         val arguments = ast.arguments.map { visit(it) }
-        for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
-                ast.arguments[i],
-                "Invalid method argument type.",
-                "The method ${receiver.type.base.name}.[]=/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
-            ) }
-        }
+        val method = receiver.type.methods["[]", arguments.map { it.type }] ?: throw error(
+            ast,
+            "Unresolved method.",
+            "The signature [](${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
+        )
         return RhovasIr.Expression.Access.Index(receiver, method, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -769,19 +742,12 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val function = context.scope.functions[ast.name, ast.arguments.size] as Function.Definition? ?: throw error(
-            ast,
-            "Undefined function.",
-            "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
-        )
         val arguments = ast.arguments.map { visit(it) }
-        for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(function.parameters[i].second)) { error(
-                ast.arguments[i],
-                "Invalid function argument type.",
-                "The function ${function.name}/${function.parameters.size} requires argument ${i} to be type ${function.parameters[i].second}, but received ${arguments[i].type}",
-            ) }
-        }
+        val function = context.scope.functions[ast.name, arguments.map { it.type }] as Function.Definition? ?: throw error(
+            ast,
+            "Unresolved function.",
+            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a function in the current scope.",
+        )
         return RhovasIr.Expression.Invoke.Function(function, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -791,19 +757,12 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Method): RhovasIr.Expression.Invoke.Method {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val method = receiver.type.methods[ast.name, ast.arguments.size] ?: throw error(
-            ast,
-            "Undefined method.",
-            "The method ${receiver.type.base.name}.${ast.name}/${ast.arguments.size} is not defined.",
-        )
         val arguments = ast.arguments.map { visit(it) }
-        for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
-                ast.arguments[i],
-                "Invalid method argument type.",
-                "The method ${receiver.type.base.name}.${method.name}/${method.parameters.size} requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}",
-            ) }
-        }
+        val method = receiver.type.methods[ast.name, arguments.map { it.type }] ?: throw error(
+            ast,
+            "Unresolved method.",
+            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
+        )
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments).also {
             it.context = ast.context
@@ -814,32 +773,20 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): RhovasIr.Expression.Invoke.Pipeline {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val function = if (ast.qualifier == null) {
-            context.scope.functions[ast.name, 1 + ast.arguments.size] as Function.Definition? ?: throw error(
+        val qualifier = ast.qualifier?.let { visit(it) as RhovasIr.Expression.Access }
+        val arguments = ast.arguments.map { visit(it) }
+        val function = if (qualifier == null) {
+            context.scope.functions[ast.name, listOf(receiver.type) + arguments.map { it.type }] as Function.Definition? ?: throw error(
                 ast,
-                "Undefined function.",
-                "The function ${ast.name}/${1 + ast.arguments.size} is not defined in the current scope.",
+                "Unresolved function.",
+                "The signature ${ast.name}(${(listOf(receiver.type) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in the current scope.",
             )
         } else {
-            val qualifier = visit(ast.qualifier) as RhovasIr.Expression.Access
-            qualifier.type.functions[ast.name, 1 + ast.arguments.size] ?: throw error(
+            qualifier.type.functions[ast.name, listOf(receiver.type) + arguments.map { it.type }] ?: throw error(
                 ast,
-                "Undefined function.",
-                "The function ${qualifier.type.base.name}.${ast.name}/${1 + ast.arguments.size} is not defined.",
+                "Unresolved function.",
+                "The signature ${ast.name}(${(listOf(receiver.type) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in ${qualifier.type.base.name}.",
             )
-        }
-        require(receiver.type.isSubtypeOf(function.parameters[0].second)) { error(
-            ast.receiver,
-            "Invalid function argument type.",
-            "The function ${function.name}/${1 + function.parameters.size} requires argument ${0} to be type ${function.parameters[0].second}, but received ${receiver.type}",
-        ) }
-        val arguments = ast.arguments.map { visit(it) }
-        for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(function.parameters[1 + i].second)) { error(
-                ast.arguments[i],
-                "Invalid function argument type.",
-                "The function ${function.name}/${1 + function.parameters.size} requires argument ${1 + i} to be type ${function.parameters[1 + i].second}, but received ${arguments[i].type}",
-            ) }
         }
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments).also {
@@ -886,10 +833,10 @@ class RhovasAnalyzer(scope: Scope) :
             "Invalid DSL AST.",
             "The AST of type " + ast.ast + " is not supported by the analyzer.",
         )
-        val function = context.scope.functions[ast.name, 2] as Function.Definition? ?: throw error(
+        val function = context.scope.functions[ast.name, listOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Any"]!!)))] as Function.Definition? ?: throw error(
             ast,
             "Undefined DSL transformer.",
-            "The DSL ${ast.name} requires a transformer macro #${ast.name}/2 or function ${ast.name}/2.",
+            "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Any>).",
         )
         val literals = RhovasIr.Expression.Literal.List(
             source.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Library.TYPES["String"]!!) },
