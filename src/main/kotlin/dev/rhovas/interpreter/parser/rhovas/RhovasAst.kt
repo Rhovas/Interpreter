@@ -80,7 +80,7 @@ sealed class RhovasAst {
 
             data class Catch(
                 val name: String,
-                //TODO: val type: Type,
+                val type: Type,
                 val body: Statement,
             ) : RhovasAst()
 

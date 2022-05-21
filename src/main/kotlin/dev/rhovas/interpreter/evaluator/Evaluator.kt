@@ -227,19 +227,19 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         try {
             visit(ir.body)
         } catch (e: Throw) {
-            //TODO: Catch exception types
-            ir.catches.firstOrNull()?.let {
+            val catch = ir.catches.firstOrNull { e.exception.type.isSubtypeOf(it.type) }
+            //TODO: Nested exceptions
+            if (catch != null) {
                 scoped(Scope(scope)) {
-                    //TODO: Exception types
-                    val variable = Variable.Local(it.name, Library.TYPES["Exception"]!!, false)
-                    scope.variables.define(Variable.Local.Runtime(variable, e.exception))
-                    visit(it.body)
+                    scope.variables.define(Variable.Local.Runtime(Variable.Local(catch.name, catch.type, false), e.exception))
+                    visit(catch.body)
                 }
+            } else {
+                ir.finallyStatement?.let { visit(it) }
+                throw e
             }
-        } finally {
-            //TODO: Ensure finally doesn't run for internal exceptions
-            ir.finallyStatement?.let { visit(it) }
         }
+        ir.finallyStatement?.let { visit(it) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

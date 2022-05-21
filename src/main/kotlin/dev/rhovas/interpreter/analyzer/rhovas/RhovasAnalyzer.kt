@@ -384,11 +384,16 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr.Statement.Try.Catch {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val type = visit(ast.type).type
+        require(type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
+            ast.type,
+            "Invalid catch type",
+            "An catch block requires the type to be a subtype of Exception, but received ${type}."
+        ) }
         return analyze {
-            //TODO: Catch type
-            context.scope.variables.define(Variable.Local(ast.name, Library.TYPES["Exception"]!!, false))
+            context.scope.variables.define(Variable.Local(ast.name, type, false))
             val body = visit(ast.body)
-            RhovasIr.Statement.Try.Catch(ast.name, body).also {
+            RhovasIr.Statement.Try.Catch(ast.name, type, body).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }

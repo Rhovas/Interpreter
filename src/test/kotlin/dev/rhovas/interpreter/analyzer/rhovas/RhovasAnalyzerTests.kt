@@ -622,11 +622,11 @@ class RhovasAnalyzerTests {
                     ),
                     //TODO: Exception validation
                     Arguments.of("Catch", """
-                        try { stmt(1); } catch (val e) { stmt(2); }
+                        try { stmt(1); } catch (val e: Exception) { stmt(2); }
                     """.trimIndent(),
                         RhovasIr.Statement.Try(
                             RhovasIr.Statement.Block(listOf(stmt(1))),
-                            listOf(RhovasIr.Statement.Try.Catch("e", RhovasIr.Statement.Block(listOf(stmt(2))))),
+                            listOf(RhovasIr.Statement.Try.Catch("e", Library.TYPES["Exception"]!!, RhovasIr.Statement.Block(listOf(stmt(2))))),
                             null,
                         ),
                     ),

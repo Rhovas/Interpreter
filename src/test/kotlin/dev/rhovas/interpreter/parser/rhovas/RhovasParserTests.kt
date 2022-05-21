@@ -466,27 +466,32 @@ class RhovasParserTests {
                     Arguments.of("Empty Body", "try {}",
                         RhovasAst.Statement.Try(block(), listOf(), null),
                     ),
-                    Arguments.of("Catch", "try {} catch (val name) body;",
+                    Arguments.of("Catch", "try {} catch (val name: Type) body;",
                         RhovasAst.Statement.Try(
                             block(),
-                            listOf(RhovasAst.Statement.Try.Catch("name", statement("body"))),
+                            listOf(RhovasAst.Statement.Try.Catch("name", RhovasAst.Type("Type", null), statement("body"))),
                             null,
                         ),
                     ),
-                    Arguments.of("Empty Catch", "try {} catch (val name) {}",
+                    Arguments.of("Empty Catch", "try {} catch (val name: Type) {}",
                         RhovasAst.Statement.Try(
                             block(),
-                            listOf(RhovasAst.Statement.Try.Catch("name", block())),
+                            listOf(RhovasAst.Statement.Try.Catch("name", RhovasAst.Type("Type", null), block())),
                             null,
                         ),
                     ),
-                    Arguments.of("Multiple Catch", "try {} catch (val first) {} catch (val second) {} catch (val third) {}",
+                    Arguments.of("Multiple Catch", """
+                        try {}
+                        catch (val first: First) {}
+                        catch (val second: Second) {}
+                        catch (val third: Third) {}
+                        """,
                         RhovasAst.Statement.Try(
                             block(),
                             listOf(
-                                RhovasAst.Statement.Try.Catch("first", block()),
-                                RhovasAst.Statement.Try.Catch("second", block()),
-                                RhovasAst.Statement.Try.Catch("third", block()),
+                                RhovasAst.Statement.Try.Catch("first", RhovasAst.Type("First", null), block()),
+                                RhovasAst.Statement.Try.Catch("second", RhovasAst.Type("Second", null), block()),
+                                RhovasAst.Statement.Try.Catch("third", RhovasAst.Type("Third", null), block()),
                             ),
                             null,
                         ),
@@ -497,19 +502,20 @@ class RhovasParserTests {
                     Arguments.of("Empty Finally", "try {} finally {}",
                         RhovasAst.Statement.Try(block(), listOf(), block()),
                     ),
-                    Arguments.of("Both Catch & Finally", "try {} catch (val name) {} finally {}",
+                    Arguments.of("Both Catch & Finally", "try {} catch (val name: Type) {} finally {}",
                         RhovasAst.Statement.Try(
                             block(),
-                            listOf(RhovasAst.Statement.Try.Catch("name", block())),
+                            listOf(RhovasAst.Statement.Try.Catch("name", RhovasAst.Type("Type", null), block())),
                             block(),
                         ),
                     ),
                     Arguments.of("Missing Try Statement", "try", null),
-                    Arguments.of("Missing Catch Opening Parenthesis", "try {} catch val name) {}", null),
-                    Arguments.of("Missing Catch Val", "try {} catch (name) {}", null),
+                    Arguments.of("Missing Catch Opening Parenthesis", "try {} catch val name: Type) {}", null),
+                    Arguments.of("Missing Catch Val", "try {} catch (name: Type) {}", null),
                     Arguments.of("Missing Catch Name", "try {} catch (val) {}", null),
-                    Arguments.of("Missing Catch Closing Parenthesis", "try {} catch (val name {}", null),
-                    Arguments.of("Missing Catch Statement", "try {} catch (val name)", null),
+                    Arguments.of("Missing Catch Type", "try {} catch (val name) {}", null),
+                    Arguments.of("Missing Catch Closing Parenthesis", "try {} catch (val name: Type {}", null),
+                    Arguments.of("Missing Catch Statement", "try {} catch (val name: Type)", null),
                     Arguments.of("Missing Finally Statement", "try {} finally", null),
                 )
             }

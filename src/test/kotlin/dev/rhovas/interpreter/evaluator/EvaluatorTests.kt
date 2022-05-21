@@ -511,15 +511,22 @@ class EvaluatorTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
                 test(input, expected, Scope(null).also {
-                    val function = Function.Definition("Exception", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!)
-                    function.implementation = { arguments ->
-                        Object(Library.TYPES["Exception"]!!, arguments[0].value as String)
-                    }
-                    it.functions.define(function)
+                    it.functions.define(Function.Definition("Exception", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!).also {
+                        it.implementation = { arguments -> Object(Library.TYPES["Exception"]!!, arguments[0].value as String) }
+                    })
+                    it.functions.define(Function.Definition("SubtypeException", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["SubtypeException"]!!).also {
+                        it.implementation = { arguments -> Object(Library.TYPES["SubtypeException"]!!, arguments[0].value as String) }
+                    })
                 })
             }
 
             fun testTry(): Stream<Arguments> {
+                Library.TYPES["SubtypeException"] = Type.Reference(Type.Base(
+                    "SubtypeException",
+                    listOf(),
+                    listOf(Library.TYPES["Exception"]!!),
+                    Scope(null)
+                ), listOf())
                 return Stream.of(
                     Arguments.of("Try", """
                         try {
@@ -530,18 +537,37 @@ class EvaluatorTests {
                         try {
                             log(1);
                             throw Exception("message");
+                        } catch (val e: Exception) {
                             log(2);
-                        } catch (val e) {
-                            log(3);
                         }
-                    """.trimIndent(), "13"),
+                    """.trimIndent(), "12"),
                     Arguments.of("Catch Unthrown", """
                         try {
                             log(1);
-                        } catch (val e) {
+                        } catch (val e: Exception) {
                             log(2);
                         }
                     """.trimIndent(), "1"),
+                    Arguments.of("Catch Subtype", """
+                        try {
+                            log(1);
+                            throw SubtypeException("message");
+                        } catch (val e: SubtypeException) {
+                            log(2);
+                        } catch (val e: Exception) {
+                            log(3);
+                        }
+                    """.trimIndent(), "12"),
+                    Arguments.of("Catch Supertype", """
+                        try {
+                            log(1);
+                            throw Exception("message");
+                        } catch (val e: SubtypeException) {
+                            log(2);
+                        } catch (val e: Exception) {
+                            log(3);
+                        }
+                    """.trimIndent(), "13"),
                     Arguments.of("Finally", """
                         try {
                             log(1);
@@ -549,7 +575,16 @@ class EvaluatorTests {
                             log(2);
                         }
                     """.trimIndent(), "12"),
-                    //TODO: Tests with other control flow modifications
+                    Arguments.of("Finally Catch", """
+                        try {
+                            log(1);
+                            throw Exception("message");
+                        } catch (val e: Exception) {
+                            log(2);
+                        } finally {
+                            log(3);
+                        }
+                    """.trimIndent(), "123")
                 )
             }
 

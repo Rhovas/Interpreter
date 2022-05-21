@@ -94,7 +94,7 @@ sealed class RhovasIr {
 
             data class Catch(
                 val name: String,
-                //TODO: val type: Type,
+                val type: dev.rhovas.interpreter.environment.Type,
                 val body: Statement,
             ) : RhovasIr()
 

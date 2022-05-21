@@ -310,19 +310,24 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         context.addLast(tokens[-1]!!.range)
         require(match("(")) { error(
             "Expected opening parenthesis.",
-            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
+            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name: Type) { ... }`.",
         ) }
         require(match("val")) { error(
             "Expected `val`.",
-            "A catch block variable requires `val`, as in `try { ... } catch (val name) { ... }`.",
+            "A catch block variable requires `val`, as in `try { ... } catch (val name: Type) { ... }`.",
         ) }
-        val name = parseIdentifier { "A catch block variable requires a name, as in `try { ... } catch (val name) { ... }`." }
+        val name = parseIdentifier { "A catch block variable requires a name, as in `try { ... } catch (val name: Type) { ... }`." }
+        require(match(":")) { error(
+            "Expected colon.",
+            "A catch block variable a colon before the type, as in `try { ... } catch (val name: Type) { ... }`.",
+        ) }
+        val type = parseType()
         require(match(")")) { error(
             "Expected closing parenthesis.",
-            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name) { ... }`.",
+            "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name: Type) { ... }`.",
         ) }
-        val catchBody = parseStatement()
-        return RhovasAst.Statement.Try.Catch(name, catchBody).also {
+        val body = parseStatement()
+        return RhovasAst.Statement.Try.Catch(name, type, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
