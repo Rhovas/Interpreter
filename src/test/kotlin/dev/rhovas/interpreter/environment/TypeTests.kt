@@ -23,10 +23,10 @@ class TypeTests {
     }
 
     fun testGetFunction(): Stream<Arguments> {
-        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(Pair("other", NUMBER)), INTEGER).also {
+        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(Pair("other", NUMBER)), INTEGER, listOf()).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
-        LIST.base.scope.functions.define(Function.Definition("get", listOf(Pair("index", INTEGER)), Type.Generic("T", ANY)).also {
+        LIST.base.scope.functions.define(Function.Definition("get", listOf(Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
         return Stream.of(

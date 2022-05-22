@@ -103,8 +103,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             context.removeLast()
         }
         val returns = if (match(":")) parseType() else null
+        val throws = mutableListOf<RhovasAst.Type>()
+        if (match("throws")) {
+            do {
+                throws.add(parseType())
+            } while (match(","))
+        }
         val body = parseStatement()
-        return RhovasAst.Statement.Function(name, parameters, returns, body).also {
+        return RhovasAst.Statement.Function(name, parameters, returns, throws, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

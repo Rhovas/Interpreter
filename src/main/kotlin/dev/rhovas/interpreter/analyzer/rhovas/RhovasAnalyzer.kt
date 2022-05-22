@@ -16,13 +16,15 @@ class RhovasAnalyzer(scope: Scope) :
         InputContext(ArrayDeque()),
         ScopeContext(scope),
         LabelContext(mutableMapOf()),
-        JumpContext(mutableSetOf())
+        JumpContext(mutableSetOf()),
+        ThrowsContext(mutableSetOf()),
     ).associateBy { it.javaClass })),
     RhovasAst.Visitor<RhovasIr> {
 
     private val Context.scope get() = this[ScopeContext::class.java]
     private val Context.labels get() = this[LabelContext::class.java]
     private val Context.jumps get() = this[JumpContext::class.java]
+    private val Context.throws get() = this[ThrowsContext::class.java]
 
     data class ScopeContext(
         val scope: Scope,
@@ -62,6 +64,20 @@ class RhovasAnalyzer(scope: Scope) :
             } else {
                 children.forEach { jumps.addAll(it) }
             }
+        }
+
+    }
+
+    data class ThrowsContext(
+        val throws: MutableSet<Type>,
+    ) : Context.Item<MutableSet<Type>>(throws) {
+
+        override fun child(): Context.Item<MutableSet<Type>> {
+            return ThrowsContext(mutableSetOf())
+        }
+
+        override fun merge(children: List<MutableSet<Type>>) {
+            children.forEach { throws.addAll(it) }
         }
 
     }
@@ -118,17 +134,26 @@ class RhovasAnalyzer(scope: Scope) :
         ) }
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!) }
         val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
-        val function = Function.Definition(ast.name, parameters, returns)
+        val throws = ast.throws.map { visit(it).type }
+        val function = Function.Definition(ast.name, parameters, returns, throws)
         context.scope.functions.define(function)
         //TODO: Validate thrown exceptions
         return analyze(context.child().copy(function = function)) {
             parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
             val body = visit(ast.body) as RhovasIr.Statement.Block
-            require(function.returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
+            require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
                 ast,
                 "Missing return value.",
                 "The function ${ast.name}/${ast.parameters.size} requires a return value.",
             ) }
+            //TODO: Validate at the location of the thrown exception to include context
+            context.throws.forEach { t ->
+                require(throws.any { t.isSubtypeOf(it) }) { error(
+                    ast,
+                    "Uncaught exception.",
+                    "An exception was thrown of type ${t}, which is not declared as thrown by the function.",
+                ) }
+            }
             RhovasIr.Statement.Function(function, body).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -371,11 +396,37 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val body = visit(ast.body)
-        //TODO: Validate thrown exceptions
-        val catches = ast.catches.map { visit(it) }
-        //TODO: Validate special control flow (and spec)
-        val finallyStatement = ast.finallyStatement?.let { visit(it) }
+        val child = context.child()
+        val body = analyze(child) { visit(ast.body) }
+        val catches = ast.catches.map {
+            it.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val type = visit(it.type).type
+            require(type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
+                it.type,
+                "Invalid catch type",
+                "An catch block requires the type to be a subtype of Exception, but received ${type}."
+            ) }
+            child.throws.removeIf { it.isSubtypeOf(type) }
+            analyze(context.child()) {
+                context.scope.variables.define(Variable.Local(it.name, type, false))
+                val body = visit(it.body)
+                RhovasIr.Statement.Try.Catch(it.name, type, body).also {
+                    it.context = it.context
+                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
+                }
+            }
+        }
+        context.merge()
+        val finallyStatement = ast.finallyStatement?.let { analyze {
+            val ir = visit(it)
+            //TODO: Jumps
+            require(context.throws.isEmpty()) { error(
+                it,
+                "Invalid finally exceptions",
+                "A finally block requires no exceptions to be thrown, but received ${context.throws}.",
+            ) }
+            ir
+        } }
         return RhovasIr.Statement.Try(body, catches, finallyStatement).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -383,21 +434,7 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr.Statement.Try.Catch {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val type = visit(ast.type).type
-        require(type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
-            ast.type,
-            "Invalid catch type",
-            "An catch block requires the type to be a subtype of Exception, but received ${type}."
-        ) }
-        return analyze {
-            context.scope.variables.define(Variable.Local(ast.name, type, false))
-            val body = visit(ast.body)
-            RhovasIr.Statement.Try.Catch(ast.name, type, body).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
-        }
+        throw AssertionError()
     }
 
     override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With {
@@ -508,6 +545,7 @@ class RhovasAnalyzer(scope: Scope) :
             "Invalid throw expression type.",
             "An throw statement requires the expression to be type Exception, but received ${exception.type}.",
         ) }
+        context.throws.add(exception.type)
         return RhovasIr.Statement.Throw(exception).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -753,6 +791,7 @@ class RhovasAnalyzer(scope: Scope) :
             "Unresolved function.",
             "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a function in the current scope.",
         )
+        context.throws.addAll(function.throws)
         return RhovasIr.Expression.Invoke.Function(function, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -768,6 +807,7 @@ class RhovasAnalyzer(scope: Scope) :
             "Unresolved method.",
             "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
         )
+        context.throws.addAll(method.throws)
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments).also {
             it.context = ast.context
@@ -793,6 +833,7 @@ class RhovasAnalyzer(scope: Scope) :
                 "The signature ${ast.name}(${(listOf(receiver.type) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in ${qualifier.type.base.name}.",
             )
         }
+        context.throws.addAll(function.throws)
         //TODO: Coalesce typechecking (requires nullable types)
         return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments).also {
             it.context = ast.context
@@ -804,8 +845,9 @@ class RhovasAnalyzer(scope: Scope) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         //TODO: Validate using same requirements as function statements
         //TODO: Type inference/unification for parameter types
+        //TODO: Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
-        val function = Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!)
+        val function = Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
         return analyze(context.child().copy(function = function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { context.scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }

@@ -42,6 +42,7 @@ object Reflect {
             val function = dev.rhovas.interpreter.environment.Function.Definition(name,
                 parameters.withIndex().map { Pair("val_${it.index}", resolve(it.value, generics)) },
                 resolve(returns, generics),
+                listOf(), //TODO: Throws
             )
             function.implementation = { arguments ->
                 val transformed = parameters.indices.map {

@@ -36,7 +36,7 @@ sealed class Type(
 
         operator fun get(name: String, arguments: List<Type>): Function.Method? {
             return functions[name, listOf(this@Type) + arguments]?.let {
-                Function.Method(it.name, it.parameters.drop(1), it.returns)
+                Function.Method(it.name, it.parameters.drop(1), it.returns, it.throws)
             }
         }
 
@@ -71,14 +71,15 @@ sealed class Type(
 
         override fun getFunction(name: String, arguments: List<Type>): Function.Definition? {
             return if (base.name == "Dynamic") {
-                Function.Definition(name, arguments.indices.map { Pair("val_${it}", this) }, this)
+                Function.Definition(name, arguments.indices.map { Pair("val_${it}", this) }, this, listOf())
             } else {
                 base.scope.functions[name, arguments]?.let { function ->
                     val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
                     Function.Definition(
                         function.name,
                         function.parameters.map { Pair(it.first, it.second.bind(parameters)) },
-                        function.returns.bind(parameters)
+                        function.returns.bind(parameters),
+                        function.throws,
                     ).also {
                         //TODO: Better solution?
                         it.implementation = { (function as Function.Definition).implementation.invoke(it) }

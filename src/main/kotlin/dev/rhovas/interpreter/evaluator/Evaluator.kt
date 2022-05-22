@@ -46,6 +46,13 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 try {
                     visit(ir.body)
                     Object(Library.TYPES["Void"]!!, Unit)
+                } catch (e: Throw) {
+                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(
+                        ir,
+                        "Uncaught exception.",
+                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods["toString", listOf()]!!.invoke(listOf()).value as String}"
+                    ) }
+                    throw e
                 } catch (e: Return) {
                     e.value ?: Object(Library.TYPES["Void"]!!, Unit)
                 }

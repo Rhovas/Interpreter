@@ -25,6 +25,7 @@ sealed class RhovasAst {
             val name: String,
             val parameters: List<Pair<String, Type?>>,
             val returns: Type?,
+            val throws: List<Type>,
             val body: Statement,
         ) : Statement()
 
