@@ -23,6 +23,7 @@ sealed class RhovasAst {
 
         data class Function(
             val name: String,
+            val generics: List<Pair<String, Type?>>,
             val parameters: List<Pair<String, Type?>>,
             val returns: Type?,
             val throws: List<Type>,

@@ -86,6 +86,20 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match("func"))
         context.addLast(tokens[-1]!!.range)
         val name = parseIdentifier { "A function declaration requires a name after `func`, as in `func name() { ... }`." }
+        val generics = mutableListOf<Pair<String, RhovasAst.Type?>>()
+        if (match("<")) {
+            while (!match(">")) {
+                val name = parseIdentifier { "A function generic type declaration requires a name, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`." }
+                context.addLast(tokens[-1]!!.range)
+                val type = if (match(":")) parseType() else null
+                generics.add(Pair(name, type))
+                require(peek(">") || match(",")) { error(
+                    "Expected closing angle bracket or comma.",
+                    "A function generic type declaration must be followed by a closing angle bracket `>` or comma `,`, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`.",
+                ) }
+                context.removeLast()
+            }
+        }
         val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
         require(match("(")) { error(
             "Expected opening parenthesis.",
@@ -110,7 +124,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             } while (match(","))
         }
         val body = parseStatement()
-        return RhovasAst.Statement.Function(name, parameters, returns, throws, body).also {
+        return RhovasAst.Statement.Function(name, generics, parameters, returns, throws, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

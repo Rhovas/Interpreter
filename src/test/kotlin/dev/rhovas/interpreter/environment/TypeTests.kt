@@ -18,21 +18,41 @@ class TypeTests {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testGetFunction(test: String, type: Type, name: String, arguments: List<Type>, expected: Type?) {
-        Assertions.assertEquals(expected, type.functions[name, arguments]?.returns)
+    fun testGetFunction(test: String, scope: Scope, name: String, arguments: List<Type>, expected: Type?) {
+        Assertions.assertEquals(expected, scope.functions[name, arguments]?.returns)
     }
 
     fun testGetFunction(): Stream<Arguments> {
-        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(Pair("other", NUMBER)), INTEGER, listOf()).also {
+        val scope = Scope(null)
+        scope.functions.define(Function.Definition("number", listOf(), listOf(Pair("number", NUMBER)), ANY, listOf()))
+        scope.functions.define(Function.Definition("get", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()))
+        return Stream.of(
+            Arguments.of("Equal", scope, "number", listOf(NUMBER), ANY),
+            Arguments.of("Subtype", scope, "number", listOf(INTEGER), ANY),
+            Arguments.of("Supertype", scope, "number", listOf(ANY), null),
+            Arguments.of("Generic Unbound", scope, "get", listOf(LIST, INTEGER), Type.Generic("T", ANY)),
+            Arguments.of("Generic Bound", scope, "get", listOf(Type.Reference(LIST.base, listOf(INTEGER)), INTEGER), INTEGER),
+        )
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    fun testGetMethod(test: String, type: Type, name: String, arguments: List<Type>, expected: Type?) {
+        Assertions.assertEquals(expected, type.methods[name, arguments]?.returns)
+    }
+
+    fun testGetMethod(): Stream<Arguments> {
+        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(), listOf(Pair("this", NUMBER), Pair("other", NUMBER)), INTEGER, listOf()).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
-        LIST.base.scope.functions.define(Function.Definition("get", listOf(Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()).also {
+        LIST.base.scope.functions.define(Function.Definition("get", listOf(Type.Generic("T", ANY)), listOf(Pair("this", LIST), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
         return Stream.of(
             Arguments.of("Equal", NUMBER, "<=>", listOf(NUMBER), INTEGER),
             Arguments.of("Subtype", NUMBER, "<=>", listOf(INTEGER), INTEGER),
             Arguments.of("Supertype", NUMBER, "<=>", listOf(ANY), null),
+            Arguments.of("Dynamic", DYNAMIC, "undefined", listOf(ANY), DYNAMIC),
             Arguments.of("Generic Unbound", LIST, "get", listOf(INTEGER), Type.Generic("T", ANY)),
             Arguments.of("Generic Bound", LIST.bind(mapOf(Pair("T", INTEGER))), "get", listOf(INTEGER), INTEGER),
         )

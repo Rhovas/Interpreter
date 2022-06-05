@@ -40,6 +40,7 @@ object Reflect {
             returns: Type
         ): dev.rhovas.interpreter.environment.Function.Definition {
             val function = dev.rhovas.interpreter.environment.Function.Definition(name,
+                generics.values.toList(),
                 parameters.withIndex().map { Pair("val_${it.index}", resolve(it.value, generics)) },
                 resolve(returns, generics),
                 listOf(), //TODO: Throws

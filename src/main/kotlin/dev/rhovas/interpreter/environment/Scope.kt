@@ -43,7 +43,27 @@ class Scope(private val parent: Scope?) {
                 .filter { arguments.zip(it.parameters).all { it.first.isSubtypeOf(it.second.second) } }
             return when (candidates.size) {
                 0 -> null
-                1 -> candidates[0]
+                1 -> candidates[0].let { function ->
+                    val generics = mutableMapOf<String, Type>()
+                    arguments.zip(function.parameters).all { zip ->
+                        zip.first.isSubtypeOf(zip.second.second.bind(generics)).takeIf { it }?.also {
+                            zip.second.second.bind(zip.first).forEach { (k, v) ->
+                                println("${function.name}: ${k}, ${v}, ${generics[k]}")
+                                generics[k] = generics[k]?.takeIf { !it.isSubtypeOf(v) || it.base.name == "Dynamic" } ?: v
+                            }
+                        } ?: false
+                    }.takeIf { it }?.let {
+                        Function.Definition(
+                            function.name,
+                            function.generics.map { Type.Generic(it.name, it.bind(generics)) },
+                            function.parameters.map { Pair(it.first, it.second.bind(generics)) },
+                            function.returns.bind(generics),
+                            function.throws,
+                        ).also {
+                            it.implementation = { (function as Function.Definition).implementation.invoke(it) }
+                        }
+                    }
+                }
                 else -> throw AssertionError()
             }
         }
@@ -53,6 +73,7 @@ class Scope(private val parent: Scope?) {
         }
 
         fun define(function: Function) {
+            //TODO: Restrict to Function.Definition
             functions.getOrPut(Pair(function.name, function.parameters.size), ::mutableListOf).add(function)
         }
 

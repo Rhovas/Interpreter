@@ -132,10 +132,16 @@ class RhovasAnalyzer(scope: Scope) :
             "Redefined function.",
             "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
         ) }
-        val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!) }
-        val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
-        val throws = ast.throws.map { visit(it).type }
-        val function = Function.Definition(ast.name, parameters, returns, throws)
+        val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
+        fun visitGenericType(ast: RhovasAst.Type): Type {
+            //TODO: Generics type scope
+            //TODO: Generic type with generics (T<String>)
+            return generics.find { it.name == ast.name } ?: visit(ast).type
+        }
+        val parameters = ast.parameters.map { Pair(it.first, it.second?.let(::visitGenericType) ?: Library.TYPES["Dynamic"]!!) }
+        val returns = ast.returns?.let(::visitGenericType) ?: Library.TYPES["Void"]!! //TODO or Dynamic?
+        val throws = ast.throws.map { visit(it).type } //TODO: Generic exceptions?
+        val function = Function.Definition(ast.name, generics, parameters, returns, throws)
         context.scope.functions.define(function)
         //TODO: Validate thrown exceptions
         return analyze(context.child().copy(function = function)) {
@@ -847,7 +853,7 @@ class RhovasAnalyzer(scope: Scope) :
         //TODO: Type inference/unification for parameter types
         //TODO: Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
-        val function = Function.Definition("lambda", parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
+        val function = Function.Definition("lambda", listOf(), parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
         return analyze(context.child().copy(function = function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { context.scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }

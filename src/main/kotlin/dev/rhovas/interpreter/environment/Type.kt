@@ -10,6 +10,8 @@ sealed class Type(
 
     internal abstract fun getFunction(name: String, arguments: List<Type>): Function.Definition?
 
+    abstract fun bind(type: Type): Map<String, Type>
+
     abstract fun bind(parameters: Map<String, Type>): Type
 
     abstract fun isSubtypeOf(other: Type): Boolean
@@ -36,7 +38,7 @@ sealed class Type(
 
         operator fun get(name: String, arguments: List<Type>): Function.Method? {
             return functions[name, listOf(this@Type) + arguments]?.let {
-                Function.Method(it.name, it.parameters.drop(1), it.returns, it.throws)
+                Function.Method(it.name, it.generics, it.parameters.drop(1), it.returns, it.throws)
             }
         }
 
@@ -71,23 +73,30 @@ sealed class Type(
 
         override fun getFunction(name: String, arguments: List<Type>): Function.Definition? {
             return if (base.name == "Dynamic") {
-                Function.Definition(name, arguments.indices.map { Pair("val_${it}", this) }, this, listOf())
+                Function.Definition(name, listOf(), arguments.indices.map { Pair("val_${it}", this) }, this, listOf())
             } else {
-                base.scope.functions[name, arguments]?.let { function ->
-                    val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
-                    Function.Definition(
-                        function.name,
-                        function.parameters.map { Pair(it.first, it.second.bind(parameters)) },
-                        function.returns.bind(parameters),
-                        function.throws,
-                    ).also {
-                        //TODO: Better solution?
-                        it.implementation = { (function as Function.Definition).implementation.invoke(it) }
-                    }.takeIf {
-                        //TODO: Better handling of generic types?
-                        arguments.zip(it.parameters).all { it.first.isSubtypeOf(it.second.second) }
+                base.scope.functions[name, arguments]?.let { it as Function.Definition }
+            }
+        }
+
+        override fun bind(type: Type): Map<String, Type> {
+            return when (type) {
+                is Reference -> {
+                    if (base.name == "Dynamic" || type.base.name == "Dynamic" || type.base.name == "Any") {
+                        mapOf()
+                    } else if (base.name == type.base.name) {
+                        mapOf(*generics.zip(type.generics)
+                            .flatMap { it.first.bind(it.second).entries.map { it.key to it.value } }
+                            .toTypedArray())
+                    } else {
+                        val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
+                        base.inherits.firstNotNullOfOrNull {
+                            val parent = it.bind(parameters)
+                            if (parent.isSubtypeOf(type)) parent.bind(type) else null
+                        } ?: mapOf()
                     }
                 }
+                is Generic -> bind(type.bound)
             }
         }
 
@@ -99,7 +108,7 @@ sealed class Type(
             return when (other) {
                 is Reference -> {
                     if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
-                        return true
+                        true
                     } else if (base.name == other.base.name) {
                         generics.zip(other.generics).all { it.first.isSubtypeOf(it.second) }
                     } else {
@@ -126,13 +135,17 @@ sealed class Type(
             return bound.getFunction(name, arguments)
         }
 
+        override fun bind(type: Type): Map<String, Type> {
+            return mapOf(Pair(name, type))
+        }
+
         override fun bind(parameters: Map<String, Type>): Type {
-            return parameters[name] ?: this //TODO ???
+            return parameters[name] ?: bound //TODO ???
         }
 
         override fun isSubtypeOf(other: Type): Boolean {
             return when(other) {
-                is Generic -> name == other.name
+                is Generic -> name == other.name //TODO: ???
                 else -> bound.isSubtypeOf(other)
             }
         }

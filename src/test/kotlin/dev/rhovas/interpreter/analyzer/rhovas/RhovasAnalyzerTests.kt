@@ -26,8 +26,8 @@ class RhovasAnalyzerTests {
 
     @BeforeAll
     fun beforeAll() {
-        STMT_0 = Function.Definition("stmt", listOf(), Library.TYPES["Void"]!!, listOf())
-        STMT_1 = Function.Definition("stmt", listOf(Pair("position", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf())
+        STMT_0 = Function.Definition("stmt", listOf(), listOf(), Library.TYPES["Void"]!!, listOf())
+        STMT_1 = Function.Definition("stmt", listOf(), listOf(Pair("position", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf())
     }
 
     @Nested
@@ -125,8 +125,8 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testFunction(name: String, input: String, expected: RhovasIr.Statement.Function?) {
                 test("statement", input, expected, Scope(null).also {
-                    it.functions.define(Function.Definition("Exception", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
-                    it.functions.define(Function.Definition("fail", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Void"]!!, listOf(Library.TYPES["Exception"]!!)))
+                    it.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
+                    it.functions.define(Function.Definition("fail", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Void"]!!, listOf(Library.TYPES["Exception"]!!)))
                 })
             }
 
@@ -144,10 +144,10 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), Library.TYPES["Void"]!!, listOf()),
+                            Function.Definition("name", listOf(), listOf(), Library.TYPES["Void"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
-                                    Function.Definition("name", listOf(), Library.TYPES["Void"]!!, listOf()),
+                                    Function.Definition("name", listOf(), listOf(), Library.TYPES["Void"]!!, listOf()),
                                     listOf(),
                                 )),
                             )),
@@ -159,7 +159,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(Pair("parameter", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf()),
+                            Function.Definition("name", listOf(), listOf(Pair("parameter", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 stmt(RhovasIr.Expression.Access.Variable(Variable.Local("parameter", Library.TYPES["Integer"]!!, false))),
                             )),
@@ -171,7 +171,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), Library.TYPES["Integer"]!!, listOf()),
+                            Function.Definition("name", listOf(), listOf(), Library.TYPES["Integer"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Return(RhovasIr.Expression.Literal.Scalar(BigInteger("1"), Library.TYPES["Integer"]!!)),
                             )),
@@ -187,7 +187,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!, listOf()),
+                            Function.Definition("test", listOf(), listOf(), Library.TYPES["Integer"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.If(
                                     RhovasIr.Expression.Literal.Scalar(true, Library.TYPES["Boolean"]!!),
@@ -210,7 +210,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!, listOf()),
+                            Function.Definition("test", listOf(), listOf(), Library.TYPES["Integer"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Match.Conditional(
                                     listOf(Pair(
@@ -230,7 +230,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!, listOf()),
+                            Function.Definition("test", listOf(), listOf(), Library.TYPES["Integer"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Match.Structural(
                                     RhovasIr.Expression.Literal.Scalar(true, Library.TYPES["Boolean"]!!),
@@ -249,9 +249,9 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), Library.TYPES["Void"]!!, listOf(Library.TYPES["Exception"]!!)),
+                            Function.Definition("name", listOf(), listOf(), Library.TYPES["Void"]!!, listOf(Library.TYPES["Exception"]!!)),
                             RhovasIr.Statement.Block(listOf(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Function(
-                                Function.Definition("Exception", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()),
+                                Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()),
                                 listOf(RhovasIr.Expression.Literal.String(listOf("message"), listOf(), Library.TYPES["String"]!!)),
                             )))),
                         ),
@@ -434,11 +434,11 @@ class RhovasAnalyzerTests {
             }
 
             private val ObjectType = Type.Base("ObjectType", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null).also {
-                it.functions.define(Function.Definition("property", listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!, listOf()))
-                it.functions.define(Function.Definition("property", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf()))
-                it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Dynamic"]!!, listOf()))
-                it.functions.define(Function.Definition("dynamic", listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Dynamic"]!!)), Library.TYPES["Void"]!!, listOf()))
-                it.functions.define(Function.Definition("unassignable", listOf(Pair("unassignable", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!, listOf()))
+                it.functions.define(Function.Definition("property", listOf(), listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!, listOf()))
+                it.functions.define(Function.Definition("property", listOf(), listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Integer"]!!)), Library.TYPES["Void"]!!, listOf()))
+                it.functions.define(Function.Definition("dynamic", listOf(), listOf(Pair("instance", Library.TYPES["Dynamic"]!!)), Library.TYPES["Dynamic"]!!, listOf()))
+                it.functions.define(Function.Definition("dynamic", listOf(), listOf(Pair("instance", Library.TYPES["Dynamic"]!!), Pair("value", Library.TYPES["Dynamic"]!!)), Library.TYPES["Void"]!!, listOf()))
+                it.functions.define(Function.Definition("unassignable", listOf(), listOf(Pair("unassignable", Library.TYPES["Dynamic"]!!)), Library.TYPES["Integer"]!!, listOf()))
             }).reference
 
             @ParameterizedTest(name = "{0}")
@@ -657,7 +657,7 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: RhovasIr.Statement.Try?) {
                 test("statement", input, expected, Scope(null).also {
-                    it.functions.define(Function.Definition("Exception", listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
+                    it.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
                 })
             }
 
@@ -927,7 +927,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), Library.TYPES["Void"]!!, listOf()),
+                            Function.Definition("test", listOf(), listOf(), Library.TYPES["Void"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Return(null),
                             )),
@@ -939,7 +939,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(),
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), Library.TYPES["Integer"]!!, listOf()),
+                            Function.Definition("test", listOf(), listOf(), Library.TYPES["Integer"]!!, listOf()),
                             RhovasIr.Statement.Block(listOf(
                                 RhovasIr.Statement.Return(RhovasIr.Expression.Literal.Scalar(BigInteger("1"), Library.TYPES["Integer"]!!)),
                             )),
@@ -1517,7 +1517,7 @@ class RhovasAnalyzerTests {
             @Nested
             inner class FunctionTests {
 
-                val FUNCTION = Function.Definition("function", listOf(Pair("argument", Library.TYPES["String"]!!)), Library.TYPES["Void"]!!, listOf())
+                val FUNCTION = Function.Definition("function", listOf(), listOf(Pair("argument", Library.TYPES["String"]!!)), Library.TYPES["Void"]!!, listOf())
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
@@ -1667,6 +1667,7 @@ class RhovasAnalyzerTests {
         inner class DslTests {
 
             val DSL = Function.Definition("dsl",
+                listOf(),
                 listOf(
                     Pair("literals", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!))),
                     Pair("arguments", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))),
