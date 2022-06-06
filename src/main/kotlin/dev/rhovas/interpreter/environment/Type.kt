@@ -10,11 +10,11 @@ sealed class Type(
 
     internal abstract fun getFunction(name: String, arguments: List<Type>): Function.Definition?
 
-    abstract fun bind(type: Type): Map<String, Type>
-
     abstract fun bind(parameters: Map<String, Type>): Type
 
     abstract fun isSubtypeOf(other: Type): Boolean
+
+    abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean
 
     inner class FunctionsDelegate {
 
@@ -79,27 +79,6 @@ sealed class Type(
             }
         }
 
-        override fun bind(type: Type): Map<String, Type> {
-            return when (type) {
-                is Reference -> {
-                    if (base.name == "Dynamic" || type.base.name == "Dynamic" || type.base.name == "Any") {
-                        mapOf()
-                    } else if (base.name == type.base.name) {
-                        mapOf(*generics.zip(type.generics)
-                            .flatMap { it.first.bind(it.second).entries.map { it.key to it.value } }
-                            .toTypedArray())
-                    } else {
-                        val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
-                        base.inherits.firstNotNullOfOrNull {
-                            val parent = it.bind(parameters)
-                            if (parent.isSubtypeOf(type)) parent.bind(type) else null
-                        } ?: mapOf()
-                    }
-                }
-                is Generic -> bind(type.bound)
-            }
-        }
-
         override fun bind(parameters: Map<String, Type>): Reference {
             return Reference(base, generics.map { it.bind(parameters) })
         }
@@ -110,13 +89,42 @@ sealed class Type(
                     if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
                         true
                     } else if (base.name == other.base.name) {
-                        generics.zip(other.generics).all { it.first.isSubtypeOf(it.second) }
+                        generics.zip(other.generics).all {
+                            it.first.isSubtypeOf(it.second) && it.second.isSubtypeOf(it.first) //TODO: Variance
+                        }
                     } else {
                         val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other) }
                     }
                 }
-                is Generic -> base.name == "Dynamic" || this.isSubtypeOf(other.bound)
+                is Generic -> base.name == "Dynamic"
+            }
+        }
+
+        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
+            return when (other) {
+                is Reference -> {
+                    if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
+                        true
+                    } else if (base.name == other.base.name) {
+                        generics.zip(other.generics).all { (type, other) ->
+                            //TODO: Variance
+                            return when {
+                                other is Generic && !bindings.containsKey(other.name) -> type.isSubtypeOf(other, bindings)
+                                else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings) //TODO: ???
+                            }
+                        }
+                    } else {
+                        val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
+                        base.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
+                    }
+                }
+                is Generic -> when {
+                    base.name == "Dynamic" -> true.also { bindings[other.name] = this }
+                    other.base.name == "Dynamic" -> true.also { bindings[other.name] = other }
+                    bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
+                    else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = this } ?: false
+                }
             }
         }
 
@@ -135,10 +143,6 @@ sealed class Type(
             return bound.getFunction(name, arguments)
         }
 
-        override fun bind(type: Type): Map<String, Type> {
-            return mapOf(Pair(name, type))
-        }
-
         override fun bind(parameters: Map<String, Type>): Type {
             return parameters[name] ?: bound //TODO ???
         }
@@ -147,6 +151,16 @@ sealed class Type(
             return when(other) {
                 is Generic -> name == other.name //TODO: ???
                 else -> bound.isSubtypeOf(other)
+            }
+        }
+
+        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
+            return when (other) {
+                is Generic -> when {
+                    bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other)
+                    else -> bound.isSubtypeOf(other.bound).takeIf { it }?.also { bindings[name] = other } ?: false
+                }
+                else -> bound.isSubtypeOf(other).takeIf { it }?.also { bindings[name] = other } ?: false
             }
         }
 

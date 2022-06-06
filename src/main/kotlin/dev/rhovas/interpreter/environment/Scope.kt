@@ -39,20 +39,11 @@ class Scope(private val parent: Scope?) {
         }
 
         operator fun get(name: String, arguments: List<Type>): Function? {
-            val candidates = get(name, arguments.size)
-                .filter { arguments.zip(it.parameters).all { it.first.isSubtypeOf(it.second.second) } }
-            return when (candidates.size) {
-                0 -> null
-                1 -> candidates[0].let { function ->
-                    val generics = mutableMapOf<String, Type>()
-                    arguments.zip(function.parameters).all { zip ->
-                        zip.first.isSubtypeOf(zip.second.second.bind(generics)).takeIf { it }?.also {
-                            zip.second.second.bind(zip.first).forEach { (k, v) ->
-                                println("${function.name}: ${k}, ${v}, ${generics[k]}")
-                                generics[k] = generics[k]?.takeIf { !it.isSubtypeOf(v) || it.base.name == "Dynamic" } ?: v
-                            }
-                        } ?: false
-                    }.takeIf { it }?.let {
+            val candidates = get(name, arguments.size).mapNotNull { function ->
+                val generics = mutableMapOf<String, Type>()
+                arguments.zip(function.parameters)
+                    .all { zip -> zip.first.isSubtypeOf(zip.second.second, generics) }
+                    .takeIf { it }?.let {
                         Function.Definition(
                             function.name,
                             function.generics.map { Type.Generic(it.name, it.bind(generics)) },
@@ -63,7 +54,10 @@ class Scope(private val parent: Scope?) {
                             it.implementation = { (function as Function.Definition).implementation.invoke(it) }
                         }
                     }
-                }
+            }
+            return when (candidates.size) {
+                0 -> null
+                1 -> candidates[0]
                 else -> throw AssertionError()
             }
         }
