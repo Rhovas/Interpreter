@@ -12,9 +12,10 @@ import java.math.BigDecimal
 import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope) :
-    Analyzer(Context(null, listOf(
+    Analyzer(Context(listOf(
         InputContext(ArrayDeque()),
         ScopeContext(scope),
+        FunctionContext(null),
         LabelContext(mutableMapOf()),
         JumpContext(mutableSetOf()),
         ThrowsContext(mutableSetOf()),
@@ -22,6 +23,7 @@ class RhovasAnalyzer(scope: Scope) :
     RhovasAst.Visitor<RhovasIr> {
 
     private val Context.scope get() = this[ScopeContext::class.java]
+    private val Context.function get() = this[FunctionContext::class.java]
     private val Context.labels get() = this[LabelContext::class.java]
     private val Context.jumps get() = this[JumpContext::class.java]
     private val Context.throws get() = this[ThrowsContext::class.java]
@@ -35,6 +37,18 @@ class RhovasAnalyzer(scope: Scope) :
         }
 
         override fun merge(children: List<Scope>) {}
+
+    }
+
+    data class FunctionContext(
+        val function: Function.Definition?
+    ) : Context.Item<Function.Definition?>(function) {
+
+        override fun child(): FunctionContext {
+            return this
+        }
+
+        override fun merge(children: List<Function.Definition?>) {}
 
     }
 
@@ -144,7 +158,7 @@ class RhovasAnalyzer(scope: Scope) :
         val function = Function.Definition(ast.name, generics, parameters, returns, throws)
         context.scope.functions.define(function)
         //TODO: Validate thrown exceptions
-        return analyze(context.child().copy(function = function)) {
+        return analyze(context.with(FunctionContext(function))) {
             parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
             val body = visit(ast.body) as RhovasIr.Statement.Block
             require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
@@ -854,7 +868,7 @@ class RhovasAnalyzer(scope: Scope) :
         //TODO: Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
         val function = Function.Definition("lambda", listOf(), parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
-        return analyze(context.child().copy(function = function)) {
+        return analyze(context.with(FunctionContext(function))) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { context.scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }
             } else {

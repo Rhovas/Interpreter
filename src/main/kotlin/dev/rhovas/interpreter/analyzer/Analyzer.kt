@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.analyzer
 
-import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
@@ -9,7 +8,6 @@ abstract class Analyzer(internal var context: Context) {
     protected val Context.inputs get() = this[InputContext::class.java]
 
     data class Context(
-        val function: Function.Definition?, //TODO: Convert to ContextItem?
         val items: Map<Class<*>, Item<*>>,
     ) {
 
@@ -20,7 +18,7 @@ abstract class Analyzer(internal var context: Context) {
         }
 
         fun child(): Context {
-            return Context(function, items.mapValues { it.value.child() }).also { children.add(it) }
+            return Context(items.mapValues { it.value.child() }).also { children.add(it) }
         }
 
         fun merge() {
@@ -28,6 +26,10 @@ abstract class Analyzer(internal var context: Context) {
                 (v as Item<Any?>).merge(children.map { it.items[k]!!.value })
             }
             children.clear()
+        }
+
+        fun with(vararg items: Item<*>): Context {
+            return Context(this.items.toMutableMap().also { it.putAll(items.associateBy { it.javaClass }) })
         }
 
         abstract class Item<T>(
@@ -46,7 +48,7 @@ abstract class Analyzer(internal var context: Context) {
         val inputs: ArrayDeque<Input.Range>,
     ) : Context.Item<ArrayDeque<Input.Range>>(inputs) {
 
-        override fun child(): Context.Item<ArrayDeque<Input.Range>> {
+        override fun child(): InputContext {
             return this
         }
 
