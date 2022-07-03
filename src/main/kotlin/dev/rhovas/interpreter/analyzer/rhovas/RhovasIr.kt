@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
+import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 
@@ -205,7 +206,8 @@ sealed class RhovasIr {
                 val receiver: Expression,
                 val property: dev.rhovas.interpreter.environment.Variable.Property,
                 val coalesce: Boolean,
-            ) : Access(property.type)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Access(type)
 
             data class Index(
                 val receiver: Expression,
@@ -230,7 +232,8 @@ sealed class RhovasIr {
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
-            ) : Invoke(if (cascade) receiver.type else method.returns)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Invoke(type)
 
             data class Pipeline(
                 val receiver: Expression,
@@ -239,7 +242,8 @@ sealed class RhovasIr {
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
-            ) : Invoke(if (cascade) receiver.type else function.returns)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Invoke(type)
 
         }
 

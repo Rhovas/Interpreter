@@ -199,7 +199,10 @@ object ListInitializer : Library.TypeInitializer("List") {
                 "Undefined method.",
                 "The method ${it.first.type.base.name}.==(${it.first.type}) is undefined.",
             )
-            if (it.first.type == it.second.type) method.invoke(listOf(it.second)).value as Boolean else false
+            when {
+                it.second.type.isSubtypeOf(method.parameters[0].second) -> method.invoke(listOf(it.second)).value as Boolean
+                else -> false
+            }
         }
     }
 

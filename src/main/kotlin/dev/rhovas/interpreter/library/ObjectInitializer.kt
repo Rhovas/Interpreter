@@ -37,7 +37,10 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
                 "Undefined method.",
                 "The method ${instance[it]!!.type.base.name}.==(${instance[it]!!.type}) is undefined.",
             )
-            if (instance[it]!!.type == other[it]!!.type) method.invoke(listOf(other[it]!!)).value as Boolean else false
+            when {
+                other[it]!!.type.isSubtypeOf(method.parameters[0].second) -> method.invoke(listOf(other[it]!!)).value as Boolean
+                else -> false
+            }
         }
     }
 

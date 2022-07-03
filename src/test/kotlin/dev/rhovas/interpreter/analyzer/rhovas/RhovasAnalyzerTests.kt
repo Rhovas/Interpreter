@@ -1468,6 +1468,7 @@ class RhovasAnalyzerTests {
                                 RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!),
                                 Library.TYPES["String"]!!.properties["size"]!!,
                                 false,
+                                Library.TYPES["Integer"]!!,
                             ),
                         ),
                         //TODO: Coalesce (requires nullable type)
@@ -1544,10 +1545,20 @@ class RhovasAnalyzerTests {
             @Nested
             inner class MethodTests {
 
+                val NULLABLE = Function.Definition(
+                    "Nullable",
+                    listOf(),
+                    listOf(Pair("value", Library.TYPES["String"]!!)),
+                    Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["String"]!!)),
+                    listOf()
+                )
+
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: RhovasIr.Expression.Invoke.Method?) {
-                    test("expression", input, expected)
+                    test("expression", input, expected, Scope(null).also {
+                        it.functions.define(NULLABLE)
+                    })
                 }
 
                 fun testMethod(): Stream<Arguments> {
@@ -1558,11 +1569,33 @@ class RhovasAnalyzerTests {
                                 Library.TYPES["String"]!!.methods["contains", listOf(Library.TYPES["String"]!!)]!!,
                                 false,
                                 false,
-                                listOf(RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!))
+                                listOf(RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!)),
+                                Library.TYPES["Boolean"]!!,
                             ),
                         ),
-                        //TODO: Coalesce (requires nullable type)
-                        //TODO: Test cascade? (logic built into constructor)
+                        Arguments.of("Coalesce", "Nullable(\"string\")?.contains(\"\")",
+                            RhovasIr.Expression.Invoke.Method(
+                                RhovasIr.Expression.Invoke.Function(
+                                    NULLABLE,
+                                    listOf(RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!)),
+                                ),
+                                Library.TYPES["String"]!!.methods["contains", listOf(Library.TYPES["String"]!!)]!!,
+                                true,
+                                false,
+                                listOf(RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!)),
+                                Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["Boolean"]!!)),
+                            )
+                        ),
+                        Arguments.of("Cascade", "\"string\"..contains(\"\")",
+                            RhovasIr.Expression.Invoke.Method(
+                                RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Library.TYPES["String"]!!),
+                                Library.TYPES["String"]!!.methods["contains", listOf(Library.TYPES["String"]!!)]!!,
+                                false,
+                                true,
+                                listOf(RhovasIr.Expression.Literal.String(listOf(""), listOf(), Library.TYPES["String"]!!)),
+                                Library.TYPES["String"]!!,
+                            ),
+                        ),
                         Arguments.of("Invalid Arity", "\"string\".contains()", null),
                         Arguments.of("Invalid Argument", "\"string\".contains(0)", null),
                         Arguments.of("Undefined", "\"string\".undefined()", null),
@@ -1574,10 +1607,19 @@ class RhovasAnalyzerTests {
             @Nested
             inner class PipelineTests {
 
+                val NULLABLE = Function.Definition(
+                    "Nullable",
+                    listOf(),
+                    listOf(Pair("value", Library.TYPES["Integer"]!!)),
+                    Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["Integer"]!!)),
+                    listOf()
+                )
+
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: RhovasIr.Expression.Invoke.Pipeline?) {
                     test("expression", input, expected, Scope(Library.SCOPE).also {
+                        it.functions.define(NULLABLE)
                         it.variables.define(Variable.Local("Kernel", Library.TYPES["Kernel"]!!, false))
                     })
                 }
@@ -1593,10 +1635,11 @@ class RhovasAnalyzerTests {
                                 listOf(
                                     RhovasIr.Expression.Literal.Scalar(BigInteger("2"), Library.TYPES["Integer"]!!),
                                     RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("incl"), Library.TYPES["Atom"]!!)
-                                )
+                                ),
+                                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!)),
                             ),
                         ),
-                        Arguments.of("Pipeline", "1.|Kernel.range(2, :incl)",
+                        Arguments.of("Qualified", "1.|Kernel.range(2, :incl)",
                             RhovasIr.Expression.Invoke.Pipeline(
                                 RhovasIr.Expression.Literal.Scalar(BigInteger("1"), Library.TYPES["Integer"]!!),
                                 Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!! as Function.Definition,
@@ -1605,11 +1648,39 @@ class RhovasAnalyzerTests {
                                 listOf(
                                     RhovasIr.Expression.Literal.Scalar(BigInteger("2"), Library.TYPES["Integer"]!!),
                                     RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("incl"), Library.TYPES["Atom"]!!)
-                                )
+                                ),
+                                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!)),
                             ),
                         ),
-                        //TODO: Coalesce (requires nullable type)
-                        //TODO: Test cascade? (logic built into constructor)
+                        Arguments.of("Coalesce", "Nullable(1)?.|range(2, :incl)",
+                            RhovasIr.Expression.Invoke.Pipeline(
+                                RhovasIr.Expression.Invoke.Function(
+                                    NULLABLE,
+                                    listOf(RhovasIr.Expression.Literal.Scalar(BigInteger("1"), Library.TYPES["Integer"]!!)),
+                                ),
+                                Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!! as Function.Definition,
+                                true,
+                                false,
+                                listOf(
+                                    RhovasIr.Expression.Literal.Scalar(BigInteger("2"), Library.TYPES["Integer"]!!),
+                                    RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("incl"), Library.TYPES["Atom"]!!)
+                                ),
+                                Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!)))),
+                            ),
+                        ),
+                        Arguments.of("Cascade", "1..|range(2, :incl)",
+                            RhovasIr.Expression.Invoke.Pipeline(
+                                RhovasIr.Expression.Literal.Scalar(BigInteger("1"), Library.TYPES["Integer"]!!),
+                                Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!! as Function.Definition,
+                                false,
+                                true,
+                                listOf(
+                                    RhovasIr.Expression.Literal.Scalar(BigInteger("2"), Library.TYPES["Integer"]!!),
+                                    RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("incl"), Library.TYPES["Atom"]!!)
+                                ),
+                                Library.TYPES["Integer"]!!,
+                            ),
+                        ),
                         Arguments.of("Invalid Arity", "1.|range()", null),
                         Arguments.of("Invalid Argument", "1.|range(2, \"incl\")", null),
                         Arguments.of("Undefined", "1.|undefined()", null),

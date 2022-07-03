@@ -776,13 +776,26 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Access.Property): RhovasIr.Expression.Access.Property {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val method = receiver.type.properties[ast.name] ?: throw error(
+        val receiverType = if (ast.coalesce) {
+            require(receiver.type.base == Library.TYPES["Nullable"]!!.base) { error(
+                ast,
+                "Invalid null coalesce.",
+                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
+            ) }
+            receiver.type.methods["get", listOf()]!!.returns
+        } else {
+            receiver.type
+        }
+        val property = receiverType.properties[ast.name] ?: throw error(
             ast,
             "Undefined property.",
-            "The property getter ${ast.name}() is not defined in ${receiver.type.base.name}.",
+            "The property getter ${ast.name}() is not defined in ${receiverType.base.name}.",
         )
-        //TODO: Coalesce typechecking (requires nullable types)
-        return RhovasIr.Expression.Access.Property(receiver, method, ast.coalesce).also {
+        val type = when {
+            ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(property.type))
+            else -> property.type
+        }
+        return RhovasIr.Expression.Access.Property(receiver, property, ast.coalesce, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -821,15 +834,29 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Method): RhovasIr.Expression.Invoke.Method {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
+        val receiverType = if (ast.coalesce) {
+            require(receiver.type.base == Library.TYPES["Nullable"]!!.base) { error(
+                ast,
+                "Invalid null coalesce.",
+                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
+            ) }
+            receiver.type.methods["get", listOf()]!!.returns
+        } else {
+            receiver.type
+        }
         val arguments = ast.arguments.map { visit(it) }
-        val method = receiver.type.methods[ast.name, arguments.map { it.type }] ?: throw error(
+        val method = receiverType.methods[ast.name, arguments.map { it.type }] ?: throw error(
             ast,
             "Unresolved method.",
-            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
+            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiverType.base.name}.",
         )
+        val type = when {
+            ast.cascade -> receiver.type
+            ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(method.returns))
+            else -> method.returns
+        }
         context.throws.addAll(method.throws)
-        //TODO: Coalesce typechecking (requires nullable types)
-        return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments).also {
+        return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -838,24 +865,38 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): RhovasIr.Expression.Invoke.Pipeline {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
+        val receiverType = if (ast.coalesce) {
+            require(receiver.type.base == Library.TYPES["Nullable"]!!.base) { error(
+                ast,
+                "Invalid null coalesce.",
+                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
+            ) }
+            receiver.type.methods["get", listOf()]!!.returns
+        } else {
+            receiver.type
+        }
         val qualifier = ast.qualifier?.let { visit(it) as RhovasIr.Expression.Access }
         val arguments = ast.arguments.map { visit(it) }
         val function = if (qualifier == null) {
-            context.scope.functions[ast.name, listOf(receiver.type) + arguments.map { it.type }] as Function.Definition? ?: throw error(
+            context.scope.functions[ast.name, listOf(receiverType) + arguments.map { it.type }] as Function.Definition? ?: throw error(
                 ast,
                 "Unresolved function.",
-                "The signature ${ast.name}(${(listOf(receiver.type) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in the current scope.",
+                "The signature ${ast.name}(${(listOf(receiverType) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in the current scope.",
             )
         } else {
-            qualifier.type.functions[ast.name, listOf(receiver.type) + arguments.map { it.type }] ?: throw error(
+            qualifier.type.functions[ast.name, listOf(receiverType) + arguments.map { it.type }] ?: throw error(
                 ast,
                 "Unresolved function.",
-                "The signature ${ast.name}(${(listOf(receiver.type) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in ${qualifier.type.base.name}.",
+                "The signature ${ast.name}(${(listOf(receiverType) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in ${qualifier.type.base.name}.",
             )
         }
+        val type = when {
+            ast.cascade -> receiver.type
+            ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
+            else -> function.returns
+        }
         context.throws.addAll(function.throws)
-        //TODO: Coalesce typechecking (requires nullable types)
-        return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments).also {
+        return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }

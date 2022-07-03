@@ -25,6 +25,7 @@ object Library {
             ObjectInitializer,
             LambdaInitializer,
             ExceptionInitializer,
+            NullableInitializer,
         )
         initializers.forEach { TYPES[it.name] = it.type.reference }
         initializers.forEach {

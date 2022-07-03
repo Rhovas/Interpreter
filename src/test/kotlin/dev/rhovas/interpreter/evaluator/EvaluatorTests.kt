@@ -1027,6 +1027,10 @@ class EvaluatorTests {
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
                         ))
+                        it.variables.define(Variable.Local.Runtime(
+                            Variable.Local("nullObject", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(type)), false),
+                            Object(Library.TYPES["Null"]!!, null),
+                        ))
                     })
                 }
 
@@ -1035,10 +1039,9 @@ class EvaluatorTests {
                         Arguments.of("Property", "object.property",
                             Object(Library.TYPES["String"]!!, "property")
                         ),
-                        //TODO: Type checking
-                        /*Arguments.of("Nullable", "null?.property",
+                        Arguments.of("Coalesce", "nullObject?.property",
                             Object(Library.TYPES["Null"]!!, null),
-                        ),*/
+                        ),
                         Arguments.of("Undefined", "object.undefined", null)
                     )
                 }
@@ -1138,6 +1141,10 @@ class EvaluatorTests {
                                 Pair("property",  Object(Library.TYPES["String"]!!, "property")),
                             )),
                         ))
+                        it.variables.define(Variable.Local.Runtime(
+                            Variable.Local("nullObject", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(type)), false),
+                            Object(Library.TYPES["Null"]!!, null),
+                        ))
                         it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
                     })
                 }
@@ -1147,11 +1154,10 @@ class EvaluatorTests {
                         Arguments.of("Method", "object.method(\"argument\")",
                             Object(Library.TYPES["String"]!!, "argument")
                         ),
-                        //TODO: Type checking
-                        /*Arguments.of("Nullable", "null?.method(\"argument\")",
+                        Arguments.of("Coalesce", "nullObject?.method(\"argument\")",
                             Object(Library.TYPES["Null"]!!, null),
-                        ),*/
-                        Arguments.of("Coalesce", "1..add(2)",
+                        ),
+                        Arguments.of("Cascade", "1..add(2)",
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                         ),
                         Arguments.of("Invalid Arity", "object.method()", null),
@@ -1168,18 +1174,9 @@ class EvaluatorTests {
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: Object?) {
                     test(input, expected, Scope(null).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
-                            val function = Function.Definition("method", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!), Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                            function.implementation = { arguments ->
-                                arguments[1]
-                            }
-                            it.functions.define(function)
-                        }).reference
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type, false),
-                            Object(type, mapOf(
-                                Pair("property",  Object(Library.TYPES["String"]!!, "property")),
-                            )),
+                            Variable.Local("nullInteger", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["Integer"]!!)), false),
+                            Object(Library.TYPES["Null"]!!, null),
                         ))
                         it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
                         val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(null).also {
@@ -1205,6 +1202,12 @@ class EvaluatorTests {
                             )),
                         ),
                         Arguments.of("Qualified", "1.|Qualified.function()",
+                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                        ),
+                        Arguments.of("Coalesce", "nullInteger?.|range(2, :incl)",
+                            Object(Library.TYPES["Null"]!!, null),
+                        ),
+                        Arguments.of("Cascade", "1..|range(2, :incl)",
                             Object(Library.TYPES["Integer"]!!, BigInteger("1")),
                         ),
                         Arguments.of("Invalid Arity", "1.|range()", null),
