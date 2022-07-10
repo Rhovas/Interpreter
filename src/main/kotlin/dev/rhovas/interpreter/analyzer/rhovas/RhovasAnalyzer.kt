@@ -18,7 +18,7 @@ class RhovasAnalyzer(scope: Scope) :
         FunctionContext(null),
         LabelContext(mutableMapOf()),
         JumpContext(mutableSetOf()),
-        ThrowsContext(mutableSetOf()),
+        ExceptionContext(mutableSetOf()),
     ).associateBy { it.javaClass })),
     RhovasAst.Visitor<RhovasIr> {
 
@@ -26,7 +26,7 @@ class RhovasAnalyzer(scope: Scope) :
     private val Context.function get() = this[FunctionContext::class.java]
     private val Context.labels get() = this[LabelContext::class.java]
     private val Context.jumps get() = this[JumpContext::class.java]
-    private val Context.throws get() = this[ThrowsContext::class.java]
+    private val Context.exceptions get() = this[ExceptionContext::class.java]
     private val Context.pattern get() = this[PatternContext::class.java]
 
     data class ScopeContext(
@@ -83,17 +83,16 @@ class RhovasAnalyzer(scope: Scope) :
 
     }
 
-    data class ThrowsContext(
-        val throws: MutableSet<Type>,
-    ) : Context.Item<MutableSet<Type>>(throws) {
+    data class ExceptionContext(
+        val exceptions: MutableSet<Type>,
+        //TODO: Unthrown exceptions
+    ) : Context.Item<MutableSet<Type>>(exceptions) {
 
         override fun child(): Context.Item<MutableSet<Type>> {
-            return ThrowsContext(mutableSetOf())
+            return ExceptionContext(exceptions.toMutableSet())
         }
 
-        override fun merge(children: List<MutableSet<Type>>) {
-            children.forEach { throws.addAll(it) }
-        }
+        override fun merge(children: List<MutableSet<Type>>) {}
 
     }
 
@@ -173,11 +172,10 @@ class RhovasAnalyzer(scope: Scope) :
         }
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let(::visitGenericType) ?: Library.TYPES["Dynamic"]!!) }
         val returns = ast.returns?.let(::visitGenericType) ?: Library.TYPES["Void"]!! //TODO or Dynamic?
-        val throws = ast.throws.map { visit(it).type } //TODO: Generic exceptions?
+        val throws = ast.throws.map { visit(it).type }
         val function = Function.Definition(ast.name, generics, parameters, returns, throws)
         context.scope.functions.define(function)
-        //TODO: Validate thrown exceptions
-        return analyze(context.with(FunctionContext(function))) {
+        return analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
             parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
             val body = visit(ast.body) as RhovasIr.Statement.Block
             require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
@@ -185,14 +183,6 @@ class RhovasAnalyzer(scope: Scope) :
                 "Missing return value.",
                 "The function ${ast.name}/${ast.parameters.size} requires a return value.",
             ) }
-            //TODO: Validate at the location of the thrown exception to include context
-            context.throws.forEach { t ->
-                require(throws.any { t.isSubtypeOf(it) }) { error(
-                    ast,
-                    "Uncaught exception.",
-                    "An exception was thrown of type ${t}, which is not declared as thrown by the function.",
-                ) }
-            }
             RhovasIr.Statement.Function(function, body).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -442,8 +432,7 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val child = context.child()
-        val body = analyze(child) { visit(ast.body) }
-        val catches = ast.catches.map {
+        ast.catches.forEach {
             it.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val type = visit(it.type).type
             require(type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
@@ -451,7 +440,13 @@ class RhovasAnalyzer(scope: Scope) :
                 "Invalid catch type",
                 "An catch block requires the type to be a subtype of Exception, but received ${type}."
             ) }
-            child.throws.removeIf { it.isSubtypeOf(type) }
+            child.exceptions.add(type)
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+        val body = analyze(child) { visit(ast.body) }
+        val catches = ast.catches.map {
+            it.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val type = visit(it.type).type //validated as subtype of Exception above
             analyze(context.child()) {
                 context.scope.variables.define(Variable.Local(it.name, type, false))
                 val body = visit(it.body)
@@ -462,16 +457,12 @@ class RhovasAnalyzer(scope: Scope) :
             }
         }
         context.merge()
-        val finallyStatement = ast.finallyStatement?.let { analyze {
-            val ir = visit(it)
-            //TODO: Jumps
-            require(context.throws.isEmpty()) { error(
-                it,
-                "Invalid finally exceptions",
-                "A finally block requires no exceptions to be thrown, but received ${context.throws}.",
-            ) }
-            ir
-        } }
+        val finallyStatement = ast.finallyStatement?.let {
+            //TODO: Include finally information in invalid exception error message
+            analyze(context.with(ExceptionContext(mutableSetOf()))) {
+                visit(it)
+            }
+        }
         return RhovasIr.Statement.Try(body, catches, finallyStatement).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -590,7 +581,11 @@ class RhovasAnalyzer(scope: Scope) :
             "Invalid throw expression type.",
             "An throw statement requires the expression to be type Exception, but received ${exception.type}.",
         ) }
-        context.throws.add(exception.type)
+        require(context.exceptions.any { exception.type.isSubtypeOf(it) }) { error(
+            ast.exception,
+            "Uncaught exception.",
+            "An exception is thrown of type ${exception.type}, but this exception is never caught or declared.",
+        ) }
         return RhovasIr.Statement.Throw(exception).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -849,7 +844,13 @@ class RhovasAnalyzer(scope: Scope) :
             "Unresolved function.",
             "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a function in the current scope.",
         )
-        context.throws.addAll(function.throws)
+        function.throws.forEach { exception ->
+            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
+                ast,
+                "Uncaught exception.",
+                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
+            ) }
+        }
         return RhovasIr.Expression.Invoke.Function(function, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -880,7 +881,13 @@ class RhovasAnalyzer(scope: Scope) :
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(method.returns))
             else -> method.returns
         }
-        context.throws.addAll(method.throws)
+        method.throws.forEach { exception ->
+            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
+                ast,
+                "Uncaught exception.",
+                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
+            ) }
+        }
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -920,7 +927,13 @@ class RhovasAnalyzer(scope: Scope) :
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
             else -> function.returns
         }
-        context.throws.addAll(function.throws)
+        function.throws.forEach { exception ->
+            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
+                ast,
+                "Uncaught exception.",
+                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
+            ) }
+        }
         return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
