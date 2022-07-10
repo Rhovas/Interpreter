@@ -2045,6 +2045,14 @@ class RhovasParserTests {
                             RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*"),
                         ),
                     )),
+                    Arguments.of("Varargs Only", """
+                        [first, +]
+                    """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
+                        listOf(
+                            RhovasAst.Pattern.Variable("first"),
+                            RhovasAst.Pattern.VarargDestructure(null, "+"),
+                        ),
+                    )),
                     Arguments.of("Missing Comma", """
                         [first second]
                     """.trimIndent(), null),
@@ -2097,6 +2105,14 @@ class RhovasParserTests {
                         listOf(
                             "key" to RhovasAst.Pattern.Variable("pattern"),
                             "" to RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*"),
+                        ),
+                    )),
+                    Arguments.of("Varargs Only", """
+                        {key: pattern, +}
+                    """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
+                        listOf(
+                            "key" to RhovasAst.Pattern.Variable("pattern"),
+                            "" to RhovasAst.Pattern.VarargDestructure(null, "+"),
                         ),
                     )),
                     Arguments.of("Missing Colon", """

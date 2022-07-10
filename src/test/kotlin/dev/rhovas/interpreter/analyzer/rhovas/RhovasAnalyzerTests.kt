@@ -2254,8 +2254,7 @@ class RhovasAnalyzerTests {
                             ),
                         )
                     }),
-                    //TODO: Parsing for unnamed varargs
-                    /*Arguments.of("Varargs", """
+                    Arguments.of("Varargs", """
                         match ({key: 1}) {
                             else {*}: stmt();
                         }
@@ -2266,14 +2265,14 @@ class RhovasAnalyzerTests {
                             ), type("Object")),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.OrderedDestructure(
-                                    listOf(RhovasIr.Pattern.VarargDestructure(null, "*", type("List", "Integer"))),
-                                    type("List", "Integer"),
+                                RhovasIr.Pattern.NamedDestructure(
+                                    listOf("" to RhovasIr.Pattern.VarargDestructure(null, "*", type("Object"))),
+                                    type("Object"),
                                 ),
                                 stmt(),
                             ),
                         )
-                    }),*/
+                    }),
                     Arguments.of("Varargs Pattern", """
                         match ({key: 1}) {
                             else {object*}: stmt(object[:key]);

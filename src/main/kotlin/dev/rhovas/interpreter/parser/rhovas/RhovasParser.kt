@@ -861,7 +861,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 val patterns = mutableListOf<Pair<String, RhovasAst.Pattern?>>()
                 while (!match("}")) {
                     context.addLast((tokens[0] ?: tokens[-1]!!).range)
-                    if (peek(RhovasTokenType.IDENTIFIER, listOf("*", "+"))) {
+                    //TODO: Consider allowing other patterns for unnamed varargs (e.g. {[x, y, z]*})
+                    if (peek(listOf("*", "+")) || peek(RhovasTokenType.IDENTIFIER, listOf("*", "+"))) {
                         val pattern = parsePattern()
                         patterns.add(Pair("", pattern))
                     } else {
