@@ -1821,6 +1821,580 @@ class RhovasAnalyzerTests {
 
     }
 
+    @Nested
+    inner class PatternTests {
+
+        @Nested
+        inner class VariableTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testVariable(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke())
+            }
+
+            fun testVariable(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", """
+                        match (1) {
+                            else name: stmt(name);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                stmt(variable("name", type("Integer")))
+                            )
+                        )
+                    }),
+                    Arguments.of("Underscore", """
+                        match (1) {
+                            else _: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Variable(null), stmt())
+                        )
+                    }),
+                    Arguments.of("Redefinition", """
+                        match ([1, 2, 3]) {
+                            [x, y, x]: stmt(x);
+                            else: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ValueTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testValue(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke(), Scope(null).also {
+                    it.variables.define(variable("any", type("Any")).variable)
+                })
+            }
+
+            fun testValue(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Boolean", """
+                        match (true) {
+                            else true: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(true),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal(true)), stmt())
+                        )
+                    }),
+                    Arguments.of("Integer", """
+                        match (1) {
+                            else 1: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal(BigInteger("1"))), stmt())
+                        )
+                    }),
+                    Arguments.of("Decimal", """
+                        match (1.0) {
+                            else 1.0: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigDecimal("1.0")),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal(BigDecimal("1.0"))), stmt())
+                        )
+                    }),
+                    Arguments.of("String", """
+                        match ("string") {
+                            else "string": stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal("string"),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal("string")), stmt())
+                        )
+                    }),
+                    //TODO: Atom/Label parsing ambiguity
+                    /*Arguments.of("Atom", """
+                        match (:atom) {
+                            else :atom: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(RhovasAst.Atom("atom")),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal(RhovasAst.Atom("atom"))), stmt())
+                        )
+                    }),*/
+                    Arguments.of("Supertype Argument", """
+                        match (any) {
+                            else 1: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            variable("any", type("Any")),
+                            listOf(),
+                            Pair(RhovasIr.Pattern.Value(literal(BigInteger("1"))), stmt())
+                        )
+                    }),
+                    Arguments.of("Unmatchable Argument", """
+                        match (1.0) {
+                            else 1: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class PredicateTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testPredicate(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE))
+            }
+
+            fun testPredicate(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Predicate", """
+                        match (1) {
+                            else _ ${'$'}{val > 0}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.Predicate(
+                                    RhovasIr.Pattern.Variable(null),
+                                    RhovasIr.Expression.Binary(">",
+                                        variable("val", type("Integer")),
+                                        literal(BigInteger("0")),
+                                        type("Integer").methods["<=>", listOf(type("Integer"))]!!,
+                                        type("Boolean"),
+                                    ),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Variable", """
+                        match (1) {
+                            else name ${'$'}{name > 0}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.Predicate(
+                                    RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                    RhovasIr.Expression.Binary(">",
+                                        variable("name", type("Integer")),
+                                        literal(BigInteger("0")),
+                                        type("Integer").methods["<=>", listOf(type("Integer"))]!!,
+                                        type("Boolean"),
+                                    ),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Implicit Value", """
+                        match (1) {
+                            else _ ${'$'}{val > 0}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.Predicate(
+                                    RhovasIr.Pattern.Variable(null),
+                                    RhovasIr.Expression.Binary(">",
+                                        variable("val", type("Integer")),
+                                        literal(BigInteger("0")),
+                                        type("Integer").methods["<=>", listOf(type("Integer"))]!!,
+                                        type("Boolean"),
+                                    ),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Invalid Type", """
+                        match (1) {
+                            else _ ${'$'}{1}: stmt();
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Variable Scope", """
+                        match (range(1, 2, :incl)) {
+                            else [x, y ${'$'}{x != y}]: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class OrderedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testOrderedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    it.variables.define(variable("any", type("Any")).variable)
+                })
+            }
+
+            fun testOrderedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Variable", """
+                        match (range(1, 1, :incl)) {
+                            else [elem]: stmt(elem);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Invoke.Function(
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                listOf(literal(BigInteger("1")), literal(BigInteger("1")), literal(RhovasAst.Atom("incl"))),
+                            ),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(
+                                    listOf(RhovasIr.Pattern.Variable(variable("elem", type("Integer")).variable)),
+                                    type("List", "Integer"),
+                                ),
+                                stmt(variable("elem", type("Integer"))),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Multiple", """
+                        match (range(1, 3, :incl)) {
+                            else [1, 2, 3]: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Invoke.Function(
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                            ),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(
+                                    listOf(
+                                        RhovasIr.Pattern.Value(literal(BigInteger("1"))),
+                                        RhovasIr.Pattern.Value(literal(BigInteger("2"))),
+                                        RhovasIr.Pattern.Value(literal(BigInteger("3"))),
+                                    ),
+                                    type("List", "Integer"),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Varargs", """
+                        match (range(1, 3, :incl)) {
+                            else [*]: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Invoke.Function(
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                            ),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(
+                                    listOf(RhovasIr.Pattern.VarargDestructure(null, "*", type("List", "Integer"))),
+                                    type("List", "Integer"),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Varargs Pattern", """
+                        match (range(1, 3, :incl)) {
+                            else [elements*]: stmt(elements[0]);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Invoke.Function(
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                            ),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(
+                                    listOf(RhovasIr.Pattern.VarargDestructure(
+                                        RhovasIr.Pattern.Variable(variable("elements", type("Integer")).variable),
+                                        "*",
+                                        type("List", "Integer"),
+                                    )),
+                                    type("List", "Integer"),
+                                ),
+                                stmt(RhovasIr.Expression.Access.Index(
+                                    variable("elements", type("List", "Integer")),
+                                    type("List", "Integer").methods["[]", listOf(type("Integer"))]!!,
+                                    listOf(literal(BigInteger("0"))),
+                                )),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Supertype Argument", """
+                        match (any) {
+                            else []: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            variable("any", type("Any")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(listOf(), type("List", "Dynamic")),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Unmatchable Type", """
+                        match (1) {
+                            else []: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class NamedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testNamedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke(), Scope(null).also {
+                    it.variables.define(variable("any", type("Any")).variable)
+                })
+            }
+
+            fun testNamedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Key", """
+                        match ({key: 1}) {
+                            else {key}: stmt(key);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Literal.Object(mapOf(
+                                "key" to literal(BigInteger("1")),
+                            ), type("Object")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.NamedDestructure(
+                                    listOf("key" to null),
+                                    type("Object"),
+                                ),
+                                stmt(variable("key", type("Dynamic"))),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Value", """
+                        match ({key: 1}) {
+                            else {key: 1}: stmt(key);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Literal.Object(mapOf(
+                                "key" to literal(BigInteger("1")),
+                            ), type("Object")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.NamedDestructure(
+                                    listOf("key" to RhovasIr.Pattern.Value(literal(BigInteger("1")))),
+                                    type("Object"),
+                                ),
+                                stmt(variable("key", type("Integer"))),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Multiple", """
+                        match ({x: 1, y: 2, z: 3}) {
+                            else {x, y, z}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Literal.Object(mapOf(
+                                "x" to literal(BigInteger("1")),
+                                "y" to literal(BigInteger("2")),
+                                "z" to literal(BigInteger("3")),
+                            ), type("Object")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.NamedDestructure(
+                                    listOf("x" to null, "y" to null, "z" to null),
+                                    type("Object"),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    //TODO: Parsing for unnamed varargs
+                    /*Arguments.of("Varargs", """
+                        match ({key: 1}) {
+                            else {*}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Literal.Object(mapOf(
+                                "key" to literal(BigInteger("1")),
+                            ), type("Object")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.OrderedDestructure(
+                                    listOf(RhovasIr.Pattern.VarargDestructure(null, "*", type("List", "Integer"))),
+                                    type("List", "Integer"),
+                                ),
+                                stmt(),
+                            ),
+                        )
+                    }),*/
+                    Arguments.of("Varargs Pattern", """
+                        match ({key: 1}) {
+                            else {object*}: stmt(object[:key]);
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            RhovasIr.Expression.Literal.Object(mapOf(
+                                "key" to literal(BigInteger("1")),
+                            ), type("Object")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.NamedDestructure(
+                                    listOf("" to RhovasIr.Pattern.VarargDestructure(
+                                        RhovasIr.Pattern.Variable(variable("object", type("Dynamic")).variable),
+                                        "*",
+                                        type("Object"),
+                                    )),
+                                    type("Object"),
+                                ),
+                                stmt(RhovasIr.Expression.Access.Index(
+                                    variable("object", type("Object")),
+                                    type("Object").methods["[]", listOf(type("Atom"))]!!,
+                                    listOf(literal(RhovasAst.Atom("key"))),
+                                )),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Supertype Argument", """
+                        match (any) {
+                            else {}: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            variable("any", type("Any")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.NamedDestructure(listOf(), type("Object")),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Unmatchable Type", """
+                        match (1) {
+                            else {}: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class TypedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testTypedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
+                test("statement", input, expected?.invoke(), Scope(null).also {
+                    it.variables.define(variable("any", type("Any")).variable)
+                })
+            }
+
+            fun testTypedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Type", """
+                        match (1) {
+                            else Integer: stmt();
+                        }
+                    """, {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.TypedDestructure(type("Integer"), null),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Pattern", """
+                        match (1) {
+                            else Integer name: stmt(name);
+                        }
+                    """, {
+                        RhovasIr.Statement.Match.Structural(
+                            literal(BigInteger("1")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.TypedDestructure(
+                                    type("Integer"),
+                                    RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                ),
+                                stmt(variable("name", type("Integer"))),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Supertype Argument", """
+                        match (any) {
+                            else Integer: stmt();
+                        }
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Match.Structural(
+                            variable("any", type("Any")),
+                            listOf(),
+                            Pair(
+                                RhovasIr.Pattern.TypedDestructure(type("Integer"), null),
+                                stmt(),
+                            ),
+                        )
+                    }),
+                    Arguments.of("Unmatchable Type", """
+                        match (1.0) {
+                            else Integer: stmt();
+                        }
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+    }
+
     private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Statement.Block {
         return RhovasIr.Statement.Block(statements.toList())
     }

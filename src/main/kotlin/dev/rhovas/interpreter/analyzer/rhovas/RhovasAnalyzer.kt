@@ -27,6 +27,7 @@ class RhovasAnalyzer(scope: Scope) :
     private val Context.labels get() = this[LabelContext::class.java]
     private val Context.jumps get() = this[JumpContext::class.java]
     private val Context.throws get() = this[ThrowsContext::class.java]
+    private val Context.pattern get() = this[PatternContext::class.java]
 
     data class ScopeContext(
         val scope: Scope,
@@ -93,6 +94,24 @@ class RhovasAnalyzer(scope: Scope) :
         override fun merge(children: List<MutableSet<Type>>) {
             children.forEach { throws.addAll(it) }
         }
+
+    }
+
+    data class PatternContext(
+        val type: Type,
+        val bindings: MutableMap<String, Type>,
+    ) : Context.Item<PatternContext.Data>(Data(type, bindings)) {
+
+        data class Data(
+            val type: Type,
+            val bindings: MutableMap<String, Type>,
+        )
+
+        override fun child(): Context.Item<Data> {
+            return this
+        }
+
+        override fun merge(children: List<Data>) {}
 
     }
 
@@ -337,18 +356,24 @@ class RhovasAnalyzer(scope: Scope) :
         val argument = visit(ast.argument)
         //TODO: Typecheck patterns
         val cases = ast.cases.map {
-            analyze(context.child()) {
+            analyze(context.child().with(PatternContext(argument.type, mutableMapOf()))) {
                 it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = visit(it.first)
+                context.pattern.bindings.forEach {
+                    context.scope.variables.define(Variable.Local(it.key, it.value, false))
+                }
                 val statement = visit(it.second)
                 it.first.context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
             }
         }
         val elseCase = ast.elseCase?.let {
-            analyze(context.child()) {
+            analyze(context.child().with(PatternContext(argument.type, mutableMapOf()))) {
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = it.first?.let { visit(it) }
+                context.pattern.bindings.forEach {
+                    context.scope.variables.define(Variable.Local(it.key, it.value, false))
+                }
                 val statement = visit(it.second)
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
@@ -972,10 +997,16 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Validate variable name
-        //TODO: Infer type
-        val variable = if (ast.name != "_") Variable.Local(ast.name, Library.TYPES["Dynamic"]!!, false) else null
-        variable?.let { context.scope.variables.define(it) }
+        require(!context.pattern.bindings.containsKey(ast.name)) { error(
+            ast,
+            "Redefined pattern binding",
+            "The identifier ${ast.name} is already bound in this pattern.",
+        ) }
+        val variable = if (ast.name == "_") null else {
+            Variable.Local(ast.name, context.pattern.type, false).also {
+                context.pattern.bindings[it.name] = it.type
+            }
+        }
         return RhovasIr.Pattern.Variable(variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -983,8 +1014,12 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value {
-        //TODO: Value typechecking
         val value = visit(ast.value)
+        require(value.type.isSubtypeOf(context.pattern.type)) { error(
+            ast,
+            "Unmatchable pattern type",
+            "This pattern is within a context that requires type ${context.pattern.type}, but received ${value.type}.",
+        ) }
         return RhovasIr.Pattern.Value(value).also {
             it.context = ast.context
         }
@@ -992,11 +1027,15 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val pattern = visit(ast.pattern)
-        //TODO: Bind variables
-        val predicate = analyze(context.child()) {
-            context.scope.variables.define(Variable.Local("val", pattern.type, false))
-            visit(ast.predicate)
+        val existing = context.pattern.bindings.toMutableMap()
+        val (pattern, predicate) = analyze(context.with(PatternContext(context.pattern.type, mutableMapOf()))) {
+            val pattern = visit(ast.pattern)
+            context.scope.variables.define(Variable.Local("val", context.pattern.type, false))
+            context.pattern.bindings
+                .filterKeys { !existing.containsKey(it) }
+                .forEach { context.scope.variables.define(Variable.Local(it.key, it.value, false)) }
+            val predicate = visit(ast.predicate)
+            Pair(pattern, predicate)
         }
         require(predicate.type.isSubtypeOf(Library.TYPES["Boolean"]!!)) { error(
             ast.predicate,
@@ -1011,7 +1050,16 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Value typechecking
+        //TODO: Fix List supertype check (requires variance for generics)
+        require(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)).isSubtypeOf(context.pattern.type)) { error(
+            ast,
+            "Unmatchable pattern type",
+            "This pattern is within a context that requires type ${context.pattern.type}, but received List.",
+        ) }
+        val type = when {
+            context.pattern.type.isSubtypeOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))) -> context.pattern.type.methods["get", listOf(Library.TYPES["Integer"]!!)]!!.returns
+            else -> Library.TYPES["Dynamic"]!!
+        }
         var vararg = false
         val patterns = ast.patterns.withIndex().map {
             if (it.value is RhovasAst.Pattern.VarargDestructure) {
@@ -1022,15 +1070,26 @@ class RhovasAnalyzer(scope: Scope) :
                 ) }
                 vararg = true
                 val ast = it.value as RhovasAst.Pattern.VarargDestructure
-                val pattern = ast.pattern?.let { visit(it) }
-                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))).also {
+                val pattern = ast.pattern?.let {
+                    val existing = context.pattern.bindings.toMutableMap()
+                    analyze(context.with(PatternContext(type, context.pattern.bindings))) {
+                        val pattern = visit(it)
+                        context.pattern.bindings
+                            .filterKeys { !existing.containsKey(it) }
+                            .forEach { context.pattern.bindings[it.key] = Type.Reference(Library.TYPES["List"]!!.base, listOf(it.value)) }
+                        pattern
+                    }
+                }
+                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.Reference(Library.TYPES["List"]!!.base, listOf(type))).also {
                     it.context = ast.context
                 }
             } else {
-                visit(it.value)
+                analyze(context.with(PatternContext(type, context.pattern.bindings))) {
+                    visit(it.value)
+                }
             }
         }
-        return RhovasIr.Pattern.OrderedDestructure(patterns, Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!))).also {
+        return RhovasIr.Pattern.OrderedDestructure(patterns, Type.Reference(Library.TYPES["List"]!!.base, listOf(type))).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1038,12 +1097,14 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Value typechecking
-        //TODO: Validate keys/variable names
+        require(Library.TYPES["Object"]!!.isSubtypeOf(context.pattern.type)) { error(
+            ast,
+            "Unmatchable pattern type",
+            "This pattern is within a context that requires type ${context.pattern.type}, but received List.",
+        ) }
         var vararg = false
         val patterns = ast.patterns.withIndex().map {
             val pattern = if (it.value.second is RhovasAst.Pattern.VarargDestructure) {
-                //TODO: Consider requiring varargs as the last pattern
                 require(!vararg) { error(
                     it.value.second!!,
                     "Invalid multiple varargs.",
@@ -1051,14 +1112,32 @@ class RhovasAnalyzer(scope: Scope) :
                 ) }
                 vararg = true
                 val ast = it.value.second as RhovasAst.Pattern.VarargDestructure
-                val pattern = ast.pattern?.let { visit(it) }
+                val pattern = ast.pattern?.let {
+                    val existing = context.pattern.bindings.toMutableMap()
+                    //TODO: Struct type validation
+                    analyze(context.with(PatternContext(Library.TYPES["Dynamic"]!!, context.pattern.bindings))) {
+                        val pattern = visit(it)
+                        context.pattern.bindings
+                            .filterKeys { !existing.containsKey(it) }
+                            .forEach { context.pattern.bindings[it.key] = Library.TYPES["Object"]!! }
+                        pattern
+                    }
+                }
+                //TODO: Struct type bindings
+                context.pattern.bindings[it.value.first] = Library.TYPES["Object"]!!
                 RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["Object"]!!).also {
                     it.context = ast.context
                 }
             } else if (it.value.second != null) {
-                visit(it.value.second!!)
+                //TODO: Struct type validation
+                val pattern = analyze(context.with(PatternContext(Library.TYPES["Dynamic"]!!, context.pattern.bindings))) {
+                    visit(it.value.second!!)
+                }
+                //TODO: Struct type bindings
+                context.pattern.bindings[it.value.first] = pattern.type
+                pattern
             } else {
-                context.scope.variables.define(Variable.Local(it.value.first, Library.TYPES["Dynamic"]!!, false))
+                context.pattern.bindings[it.value.first] = Library.TYPES["Dynamic"]!!
                 null
             }
             Pair(it.value.first, pattern)
@@ -1071,8 +1150,16 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure {
         val type = visit(ast.type)
-        //TODO: Value typechecking
-        val pattern = ast.pattern?.let { visit(it) }
+        require(type.type.isSubtypeOf(context.pattern.type)) { error(
+            ast,
+            "Unmatchable pattern type",
+            "This pattern is within a context that requires type ${context.pattern.type}, but received ${type.type}.",
+        ) }
+        val pattern = ast.pattern?.let {
+            analyze(context.with(PatternContext(type.type, context.pattern.bindings))) {
+                visit(it)
+            }
+        }
         return RhovasIr.Pattern.TypedDestructure(type.type, pattern).also {
             it.context = ast.context
         }
