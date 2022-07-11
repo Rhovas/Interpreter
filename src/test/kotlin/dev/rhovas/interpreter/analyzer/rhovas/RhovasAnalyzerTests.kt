@@ -760,6 +760,16 @@ class RhovasAnalyzerTests {
                             ),
                         )
                     }),
+                    Arguments.of("Unused Label", """
+                        label: while (true) {}
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Label("label",
+                            RhovasIr.Statement.While(
+                                literal(true),
+                                block(),
+                            ),
+                        )
+                    }),
                     Arguments.of("Invalid Statement", """
                         label: stmt(0);
                     """.trimIndent(), null),
@@ -768,11 +778,6 @@ class RhovasAnalyzerTests {
                             label: while (true) {
                                 break label;
                             }
-                        }
-                    """.trimIndent(), null),
-                    Arguments.of("Unused Label", """
-                        label: while (true) {
-                            break;
                         }
                     """.trimIndent(), null),
                 )

@@ -16,7 +16,7 @@ class RhovasAnalyzer(scope: Scope) :
         InputContext(ArrayDeque()),
         ScopeContext(scope),
         FunctionContext(null),
-        LabelContext(mutableMapOf()),
+        LabelContext(mutableSetOf()),
         JumpContext(mutableSetOf()),
         ExceptionContext(mutableSetOf()),
     ).associateBy { it.javaClass })),
@@ -54,14 +54,14 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     data class LabelContext(
-        val labels: MutableMap<String?, Boolean>,
-    ) : Context.Item<MutableMap<String?, Boolean>>(labels) {
+        val labels: MutableSet<String?>,
+    ) : Context.Item<MutableSet<String?>>(labels) {
 
         override fun child(): LabelContext {
-            return this
+            return LabelContext(labels.toMutableSet())
         }
 
-        override fun merge(children: List<MutableMap<String?, Boolean>>) {}
+        override fun merge(children: List<MutableSet<String?>>) {}
 
     }
 
@@ -390,13 +390,8 @@ class RhovasAnalyzer(scope: Scope) :
         return analyze {
             //TODO: Generic types
             context.scope.variables.define(Variable.Local(ast.name, type, false))
-            val previous = context.labels.putIfAbsent(null, false)
+            context.labels.add(null)
             val body = visit(ast.body)
-            if (previous != null) {
-                context.labels[null] = previous
-            } else {
-                context.labels.remove(null)
-            }
             //TODO: Validate jump context
             context.jumps.clear()
             RhovasIr.Statement.For(ast.name, argument, body).also {
@@ -414,18 +409,15 @@ class RhovasAnalyzer(scope: Scope) :
             "Invalid while condition type.",
             "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
-        val previous = context.labels.putIfAbsent(null, false)
-        val body = visit(ast.body)
-        if (previous != null) {
-            context.labels[null] = previous
-        } else {
-            context.labels.remove(null)
-        }
-        //TODO: Validate jump context
-        context.jumps.clear()
-        return RhovasIr.Statement.While(condition, body).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        return analyze {
+            context.labels.add(null)
+            val body = visit(ast.body)
+            context.jumps.clear()
+            //TODO: Validate jump context
+            RhovasIr.Statement.While(condition, body).also {
+                it.context = ast.context
+                it.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
         }
     }
 
@@ -498,19 +490,14 @@ class RhovasAnalyzer(scope: Scope) :
             "Redefined label.",
             "The label ${ast.label} is already defined in this scope.",
         ) }
-        context.labels[ast.label] = false
-        val statement = visit(ast.statement)
-        //TODO: Validate unused labels
-        require(context.labels[ast.label] == true) { error(
-            ast,
-            "Unused label.",
-            "The label ${ast.label} is unused within the statement.",
-        ) }
-        context.labels.remove(ast.label)
-        //TODO: Validate jump locations (constant conditions / dependent types)
-        return RhovasIr.Statement.Label(ast.label, statement).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        return analyze {
+            context.labels.add(ast.label)
+            val statement = visit(ast.statement)
+            //TODO: Validate jump locations (constant conditions / dependent types)
+            RhovasIr.Statement.Label(ast.label, statement).also {
+                it.context = ast.context
+                it.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
         }
     }
 
@@ -526,7 +513,6 @@ class RhovasAnalyzer(scope: Scope) :
             "Undefined label.",
             "The label ${ast.label} is not defined in this scope.",
         ) }
-        context.labels[ast.label] = true
         context.jumps.add(ast.label)
         return RhovasIr.Statement.Break(ast.label).also {
             it.context = ast.context
@@ -546,7 +532,6 @@ class RhovasAnalyzer(scope: Scope) :
             "Undefined label.",
             "The label ${ast.label} is not defined in this scope.",
         ) }
-        context.labels[ast.label] = true
         return RhovasIr.Statement.Continue(ast.label).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
