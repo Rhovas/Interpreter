@@ -128,19 +128,14 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Statement.Function?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    it.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope(Library.SCOPE)).reference)
                     it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
                     it.functions.define(Function.Definition("fail", listOf(), listOf("message" to type("String")), type("Void"), listOf(type("Exception"))))
                 })
             }
 
             fun testFunction(): Stream<Arguments> {
-                Library.TYPES["SubtypeException"] = Type.Reference(Type.Base(
-                    "SubtypeException",
-                    listOf(),
-                    listOf(type("Exception")),
-                    Scope(null)
-                ), listOf())
                 return Stream.of(
                     Arguments.of("Definition", """
                         func name() {
@@ -236,6 +231,26 @@ class RhovasAnalyzerTests {
                             ))),
                         )
                     }),
+                    Arguments.of("Generic", """
+                        func first<T>(list: List<T>): T {
+                            return list[0];
+                        }
+                    """.trimIndent(), {
+                        val listT = Type.Reference(type("List").base, listOf(Type.Generic("T", type("Any"))))
+                        RhovasIr.Statement.Function(
+                            Function.Definition("first",
+                                listOf(Type.Generic("T", type("Any"))),
+                                listOf("list" to listT),
+                                Type.Generic("T", type("Any")),
+                                listOf(),
+                            ),
+                            block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Index(
+                                variable("list", listT),
+                                listT.methods["[]", listOf(type("Integer"))]!!,
+                                listOf(literal(BigInteger("0"))),
+                            ))),
+                        )
+                    }),
                     Arguments.of("Missing Return Value", """
                         func name(): Integer {
                             stmt();
@@ -300,7 +315,7 @@ class RhovasAnalyzerTests {
                         stmt(RhovasIr.Expression.Access.Variable(it.variable)),
                     ))
                 }
-                test("source", input, expected, Scope(null).also {
+                test("source", input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(variable("any", type("Any")).variable)
                 })
             }
@@ -369,7 +384,7 @@ class RhovasAnalyzerTests {
                         it,
                     ))
                 }
-                test("source", input, expected, Scope(null).also {
+                test("source", input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(variable("any", type("Any")).variable)
                 })
             }
@@ -413,7 +428,7 @@ class RhovasAnalyzerTests {
                 )
             }
 
-            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(type("Any")), Scope(null).also {
+            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(type("Any")), Scope(Library.SCOPE).also {
                 it.functions.define(Function.Definition("property", listOf(), listOf("instance" to type("Dynamic")), type("Integer"), listOf()))
                 it.functions.define(Function.Definition("property", listOf(), listOf("instance" to type("Dynamic"), "value" to type("Integer")), type("Void"), listOf()))
                 it.functions.define(Function.Definition("dynamic", listOf(), listOf("instance" to type("Dynamic")), type("Dynamic"), listOf()))
@@ -424,7 +439,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Property?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
                     it.variables.define(variable("object", ObjectType).variable)
                 })
             }
@@ -471,7 +486,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIndex(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Index?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also { scope ->
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also { scope ->
                     scope.variables.define(variable("list", IntegerList).variable)
                     scope.variables.define(variable("dynamic", DynamicList).variable)
                 })
@@ -631,7 +646,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: (() -> RhovasIr.Statement.Try?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
                     it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
                 })
             }
@@ -1455,7 +1470,7 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: (() -> RhovasIr.Expression.Access.Variable?)?) {
-                    test("expression", input, expected?.invoke(), Scope(null).also {
+                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
                         it.variables.define(variable("variable", type("Any")).variable)
                     })
                 }
@@ -1511,7 +1526,7 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: (() -> RhovasIr.Expression.Access.Index?)?) {
-                    test("expression", input, expected?.invoke(), Scope(null).also {
+                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
                         it.variables.define(variable("list", type("List")).variable)
                         it.variables.define(variable("any", type("Any")).variable)
                     })
@@ -1555,7 +1570,7 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Function?)?) {
-                    test("expression", input, expected?.invoke(), Scope(null).also {
+                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
                         it.functions.define(FUNCTION)
                     })
                 }
@@ -1587,7 +1602,7 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Method?)?) {
-                    test("expression", input, expected?.invoke(), Scope(null).also {
+                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
                         it.functions.define(NULLABLE)
                     })
                 }
@@ -1882,7 +1897,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testValue(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
                     it.variables.define(variable("any", type("Any")).variable)
                 })
             }
@@ -2193,7 +2208,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testNamedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
                     it.variables.define(variable("any", type("Any")).variable)
                 })
             }
@@ -2335,7 +2350,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTypedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(null).also {
+                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
                     it.variables.define(variable("any", type("Any")).variable)
                 })
             }
@@ -2399,6 +2414,37 @@ class RhovasAnalyzerTests {
 
     }
 
+    @Nested
+    inner class TypeTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testType(name: String, input: String, expected: (() -> RhovasIr.Type?)?) {
+            test("type", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                it.types.define(Type.Generic("T", type("Any")), "T")
+            })
+        }
+
+        fun testType(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Type", """
+                    Any
+                """.trimIndent(), {
+                    RhovasIr.Type(type("Any"))
+                }),
+                Arguments.of("Generic", """
+                    T
+                """.trimIndent(), {
+                    RhovasIr.Type(Type.Generic("T", type("Any")))
+                }),
+                Arguments.of("Undefined", """
+                    Undefined
+                """.trimIndent(), null),
+            )
+        }
+
+    }
+
     private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Statement.Block {
         return RhovasIr.Statement.Block(statements.toList())
     }
@@ -2434,7 +2480,7 @@ class RhovasAnalyzerTests {
         return Type.Reference(Library.TYPES[name]!!.base, generics.map { Library.TYPES[it]!! })
     }
 
-    private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(null)) {
+    private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(Library.SCOPE)) {
         val ast = RhovasParser(Input("AnalyzerTests.test", input)).parse(rule)
         val analyzer = RhovasAnalyzer(scope.also {
             it.functions.define(STMT_0)

@@ -40,7 +40,7 @@ class EvaluatorTests {
             )
         }
 
-        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
             function.implementation = { arguments ->
@@ -107,7 +107,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
+                test(input, expected, Scope(Library.SCOPE).also {
                     it.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
                 })
             }
@@ -151,7 +151,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
+                test(input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(Variable.Local.Runtime(
                         Variable.Local("variable", Library.TYPES["String"]!!, true),
                         Object(Library.TYPES["String"]!!, "initial"),
@@ -174,8 +174,8 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
-                    val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                test(input, expected, Scope(Library.SCOPE).also {
+                    val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
                         val getter = Function.Definition("property", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                         getter.implementation = { arguments ->
                             (arguments[0].value as MutableMap<String, Object>)["property"]!!
@@ -207,7 +207,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
+                test(input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(Variable.Local.Runtime(
                         Variable.Local("variable", Library.TYPES["String"]!!, false),
                         Object(Library.TYPES["String"]!!, "initial"),
@@ -432,7 +432,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testWhile(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
+                test(input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(Variable.Local.Runtime(
                         Variable.Local("number", Library.TYPES["Integer"]!!, true),
                         Object(Library.TYPES["Integer"]!!, BigInteger.ZERO),
@@ -513,23 +513,18 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(null).also {
-                    it.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()).also {
+                test(input, expected, Scope(Library.SCOPE).also { scope ->
+                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(Library.TYPES["Exception"]!!), Scope(Library.SCOPE)).reference)
+                    scope.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()).also {
                         it.implementation = { arguments -> Object(Library.TYPES["Exception"]!!, arguments[0].value as String) }
                     })
-                    it.functions.define(Function.Definition("SubtypeException", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["SubtypeException"]!!, listOf()).also {
-                        it.implementation = { arguments -> Object(Library.TYPES["SubtypeException"]!!, arguments[0].value as String) }
+                    scope.functions.define(Function.Definition("SubtypeException", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), scope.types["SubtypeException"]!!, listOf()).also {
+                        it.implementation = { arguments -> Object(scope.types["SubtypeException"]!!, arguments[0].value as String) }
                     })
                 })
             }
 
             fun testTry(): Stream<Arguments> {
-                Library.TYPES["SubtypeException"] = Type.Reference(Type.Base(
-                    "SubtypeException",
-                    listOf(),
-                    listOf(Library.TYPES["Exception"]!!),
-                    Scope(null)
-                ), listOf())
                 return Stream.of(
                     Arguments.of("Try", """
                         try {
@@ -665,7 +660,7 @@ class EvaluatorTests {
 
         //TODO: Scope tests
 
-        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
             function.implementation = { arguments ->
@@ -988,7 +983,7 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("variable", Library.TYPES["String"]!!, false),
                             Object(Library.TYPES["String"]!!, "variable"),
@@ -1013,8 +1008,8 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testProperty(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
                             val property = Function.Definition("property", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                             property.implementation = { arguments ->
                                 (arguments[0].value as Map<String, Object>)["property"]!!
@@ -1054,7 +1049,7 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("variable", Library.TYPES["String"]!!, false),
                             Object(Library.TYPES["String"]!!, "variable"),
@@ -1100,7 +1095,7 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
                         val function = Function.Definition("function", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                         function.implementation = { arguments ->
                             arguments[0]
@@ -1127,8 +1122,8 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
                             val function = Function.Definition("method", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!), Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                             function.implementation = { arguments ->
                                 arguments[1]
@@ -1173,13 +1168,13 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(null).also {
+                    test(input, expected, Scope(Library.SCOPE).also {
                         it.variables.define(Variable.Local.Runtime(
                             Variable.Local("nullInteger", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["Integer"]!!)), false),
                             Object(Library.TYPES["Null"]!!, null),
                         ))
                         it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
-                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(null).also {
+                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(Library.SCOPE).also {
                             val function = Function.Definition("function", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                             function.implementation = { arguments ->
                                 arguments[0]
@@ -1226,7 +1221,7 @@ class EvaluatorTests {
             @MethodSource
             fun testLambda(name: String, input: String, expected: String?) {
                 val log = StringBuilder()
-                val scope = Scope(null)
+                val scope = Scope(Library.SCOPE)
                 val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
                 function.implementation = { arguments ->
                     log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
@@ -1258,7 +1253,7 @@ class EvaluatorTests {
 
         }
 
-        private fun test(input: String, expected: Object?, scope: Scope = Scope(null)) {
+        private fun test(input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
             val ast = RhovasParser(Input("Test", input)).parse("expression")
             try {
                 val result = Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
@@ -1531,7 +1526,7 @@ class EvaluatorTests {
 
         }
 
-        private fun test(input: String, expected: String?, scope: Scope = Scope(null)) {
+        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
             val log = StringBuilder()
             val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
             function.implementation = { arguments ->

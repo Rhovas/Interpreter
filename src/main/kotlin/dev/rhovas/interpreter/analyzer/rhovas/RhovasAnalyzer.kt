@@ -164,28 +164,27 @@ class RhovasAnalyzer(scope: Scope) :
             "Redefined function.",
             "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
         ) }
-        val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
-        fun visitGenericType(ast: RhovasAst.Type): Type {
-            //TODO: Generics type scope
-            //TODO: Generic type with generics (T<String>)
-            return generics.find { it.name == ast.name } ?: visit(ast).type
-        }
-        val parameters = ast.parameters.map { Pair(it.first, it.second?.let(::visitGenericType) ?: Library.TYPES["Dynamic"]!!) }
-        val returns = ast.returns?.let(::visitGenericType) ?: Library.TYPES["Void"]!! //TODO or Dynamic?
-        val throws = ast.throws.map { visit(it).type }
-        val function = Function.Definition(ast.name, generics, parameters, returns, throws)
-        context.scope.functions.define(function)
-        return analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
-            parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
-            val body = visit(ast.body) as RhovasIr.Statement.Block
-            require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
-                ast,
-                "Missing return value.",
-                "The function ${ast.name}/${ast.parameters.size} requires a return value.",
-            ) }
-            RhovasIr.Statement.Function(function, body).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        val parent = context
+        return analyze {
+            val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
+            generics.forEach { context.scope.types.define(it, it.name) }
+            val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!) }
+            val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
+            val throws = ast.throws.map { visit(it).type }
+            val function = Function.Definition(ast.name, generics, parameters, returns, throws)
+            parent.scope.functions.define(function)
+            analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
+                parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
+                val body = visit(ast.body) as RhovasIr.Statement.Block
+                require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
+                    ast,
+                    "Missing return value.",
+                    "The function ${ast.name}/${ast.parameters.size} requires a return value.",
+                ) }
+                RhovasIr.Statement.Function(function, body).also {
+                    it.context = ast.context
+                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
+                }
             }
         }
     }
@@ -1169,25 +1168,32 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Type): RhovasIr.Type {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val base = Library.TYPES[ast.name]?.base ?: throw error(
+        var type = context.scope.types[ast.name] ?: throw error(
             ast,
             "Undefined type.",
             "The type ${ast.name} is not defined."
         )
-        val generics = ast.generics?.map { visit(ast).type } ?: listOf()
-        require(base.generics.size == generics.size) { error(
-            ast,
-            "Invalid generic parameters.",
-            "The type ${base.name} requires ${base.generics.size} generic parameters, but received ${generics.size}.",
-        ) }
-        for (i in generics.indices) {
-            require(generics[i].isSubtypeOf(base.generics[i].bound)) { error(
-                ast.generics!![i],
-                "Invalid generic parameter.",
-                "The type ${base.name} requires generic parameter ${i} to be type ${base.generics[i].bound}, but received ${generics[i]}.",
+        if (ast.generics != null) {
+            require(type is Type.Reference) { error(
+                ast,
+                "Invalid generic parameters.",
+                "Generic type require a reference type, but recevied a base type of Type.${type.javaClass.simpleName} (${type}).",
             ) }
+            val generics = ast.generics.map { visit(it).type }
+            require(type.base.generics.size == generics.size) { error(
+                ast,
+                "Invalid generic parameters.",
+                "The type ${type.base.name} requires ${type.base.generics.size} generic parameters, but received ${generics.size}.",
+            ) }
+            for (i in generics.indices) {
+                require(generics[i].isSubtypeOf(type.base.generics[i].bound)) { error(
+                    ast.generics[i],
+                    "Invalid generic parameter.",
+                    "The type ${type.base.name} requires generic parameter ${i} to be type ${type.base.generics[i].bound}, but received ${generics[i]}.",
+                ) }
+            }
+            type = Type.Reference(type.base, generics)
         }
-        val type = Type.Reference(base, generics)
         return RhovasIr.Type(type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }

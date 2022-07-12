@@ -4,6 +4,7 @@ class Scope(private val parent: Scope?) {
 
     val variables = VariablesDelegate()
     val functions = FunctionsDelegate()
+    val types = TypesDelegate()
 
     inner class VariablesDelegate {
 
@@ -80,11 +81,36 @@ class Scope(private val parent: Scope?) {
 
     }
 
+    inner class TypesDelegate {
+
+        private val types = mutableMapOf<String, Type>()
+
+        operator fun get(name: String): Type? {
+            return types[name] ?: parent?.types?.get(name)
+        }
+
+        fun isDefined(name: String, current: Boolean): Boolean {
+            return types.containsKey(name) || !current && parent?.types?.isDefined(name, current) ?: false
+        }
+
+        fun define(type: Type, alias: String = type.base.name) {
+            types[alias] = type
+        }
+
+        internal fun collect(): MutableMap<String, Type> {
+            val map = parent?.types?.collect() ?: mutableMapOf()
+            map.putAll(types)
+            return map
+        }
+
+    }
+
     override fun toString(): String {
         return "Scope(" +
                 "parent=${parent?.let { "Scope@${it.hashCode().toString(16)}" }}, " +
                 "variables=${variables.collect()}, " +
                 "functions=${functions.collect()}" +
+                "types=${types.collect()}" +
                 ")"
     }
 

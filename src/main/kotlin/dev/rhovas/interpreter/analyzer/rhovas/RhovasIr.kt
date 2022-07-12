@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
-import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 
