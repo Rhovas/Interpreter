@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.evaluator
 
-import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
@@ -91,9 +90,6 @@ class EvaluatorTests {
                     Arguments.of("Function", """
                         log(1);
                     """.trimIndent(), "1"),
-                    Arguments.of("Invalid", """
-                        1;
-                    """.trimIndent(), null),
                 )
             }
 
@@ -105,10 +101,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also {
-                    //TODO: Exception constructor
-                    it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
-                })
+                test("source", input, expected)
             }
 
             fun testFunction(): Stream<Arguments> {
@@ -139,11 +132,6 @@ class EvaluatorTests {
                         }
                         log(name());
                     """.trimIndent(), "1"),
-                    Arguments.of("Uncaught Exception", """
-                        func name() {
-                            throw Exception("message");
-                        }
-                    """.trimIndent(), null),
                 )
             }
 
@@ -160,13 +148,6 @@ class EvaluatorTests {
 
             fun testDeclaration(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Val Declaration", """
-                        val name;
-                    """.trimIndent(), null),
-                    Arguments.of("Var Declaration", """
-                        var name;
-                        log(name);
-                    """.trimIndent(), null),
                     Arguments.of("Val Initialization", """
                         val name = 1;
                         log(name);
@@ -175,11 +156,6 @@ class EvaluatorTests {
                         var name = 1;
                         log(name);
                     """.trimIndent(), "1"),
-                    Arguments.of("Redeclaration", """
-                        val name = 1;
-                        val name = 2;
-                        log(name);
-                    """.trimIndent(), null),
                 )
             }
 
@@ -196,7 +172,6 @@ class EvaluatorTests {
                         Variable.Local("variable", type("String"), true),
                         Object(type("String"), "initial")
                     ))
-                    it.variables.define(variable("unassignable", type("String"), "initial"))
                 })
             }
 
@@ -206,12 +181,6 @@ class EvaluatorTests {
                         variable = "final";
                         log(variable);
                     """.trimIndent(), "final"),
-                    Arguments.of("Undefined", """
-                        undefined = "final";
-                    """.trimIndent(), null),
-                    Arguments.of("Unassignable", """
-                        unassignable = "final";
-                    """.trimIndent(), null),
                 )
             }
 
@@ -244,9 +213,6 @@ class EvaluatorTests {
                         object.property = "final";
                         log(object.property);
                     """.trimIndent(), "final"),
-                    Arguments.of("Undefined", """
-                        object.undefined = "final";
-                    """.trimIndent(), null),
                 )
             }
 
@@ -274,12 +240,6 @@ class EvaluatorTests {
                         object[:key] = "final";
                         log(object[:key]);
                     """.trimIndent(), "final"),
-                    Arguments.of("Invalid Arity", """
-                        object[] = "final";
-                    """.trimIndent(), null),
-                    Arguments.of("Undefined", """
-                        variable[:key] = "final";
-                    """.trimIndent(), null), //TODO: Depends on Strings not supporting indexing
                 )
             }
 
@@ -313,11 +273,6 @@ class EvaluatorTests {
                             log(2);
                         }
                     """.trimIndent(), "2"),
-                    Arguments.of("Invalid Condition", """
-                        if (1) {
-                            log(1);
-                        }
-                    """.trimIndent(), null),
                 )
             }
 
@@ -483,9 +438,6 @@ class EvaluatorTests {
                             log(4);
                         }
                     """.trimIndent(), "121212"),
-                    Arguments.of("Invalid Iterable", """
-                        for (val element in 1) {}
-                    """.trimIndent(), null),
                 )
             }
 
@@ -564,9 +516,6 @@ class EvaluatorTests {
                             log(4);
                         }
                     """.trimIndent(), "1212121214"),
-                    Arguments.of("Invalid Condition", """
-                        while (1) {}
-                    """.trimIndent(), null),
                 )
             }
 
@@ -894,9 +843,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(false),
                     ),
-                    Arguments.of("Invalid", """
-                        -true
-                    """.trimIndent(), null),
                 )
             }
 
@@ -923,18 +869,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(false),
                     ),
-                    //TODO: Type checking
-                    /*Arguments.of("Short Circuit", """
-                        true || invalid
-                    """,
-                        literal(true),
-                    ),*/
-                    Arguments.of("Invalid Left", """
-                        0 || true
-                    """.trimIndent(), null),
-                    Arguments.of("Invalid Right", """
-                        false || 1
-                    """.trimIndent(), null),
                 )
             }
 
@@ -956,16 +890,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(false),
                     ),
-                    //TODO: Type checking
-                    /*Arguments.of("Short Circuit", "false && invalid",
-                        literal(false),
-                    ),*/
-                    Arguments.of("Invalid Left", """
-                        1 && false
-                    """.trimIndent(), null),
-                    Arguments.of("Invalid Right", """
-                        true && 0
-                    """.trimIndent(), null),
                 )
             }
 
@@ -992,7 +916,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(false),
                     ),
-                    //Arguments.of("Invalid Left") TODO: Requires non-equatable types
                 )
             }
 
@@ -1057,12 +980,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(true),
                     ),
-                    Arguments.of("Invalid Left", """
-                        false < 1
-                    """.trimIndent(), null),
-                    Arguments.of("Invalid Right", """
-                        0 < true
-                    """.trimIndent(), null),
                 )
             }
 
@@ -1107,9 +1024,6 @@ class EvaluatorTests {
                             literal(BigInteger("2")),
                         )),
                     ),
-                    Arguments.of("Invalid Left", """
-                        true + false
-                    """.trimIndent(), null),
                 )
             }
 
@@ -1136,9 +1050,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal("variable")
                         ),
-                        Arguments.of("Undefined", """
-                            undefined
-                        """.trimIndent(), null)
                     )
                 }
 
@@ -1180,9 +1091,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal(null),
                         ),
-                        Arguments.of("Undefined", """
-                            object.undefined
-                        """.trimIndent(), null)
                     )
                 }
 
@@ -1217,13 +1125,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal("value"),
                         ),
-                        Arguments.of("Invalid Arity", """
-                            list[]
-                        """.trimIndent(), null),
-                        //TODO: Depends on Strings not supporting indexing
-                        Arguments.of("Undefined", """
-                            variable[:key]
-                        """.trimIndent(), null),
                     )
                 }
 
@@ -1256,12 +1157,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal("argument")
                         ),
-                        Arguments.of("Invalid Arity", """
-                            function()
-                        """.trimIndent(), null),
-                        Arguments.of("Undefined", """
-                            undefined
-                        """.trimIndent(), null),
                     )
                 }
 
@@ -1308,12 +1203,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal(BigInteger("1")),
                         ),
-                        Arguments.of("Invalid Arity", """
-                            object.method()
-                        """.trimIndent(), null),
-                        Arguments.of("Undefined", """
-                            object.undefined()
-                        """.trimIndent(), null),
                     )
                 }
 
@@ -1366,12 +1255,6 @@ class EvaluatorTests {
                         """.trimIndent(),
                             literal(BigInteger("1")),
                         ),
-                        Arguments.of("Invalid Arity", """
-                            1.|range()
-                        """.trimIndent(), null),
-                        Arguments.of("Undefined", """
-                            1.|undefined()
-                        """.trimIndent(), null),
                     )
                 }
 
@@ -1425,9 +1308,9 @@ class EvaluatorTests {
                     """.trimIndent(), "1"),
                     Arguments.of("Underscore", """
                         match (1) {
-                            _: log(_);
+                            _: log("1");
                         }
-                    """.trimIndent(), null),
+                    """.trimIndent(), "1"),
                 )
             }
 
@@ -1697,11 +1580,10 @@ class EvaluatorTests {
             }
         })
         val ast = RhovasParser(Input("Test", input)).parse(rule)
+        val ir = RhovasAnalyzer(scope).visit(ast)
         try {
-            Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
+            Evaluator(scope).visit(ir)
             Assertions.assertEquals(expected, log.toString())
-        } catch (e: AnalyzeException) {
-            if (expected != null) Assertions.fail<Unit>(e)
         } catch (e: EvaluateException) {
             if (expected != null) Assertions.fail<Unit>(e)
         }
@@ -1709,11 +1591,10 @@ class EvaluatorTests {
 
     private fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
         val ast = RhovasParser(Input("Test", input)).parse(rule)
+        val ir = RhovasAnalyzer(scope).visit(ast)
         try {
-            val obj = Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
+            val obj = Evaluator(scope).visit(ir)
             Assertions.assertEquals(expected, obj)
-        } catch (e: AnalyzeException) {
-            if (expected != null) Assertions.fail<Unit>(e)
         } catch (e: EvaluateException) {
             if (expected != null) Assertions.fail<Unit>(e)
         }
