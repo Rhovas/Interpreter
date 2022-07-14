@@ -12,7 +12,6 @@ import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
@@ -29,34 +28,23 @@ class EvaluatorTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testSource(name: String, input: String, expected: String?) {
-            test(input, expected)
+            test("source", input, expected)
         }
 
         fun testSource(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of("Empty", "{}", ""),
-                Arguments.of("Single", "{ log(1); }", "1"),
-                Arguments.of("Multiple", "{ log(1); log(2); log(3); }", "123"),
+                Arguments.of("Empty", """
+                    
+                """.trimIndent(), ""),
+                Arguments.of("Single", """
+                    log(1);
+                """.trimIndent(), "1"),
+                Arguments.of("Multiple", """
+                    log(1);
+                    log(2);
+                    log(3);
+                """.trimIndent(), "123"),
             )
-        }
-
-        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
-            val log = StringBuilder()
-            val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-            function.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
-                arguments[0]
-            }
-            scope.functions.define(function)
-            val ast = RhovasParser(Input("Test", input)).parse("source")
-            try {
-                Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
-                Assertions.assertEquals(expected, log.toString())
-            } catch (e: AnalyzeException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            } catch (e: EvaluateException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            }
         }
 
     }
@@ -70,14 +58,20 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testBlock(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testBlock(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Empty", "{}", ""),
-                    Arguments.of("Single", "{ log(1); }", "1"),
-                    Arguments.of("Multiple", "{ log(1); log(2); log(3); }", "123"),
+                    Arguments.of("Empty", """
+                        {}
+                    """.trimIndent(), ""),
+                    Arguments.of("Single", """
+                        { log(1); }
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple", """
+                        { log(1); log(2); log(3); }
+                    """.trimIndent(), "123"),
                 )
             }
 
@@ -89,13 +83,17 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testExpression(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testExpression(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Function", "log(1);", "1"),
-                    Arguments.of("Invalid", "1;", null),
+                    Arguments.of("Function", """
+                        log(1);
+                    """.trimIndent(), "1"),
+                    Arguments.of("Invalid", """
+                        1;
+                    """.trimIndent(), null),
                 )
             }
 
@@ -107,18 +105,45 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also {
-                    it.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()))
+                test("source", input, expected, Scope(Library.SCOPE).also {
+                    //TODO: Exception constructor
+                    it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
                 })
             }
 
             fun testFunction(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Declaration", "{ func name() { log(1); } name(); }", "1"),
-                    Arguments.of("Single Parameter", "{ func name(x) { log(x); } name(1); }", "1"),
-                    Arguments.of("Multiple Parameters", "{ func name(x, y, z) { log(x); log(y); log(z); } name(1, 2, 3); }", "123"),
-                    Arguments.of("Return Value", "{ func name(): Integer { return 1; } log(name()); }", "1"),
-                    Arguments.of("Uncaught Exception", "{ func name() { throw Exception(\"message\"); } }", null),
+                    Arguments.of("Declaration", """
+                        func name() {
+                            log(1);
+                        }
+                        name();
+                    """.trimIndent(), "1"),
+                    Arguments.of("Single Parameter", """
+                        func name(x) {
+                            log(x);
+                        }
+                        name(1);
+                    """.trimIndent(), "1"),
+                    Arguments.of("Multiple Parameters", """
+                        func name(x, y, z) {
+                            log(x);
+                            log(y);
+                            log(z);
+                        }
+                        name(1, 2, 3);
+                    """.trimIndent(), "123"),
+                    Arguments.of("Return Value", """
+                        func name(): Integer {
+                            return 1;
+                        }
+                        log(name());
+                    """.trimIndent(), "1"),
+                    Arguments.of("Uncaught Exception", """
+                        func name() {
+                            throw Exception("message");
+                        }
+                    """.trimIndent(), null),
                 )
             }
 
@@ -130,16 +155,31 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testDeclaration(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testDeclaration(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Val Declaration", "{ val name; }", null),
-                    Arguments.of("Var Declaration", "{ var name; log(name); }", null),
-                    Arguments.of("Val Initialization", "{ val name = 1; log(name); }", "1"),
-                    Arguments.of("Var Initialization", "{ var name = 1; log(name); }", "1"),
-                    Arguments.of("Redeclaration", "{ val name = 1; val name = 2; log(name); }", null),
+                    Arguments.of("Val Declaration", """
+                        val name;
+                    """.trimIndent(), null),
+                    Arguments.of("Var Declaration", """
+                        var name;
+                        log(name);
+                    """.trimIndent(), null),
+                    Arguments.of("Val Initialization", """
+                        val name = 1;
+                        log(name);
+                    """.trimIndent(), "1"),
+                    Arguments.of("Var Initialization", """
+                        var name = 1;
+                        log(name);
+                    """.trimIndent(), "1"),
+                    Arguments.of("Redeclaration", """
+                        val name = 1;
+                        val name = 2;
+                        log(name);
+                    """.trimIndent(), null),
                 )
             }
 
@@ -151,88 +191,95 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also {
+                test("source", input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("variable", Library.TYPES["String"]!!, true),
-                        Object(Library.TYPES["String"]!!, "initial"),
+                        Variable.Local("variable", type("String"), true),
+                        Object(type("String"), "initial")
                     ))
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("unassignable", Library.TYPES["String"]!!, false),
-                        Object(Library.TYPES["String"]!!, "initial"),
-                    ))
+                    it.variables.define(variable("unassignable", type("String"), "initial"))
                 })
             }
 
             fun testVariable(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Variable", "{ variable = \"final\"; log(variable); }", "final"),
-                    Arguments.of("Undefined", "{ undefined = \"final\"; }", null),
-                    Arguments.of("Unassignable", "{ unassignable = \"final\"; }", null),
+                    Arguments.of("Variable", """
+                        variable = "final";
+                        log(variable);
+                    """.trimIndent(), "final"),
+                    Arguments.of("Undefined", """
+                        undefined = "final";
+                    """.trimIndent(), null),
+                    Arguments.of("Unassignable", """
+                        unassignable = "final";
+                    """.trimIndent(), null),
                 )
             }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also {
-                    val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
-                        val getter = Function.Definition("property", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                        getter.implementation = { arguments ->
-                            (arguments[0].value as MutableMap<String, Object>)["property"]!!
-                        }
-                        it.functions.define(getter)
-                        val setter = Function.Definition("property", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!), Pair("value", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                        setter.implementation = { arguments ->
-                            (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
-                            Object(Library.TYPES["Void"]!!, Unit)
-                        }
-                        it.functions.define(setter)
+                test("source", input, expected, Scope(Library.SCOPE).also {
+                    val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                        it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf()).also {
+                            it.implementation = { arguments ->
+                                (arguments[0].value as MutableMap<String, Object>)["property"]!!
+                            }
+                        })
+                        it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any"), "value" to type("Any")), type("Any"), listOf()).also {
+                            it.implementation = { arguments ->
+                                (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
+                                Object(type("Void"), Unit)
+                            }
+                        })
                     }).reference
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("object", type, false),
-                        Object(type, mutableMapOf(
-                            Pair("property", Object(Library.TYPES["String"]!!, "initial")),
-                        )),
-                    ))
+                    it.variables.define(variable("object", type, mutableMapOf(
+                        "property" to literal("initial"),
+                    )))
                 })
             }
 
             fun testProperty(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Property", "{ object.property = \"final\"; log(object.property); }", "final"),
-                    Arguments.of("Undefined", "{ object.undefined = \"final\"; }", null),
+                    Arguments.of("Property", """
+                        object.property = "final";
+                        log(object.property);
+                    """.trimIndent(), "final"),
+                    Arguments.of("Undefined", """
+                        object.undefined = "final";
+                    """.trimIndent(), null),
                 )
             }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also {
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("variable", Library.TYPES["String"]!!, false),
-                        Object(Library.TYPES["String"]!!, "initial"),
-                    ))
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), false),
-                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
-                            Object(Library.TYPES["String"]!!, "initial"),
-                        )),
-                    ))
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("object", Library.TYPES["Object"]!!, false),
-                        Object(Library.TYPES["Object"]!!, mutableMapOf(
-                            Pair("key", Object(Library.TYPES["String"]!!, "initial")),
-                        )),
-                    ))
+                test("source", input, expected, Scope(Library.SCOPE).also {
+                    it.variables.define(variable("variable", type("String"), "initial"))
+                    it.variables.define(variable("list", type("List", "String"), mutableListOf(
+                        literal("initial"),
+                    )))
+                    it.variables.define(variable("object", type("Object"), mutableMapOf(
+                        "key" to literal("initial"),
+                    )))
                 })
             }
 
             fun testIndex(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("List", "{ list[0] = \"final\"; log(list[0]); }", "final"),
-                    Arguments.of("Object", "{ object[:key] = \"final\"; log(object[:key]); }", "final"),
-                    Arguments.of("Invalid Arity", "{ object[] = \"final\"; }", null),
-                    Arguments.of("Undefined", "{ variable[:key] = \"final\"; }", null), //TODO: Depends on Strings not supporting indexing
+                    Arguments.of("List", """
+                        list[0] = "final";
+                        log(list[0]);
+                    """.trimIndent(), "final"),
+                    Arguments.of("Object", """
+                        object[:key] = "final";
+                        log(object[:key]);
+                    """.trimIndent(), "final"),
+                    Arguments.of("Invalid Arity", """
+                        object[] = "final";
+                    """.trimIndent(), null),
+                    Arguments.of("Undefined", """
+                        variable[:key] = "final";
+                    """.trimIndent(), null), //TODO: Depends on Strings not supporting indexing
                 )
             }
 
@@ -244,15 +291,33 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIf(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testIf(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("True", "if (true) { log(1); }", "1"),
-                    Arguments.of("False", "if (false) { log(1); }", ""),
-                    Arguments.of("Else", "if (false) { log(1); } else { log(2); }", "2"),
-                    Arguments.of("Invalid Condition", "if (1) { log(1); }", null),
+                    Arguments.of("True", """
+                        if (true) {
+                            log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    Arguments.of("False", """
+                        if (false) {
+                            log(1);
+                        }
+                    """.trimIndent(), ""),
+                    Arguments.of("Else", """
+                        if (false) {
+                            log(1);
+                        } else {
+                            log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    Arguments.of("Invalid Condition", """
+                        if (1) {
+                            log(1);
+                        }
+                    """.trimIndent(), null),
                 )
             }
 
@@ -264,7 +329,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testConditional(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testConditional(): Stream<Arguments> {
@@ -308,7 +373,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testStructural(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testStructural(): Stream<Arguments> {
@@ -357,7 +422,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFor(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testFor(): Stream<Arguments> {
@@ -432,10 +497,10 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testWhile(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also {
+                test("source", input, expected, Scope(Library.SCOPE).also {
                     it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("number", Library.TYPES["Integer"]!!, true),
-                        Object(Library.TYPES["Integer"]!!, BigInteger.ZERO),
+                        Variable.Local("number", type("Integer"), true),
+                        literal(BigInteger.ZERO)
                     ))
                 })
             }
@@ -513,12 +578,12 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
-                test(input, expected, Scope(Library.SCOPE).also { scope ->
-                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(Library.TYPES["Exception"]!!), Scope(Library.SCOPE)).reference)
-                    scope.functions.define(Function.Definition("Exception", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), Library.TYPES["Exception"]!!, listOf()).also {
-                        it.implementation = { arguments -> Object(Library.TYPES["Exception"]!!, arguments[0].value as String) }
+                test("source", input, expected, Scope(Library.SCOPE).also { scope ->
+                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope(null)).reference)
+                    scope.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()).also {
+                        it.implementation = { arguments -> Object(type("Exception"), arguments[0].value as String) }
                     })
-                    scope.functions.define(Function.Definition("SubtypeException", listOf(), listOf(Pair("message", Library.TYPES["String"]!!)), scope.types["SubtypeException"]!!, listOf()).also {
+                    scope.functions.define(Function.Definition("SubtypeException", listOf(), listOf("message" to type("String")), scope.types["SubtypeException"]!!, listOf()).also {
                         it.implementation = { arguments -> Object(scope.types["SubtypeException"]!!, arguments[0].value as String) }
                     })
                 })
@@ -592,7 +657,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testAssert(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testAssert(): Stream<Arguments> {
@@ -616,7 +681,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testRequire(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testRequire(): Stream<Arguments> {
@@ -640,7 +705,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testEnsure(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testEnsure(): Stream<Arguments> {
@@ -660,25 +725,6 @@ class EvaluatorTests {
 
         //TODO: Scope tests
 
-        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
-            val log = StringBuilder()
-            val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-            function.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
-                arguments[0]
-            }
-            scope.functions.define(function)
-            val ast = RhovasParser(Input("Test", input)).parse("statement")
-            try {
-                Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
-                Assertions.assertEquals(expected, log.toString())
-            } catch (e: AnalyzeException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            } catch (e: EvaluateException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            }
-        }
-
     }
 
     @Nested
@@ -690,28 +736,40 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testScalar(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testScalar(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Null", "null",
-                        Object(Library.TYPES["Null"]!!, null),
+                    Arguments.of("Null", """
+                        null
+                    """.trimIndent(),
+                        literal(null),
                     ),
-                    Arguments.of("Boolean", "true",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("Boolean", """
+                        true
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("Integer", "123",
-                        Object(Library.TYPES["Integer"]!!, BigInteger("123")),
+                    Arguments.of("Integer", """
+                        123
+                    """.trimIndent(),
+                        literal(BigInteger("123")),
                     ),
-                    Arguments.of("Decimal", "123.456",
-                        Object(Library.TYPES["Decimal"]!!, BigDecimal("123.456")),
+                    Arguments.of("Decimal", """
+                        123.456
+                    """.trimIndent(),
+                        literal(BigDecimal("123.456")),
                     ),
-                    Arguments.of("String", "\"string\"",
-                        Object(Library.TYPES["String"]!!, "string"),
+                    Arguments.of("String", """
+                        "string"
+                    """.trimIndent(),
+                        literal("string"),
                     ),
-                    Arguments.of("Atom", ":atom",
-                        Object(Library.TYPES["Atom"]!!, RhovasAst.Atom("atom")),
+                    Arguments.of("Atom", """
+                        :atom
+                    """.trimIndent(),
+                        literal(RhovasAst.Atom("atom")),
                     ),
                 )
             }
@@ -719,24 +777,30 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testList(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testList(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Empty", "[]",
-                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf<Object>()),
+                    Arguments.of("Empty", """
+                        []
+                    """.trimIndent(),
+                        Object(type("List", "Dynamic"), mutableListOf<Object>()),
                     ),
-                    Arguments.of("Single", "[1]",
-                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                    Arguments.of("Single", """
+                        [1]
+                    """.trimIndent(),
+                        Object(type("List", "Dynamic"), mutableListOf(
+                            literal(BigInteger("1")),
                         )),
                     ),
-                    Arguments.of("Multiple", "[1, 2, 3]",
-                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                            Object(Library.TYPES["Integer"]!!, BigInteger("2")),
-                            Object(Library.TYPES["Integer"]!!, BigInteger("3")),
+                    Arguments.of("Multiple", """
+                        [1, 2, 3]
+                    """.trimIndent(),
+                        Object(type("List", "Dynamic"), mutableListOf(
+                            literal(BigInteger("1")),
+                            literal(BigInteger("2")),
+                            literal(BigInteger("3")),
                         )),
                     ),
                 )
@@ -745,24 +809,30 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testObject(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testObject(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Empty", "{}",
-                        Object(Library.TYPES["Object"]!!, mapOf<String, Object>()),
+                    Arguments.of("Empty", """
+                        {}
+                    """.trimIndent(),
+                        Object(type("Object"), mapOf<String, Object>()),
                     ),
-                    Arguments.of("Single", "{key: \"value\"}",
-                        Object(Library.TYPES["Object"]!!, mapOf(
-                            Pair("key", Object(Library.TYPES["String"]!!, "value")),
+                    Arguments.of("Single", """
+                        {key: "value"}
+                    """.trimIndent(),
+                        Object(type("Object"), mapOf(
+                            "key" to literal("value"),
                         )),
                     ),
-                    Arguments.of("Multiple", "{k1: \"v1\", k2: \"v2\", k3: \"v3\"}",
-                        Object(Library.TYPES["Object"]!!, mapOf(
-                            Pair("k1", Object(Library.TYPES["String"]!!, "v1")),
-                            Pair("k2", Object(Library.TYPES["String"]!!, "v2")),
-                            Pair("k3", Object(Library.TYPES["String"]!!, "v3")),
+                    Arguments.of("Multiple", """
+                        {k1: "v1", k2: "v2", k3: "v3"}
+                    """.trimIndent(),
+                        Object(type("Object"), mapOf(
+                            "k1" to literal("v1"),
+                            "k2" to literal("v2"),
+                            "k3" to literal("v3"),
                         )),
                     ),
                     //TODO: Arguments.of("Key Only", "{key}", null),
@@ -777,19 +847,25 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testGroup(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testGroup(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Group", "(\"expression\")",
-                        Object(Library.TYPES["String"]!!, "expression"),
+                    Arguments.of("Group", """
+                        ("expression")
+                    """.trimIndent(),
+                        literal("expression"),
                     ),
-                    Arguments.of("Nested", "(((\"expression\")))",
-                        Object(Library.TYPES["String"]!!, "expression"),
+                    Arguments.of("Nested", """
+                        ((("expression")))
+                    """.trimIndent(),
+                        literal("expression"),
                     ),
-                    Arguments.of("Binary", "(\"first\" + \"second\")",
-                        Object(Library.TYPES["String"]!!, "firstsecond"),
+                    Arguments.of("Binary", """
+                        ("first" + "second")
+                    """.trimIndent(),
+                        literal("firstsecond"),
                     ),
                 )
             }
@@ -802,18 +878,25 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testUnary(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testUnary(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Numerical Negation", "-1", //TODO: Depends on unsigned number literals
-                        Object(Library.TYPES["Integer"]!!, BigInteger("-1")),
+                    //TODO: Depends on unsigned number literals
+                    Arguments.of("Numerical Negation", """
+                        -1
+                    """.trimIndent(),
+                        literal(BigInteger("-1")),
                     ),
-                    Arguments.of("Logical Negation", "!true",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("Logical Negation", """
+                        !true
+                    """.trimIndent(),
+                        literal(false),
                     ),
-                    Arguments.of("Invalid", "-true", null),
+                    Arguments.of("Invalid", """
+                        -true
+                    """.trimIndent(), null),
                 )
             }
 
@@ -825,65 +908,89 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testLogicalOr(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testLogicalOr(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("True", "false || true",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("True", """
+                        false || true
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("False", "false || false",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("False", """
+                        false || false
+                    """.trimIndent(),
+                        literal(false),
                     ),
                     //TODO: Type checking
-                    /*Arguments.of("Short Circuit", "true || invalid",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    /*Arguments.of("Short Circuit", """
+                        true || invalid
+                    """,
+                        literal(true),
                     ),*/
-                    Arguments.of("Invalid Left", "0 || true", null),
-                    Arguments.of("Invalid Right", "false || 1", null),
+                    Arguments.of("Invalid Left", """
+                        0 || true
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Right", """
+                        false || 1
+                    """.trimIndent(), null),
                 )
             }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testLogicalAnd(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testLogicalAnd(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("True", "true && true",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("True", """
+                        true && true
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("False", "true && false",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("False", """
+                        true && false
+                    """.trimIndent(),
+                        literal(false),
                     ),
                     //TODO: Type checking
                     /*Arguments.of("Short Circuit", "false && invalid",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                        literal(false),
                     ),*/
-                    Arguments.of("Invalid Left", "1 && false", null),
-                    Arguments.of("Invalid Right", "true && 0", null),
+                    Arguments.of("Invalid Left", """
+                        1 && false
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Right", """
+                        true && 0
+                    """.trimIndent(), null),
                 )
             }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testEquality(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testEquality(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("True", "1 == 1",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("True", """
+                        1 == 1
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("False", "1 != 1",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("False", """
+                        1 != 1
+                    """.trimIndent(),
+                        literal(false),
                     ),
-                    Arguments.of("Different Types", "1 == 1.0",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("Different Types", """
+                        1 == 1.0
+                    """.trimIndent(),
+                        literal(false),
                     ),
                     //Arguments.of("Invalid Left") TODO: Requires non-equatable types
                 )
@@ -892,16 +999,20 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIdentity(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testIdentity(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("True", "true === true",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("True", """
+                        true === true
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("False", "[] !== []",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("False", """
+                        [] !== []
+                    """.trimIndent(),
+                        literal(true),
                     ),
                     //Arguments.of("Different Types") TODO: Requires types with identical values (void?)
                     //TODO: Identity equality for implementation non-primitives (Integer/Decimal/String/Atom)
@@ -911,64 +1022,94 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testComparison(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testComparison(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Less Than", "0 < 1",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("Less Than", """
+                        0 < 1
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("Greater Than", "0 > 1",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("Greater Than", """
+                        0 > 1
+                    """.trimIndent(),
+                        literal(false),
                     ),
-                    Arguments.of("Less Than Or Equal", "0 <= 1",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("Less Than Or Equal", """
+                        0 <= 1
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("Greater Than Or Equal", "0 >= 1",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("Greater Than Or Equal", """
+                        0 >= 1
+                    """.trimIndent(),
+                        literal(false),
                     ),
-                    Arguments.of("Less Than Equal", "0 < 0",
-                        Object(Library.TYPES["Boolean"]!!, false),
+                    Arguments.of("Less Than Equal", """
+                        0 < 0
+                    """.trimIndent(),
+                        literal(false),
                     ),
-                    Arguments.of("Less Than Or Equal Equal", "0 <= 0",
-                        Object(Library.TYPES["Boolean"]!!, true),
+                    Arguments.of("Less Than Or Equal Equal", """
+                        0 <= 0
+                    """.trimIndent(),
+                        literal(true),
                     ),
-                    Arguments.of("Invalid Left", "false < 1", null),
-                    Arguments.of("Invalid Right", "0 < true", null),
+                    Arguments.of("Invalid Left", """
+                        false < 1
+                    """.trimIndent(), null),
+                    Arguments.of("Invalid Right", """
+                        0 < true
+                    """.trimIndent(), null),
                 )
             }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testArithmetic(name: String, input: String, expected: Object?) {
-                test(input, expected)
+                test("expression", input, expected)
             }
 
             fun testArithmetic(): Stream<Arguments> {
                 return Stream.of(
-                    Arguments.of("Integer Add", "1 + 2",
-                        Object(Library.TYPES["Integer"]!!, BigInteger("3")),
+                    Arguments.of("Integer Add", """
+                        1 + 2
+                    """.trimIndent(),
+                        literal(BigInteger("3")),
                     ),
-                    Arguments.of("Integer Subtract", "1 - 2",
-                        Object(Library.TYPES["Integer"]!!, BigInteger("-1")),
+                    Arguments.of("Integer Subtract", """
+                        1 - 2
+                    """.trimIndent(),
+                        literal(BigInteger("-1")),
                     ),
-                    Arguments.of("Decimal Multiply", "1.2 * 2.3",
-                        Object(Library.TYPES["Decimal"]!!, BigDecimal("2.76")),
+                    Arguments.of("Decimal Multiply", """
+                        1.2 * 2.3
+                    """.trimIndent(),
+                        literal(BigDecimal("2.76")),
                     ),
-                    Arguments.of("Decimal Divide", "1.2 / 2.3",
-                        Object(Library.TYPES["Decimal"]!!, BigDecimal("0.5")),
+                    Arguments.of("Decimal Divide", """
+                        1.2 / 2.3
+                    """.trimIndent(),
+                        literal(BigDecimal("0.5")),
                     ),
-                    Arguments.of("String Concat", "\"first\" + \"second\"",
-                        Object(Library.TYPES["String"]!!, "firstsecond"),
+                    Arguments.of("String Concat", """
+                        "first" + "second"
+                    """.trimIndent(),
+                        literal("firstsecond"),
                     ),
-                    Arguments.of("List Concat", "[1] + [2]",
-                        Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), listOf(
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                            Object(Library.TYPES["Integer"]!!, BigInteger("2")),
+                    Arguments.of("List Concat", """
+                        [1] + [2]
+                    """.trimIndent(),
+                        Object(type("List", "Dynamic"), listOf(
+                            literal(BigInteger("1")),
+                            literal(BigInteger("2")),
                         )),
                     ),
-                    Arguments.of("Invalid Left", "true + false", null),
+                    Arguments.of("Invalid Left", """
+                        true + false
+                    """.trimIndent(), null),
                 )
             }
 
@@ -983,20 +1124,21 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("variable", Library.TYPES["String"]!!, false),
-                            Object(Library.TYPES["String"]!!, "variable"),
-                        ))
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        it.variables.define(variable("variable", type("String"), "variable"))
                     })
                 }
 
                 fun testVariable(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("Variable", "variable",
-                            Object(Library.TYPES["String"]!!, "variable")
+                        Arguments.of("Variable", """
+                            variable
+                        """.trimIndent(),
+                            literal("variable")
                         ),
-                        Arguments.of("Undefined", "undefined", null)
+                        Arguments.of("Undefined", """
+                            undefined
+                        """.trimIndent(), null)
                     )
                 }
 
@@ -1008,36 +1150,39 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testProperty(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
-                            val property = Function.Definition("property", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                            property.implementation = { arguments ->
-                                (arguments[0].value as Map<String, Object>)["property"]!!
-                            }
-                            it.functions.define(property)
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                            it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf()).also {
+                                it.implementation = { arguments ->
+                                    (arguments[0].value as Map<String, Object>)["property"]!!
+                                }
+                            })
                         }).reference
+                        it.variables.define(variable("object", type, mapOf(
+                            "property" to literal("property"),
+                        )))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type, false),
-                            Object(type, mapOf(
-                                Pair("property",  Object(Library.TYPES["String"]!!, "property")),
-                            )),
-                        ))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullObject", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(type)), false),
-                            Object(Library.TYPES["Null"]!!, null),
+                            Variable.Local("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false),
+                            Object(type("Null"), null)
                         ))
                     })
                 }
 
                 fun testProperty(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("Property", "object.property",
-                            Object(Library.TYPES["String"]!!, "property")
+                        Arguments.of("Property", """
+                            object.property
+                        """.trimIndent(),
+                            literal("property")
                         ),
-                        Arguments.of("Coalesce", "nullObject?.property",
-                            Object(Library.TYPES["Null"]!!, null),
+                        Arguments.of("Coalesce", """
+                            nullObject?.property
+                        """.trimIndent(),
+                            literal(null),
                         ),
-                        Arguments.of("Undefined", "object.undefined", null)
+                        Arguments.of("Undefined", """
+                            object.undefined
+                        """.trimIndent(), null)
                     )
                 }
 
@@ -1049,36 +1194,36 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("variable", Library.TYPES["String"]!!, false),
-                            Object(Library.TYPES["String"]!!, "variable"),
-                        ))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("list", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), false),
-                            Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), mutableListOf(
-                                Object(Library.TYPES["String"]!!, "element"),
-                            )),
-                        ))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", Library.TYPES["Object"]!!, false),
-                            Object(Library.TYPES["Object"]!!, mutableMapOf(
-                                Pair("key", Object(Library.TYPES["String"]!!, "value")),
-                            )),
-                        ))
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        it.variables.define(variable("variable", type("String"), "variable"))
+                        it.variables.define(variable("list", type("List", "String"), mutableListOf(
+                            literal("element"),
+                        )))
+                        it.variables.define(variable("object", type("Object"), mutableMapOf(
+                            "key" to literal("value"),
+                        )))
                     })
                 }
 
                 fun testIndex(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("List", "list[0]",
-                            Object(Library.TYPES["String"]!!, "element"),
+                        Arguments.of("List", """
+                            list[0]
+                        """.trimIndent(),
+                            literal("element"),
                         ),
-                        Arguments.of("Object", "object[:key]",
-                            Object(Library.TYPES["String"]!!, "value"),
+                        Arguments.of("Object", """
+                            object[:key]
+                        """.trimIndent(),
+                            literal("value"),
                         ),
-                        Arguments.of("Invalid Arity", "list[]", null),
-                        Arguments.of("Undefined", "variable[:key]", null), //TODO: Depends on Strings not supporting indexing
+                        Arguments.of("Invalid Arity", """
+                            list[]
+                        """.trimIndent(), null),
+                        //TODO: Depends on Strings not supporting indexing
+                        Arguments.of("Undefined", """
+                            variable[:key]
+                        """.trimIndent(), null),
                     )
                 }
 
@@ -1095,22 +1240,28 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        val function = Function.Definition("function", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                        function.implementation = { arguments ->
-                            arguments[0]
-                        }
-                        it.functions.define(function)
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        it.functions.define(Function.Definition("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+                            it.implementation = { arguments ->
+                                arguments[0]
+                            }
+                        })
                     })
                 }
 
                 fun testFunction(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("Function", "function(\"argument\")",
-                            Object(Library.TYPES["String"]!!, "argument")
+                        Arguments.of("Function", """
+                            function("argument")
+                        """.trimIndent(),
+                            literal("argument")
                         ),
-                        Arguments.of("Invalid Arity", "function()", null),
-                        Arguments.of("Undefined", "undefined", null),
+                        Arguments.of("Invalid Arity", """
+                            function()
+                        """.trimIndent(), null),
+                        Arguments.of("Undefined", """
+                            undefined
+                        """.trimIndent(), null),
                     )
                 }
 
@@ -1122,41 +1273,47 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(Library.SCOPE).also {
-                            val function = Function.Definition("method", listOf(), listOf(Pair("this", Library.TYPES["Any"]!!), Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                            function.implementation = { arguments ->
-                                arguments[1]
-                            }
-                            it.functions.define(function)
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
+                            it.functions.define(Function.Definition("method", listOf(), listOf("this" to type("Any"), "obj" to type("Any")), type("Any"), listOf()).also {
+                                it.implementation = { arguments ->
+                                    arguments[1]
+                                }
+                            })
                         }).reference
+                        it.variables.define(variable("object", type, mapOf(
+                            "property" to literal("property"),
+                        )))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("object", type, false),
-                            Object(type, mapOf(
-                                Pair("property",  Object(Library.TYPES["String"]!!, "property")),
-                            )),
+                            Variable.Local("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false),
+                            Object(type("Null"), null)
                         ))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullObject", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(type)), false),
-                            Object(Library.TYPES["Null"]!!, null),
-                        ))
-                        it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
                     })
                 }
 
                 fun testMethod(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("Method", "object.method(\"argument\")",
-                            Object(Library.TYPES["String"]!!, "argument")
+                        Arguments.of("Method", """
+                            object.method("argument")
+                        """.trimIndent(),
+                            literal("argument")
                         ),
-                        Arguments.of("Coalesce", "nullObject?.method(\"argument\")",
-                            Object(Library.TYPES["Null"]!!, null),
+                        Arguments.of("Coalesce", """
+                            nullObject?.method("argument")
+                        """.trimIndent(),
+                            literal(null),
                         ),
-                        Arguments.of("Cascade", "1..add(2)",
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                        Arguments.of("Cascade", """
+                            1..add(2)
+                        """.trimIndent(),
+                            literal(BigInteger("1")),
                         ),
-                        Arguments.of("Invalid Arity", "object.method()", null),
-                        Arguments.of("Undefined", "object.undefined()", null),
+                        Arguments.of("Invalid Arity", """
+                            object.method()
+                        """.trimIndent(), null),
+                        Arguments.of("Undefined", """
+                            object.undefined()
+                        """.trimIndent(), null),
                     )
                 }
 
@@ -1168,45 +1325,53 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: Object?) {
-                    test(input, expected, Scope(Library.SCOPE).also {
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullInteger", Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(Library.TYPES["Integer"]!!)), false),
-                            Object(Library.TYPES["Null"]!!, null),
-                        ))
-                        it.functions.define(Library.SCOPE.functions["range", listOf(Library.TYPES["Integer"]!!, Library.TYPES["Integer"]!!, Library.TYPES["Atom"]!!)]!!)
-                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(Library.SCOPE).also {
-                            val function = Function.Definition("function", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                            function.implementation = { arguments ->
-                                arguments[0]
-                            }
-                            it.functions.define(function)
+                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(null).also {
+                            it.functions.define(Function.Definition("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+                                it.implementation = { arguments ->
+                                    arguments[0]
+                                }
+                            })
                         }).reference
+                        it.variables.define(variable("Qualified", qualified, Unit))
                         it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("Qualified", qualified, false),
-                            Object(qualified, Unit),
+                            Variable.Local("nullInteger", type("Nullable", "Integer"), false),
+                            Object(type("Null"), null)
                         ))
                     })
                 }
 
                 fun testPipeline(): Stream<Arguments> {
                     return Stream.of(
-                        Arguments.of("Pipeline", "1.|range(2, :incl)",
-                            Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Integer"]!!)), listOf(
-                                Object(Library.TYPES["Integer"]!!, BigInteger("1")),
-                                Object(Library.TYPES["Integer"]!!, BigInteger("2")),
+                        Arguments.of("Pipeline", """
+                            1.|range(2, :incl)
+                        """.trimIndent(),
+                            Object(type("List", "Integer"), mutableListOf(
+                                literal(BigInteger("1")),
+                                literal(BigInteger("2")),
                             )),
                         ),
-                        Arguments.of("Qualified", "1.|Qualified.function()",
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                        Arguments.of("Qualified", """
+                            1.|Qualified.function()
+                        """.trimIndent(),
+                            literal(BigInteger("1")),
                         ),
-                        Arguments.of("Coalesce", "nullInteger?.|range(2, :incl)",
-                            Object(Library.TYPES["Null"]!!, null),
+                        Arguments.of("Coalesce", """
+                            nullInteger?.|range(2, :incl)
+                        """.trimIndent(),
+                            literal(null),
                         ),
-                        Arguments.of("Cascade", "1..|range(2, :incl)",
-                            Object(Library.TYPES["Integer"]!!, BigInteger("1")),
+                        Arguments.of("Cascade", """
+                            1..|range(2, :incl)
+                        """.trimIndent(),
+                            literal(BigInteger("1")),
                         ),
-                        Arguments.of("Invalid Arity", "1.|range()", null),
-                        Arguments.of("Undefined", "1.|undefined()", null),
+                        Arguments.of("Invalid Arity", """
+                            1.|range()
+                        """.trimIndent(), null),
+                        Arguments.of("Undefined", """
+                            1.|undefined()
+                        """.trimIndent(), null),
                     )
                 }
 
@@ -1220,23 +1385,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testLambda(name: String, input: String, expected: String?) {
-                val log = StringBuilder()
-                val scope = Scope(Library.SCOPE)
-                val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-                function.implementation = { arguments ->
-                    log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
-                    arguments[0]
-                }
-                scope.functions.define(function)
-                val ast = RhovasParser(Input("Test", input)).parse("expression")
-                try {
-                    Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
-                    Assertions.assertEquals(expected, log.toString())
-                } catch (e: AnalyzeException) {
-                    if (expected != null) Assertions.fail<Unit>(e)
-                } catch (e: EvaluateException) {
-                    if (expected != null) Assertions.fail<Unit>(e)
-                }
+                test("expression", input, expected)
             }
 
             fun testLambda(): Stream<Arguments> {
@@ -1253,18 +1402,6 @@ class EvaluatorTests {
 
         }
 
-        private fun test(input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
-            val ast = RhovasParser(Input("Test", input)).parse("expression")
-            try {
-                val result = Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
-                Assertions.assertEquals(expected, result)
-            } catch (e: AnalyzeException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            } catch (e: EvaluateException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            }
-        }
-
     }
 
     @Nested
@@ -1276,7 +1413,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testVariable(): Stream<Arguments> {
@@ -1302,7 +1439,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testValue(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testValue(): Stream<Arguments> {
@@ -1358,7 +1495,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testPredicate(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testPredicate(): Stream<Arguments> {
@@ -1407,7 +1544,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testOrderedDestructure(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testOrderedDestructure(): Stream<Arguments> {
@@ -1453,7 +1590,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testNamedDestructure(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testNamedDestructure(): Stream<Arguments> {
@@ -1494,7 +1631,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVarargDestructure(name: String, input: String, expected: String?) {
-                test(input, expected)
+                test("source", input, expected)
             }
 
             fun testVarargDestructure(): Stream<Arguments> {
@@ -1526,25 +1663,60 @@ class EvaluatorTests {
 
         }
 
-        private fun test(input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
-            val log = StringBuilder()
-            val function = Function.Definition("log", listOf(), listOf(Pair("obj", Library.TYPES["Any"]!!)), Library.TYPES["Any"]!!, listOf())
-            function.implementation = { arguments ->
+    }
+
+    private fun literal(value: Any?): Object {
+        return when (value) {
+            null -> Object(type("Null"), null)
+            is Boolean -> Object(type("Boolean"), value)
+            is BigInteger -> Object(type("Integer"), value)
+            is BigDecimal -> Object(type("Decimal"), value)
+            is RhovasAst.Atom -> Object(type("Atom"), value)
+            is String -> Object(type("String"), value)
+            else -> throw AssertionError()
+        }
+    }
+
+    private fun variable(name: String, type: Type, value: Any?): Variable {
+        return Variable.Local.Runtime(
+            Variable.Local(name, type, false),
+            Object(type, value)
+        )
+    }
+
+    private fun type(name: String, vararg generics: String): Type {
+        return Type.Reference(Library.TYPES[name]!!.base, generics.map { Library.TYPES[it]!! })
+    }
+
+    private fun test(rule: String, input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
+        val log = StringBuilder()
+        scope.functions.define(Function.Definition("log", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+            it.implementation = { arguments ->
                 log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]
             }
-            scope.functions.define(function)
-            val ast = RhovasParser(Input("Test", input)).parse("statement")
-            try {
-                Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
-                Assertions.assertEquals(expected, log.toString())
-            } catch (e: AnalyzeException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            } catch (e: EvaluateException) {
-                if (expected != null) Assertions.fail<Unit>(e)
-            }
+        })
+        val ast = RhovasParser(Input("Test", input)).parse(rule)
+        try {
+            Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
+            Assertions.assertEquals(expected, log.toString())
+        } catch (e: AnalyzeException) {
+            if (expected != null) Assertions.fail<Unit>(e)
+        } catch (e: EvaluateException) {
+            if (expected != null) Assertions.fail<Unit>(e)
         }
+    }
 
+    private fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
+        val ast = RhovasParser(Input("Test", input)).parse(rule)
+        try {
+            val obj = Evaluator(scope).visit(RhovasAnalyzer(scope).visit(ast))
+            Assertions.assertEquals(expected, obj)
+        } catch (e: AnalyzeException) {
+            if (expected != null) Assertions.fail<Unit>(e)
+        } catch (e: EvaluateException) {
+            if (expected != null) Assertions.fail<Unit>(e)
+        }
     }
 
 }
