@@ -17,6 +17,8 @@ class RhovasParserTests {
     @Nested
     inner class SourceTests {
 
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
         fun testSource(name: String, input: String, expected: RhovasAst.Source?) {
             test("source", input, expected)
         }
@@ -131,14 +133,24 @@ class RhovasParserTests {
             fun testFunction(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Function", """
-                        func name() { body; }
-                    """.trimIndent(), RhovasAst.Statement.Function(
-                        "name", listOf(), listOf(), null, listOf(), block(stmt("body")),
-                    )),
-                    Arguments.of("Empty Body", """
                         func name() {}
                     """.trimIndent(), RhovasAst.Statement.Function(
                         "name", listOf(), listOf(), null, listOf(), block(),
+                    )),
+                    Arguments.of("Single Generic", """
+                        func name<T>() {}
+                    """.trimIndent(), RhovasAst.Statement.Function(
+                        "name", listOf("T" to null), listOf(), null, listOf(), block(),
+                    )),
+                    Arguments.of("Multiple Generics", """
+                        func name<T1, T2, T3>() {}
+                    """.trimIndent(), RhovasAst.Statement.Function(
+                        "name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block(),
+                    )),
+                    Arguments.of("Bound Generic", """
+                        func name<T: Bound>() {}
+                    """.trimIndent(), RhovasAst.Statement.Function(
+                        "name", listOf("T" to type("Bound")), listOf(), null, listOf(), block(),
                     )),
                     Arguments.of("Single Parameter", """
                         func name(parameter) {}
@@ -178,13 +190,22 @@ class RhovasParserTests {
                     Arguments.of("Missing Name", """
                         func () {}
                     """.trimIndent(), null),
+                    Arguments.of("Missing Generic", """
+                        func name<>() {}
+                    """.trimIndent(), null),
+                    Arguments.of("Missing Generic Colon", """
+                        func name<T Bound>() {}
+                    """.trimIndent(), null),
                     Arguments.of("Missing Parenthesis", """
                         func name {}
                     """.trimIndent(), null),
-                    Arguments.of("Missing Comma", """
+                    Arguments.of("Invalid Parameter Name", """
+                        func name(:atom) {}
+                    """.trimIndent(), null),
+                    Arguments.of("Missing Parameter Comma", """
                         func name(first second) {}
                     """.trimIndent(), null),
-                    Arguments.of("Missing Closing Parenthesis", """
+                    Arguments.of("Missing Parameter Closing Parenthesis", """
                         func name(argument {}
                     """.trimIndent(), null),
                     Arguments.of("Missing Return Type", """
@@ -544,8 +565,12 @@ class RhovasParserTests {
                     Arguments.of("Missing Val", """
                         for (name in iterable) {}
                     """.trimIndent(), null),
-                    Arguments.of("Missing Name", """
+                    //TODO: Requires special handling for `in`
+                    /*Arguments.of("Missing Name", """
                         for (val in iterable) {}
+                    """.trimIndent(), null),*/
+                    Arguments.of("Invalid Name", """
+                        for (val :atom in iterable) {}
                     """.trimIndent(), null),
                     Arguments.of("Missing In", """
                         for (val name iterable) {}
@@ -1110,6 +1135,9 @@ class RhovasParserTests {
                     Arguments.of("Unterminated Newline", """
                         "unterminated
                     """.trimIndent(), null),
+                    Arguments.of("Unterminated Interpolation", """
+                        "start${'$'}{argumentend"
+                    """.trimIndent(), null)
                 )
             }
 
@@ -1660,10 +1688,15 @@ class RhovasParserTests {
                         """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
                             expr("receiver"), false, false, null, "function", listOf(),
                         )),
-                        Arguments.of("Qualifier", """
+                        Arguments.of("Single Qualifier", """
                             receiver.|Qualifier.function()
                         """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
                             expr("receiver"), false, false, RhovasAst.Expression.Access.Variable("Qualifier"), "function", listOf(),
+                        )),
+                        Arguments.of("Nested Qualifier", """
+                            receiver.|Nested.Qualifier.function()
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
+                            expr("receiver"), false, false, RhovasAst.Expression.Access.Property(expr("Nested"), false, "Qualifier"), "function", listOf(),
                         )),
                         Arguments.of("Coalesce", """
                             receiver?.|function()
@@ -1680,11 +1713,11 @@ class RhovasParserTests {
                         """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
                             expr("receiver"), true, true, null, "function", listOf(),
                         )),
-                        Arguments.of("Missing Comma", """
-                            receiver.|function(first second)
+                        Arguments.of("Missing Name", """
+                            receiver.|
                         """.trimIndent(), null),
-                        Arguments.of("Missing Closing Parenthesis", """
-                            receiver.|function(argument
+                        Arguments.of("Missing Invocation", """
+                            receiver.|function
                         """.trimIndent(), null),
                     )
                 }
@@ -1782,6 +1815,9 @@ class RhovasParserTests {
                     Arguments.of("Missing Closing Pipe", """
                         function |first, second {} 
                     """.trimIndent(), null),
+                    Arguments.of("Missing Body", """
+                        function |first, second|
+                    """.trimIndent(), null),
                     Arguments.of("Non-Block Statement", """
                         function body;
                     """.trimIndent(), null),
@@ -1825,6 +1861,9 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Expression.Macro(
                         "macro", listOf(expr("argument")),
                     )),
+                    Arguments.of("Missing Opening Parenthesis", """
+                        #macro
+                    """.trimIndent(), null),
                     Arguments.of("Missing Comma", """
                         #macro(first second)
                     """.trimIndent(), null),
@@ -1866,9 +1905,23 @@ class RhovasParserTests {
                             RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf(" source "), listOf())),
                         ),
                     )),
+                    Arguments.of("Interpolation", """
+                        #macro {
+                            value = ${'$'}{argument}
+                        }
+                    """.trimIndent(), RhovasAst.Expression.Macro(
+                        "macro", listOf(RhovasAst.Expression.Dsl("macro", DslAst.Source(
+                            listOf("value = ", ""),
+                            listOf(RhovasAst.Expression.Interpolation(RhovasAst.Expression.Access.Variable("argument"))),
+                        ))),
+                    )),
                     Arguments.of("Missing Closing Brace", """
-                        #macro { source
+                        #macro { source()
                     """.trimIndent(), null),
+                    Arguments.of("Missing Interpolation Closing Brace", """
+                        #macro {
+                            value = ${'$'}{argument
+                    """.trimIndent(), null)
                 )
             }
 
@@ -2115,8 +2168,11 @@ class RhovasParserTests {
                             "" to RhovasAst.Pattern.VarargDestructure(null, "+"),
                         ),
                     )),
+                    Arguments.of("Missing Key", """
+                        { :pattern}
+                    """.trimIndent(), null),
                     Arguments.of("Missing Colon", """
-                        {k1 p1}
+                        {key pattern}
                     """.trimIndent(), null),
                     Arguments.of("Missing Comma", """
                         {k1: p1 k2: p2}
@@ -2124,6 +2180,32 @@ class RhovasParserTests {
                     Arguments.of("Missing Closing Bracket", """
                         {key: pattern
                     """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class TypedDestructureTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testTypedDestructure(name: String, input: String, expected: RhovasAst.Pattern.TypedDestructure?) {
+                test("pattern", input, expected)
+            }
+
+            fun testTypedDestructure(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Type", """
+                        Type
+                    """.trimIndent(), RhovasAst.Pattern.TypedDestructure(
+                        type("Type"), null,
+                    )),
+                    Arguments.of("Pattern", """
+                        Type pattern
+                    """.trimIndent(), RhovasAst.Pattern.TypedDestructure(
+                        type("Type"), RhovasAst.Pattern.Variable("pattern"),
+                    )),
                 )
             }
 
@@ -2160,6 +2242,25 @@ class RhovasParserTests {
 
         }
 
+        @Nested
+        inner class ErrorTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testError(name: String, input: String, expected: RhovasAst.Pattern.VarargDestructure?) {
+                test("pattern", input, expected)
+            }
+
+            fun testError(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Error", """
+                        #
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
     }
 
     @Nested
@@ -2167,7 +2268,7 @@ class RhovasParserTests {
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
-        fun testType(name: String, input: String, expected: RhovasAst.Type) {
+        fun testType(name: String, input: String, expected: RhovasAst.Type?) {
             test("type", input, expected)
         }
 
@@ -2198,6 +2299,9 @@ class RhovasParserTests {
                 """.trimIndent(), RhovasAst.Type(
                     "Type", listOf(type("Generic")),
                 )),
+                Arguments.of("Missing Comma", """
+                    Type<First Second>
+                """.trimIndent(), null),
             )
         }
 
@@ -2256,7 +2360,7 @@ class RhovasParserTests {
         if (expected != null) {
             val ast = parser.parse(rule)
             Assertions.assertEquals(expected, ast)
-            Assertions.assertTrue(ast.context.isNotEmpty() || input.isEmpty())
+            Assertions.assertTrue(ast.context.isNotEmpty() || input.isBlank())
         } else {
             val exception = Assertions.assertThrows(ParseException::class.java) { parser.parse(rule) }
             Assertions.assertNotEquals("Broken lexer invariant.", exception.summary)

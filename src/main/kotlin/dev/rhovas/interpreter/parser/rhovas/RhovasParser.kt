@@ -15,12 +15,12 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "type" -> parseType()
             "interpolation" -> parseInterpolation()
             else -> throw AssertionError()
-        }.also { require(rule == "interpolation" || tokens[0] == null) {
-            error(
+        }.also {
+            require(rule == "interpolation" || tokens[0] == null) { error(
                 "Expected end of input.",
                 "Parsing for the `${rule}` rule completed without consuming all input. This is normally an implementation problem.",
-            )
-        } }
+            ) }
+        }
     }
 
     private fun parseSource(): RhovasAst.Source {
@@ -88,7 +88,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val name = parseIdentifier { "A function declaration requires a name after `func`, as in `func name() { ... }`." }
         val generics = mutableListOf<Pair<String, RhovasAst.Type?>>()
         if (match("<")) {
-            while (!match(">")) {
+            do {
                 val name = parseIdentifier { "A function generic type declaration requires a name, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`." }
                 context.addLast(tokens[-1]!!.range)
                 val type = if (match(":")) parseType() else null
@@ -98,7 +98,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     "A function generic type declaration must be followed by a closing angle bracket `>` or comma `,`, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`.",
                 ) }
                 context.removeLast()
-            }
+            } while (!match(">"))
         }
         val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
         require(match("(")) { error(
@@ -382,10 +382,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match(RhovasTokenType.IDENTIFIER))
         context.addLast(tokens[-1]!!.range)
         val label = tokens[-1]!!.literal
-        require(match(":")) { error(
-            "Expected colon.",
-            "A label statement requires a label after the colon, as in `label: statement`.",
-        ) }
+        require(match(":"))
         val statement = parseStatement()
         return RhovasAst.Statement.Label(label, statement).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)

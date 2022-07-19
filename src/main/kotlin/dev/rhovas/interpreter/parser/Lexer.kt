@@ -38,7 +38,6 @@ abstract class Lexer<T: Token.Type>(val input: Input) {
         return when(obj) {
             is Char -> obj == char
             is String -> char.toString().matches(obj.toRegex())
-            is List<*> -> obj.any { test(it!!, char) }
             else -> throw AssertionError()
         }
     }
