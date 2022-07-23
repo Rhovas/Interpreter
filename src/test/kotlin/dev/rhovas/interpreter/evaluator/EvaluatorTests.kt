@@ -67,7 +67,15 @@ class EvaluatorTests {
                     Arguments.of("Struct", """
                         struct Name {}
                         log(Name({}));
-                    """.trimIndent(), "{}"),
+                    """.trimIndent(), "Name {}"),
+                    Arguments.of("Default Field", """
+                        struct Name { val field: Integer = 1; }
+                        log(Name({}).field);
+                    """.trimIndent(), "1"),
+                    Arguments.of("Initialized Field", """
+                        struct Name { val field: Integer; }
+                        log(Name({field: 1}).field);
+                    """.trimIndent(), "1"),
                 )
             }
 
@@ -117,7 +125,7 @@ class EvaluatorTests {
                     Arguments.of("Struct", """
                         struct Name {}
                         log(Name({}));
-                    """.trimIndent(), "{}"),
+                    """.trimIndent(), "Name {}"),
                 )
             }
 

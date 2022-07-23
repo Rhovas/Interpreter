@@ -73,37 +73,49 @@ class RhovasAnalyzerTests {
             }
 
             fun testStruct(): Stream<Arguments> {
-                val constructor = Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type("Dynamic"), listOf())
                 return Stream.of(
                     Arguments.of("Struct", """
                         struct Name {}
                         val instance: Name;
                     """.trimIndent(), {
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
                         RhovasIr.Source(listOf(
-                            RhovasIr.Statement.Component(RhovasIr.Component.Struct(
-                                "Name", type("Dynamic"), constructor, listOf(),
-                            )),
-                            RhovasIr.Statement.Declaration(variable("instance", type("Dynamic")).variable, null),
+                            RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
+                            RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
                         ))
                     }),
                     Arguments.of("Constructor", """
                         struct Name {}
                         val instance = Name({});
                     """.trimIndent(), {
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
+                        val constructor = Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type, listOf())
                         RhovasIr.Source(listOf(
-                            RhovasIr.Statement.Component(
-                                RhovasIr.Component.Struct("Name", type("Dynamic"), constructor, listOf()),
-                            ),
+                            RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(
-                                variable("instance", type("Dynamic")).variable,
-                                RhovasIr.Expression.Invoke.Function(
-                                    constructor,
-                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object"))),
-                                ),
+                                variable("instance", type).variable,
+                                RhovasIr.Expression.Invoke.Function(constructor, listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object")))),
                             ),
                         ))
                     }),
-                    //TODO: Fields/Methods (requires Struct type)
+                    Arguments.of("Fields", """
+                        struct Name { val field: Integer; }
+                        val instance: Name;
+                        print(instance.field);
+                    """.trimIndent(), {
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
+                        type.base.scope.functions.define(Function.Definition("field", listOf(), listOf("instance" to type), type("Integer"), listOf()))
+                        RhovasIr.Source(listOf(
+                            RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                                RhovasIr.Statement.Declaration(variable("field", type("Integer")).variable, null)
+                            ))),
+                            RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
+                            RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
+                                Library.SCOPE.functions["print", listOf(type("Any"))]!! as Function.Definition,
+                                listOf(RhovasIr.Expression.Access.Property(variable("instance", type), type.properties["field"]!!, false, type("Integer")))
+                            ))
+                        ))
+                    }),
                 )
             }
 
@@ -162,9 +174,8 @@ class RhovasAnalyzerTests {
                     Arguments.of("Struct", """
                         struct Name {}
                     """.trimIndent(), {
-                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(
-                            "Name", type("Dynamic"), Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type("Dynamic"), listOf()), listOf(),
-                        ))
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf()))
                     }),
                 )
             }

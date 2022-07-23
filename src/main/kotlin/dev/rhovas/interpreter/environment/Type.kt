@@ -63,6 +63,9 @@ sealed class Type(
                     ")"
         }
 
+        override fun equals(other: Any?): Boolean {
+            return other is Base && name == other.name && generics == other.generics && inherits == other.inherits
+        }
 
     }
 

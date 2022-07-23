@@ -34,7 +34,7 @@ class Scope(private val parent: Scope?) {
 
         private val functions = mutableMapOf<Pair<String, Int>, MutableList<Function>>()
 
-        private fun get(name: String, arity: Int): List<Function> {
+        operator fun get(name: String, arity: Int): List<Function> {
             //TODO: Overriding
             return functions[Pair(name, arity)] ?: parent?.functions?.get(name, arity) ?: listOf()
         }

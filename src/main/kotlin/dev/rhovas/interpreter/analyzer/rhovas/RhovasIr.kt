@@ -15,9 +15,7 @@ sealed class RhovasIr {
     sealed class Component: RhovasIr() {
 
         data class Struct(
-            val name: String,
             val type: dev.rhovas.interpreter.environment.Type,
-            val constructor: dev.rhovas.interpreter.environment.Function.Definition,
             val fields: List<Statement.Declaration>,
         ) : Component()
 

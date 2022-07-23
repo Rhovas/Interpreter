@@ -23,10 +23,21 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Component.Struct): Object {
-        scope.types.define(ir.type, ir.name)
-        //TODO: Default values?
-        ir.constructor.implementation = { arguments -> arguments[0] }
-        scope.functions.define(ir.constructor)
+        scope.types.define(ir.type, ir.type.base.name)
+        val current = scope
+        //TODO: Hack to access unwrapped function definition
+        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single() as dev.rhovas.interpreter.environment.Function.Definition
+        constructor.implementation = { arguments ->
+            scoped(current) {
+                Object(ir.type, ir.fields.associate {
+                    val value = (arguments[0].value as Map<String, Object>)[it.variable.name]
+                        ?: it.value?.let { visit(it) }
+                        ?: Object(Library.TYPES["Null"]!!, null)
+                    Pair(it.variable.name, value)
+                }.toMutableMap())
+            }
+        }
+        scope.functions.define(constructor)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
@@ -21,6 +22,9 @@ class RhovasAnalyzer(scope: Scope) :
         ExceptionContext(mutableSetOf()),
     ).associateBy { it.javaClass })),
     RhovasAst.Visitor<RhovasIr> {
+
+    private val declare = DeclarePhase()
+    private val define = DefinePhase()
 
     private val Context.scope get() = this[ScopeContext::class.java]
     private val Context.function get() = this[FunctionContext::class.java]
@@ -127,22 +131,9 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Component.Struct): RhovasIr.Component.Struct {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(!context.scope.types.isDefined(ast.name, true)) { error(
-            ast,
-            "Redefined type.",
-            "The type ${ast.name} is already defined in this scope.",
-        ) }
-        //TODO: Require explicit types
+        val type = context.scope.types[ast.name]!!
         val fields = ast.fields.map { visit(it) }
-        //TODO: Pre-declare type (requires separate stages)
-        //TODO: Struct type
-        val type = Library.TYPES["Dynamic"]!!
-        //TODO: Sequence constructor
-        //TODO: Define on type
-        val constructor = Function.Definition(ast.name, listOf(), listOf("fields" to Library.TYPES["Object"]!!), Library.TYPES["Dynamic"]!!, listOf())
-        context.scope.types.define(type, ast.name)
-        context.scope.functions.define(constructor)
-        return RhovasIr.Component.Struct(ast.name, type, constructor, fields).also {
+        return RhovasIr.Component.Struct(type, fields).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -171,6 +162,8 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
+        declare.visit(ast.component)
+        define.visit(ast.component)
         return RhovasIr.Statement.Component(visit(ast.component)).also {
             it.context = ast.context
         }
@@ -1231,6 +1224,84 @@ class RhovasAnalyzer(scope: Scope) :
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
+    }
+
+    /**
+     * Analyzer phase to forward-declare types that may be referenced during
+     * type definition.
+     */
+    private inner class DeclarePhase {
+
+        fun visit(ast: RhovasAst.Component) {
+            when (ast) {
+                is RhovasAst.Component.Struct -> visit(ast)
+            }
+        }
+
+        fun visit(ast: RhovasAst.Component.Struct) {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            require(!context.scope.types.isDefined(ast.name, true)) { error(
+                ast,
+                "Redefined type.",
+                "The type ${ast.name} is already defined in this scope.",
+            ) }
+            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference)
+            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+
+    }
+
+    /**
+     * Analyzer phase to forward-define types to ensure full type information
+     * is available during analysis.
+     */
+    private inner class DefinePhase {
+
+        fun visit(ast: RhovasAst.Component) {
+            when (ast) {
+                is RhovasAst.Component.Struct -> visit(ast)
+            }
+        }
+
+        fun visit(ast: RhovasAst.Component.Struct) {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val structType = context.scope.types[ast.name]!!
+            ast.fields.forEach { field ->
+                field.context.firstOrNull()?.let { context.inputs.addLast(it) }
+                require(field.type != null) { error(
+                    field,
+                    "Invalid field declaration.",
+                    "A struct field requires a defined type.",
+                ) }
+                val fieldType = visit(field.type!!).type
+                structType.base.scope.functions.define(Function.Definition(field.name, listOf(), listOf("instance" to structType), fieldType, listOf()).also {
+                    it.implementation = { arguments ->
+                        (arguments[0].value as Map<String, Object>)[field.name]!!
+                    }
+                })
+                if (field.mutable) {
+                    structType.base.scope.functions.define(Function.Definition(field.name, listOf(), listOf("instance" to structType, "value" to fieldType), Library.TYPES["Void"]!!, listOf()).also {
+                        it.implementation = { arguments ->
+                            (arguments[0].value as MutableMap<String, Object>)[field.name] = arguments[1]
+                            Object(Library.TYPES["Void"]!!, Unit)
+                        }
+                    })
+                }
+                field.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
+            //TODO: Sequence constructor?
+            //TODO: Typecheck argument (struct type / named options?)
+            val constructor = Function.Definition(ast.name, listOf(), listOf("fields" to Library.TYPES["Object"]!!), structType, listOf())
+            structType.base.scope.functions.define(constructor)
+            context.scope.functions.define(constructor)
+            structType.base.scope.functions.define(Function.Definition("toString", listOf(), listOf("instance" to structType), Library.TYPES["String"]!!, listOf()).also {
+                it.implementation = { arguments ->
+                    Object(Library.TYPES["String"]!!, ast.name + " " + Object(Library.TYPES["Object"]!!, arguments[0].value).methods["toString", listOf()]!!.invoke(listOf()).value as String)
+                }
+            })
+            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+
     }
 
 }
