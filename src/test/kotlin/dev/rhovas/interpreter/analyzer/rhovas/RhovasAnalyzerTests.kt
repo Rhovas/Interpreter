@@ -7,6 +7,7 @@ import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
@@ -2555,17 +2556,22 @@ class RhovasAnalyzerTests {
     }
 
     private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(Library.SCOPE)) {
-        val ast = RhovasParser(Input("AnalyzerTests.test", input)).parse(rule)
-        val analyzer = RhovasAnalyzer(scope.also {
-            it.functions.define(STMT_0)
-            it.functions.define(STMT_1)
-        })
-        if (expected != null) {
-            val ir = analyzer.visit(ast)
+        scope.functions.define(STMT_0)
+        scope.functions.define(STMT_1)
+        val input = Input("Test", input)
+        try {
+            val ast = RhovasParser(input).parse(rule)
+            val ir = RhovasAnalyzer(scope).visit(ast)
             Assertions.assertEquals(expected, ir)
-            Assertions.assertTrue(ast.context.isNotEmpty() || input.isEmpty())
-        } else {
-            Assertions.assertThrows(AnalyzeException::class.java) { RhovasAnalyzer(scope).visit(ast) }
+            Assertions.assertTrue(ast.context.isNotEmpty() || input.content.isBlank())
+        } catch (e: ParseException) {
+            println(input.diagnostic(e.summary, e.details, e.range, e.context))
+            Assertions.fail(e)
+        } catch (e: AnalyzeException) {
+            if (expected != null || e.summary == "Broken analyzer invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
+            }
         }
     }
 

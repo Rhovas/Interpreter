@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.util.regex.Matcher
 import java.util.stream.Stream
 
 class DslLexerTests {
@@ -179,12 +178,18 @@ class DslLexerTests {
     }
 
     private fun test(input: String, expected: List<Token<DslTokenType>>, success: Boolean) {
-        if (success) {
-            Assertions.assertEquals(expected, DslLexer(Input("Test", input)).lex())
-        } else {
-            try {
-                Assertions.assertNotEquals(expected, DslLexer(Input("Test", input)).lex())
-            } catch (ignored: ParseException) {
+        val input = Input("Test", input)
+        try {
+            val tokens = DslLexer(input).lex()
+            if (success) {
+                Assertions.assertEquals(expected, tokens)
+            } else {
+                Assertions.assertNotEquals(expected, tokens)
+            }
+        } catch (e: ParseException) {
+            if (success || e.summary == "Broken lexer invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
             }
         }
     }

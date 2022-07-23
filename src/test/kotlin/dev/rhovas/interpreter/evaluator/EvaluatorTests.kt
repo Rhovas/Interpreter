@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.evaluator
 
+import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
@@ -8,6 +9,7 @@ import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
@@ -1624,24 +1626,44 @@ class EvaluatorTests {
                 arguments[0]
             }
         })
-        val ast = RhovasParser(Input("Test", input)).parse(rule)
-        val ir = RhovasAnalyzer(scope).visit(ast)
+        val input = Input("Test", input)
         try {
+            val ast = RhovasParser(input).parse(rule)
+            val ir = RhovasAnalyzer(scope).visit(ast)
             Evaluator(scope).visit(ir)
             Assertions.assertEquals(expected, log.toString())
+        } catch (e: ParseException) {
+            println(input.diagnostic(e.summary, e.details, e.range, e.context))
+            Assertions.fail(e)
+        } catch (e: AnalyzeException) {
+            println(input.diagnostic(e.summary, e.details, e.range, e.context))
+            Assertions.fail(e)
         } catch (e: EvaluateException) {
-            if (expected != null) Assertions.fail<Unit>(e)
+            if (expected != null || e.summary == "Broken evaluator invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
+            }
         }
     }
 
     private fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
-        val ast = RhovasParser(Input("Test", input)).parse(rule)
-        val ir = RhovasAnalyzer(scope).visit(ast)
+        val input = Input("Test", input)
         try {
+            val ast = RhovasParser(input).parse(rule)
+            val ir = RhovasAnalyzer(scope).visit(ast)
             val obj = Evaluator(scope).visit(ir)
             Assertions.assertEquals(expected, obj)
+        } catch (e: ParseException) {
+            println(input.diagnostic(e.summary, e.details, e.range, e.context))
+            Assertions.fail(e)
+        } catch (e: AnalyzeException) {
+            println(input.diagnostic(e.summary, e.details, e.range, e.context))
+            Assertions.fail(e)
         } catch (e: EvaluateException) {
-            if (expected != null) Assertions.fail<Unit>(e)
+            if (expected != null || e.summary == "Broken evaluator invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
+            }
         }
     }
 

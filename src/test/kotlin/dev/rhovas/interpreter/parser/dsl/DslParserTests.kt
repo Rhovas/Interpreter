@@ -125,10 +125,15 @@ class DslParserTests {
     }
 
     private fun test(rule: String, input: String, expected: DslAst?) {
-        if (expected != null) {
-            Assertions.assertEquals(expected, DslParser(Input("Test", input)).parse(rule))
-        } else {
-            Assertions.assertThrows(ParseException::class.java) { DslParser(Input("Test", input)).parse(rule) }
+        val input = Input("Test", input)
+        try {
+            val ast = DslParser(input).parse(rule)
+            Assertions.assertEquals(expected, ast)
+        } catch (e: ParseException) {
+            if (expected != null || e.summary == "Broken parser invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
+            }
         }
     }
 

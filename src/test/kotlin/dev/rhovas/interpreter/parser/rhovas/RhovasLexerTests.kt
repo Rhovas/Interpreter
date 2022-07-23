@@ -422,14 +422,18 @@ class RhovasLexerTests {
     }
 
     private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
-        val lexer = RhovasLexer(Input("Test", input))
-        if (success) {
-            Assertions.assertEquals(expected, lexer.lex())
-        } else {
-            try {
-                Assertions.assertNotEquals(expected, lexer.lex())
-            } catch (e: ParseException) {
-                Assertions.assertNotEquals("Broken lexer invariant.", e.summary)
+        val input = Input("Test", input)
+        try {
+            val tokens = RhovasLexer(input).lex()
+            if (success) {
+                Assertions.assertEquals(expected, tokens)
+            } else {
+                Assertions.assertNotEquals(expected, tokens)
+            }
+        } catch (e: ParseException) {
+            if (success || e.summary == "Broken lexer invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
             }
         }
     }
@@ -513,14 +517,18 @@ class RhovasLexerTests {
         }
 
         private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
-            val lexer = RhovasLexer(Input("Test", input)).also { it.mode = "string" }
-            if (success) {
-                Assertions.assertEquals(expected, lexer.lex())
-            } else {
-                try {
-                    Assertions.assertNotEquals(expected, lexer.lex())
-                } catch (e: ParseException) {
-                    Assertions.assertNotEquals("Broken lexer invariant.", e.summary)
+            val input = Input("Test", input)
+            try {
+                val tokens = RhovasLexer(input).also { it.mode = "string" }.lex()
+                if (success) {
+                    Assertions.assertEquals(expected, tokens)
+                } else {
+                    Assertions.assertNotEquals(expected, tokens)
+                }
+            } catch (e: ParseException) {
+                if (success || e.summary == "Broken lexer invariant.") {
+                    println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                    Assertions.fail<Unit>(e)
                 }
             }
         }

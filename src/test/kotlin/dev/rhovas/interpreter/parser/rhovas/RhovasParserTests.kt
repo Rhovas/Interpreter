@@ -2416,15 +2416,16 @@ class RhovasParserTests {
     }
 
     private fun test(rule: String, input: String, expected: RhovasAst?) {
-        val parser = RhovasParser(Input("Test", input))
-        if (expected != null) {
-            val ast = parser.parse(rule)
+        val input = Input("Test", input)
+        try {
+            val ast = RhovasParser(input).parse(rule)
             Assertions.assertEquals(expected, ast)
-            Assertions.assertTrue(ast.context.isNotEmpty() || input.isBlank())
-        } else {
-            val exception = Assertions.assertThrows(ParseException::class.java) { parser.parse(rule) }
-            Assertions.assertNotEquals("Broken lexer invariant.", exception.summary)
-            Assertions.assertNotEquals("Broken parser invariant.", exception.summary)
+            Assertions.assertTrue(ast.context.isNotEmpty() || input.content.isBlank())
+        } catch (e: ParseException) {
+            if (expected != null || e.summary == "Broken parser invariant.") {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                Assertions.fail<Unit>(e)
+            }
         }
     }
 
