@@ -60,6 +60,57 @@ class RhovasAnalyzerTests {
     }
 
     @Nested
+    inner class ComponentTests {
+
+        @Nested
+        inner class StructTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testStruct(name: String, input: String, expected: (() -> RhovasIr.Source?)?) {
+                test("source", input, expected?.invoke())
+            }
+
+            fun testStruct(): Stream<Arguments> {
+                val constructor = Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type("Dynamic"), listOf())
+                return Stream.of(
+                    Arguments.of("Struct", """
+                        struct Name {}
+                        val instance: Name;
+                    """.trimIndent(), {
+                        RhovasIr.Source(listOf(
+                            RhovasIr.Statement.Component(RhovasIr.Component.Struct(
+                                "Name", type("Dynamic"), constructor, listOf(),
+                            )),
+                            RhovasIr.Statement.Declaration(variable("instance", type("Dynamic")).variable, null),
+                        ))
+                    }),
+                    Arguments.of("Constructor", """
+                        struct Name {}
+                        val instance = Name({});
+                    """.trimIndent(), {
+                        RhovasIr.Source(listOf(
+                            RhovasIr.Statement.Component(
+                                RhovasIr.Component.Struct("Name", type("Dynamic"), constructor, listOf()),
+                            ),
+                            RhovasIr.Statement.Declaration(
+                                variable("instance", type("Dynamic")).variable,
+                                RhovasIr.Expression.Invoke.Function(
+                                    constructor,
+                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object"))),
+                                ),
+                            ),
+                        ))
+                    }),
+                    //TODO: Fields/Methods (requires Struct type)
+                )
+            }
+
+        }
+
+    }
+
+    @Nested
     inner class StatementTests {
 
         @Nested
@@ -91,6 +142,29 @@ class RhovasAnalyzerTests {
                     Arguments.of("Unreachable", """
                         { return; stmt(); }
                     """.trimIndent(), null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ComponentTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testComponent(name: String, input: String, expected: (() -> RhovasIr.Statement.Component?)?) {
+                test("statement", input, expected?.invoke())
+            }
+
+            fun testComponent(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Struct", """
+                        struct Name {}
+                    """.trimIndent(), {
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(
+                            "Name", type("Dynamic"), Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type("Dynamic"), listOf()), listOf(),
+                        ))
+                    }),
                 )
             }
 

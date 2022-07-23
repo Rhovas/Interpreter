@@ -9,6 +9,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     override fun parse(rule: String): RhovasAst {
         return when (rule) {
             "source" -> parseSource()
+            "component" -> parseComponent()
             "statement" -> parseStatement()
             "expression" -> parseExpression()
             "pattern" -> parsePattern()
@@ -33,6 +34,34 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
     }
 
+    private fun parseComponent(): RhovasAst.Component {
+        return when {
+            peek("struct") -> parseStruct()
+            else -> throw AssertionError()
+        }
+    }
+
+    private fun parseStruct(): RhovasAst.Component.Struct {
+        require(match("struct"))
+        context.addLast(tokens[-1]!!.range)
+        val name = parseIdentifier { "A struct requires a name after `struct`, as in `struct Name { ... }`." }
+        require(match("{")) { error(
+            "Expected opening brace.",
+            "A struct requires braces for defining members, as in `struct Name { ... }`.",
+        ) }
+        val fields = mutableListOf<RhovasAst.Statement.Declaration>()
+        while (!match("}")) {
+            require(peek(listOf("val", "var"))) { error(
+                "Expected variable declaration.",
+                "A struct requires variable declarations, as in `struct Name { val field: Type; }`.",
+            ) }
+            fields.add(parseDeclarationStatement())
+        }
+        return RhovasAst.Component.Struct(name, fields).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
     private fun parseStatement(): RhovasAst.Statement {
         return when {
             peek("{") -> parseBlockStatement()
@@ -52,6 +81,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             peek("require") -> parseRequireStatement()
             peek("ensure") -> parseEnsureStatement()
             peek(RhovasTokenType.IDENTIFIER, ":") -> parseLabelStatement()
+            peek(listOf("struct")) -> {
+                RhovasAst.Statement.Component(parseComponent()).also {
+                    it.context = it.component.context
+                }
+            }
             else -> {
                 val expression = parseExpression()
                 if (match("=")) {

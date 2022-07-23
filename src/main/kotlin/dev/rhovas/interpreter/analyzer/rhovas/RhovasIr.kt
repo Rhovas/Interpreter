@@ -12,10 +12,25 @@ sealed class RhovasIr {
         val statements: List<Statement>,
     ) : RhovasIr()
 
+    sealed class Component: RhovasIr() {
+
+        data class Struct(
+            val name: String,
+            val type: dev.rhovas.interpreter.environment.Type,
+            val constructor: dev.rhovas.interpreter.environment.Function.Definition,
+            val fields: List<Statement.Declaration>,
+        ) : Component()
+
+    }
+
     sealed class Statement: RhovasIr() {
 
         data class Block(
             val statements: List<Statement>,
+        ) : Statement()
+
+        data class Component(
+            val component: RhovasIr.Component,
         ) : Statement()
 
         data class Expression(
@@ -320,7 +335,10 @@ sealed class RhovasIr {
             return when (ir) {
                 is Source -> visit(ir)
 
+                is Component.Struct -> visit(ir)
+
                 is Statement.Block -> visit(ir)
+                is Statement.Component -> visit(ir)
                 is Statement.Expression -> visit(ir)
                 is Statement.Function -> visit(ir)
                 is Statement.Declaration -> visit(ir)
@@ -376,7 +394,10 @@ sealed class RhovasIr {
 
         fun visit(ir: Source): T
 
+        fun visit(ir: Component.Struct): T
+
         fun visit(ir: Statement.Block): T
+        fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
         fun visit(ir: Statement.Function): T
         fun visit(ir: Statement.Declaration): T

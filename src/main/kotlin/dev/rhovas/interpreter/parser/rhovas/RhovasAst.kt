@@ -11,10 +11,23 @@ sealed class RhovasAst {
         val statements: List<Statement>,
     ) : RhovasAst()
 
+    sealed class Component : RhovasAst() {
+
+        data class Struct(
+            val name: String,
+            val fields: List<Statement.Declaration>,
+        ) : Component()
+
+    }
+
     sealed class Statement : RhovasAst() {
 
         data class Block(
             val statements: List<Statement>,
+        ) : Statement()
+
+        data class Component(
+            val component: RhovasAst.Component,
         ) : Statement()
 
         data class Expression(
@@ -283,7 +296,11 @@ sealed class RhovasAst {
         fun visit(ast: RhovasAst): T {
             return when (ast) {
                 is Source -> visit(ast)
+
+                is Component.Struct -> visit(ast)
+
                 is Statement.Block -> visit(ast)
+                is Statement.Component -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Function -> visit(ast)
                 is Statement.Declaration -> visit(ast)
@@ -337,7 +354,10 @@ sealed class RhovasAst {
 
         fun visit(ast: Source): T
 
+        fun visit(ast: Component.Struct): T
+
         fun visit(ast: Statement.Block): T
+        fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
         fun visit(ast: Statement.Function): T
         fun visit(ast: Statement.Declaration): T

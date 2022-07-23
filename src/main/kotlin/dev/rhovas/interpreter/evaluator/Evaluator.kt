@@ -22,10 +22,23 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Component.Struct): Object {
+        scope.types.define(ir.type, ir.name)
+        //TODO: Default values?
+        ir.constructor.implementation = { arguments -> arguments[0] }
+        scope.functions.define(ir.constructor)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
     override fun visit(ir: RhovasIr.Statement.Block): Object {
         scoped(Scope(scope)) {
             ir.statements.forEach { visit(it) }
         }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Statement.Component): Object {
+        visit(ir.component)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

@@ -121,6 +121,33 @@ class RhovasAnalyzer(scope: Scope) :
         }
     }
 
+    private fun visit(ast: RhovasAst.Component): RhovasIr.Component {
+        return super.visit(ast) as RhovasIr.Component
+    }
+
+    override fun visit(ast: RhovasAst.Component.Struct): RhovasIr.Component.Struct {
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        require(!context.scope.types.isDefined(ast.name, true)) { error(
+            ast,
+            "Redefined type.",
+            "The type ${ast.name} is already defined in this scope.",
+        ) }
+        //TODO: Require explicit types
+        val fields = ast.fields.map { visit(it) }
+        //TODO: Pre-declare type (requires separate stages)
+        //TODO: Struct type
+        val type = Library.TYPES["Dynamic"]!!
+        //TODO: Sequence constructor
+        //TODO: Define on type
+        val constructor = Function.Definition(ast.name, listOf(), listOf("fields" to Library.TYPES["Object"]!!), Library.TYPES["Dynamic"]!!, listOf())
+        context.scope.types.define(type, ast.name)
+        context.scope.functions.define(constructor)
+        return RhovasIr.Component.Struct(ast.name, type, constructor, fields).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
     private fun visit(ast: RhovasAst.Statement): RhovasIr.Statement {
         return super.visit(ast) as RhovasIr.Statement
     }
@@ -140,6 +167,12 @@ class RhovasAnalyzer(scope: Scope) :
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
+        return RhovasIr.Statement.Component(visit(ast.component)).also {
+            it.context = ast.context
         }
     }
 

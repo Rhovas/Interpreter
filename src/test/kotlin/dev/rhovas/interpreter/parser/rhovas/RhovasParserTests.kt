@@ -46,6 +46,45 @@ class RhovasParserTests {
     }
 
     @Nested
+    inner class ComponentTests {
+
+        @Nested
+        inner class StructTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testComponent(name: String, input: String, expected: RhovasAst.Component.Struct?) {
+                test("component", input, expected)
+            }
+
+            fun testComponent(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Empty", """
+                        struct Name {}
+                    """.trimIndent(), RhovasAst.Component.Struct("Name", listOf())),
+                    Arguments.of("Variable", """
+                        struct Name {
+                            val name: Type;
+                        }
+                    """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(
+                        RhovasAst.Statement.Declaration(false, "name", type("Type"), null),
+                    ))),
+                    Arguments.of("Function", """
+                        struct Name {
+                            func name(): Type {}
+                        }
+                    """.trimIndent(), null),
+                    Arguments.of("Anonymous", """
+                        struct {}
+                    """.trimIndent(), null),
+                )
+            }
+
+        }
+
+    }
+
+    @Nested
     inner class StatementTests {
 
         @Nested
@@ -77,6 +116,27 @@ class RhovasParserTests {
                     Arguments.of("Missing Closing Brace", """
                         { statement;
                     """, null),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ComponentTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testComponent(name: String, input: String, expected: RhovasAst.Statement.Component?) {
+                test("statement", input, expected)
+            }
+
+            fun testComponent(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Struct", """
+                        struct Name {}
+                    """.trimIndent(), RhovasAst.Statement.Component(
+                        RhovasAst.Component.Struct("Name", listOf())
+                    )),
                 )
             }
 

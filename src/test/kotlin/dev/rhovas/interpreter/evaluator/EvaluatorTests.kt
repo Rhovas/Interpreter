@@ -49,6 +49,31 @@ class EvaluatorTests {
     }
 
     @Nested
+    inner class ComponentTests {
+
+        @Nested
+        inner class StructTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testStruct(name: String, input: String, expected: String?) {
+                test("source", input, expected)
+            }
+
+            fun testStruct(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Struct", """
+                        struct Name {}
+                        log(Name({}));
+                    """.trimIndent(), "{}"),
+                )
+            }
+
+        }
+
+    }
+
+    @Nested
     inner class StatementTests {
 
         @Nested
@@ -71,6 +96,26 @@ class EvaluatorTests {
                     Arguments.of("Multiple", """
                         { log(1); log(2); log(3); }
                     """.trimIndent(), "123"),
+                )
+            }
+
+        }
+
+        @Nested
+        inner class ComponentTests {
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testComponent(name: String, input: String, expected: String?) {
+                test("source", input, expected)
+            }
+
+            fun testComponent(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Struct", """
+                        struct Name {}
+                        log(Name({}));
+                    """.trimIndent(), "{}"),
                 )
             }
 
