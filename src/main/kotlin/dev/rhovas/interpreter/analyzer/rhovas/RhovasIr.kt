@@ -306,7 +306,7 @@ sealed class RhovasIr {
         ) : Pattern(type)
 
         data class NamedDestructure(
-            val patterns: List<Pair<String, Pattern?>>,
+            val patterns: List<Pair<String?, Pattern>>,
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Pattern(type)
 

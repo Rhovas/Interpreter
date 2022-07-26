@@ -636,14 +636,13 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             } else {
                 map[key] ?: return Object(Library.TYPES["Boolean"]!!, false)
             }
-            if (pattern != null) {
-                patternState = patternState.copy(value = value)
-                if (!(visit(pattern).value as Boolean)) {
-                    return Object(Library.TYPES["Boolean"]!!, false)
-                }
-            } else {
+            if (key != null) {
                 val variable = Variable.Local(key, value.type, false)
                 patternState.scope.variables.define(Variable.Local.Runtime(variable, value))
+            }
+            patternState = patternState.copy(value = value)
+            if (!(visit(pattern).value as Boolean)) {
+                return Object(Library.TYPES["Boolean"]!!, false)
             }
         }
         if (!vararg && map.size != named.size) {

@@ -889,20 +889,12 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             }
             match("{") -> {
                 context.addLast(tokens[-1]!!.range)
-                val patterns = mutableListOf<Pair<String, RhovasAst.Pattern?>>()
+                val patterns = mutableListOf<Pair<String?, RhovasAst.Pattern>>()
                 while (!match("}")) {
                     context.addLast((tokens[0] ?: tokens[-1]!!).range)
-                    //TODO: Consider allowing other patterns for unnamed varargs (e.g. {[x, y, z]*})
-                    if (peek(listOf("*", "+")) || peek(RhovasTokenType.IDENTIFIER, listOf("*", "+"))) {
-                        val pattern = parsePattern()
-                        patterns.add(Pair("", pattern))
-                    } else {
-                        val name = parseIdentifier { "A named destructuring entry requires a key, as in `{key: value}` or `{x, y, z}`." }
-                        context.addLast(tokens[-1]!!.range)
-                        val pattern = if (match(":")) parsePattern() else null
-                        context.removeLast()
-                        patterns.add(Pair(name, pattern))
-                    }
+                    val key = if (match(RhovasTokenType.IDENTIFIER, ":")) tokens[-2]!!.literal else null
+                    val pattern = parsePattern()
+                    patterns.add(Pair(key, pattern))
                     require(peek("}") || match(",")) { error(
                         "Expected closing brace or comma.",
                         "A named destructuring entry must be followed by a closing brace `}` or comma `,`, as in `{key: value}` or `{x, y, z}`.",

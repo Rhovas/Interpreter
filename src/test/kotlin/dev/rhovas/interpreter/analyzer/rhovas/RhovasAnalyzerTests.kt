@@ -2313,7 +2313,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("key" to null),
+                                    listOf("key" to RhovasIr.Pattern.Variable(variable("key", type("Dynamic")).variable)),
                                     type("Object"),
                                 ),
                                 stmt(variable("key", type("Dynamic"))),
@@ -2352,10 +2352,11 @@ class RhovasAnalyzerTests {
                             ), type("Object")),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.NamedDestructure(
-                                    listOf("x" to null, "y" to null, "z" to null),
-                                    type("Object"),
-                                ),
+                                RhovasIr.Pattern.NamedDestructure(listOf(
+                                    "x" to RhovasIr.Pattern.Variable(variable("x", type("Dynamic")).variable),
+                                    "y" to RhovasIr.Pattern.Variable(variable("y", type("Dynamic")).variable),
+                                    "z" to RhovasIr.Pattern.Variable(variable("z", type("Dynamic")).variable),
+                                ), type("Object")),
                                 stmt(),
                             ),
                         )
@@ -2372,7 +2373,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("" to RhovasIr.Pattern.VarargDestructure(null, "*", type("Object"))),
+                                    listOf(null to RhovasIr.Pattern.VarargDestructure(null, "*", type("Object"))),
                                     type("Object"),
                                 ),
                                 stmt(),
@@ -2391,7 +2392,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("" to RhovasIr.Pattern.VarargDestructure(
+                                    listOf(null to RhovasIr.Pattern.VarargDestructure(
                                         RhovasIr.Pattern.Variable(variable("object", type("Dynamic")).variable),
                                         "*",
                                         type("Object"),
@@ -2420,6 +2421,11 @@ class RhovasAnalyzerTests {
                             ),
                         )
                     }),
+                    Arguments.of("Missing Key", """
+                        match (1) {
+                            else {:pattern}: stmt();
+                        }
+                    """.trimIndent(), null),
                     Arguments.of("Unmatchable Type", """
                         match (1) {
                             else {}: stmt();

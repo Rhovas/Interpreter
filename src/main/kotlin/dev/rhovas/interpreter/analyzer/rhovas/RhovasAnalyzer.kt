@@ -1127,9 +1127,9 @@ class RhovasAnalyzer(scope: Scope) :
         ) }
         var vararg = false
         val patterns = ast.patterns.withIndex().map {
-            val pattern = if (it.value.second is RhovasAst.Pattern.VarargDestructure) {
+            if (it.value.second is RhovasAst.Pattern.VarargDestructure) {
                 require(!vararg) { error(
-                    it.value.second!!,
+                    it.value.second,
                     "Invalid multiple varargs.",
                     "A named destructure requires no more than one vararg pattern.",
                 ) }
@@ -1147,23 +1147,25 @@ class RhovasAnalyzer(scope: Scope) :
                     }
                 }
                 //TODO: Struct type bindings
-                context.pattern.bindings[it.value.first] = Library.TYPES["Object"]!!
-                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["Object"]!!).also {
+                Pair(null, RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Library.TYPES["Object"]!!).also {
                     it.context = ast.context
-                }
-            } else if (it.value.second != null) {
+                })
+            } else {
+                val key = it.value.first
+                    ?: (it.value.second as? RhovasAst.Pattern.Variable)?.name
+                    ?: throw error(
+                        it.value.second,
+                        "Missing pattern key",
+                        "This pattern requires a key to be used within a named destructure.",
+                    )
                 //TODO: Struct type validation
                 val pattern = analyze(context.with(PatternContext(Library.TYPES["Dynamic"]!!, context.pattern.bindings))) {
-                    visit(it.value.second!!)
+                    visit(it.value.second)
                 }
                 //TODO: Struct type bindings
-                context.pattern.bindings[it.value.first] = pattern.type
-                pattern
-            } else {
-                context.pattern.bindings[it.value.first] = Library.TYPES["Dynamic"]!!
-                null
+                context.pattern.bindings[key] = pattern.type
+                Pair(key, pattern)
             }
-            Pair(it.value.first, pattern)
         }
         return RhovasIr.Pattern.NamedDestructure(patterns, Library.TYPES["Object"]!!).also {
             it.context = ast.context
