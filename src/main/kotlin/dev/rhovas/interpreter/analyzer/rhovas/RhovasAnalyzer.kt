@@ -848,12 +848,39 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val arguments = ast.arguments.map { visit(it) }
-        val function = context.scope.functions[ast.name, arguments.map { it.type }] as Function.Definition? ?: throw error(
-            ast,
-            "Unresolved function.",
-            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a function in the current scope.",
-        )
+        val candidates = context.scope.functions[ast.name, ast.arguments.size]
+            .map { Pair(it as Function.Definition, mutableMapOf<String, Type>()) }
+            .ifEmpty { throw error(
+                ast,
+                "Undefined function.",
+                "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
+            ) }
+        val filtered = candidates.toMutableList()
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        for (i in ast.arguments.indices) {
+            //TODO: Context for inferred types
+            arguments.add(visit(ast.arguments[i]))
+            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i].second, it.second) }
+            require(filtered.isNotEmpty()) { error(
+                ast.arguments[i],
+                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
+                if (candidates.size == 1) {
+                    "The function ${ast.name}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i].second.bind(candidates[0].second)} but received ${arguments[i].type}."
+                } else {
+                    "The function ${ast.name}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.second}" }}" }}"
+                }
+            ) }
+        }
+        val resolved = filtered.single() //asserts overloads are disjoint
+        val function = Function.Definition(
+            resolved.first.name,
+            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
+            resolved.first.parameters.map { Pair(it.first, it.second.bind(resolved.second)) },
+            resolved.first.returns.bind(resolved.second),
+            resolved.first.throws,
+        ).also {
+            it.implementation = { resolved.first.implementation.invoke(it) }
+        }
         function.throws.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
                 ast,
@@ -880,11 +907,36 @@ class RhovasAnalyzer(scope: Scope) :
         } else {
             receiver.type
         }
-        val arguments = ast.arguments.map { visit(it) }
-        val method = receiverType.methods[ast.name, arguments.map { it.type }] ?: throw error(
-            ast,
-            "Unresolved method.",
-            "The signature ${ast.name}(${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiverType.base.name}.",
+        val candidates = receiverType.base.scope.functions[ast.name, ast.arguments.size + 1]
+            .map { Pair(it, mutableMapOf<String, Type>()) }
+            .ifEmpty { throw error(
+                ast,
+                "Undefined method.",
+                "The method ${ast.name}/${ast.arguments.size} is not defined for type ${receiverType.base.name}.",
+            ) }
+        val filtered = candidates.toMutableList()
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        for (i in ast.arguments.indices) {
+            //TODO: Context for inferred types
+            arguments.add(visit(ast.arguments[i]))
+            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i + 1].second, it.second) }
+            require(filtered.isNotEmpty()) { error(
+                ast.arguments[i],
+                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
+                if (candidates.size == 1) {
+                    "The method ${receiverType.base.name}.${ast.name}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i + 1].second.bind(candidates[0].second)} but received ${arguments[i].type}."
+                } else {
+                    "The method ${receiverType.base.name}.${ast.name}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments  (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.drop(1).joinToString { "${it.second}" }}" }}"
+                }
+            ) }
+        }
+        val resolved = filtered.single() //asserts overloads are disjoint
+        val method = Function.Method(
+            resolved.first.name,
+            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
+            resolved.first.parameters.drop(1).map { Pair(it.first, it.second.bind(resolved.second)) },
+            resolved.first.returns.bind(resolved.second),
+            resolved.first.throws,
         )
         val type = when {
             ast.cascade -> receiver.type
@@ -918,19 +970,48 @@ class RhovasAnalyzer(scope: Scope) :
             receiver.type
         }
         val qualifier = ast.qualifier?.let { visit(it) as RhovasIr.Expression.Access }
-        val arguments = ast.arguments.map { visit(it) }
-        val function = if (qualifier == null) {
-            context.scope.functions[ast.name, listOf(receiverType) + arguments.map { it.type }] as Function.Definition? ?: throw error(
-                ast,
-                "Unresolved function.",
-                "The signature ${ast.name}(${(listOf(receiverType) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in the current scope.",
-            )
-        } else {
-            qualifier.type.functions[ast.name, listOf(receiverType) + arguments.map { it.type }] ?: throw error(
-                ast,
-                "Unresolved function.",
-                "The signature ${ast.name}(${(listOf(receiverType) + arguments.map { it.type }).joinToString(", ")}) could not be resolved to a function in ${qualifier.type.base.name}.",
-            )
+        val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size + 1]
+            .map { Pair(it as Function.Definition, mutableMapOf<String, Type>()) }
+            .ifEmpty { throw error(
+                ast.qualifier ?: ast,
+                "Undefined function.",
+                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: "the current scope"}.",
+            ) }
+        val filtered = candidates.toMutableList()
+        filtered.retainAll { receiverType.isSubtypeOf(it.first.parameters[0].second, it.second) }
+        require(filtered.isNotEmpty()) { error(
+            ast.receiver,
+            "Invalid receiver.",
+            if (candidates.size == 1) {
+                "The function ${ast.name}/${ast.arguments.size + 1} requires argument 0 to be type ${candidates[0].first.parameters[0].second.bind(candidates[0].second)} but received ${receiverType}."
+            } else {
+                "The function ${ast.name}/${ast.arguments.size + 1} could not be resolved to one of the available overloads below with receiver ${receiverType}:\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.second}" }}" }}"
+            }
+        ) }
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        for (i in ast.arguments.indices) {
+            //TODO: Context for inferred types
+            arguments.add(visit(ast.arguments[i]))
+            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i + 1].second, it.second) }
+            require(filtered.isNotEmpty()) { error(
+                ast.arguments[i],
+                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
+                if (candidates.size == 1) {
+                    "The function ${ast.name}/${ast.arguments.size + 1} requires argument ${i + 1} to be type ${candidates[0].first.parameters[i + 1].second.bind(candidates[0].second)} but received ${arguments[i].type}."
+                } else {
+                    "The function ${ast.name}/${ast.arguments.size + 1} could not be resolved to one of the available overloads below with arguments (${(listOf(receiverType) + arguments.map { it.type }).joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.second}" }}" }}"
+                }
+            ) }
+        }
+        val resolved = filtered.single() //asserts overloads are disjoint
+        val function = Function.Definition(
+            resolved.first.name,
+            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
+            resolved.first.parameters.map { Pair(it.first, it.second.bind(resolved.second)) },
+            resolved.first.returns.bind(resolved.second),
+            resolved.first.throws,
+        ).also {
+            it.implementation = { resolved.first.implementation.invoke(it) }
         }
         val type = when {
             ast.cascade -> receiver.type
