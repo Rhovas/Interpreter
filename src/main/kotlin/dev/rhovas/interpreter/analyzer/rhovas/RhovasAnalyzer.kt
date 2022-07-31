@@ -1277,11 +1277,18 @@ class RhovasAnalyzer(scope: Scope) :
 
     override fun visit(ast: RhovasAst.Type): RhovasIr.Type {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        var type = context.scope.types[ast.name] ?: throw error(
+        var type: Type = context.scope.types[ast.path.first()] ?: throw error(
             ast,
             "Undefined type.",
-            "The type ${ast.name} is not defined."
+            "The type ${ast.path.first()} is not defined in the current scope."
         )
+        ast.path.drop(1).forEach {
+            type = type.base.scope.types[it] ?: throw error(
+                ast,
+                "Undefined type.",
+                "The type ${it} is not defined in ${type.base.name}."
+            )
+        }
         if (ast.generics != null) {
             require(type is Type.Reference) { error(
                 ast,

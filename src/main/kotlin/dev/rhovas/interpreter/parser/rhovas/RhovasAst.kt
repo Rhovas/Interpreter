@@ -285,7 +285,7 @@ sealed class RhovasAst {
     }
 
     data class Type(
-        val name: String,
+        val path: List<String>,
         val generics: List<Type>?,
     ) : RhovasAst()
 

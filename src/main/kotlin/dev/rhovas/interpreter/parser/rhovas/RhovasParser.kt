@@ -951,7 +951,13 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     private fun parseType(): RhovasAst.Type {
-        val name = parseIdentifier { "A type requires a name, as in `Type`." }
+        val path = mutableListOf<String>()
+        path.add(parseIdentifier { "A type requires a name, as in `Type`." })
+        context.addLast(tokens[-1]!!.range)
+        while (peek(".", RhovasTokenType.IDENTIFIER) && tokens[1]!!.literal.first().isUpperCase()) {
+            require(match(".", RhovasTokenType.IDENTIFIER))
+            path.add(tokens[-1]!!.literal)
+        }
         var generics: MutableList<RhovasAst.Type>? = null
         if (match("<")) {
             generics = mutableListOf()
@@ -963,8 +969,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 ) }
             }
         }
-        return RhovasAst.Type(name, generics).also {
-            it.context = listOf(tokens[-1]!!.range)
+        return RhovasAst.Type(path, generics).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
 

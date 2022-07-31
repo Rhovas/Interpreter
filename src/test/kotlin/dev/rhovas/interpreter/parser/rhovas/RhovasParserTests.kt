@@ -2339,27 +2339,32 @@ class RhovasParserTests {
                 Arguments.of("Type", """
                     Type
                 """.trimIndent(), RhovasAst.Type(
-                    "Type", null,
+                    listOf("Type"), null,
+                )),
+                Arguments.of("Nesting", """
+                    First.Second.Third
+                """.trimIndent(), RhovasAst.Type(
+                    listOf("First", "Second", "Third"), null,
                 )),
                 Arguments.of("Empty Generics", """
                     Type<>
                 """.trimIndent(), RhovasAst.Type(
-                    "Type", listOf(),
+                    listOf("Type"), listOf(),
                 )),
                 Arguments.of("Single Generic", """
                     Type<Generic>
                 """.trimIndent(), RhovasAst.Type(
-                    "Type", listOf(type("Generic")),
+                    listOf("Type"), listOf(type("Generic")),
                 )),
                 Arguments.of("Multiple Generics", """
                     Type<First, Second, Third>
                 """.trimIndent(), RhovasAst.Type(
-                    "Type", listOf(type("First"), type("Second"), type("Third")),
+                    listOf("Type"), listOf(type("First"), type("Second"), type("Third")),
                 )),
                 Arguments.of("Trailing Comma", """
                     Type<Generic,>
                 """.trimIndent(), RhovasAst.Type(
-                    "Type", listOf(type("Generic")),
+                    listOf("Type"), listOf(type("Generic")),
                 )),
                 Arguments.of("Missing Comma", """
                     Type<First Second>
@@ -2414,7 +2419,7 @@ class RhovasParserTests {
     }
 
     private fun type(name: String): RhovasAst.Type {
-        return RhovasAst.Type(name, null)
+        return RhovasAst.Type(listOf(name), null)
     }
 
     private fun test(rule: String, input: String, expected: RhovasAst?) {
