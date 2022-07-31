@@ -8,7 +8,12 @@ sealed class RhovasAst {
         internal set
 
     data class Source(
+        val imports: List<Import>,
         val statements: List<Statement>,
+    ) : RhovasAst()
+
+    data class Import(
+        val path: List<String>,
     ) : RhovasAst()
 
     sealed class Component : RhovasAst() {
@@ -296,6 +301,7 @@ sealed class RhovasAst {
         fun visit(ast: RhovasAst): T {
             return when (ast) {
                 is Source -> visit(ast)
+                is Import -> visit(ast)
 
                 is Component.Struct -> visit(ast)
 
@@ -353,6 +359,7 @@ sealed class RhovasAst {
         }
 
         fun visit(ast: Source): T
+        fun visit(ast: Import): T
 
         fun visit(ast: Component.Struct): T
 

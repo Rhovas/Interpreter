@@ -119,8 +119,28 @@ class RhovasAnalyzer(scope: Scope) :
     }
 
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
+        val imports = ast.imports.map { visit(it) }
         val statements = ast.statements.map { visit(it) }
-        return RhovasIr.Source(statements).also {
+        return RhovasIr.Source(imports, statements).also {
+            it.context = ast.context
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Import): RhovasIr.Import {
+        val type = Library.TYPES[ast.path.joinToString(".")] ?: throw error(
+            ast,
+            "Undefined type.",
+            "The type ${ast.path.joinToString(".")} is not defined."
+        )
+        //TODO: Aliasing
+        val alias = ast.path.last()
+        require(!context.scope.types.isDefined(alias, true)) { error(
+            ast,
+            "Redefined type.",
+            "The type ${ast.path.last()} is already defined in the current scope.",
+        ) }
+        context.scope.types.define(type, alias)
+        return RhovasIr.Import(type).also {
             it.context = ast.context
         }
     }

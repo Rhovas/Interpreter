@@ -22,6 +22,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Import): Object {
+        throw AssertionError()
+    }
+
     override fun visit(ir: RhovasIr.Component.Struct): Object {
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope

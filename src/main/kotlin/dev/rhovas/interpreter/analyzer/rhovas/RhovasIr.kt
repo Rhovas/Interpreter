@@ -9,7 +9,12 @@ sealed class RhovasIr {
         internal set
 
     data class Source(
+        val imports: List<Import>,
         val statements: List<Statement>,
+    ) : RhovasIr()
+
+    data class Import(
+        val type: dev.rhovas.interpreter.environment.Type,
     ) : RhovasIr()
 
     sealed class Component: RhovasIr() {
@@ -332,6 +337,7 @@ sealed class RhovasIr {
         fun visit(ir: RhovasIr): T {
             return when (ir) {
                 is Source -> visit(ir)
+                is Import -> visit(ir)
 
                 is Component.Struct -> visit(ir)
 
@@ -391,6 +397,7 @@ sealed class RhovasIr {
         }
 
         fun visit(ir: Source): T
+        fun visit(ir: Import): T
 
         fun visit(ir: Component.Struct): T
 

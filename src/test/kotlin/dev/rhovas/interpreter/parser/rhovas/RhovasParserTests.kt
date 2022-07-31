@@ -28,18 +28,91 @@ class RhovasParserTests {
                 Arguments.of("Empty", """
                     
                 """.trimIndent(), RhovasAst.Source(
-                    listOf()
+                    listOf(),
+                    listOf(),
                 )),
-                Arguments.of("Single", """
+                Arguments.of("Single Import", """
+                    import Type;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Type"))),
+                    listOf(),
+                )),
+                Arguments.of("Multiple Imports", """
+                    import First;
+                    import Second;
+                    import Third;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("First")), RhovasAst.Import(listOf("Second")), RhovasAst.Import(listOf("Third"))),
+                    listOf(),
+                )),
+                Arguments.of("Submodule Import", """
+                    import Module.Type;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Module", "Type"))),
+                    listOf(),
+                )),
+                Arguments.of("Single Statement", """
                     statement;
                 """, RhovasAst.Source(
-                    listOf(stmt("statement")),
+                    listOf(), listOf(stmt("statement")),
                 )),
-                Arguments.of("Multiple", """
+                Arguments.of("Multiple Statements", """
                     first; second; third;
                 """, RhovasAst.Source(
+                    listOf(),
                     listOf(stmt("first"), stmt("second"), stmt("third")),
                 )),
+                Arguments.of("Import Before Statement", """
+                    import Type;
+                    statement;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Type"))),
+                    listOf(stmt("statement")),
+                )),
+                Arguments.of("Import After Statement", """
+                    statement;
+                    import Type;
+                """.trimIndent(), null),
+            )
+        }
+
+    }
+
+    @Nested
+    inner class ImportTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testImport(name: String, input: String, expected: RhovasAst.Source?) {
+            test("source", input, expected)
+        }
+
+        fun testImport(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Import", """
+                    import Module;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Module"))),
+                    listOf(),
+                )),
+                Arguments.of("Submodule", """
+                    import Module.Type;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Module", "Type"))),
+                    listOf(),
+                )),
+                Arguments.of("Missing Name", """
+                    import ;
+                """.trimIndent(), null),
+                Arguments.of("Missing Period", """
+                    import Module Submodule;
+                """.trimIndent(), null),
+                Arguments.of("Missing Submodule Name", """
+                    import Module.;
+                """.trimIndent(), null),
+                Arguments.of("Missing Semicolon", """
+                    import Module
+                """.trimIndent(), null),
             )
         }
 

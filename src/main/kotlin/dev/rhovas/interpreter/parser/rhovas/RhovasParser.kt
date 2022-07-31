@@ -25,12 +25,33 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     private fun parseSource(): RhovasAst.Source {
+        val imports = mutableListOf<RhovasAst.Import>()
+        while (peek("import")) {
+            imports.add(parseImport())
+        }
         val statements = mutableListOf<RhovasAst.Statement>()
         while (tokens[0] != null) {
             statements.add(parseStatement())
         }
-        return RhovasAst.Source(statements).also {
-            it.context = if (statements.isNotEmpty()) listOf(statements[0].context.first(), tokens[-1]!!.range) else listOf()
+        return RhovasAst.Source(imports, statements).also {
+            it.context = when {
+                imports.isNotEmpty() -> listOf(imports[0].context.first(), tokens[-1]!!.range)
+                statements.isNotEmpty() -> listOf(statements[0].context.first(), tokens[-1]!!.range)
+                else -> listOf()
+            }
+        }
+    }
+
+    private fun parseImport(): RhovasAst.Import {
+        require(match("import"))
+        context.addLast(tokens[-1]!!.range)
+        val path = mutableListOf<String>()
+        do {
+            path.add(parseIdentifier { "An import requires a name, as in `import Module.Type;`." })
+        } while (match("."))
+        requireSemicolon { "An import must be followed by a semicolon, as in `import Module.Type;`." }
+        return RhovasAst.Import(path).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
 

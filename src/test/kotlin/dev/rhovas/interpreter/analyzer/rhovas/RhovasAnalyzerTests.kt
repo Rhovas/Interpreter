@@ -34,27 +34,82 @@ class RhovasAnalyzerTests {
     @Nested
     inner class SourceTests {
 
+        val MODULE = Type.Base("Module", listOf(), listOf(), Scope(null).also {
+            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope(null)).reference, "Type")
+        }).reference
+
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testSource(name: String, input: String, expected: (() -> RhovasIr.Source?)?) {
-            test("source", input, expected?.invoke())
+            test("source", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                it.types.define(MODULE)
+            })
         }
 
         fun testSource(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of("Empty", "", {
-                    RhovasIr.Source(listOf())
+                Arguments.of("Empty", """
+                    
+                """.trimIndent(), {
+                    RhovasIr.Source(listOf(), listOf())
                 }),
-                Arguments.of("Single", """
+                Arguments.of("Single Statement", """
                     stmt();
                 """.trimIndent(), {
-                    RhovasIr.Source(listOf(stmt()))
+                    RhovasIr.Source(listOf(), listOf(stmt()))
                 }),
-                Arguments.of("Multiple", """
+                Arguments.of("Multiple Statements", """
                     stmt(1); stmt(2); stmt(3);
                 """.trimIndent(), {
-                    RhovasIr.Source(listOf(stmt(1), stmt(2), stmt(3)))
+                    RhovasIr.Source(listOf(), listOf(stmt(1), stmt(2), stmt(3)))
                 }),
+            )
+        }
+
+    }
+
+    @Nested
+    inner class ImportTests {
+
+        val MODULE = Type.Base("Module", listOf(), listOf(), Scope(null).also {
+            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope(null)).reference, "Type")
+        }).reference
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testImport(name: String, input: String, expected: (() -> RhovasIr.Source?)?) {
+            test("source", input, expected?.invoke(), Scope(Library.SCOPE))
+        }
+
+        fun testImport(): Stream<Arguments> {
+            Library.TYPES.define(MODULE)
+            Library.TYPES.define(MODULE.base.scope.types["Type"]!!)
+            return Stream.of(
+                Arguments.of("Import Module", """
+                    import Module;
+                    val name: Module;
+                """.trimIndent(), {
+                    RhovasIr.Source(
+                        listOf(RhovasIr.Import(type("Module"))),
+                        listOf(RhovasIr.Statement.Declaration(variable("name", type("Module")).variable, null))
+                    )
+                }),
+                Arguments.of("Import Submodule", """
+                    import Module.Type;
+                    val name: Module.Type;
+                """.trimIndent(), {
+                    RhovasIr.Source(
+                        listOf(RhovasIr.Import(type("Module.Type"))),
+                        listOf(RhovasIr.Statement.Declaration(variable("name", type("Module.Type")).variable, null))
+                    )
+                }),
+                Arguments.of("Undefined Import", """
+                    import Undefined;
+                """.trimIndent(), null),
+                Arguments.of("Redefined Type", """
+                    import Module;
+                    import Module;
+                """.trimIndent(), null),
             )
         }
 
@@ -79,7 +134,7 @@ class RhovasAnalyzerTests {
                         val instance: Name;
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
-                        RhovasIr.Source(listOf(
+                        RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
                         ))
@@ -90,7 +145,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
                         val constructor = Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type, listOf())
-                        RhovasIr.Source(listOf(
+                        RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(
                                 variable("instance", type).variable,
@@ -105,7 +160,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
                         type.base.scope.functions.define(Function.Definition("field", listOf(), listOf("instance" to type), type("Integer"), listOf()))
-                        RhovasIr.Source(listOf(
+                        RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
                                 RhovasIr.Statement.Declaration(variable("field", type("Integer")).variable, null)
                             ))),
@@ -396,7 +451,7 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testDeclaration(name: String, input: String, expected: (() -> RhovasIr.Statement.Declaration?)?) {
                 val expected = expected?.invoke()?.let {
-                    RhovasIr.Source(listOf(
+                    RhovasIr.Source(listOf(), listOf(
                         it,
                         stmt(RhovasIr.Expression.Access.Variable(it.variable)),
                     ))
@@ -465,7 +520,7 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testVariable(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Variable?)?) {
                 val expected = expected?.invoke()?.let {
-                    RhovasIr.Source(listOf(
+                    RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Declaration(it.variable, null),
                         it,
                     ))
