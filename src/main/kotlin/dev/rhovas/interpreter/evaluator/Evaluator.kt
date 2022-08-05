@@ -2,14 +2,13 @@ package dev.rhovas.interpreter.evaluator
 
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.*
+import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.function.Predicate
 
-class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
+class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> {
 
     private var label: String? = null
     private lateinit var patternState: PatternState
@@ -30,7 +29,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope
         //TODO: Hack to access unwrapped function definition
-        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single() as dev.rhovas.interpreter.environment.Function.Definition
+        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single()
         constructor.implementation = { arguments ->
             scoped(current) {
                 Object(ir.type, ir.fields.associate {
@@ -46,7 +45,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Statement.Block): Object {
-        scoped(Scope(scope)) {
+        scoped(Scope.Definition(scope)) {
             ir.statements.forEach { visit(it) }
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -64,12 +63,16 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     override fun visit(ir: RhovasIr.Statement.Function): Object {
         val current = scope
-        ir.function.implementation = { arguments ->
+        val definition = when (ir.function) {
+            is Function.Definition -> ir.function
+            is Function.Declaration -> Function.Definition(ir.function)
+        }
+        definition.implementation = { arguments ->
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
-                    //TODO: Variable.Parameter class?
-                    val parameter = Variable.Local(ir.function.parameters[i].first, ir.function.parameters[i].second, false)
-                    scope.variables.define(Variable.Local.Runtime(parameter, arguments[i]))
+                    val parameter = Variable.Definition(Variable.Declaration(ir.function.parameters[i].first, ir.function.parameters[i].second, false))
+                    parameter.value = arguments[i]
+                    scope.variables.define(parameter)
                 }
                 try {
                     visit(ir.body)
@@ -86,18 +89,22 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 }
             }
         }
-        scope.functions.define(ir.function)
+        scope.functions.define(definition)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration): Object {
-        val value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        scope.variables.define(Variable.Local.Runtime(ir.variable, value))
+        val definition = when (ir.variable) {
+            is Variable.Definition -> ir.variable
+            is Variable.Declaration -> Variable.Definition(ir.variable)
+        }
+        definition.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        scope.variables.define(definition)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
-        val variable = scope.variables[ir.variable.name]!! as Variable.Local.Runtime
+        val variable = scope.variables[ir.variable.name]!!
         require(variable.mutable) { error(
             ir,
             "Unassignable variable.",
@@ -110,7 +117,6 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     override fun visit(ir: RhovasIr.Statement.Assignment.Property): Object {
         val receiver = visit(ir.receiver)
         val value = visit(ir.value)
-        //TODO: Specification for checking properties (should getter be enforced?)
         val property = receiver[ir.property] ?: throw error(
             ir,
             "Undefined property.",
@@ -147,7 +153,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -179,14 +185,14 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     override fun visit(ir: RhovasIr.Statement.Match.Structural): Object {
         val argument = visit(ir.argument)
         val predicate = Predicate<RhovasIr.Pattern> {
-            patternState = PatternState(Scope(this.scope), argument)
+            patternState = PatternState(Scope.Definition(this.scope), argument)
             scoped(patternState.scope) {
                 visit(it).value as Boolean
             }
         }
         val case = ir.cases.firstOrNull { predicate.test(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Local("_", argument.type, false)))) { error(
+                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type, false)))) { error(
                     ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
@@ -209,10 +215,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         this.label = null
         for (element in iterable.value as List<Object>) {
             try {
-                scoped(Scope(scope)) {
+                scoped(Scope.Definition(scope)) {
                     //TODO: Generic types
-                    val variable = Variable.Local(ir.name, Library.TYPES["Any"]!!, false)
-                    scope.variables.define(Variable.Local.Runtime(variable, element))
+                    val variable = Variable.Definition(Variable.Declaration(ir.name, Library.TYPES["Any"]!!, false))
+                    variable.value = element
+                    scope.variables.define(variable)
                     visit(ir.body)
                 }
             } catch (e: Break) {
@@ -237,7 +244,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             val condition = visit(ir.condition)
             if (condition.value as Boolean) {
                 try {
-                    scoped(Scope(scope)) {
+                    scoped(Scope.Definition(scope)) {
                         visit(ir.body)
                     }
                 } catch (e: Break) {
@@ -265,8 +272,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             val catch = ir.catches.firstOrNull { e.exception.type.isSubtypeOf(it.type) }
             //TODO: Nested exceptions
             if (catch != null) {
-                scoped(Scope(scope)) {
-                    scope.variables.define(Variable.Local.Runtime(Variable.Local(catch.name, catch.type, false), e.exception))
+                scoped(Scope.Definition(scope)) {
+                    val variable = Variable.Definition(Variable.Declaration(catch.name, catch.type, false))
+                    variable.value = e.exception
+                    scope.variables.define(variable)
                     visit(catch.body)
                 }
             } else {
@@ -450,7 +459,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Variable): Object {
-        val variable = scope.variables[ir.variable.name] as Variable.Local.Runtime
+        val variable = scope.variables[ir.variable.name]!!
         return variable.value
     }
 
@@ -491,6 +500,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
+        val function = scope.functions[ir.function.name, ir.function.parameters.map { it.second }]!!
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].second)) { error(
@@ -500,7 +510,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
             ) }
         }
         return trace("Source.${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
-            ir.function.invoke(arguments)
+            function.invoke(arguments)
         }
     }
 
@@ -530,6 +540,10 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Pipeline): Object {
+        val function = when (ir.function) {
+            is Function.Definition -> ir.function
+            is Function.Declaration -> scope.functions[ir.function.name, ir.function.parameters.map { it.second }]!!
+        }
         val receiver = visit(ir.receiver)
         return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
             Object(Library.TYPES["Null"]!!, null)
@@ -544,7 +558,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 ) }
             }
             val result = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
-                ir.function.invoke(arguments)
+                function.invoke(arguments)
             }
             return if (ir.cascade) receiver else result
         }
@@ -571,7 +585,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
-        ir.variable?.let { patternState.scope.variables.define(Variable.Local.Runtime(it, patternState.value)) }
+        ir.variable?.let {
+            val variable = Variable.Definition(it)
+            variable.value = patternState.value
+            patternState.scope.variables.define(variable)
+        }
         return Object(Library.TYPES["Boolean"]!!, true)
     }
 
@@ -641,8 +659,9 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 map[key] ?: return Object(Library.TYPES["Boolean"]!!, false)
             }
             if (key != null) {
-                val variable = Variable.Local(key, value.type, false)
-                patternState.scope.variables.define(Variable.Local.Runtime(variable, value))
+                val variable = Variable.Definition(Variable.Declaration(key, value.type, false))
+                variable.value = value
+                patternState.scope.variables.define(variable)
             }
             patternState = patternState.copy(value = value)
             if (!(visit(pattern).value as Boolean)) {
@@ -669,7 +688,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { scope.variables.define(Variable.Local.Runtime(it, Object(Library.TYPES["List"]!!, list))) }
+                ir.pattern.variable?.let {
+                    val variable = Variable.Definition(it)
+                    variable.value = Object(Library.TYPES["List"]!!, list)
+                    scope.variables.define(variable)
+                }
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
@@ -684,7 +707,11 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
                 return Object(Library.TYPES["Boolean"]!!, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { scope.variables.define(Variable.Local.Runtime(it, Object(Library.TYPES["Object"]!!, map))) }
+                ir.pattern.variable?.let {
+                    val variable = Variable.Definition(it)
+                    variable.value = Object(Library.TYPES["Object"]!!, map)
+                    scope.variables.define(variable)
+                }
                 Object(Library.TYPES["Boolean"]!!, true)
             } else {
                 //TODO: Handle variable bindings
@@ -703,7 +730,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
         return Object(Library.TYPES["Type"]!!, ir.type)
     }
 
-    private fun <T> scoped(scope: Scope, block: () -> T): T {
+    private fun <T> scoped(scope: Scope.Definition, block: () -> T): T {
         val original = this.scope
         this.scope = scope
         try {
@@ -762,32 +789,32 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
 
     data class Lambda(
         val ast: RhovasIr.Expression.Lambda,
-        val scope: Scope,
+        val scope: Scope.Definition,
         val evaluator: Evaluator,
     ) {
 
         fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
             //TODO: Lambda identification information for errors
             //TODO: Expected count depends on lambda invocation context (direct vs indirect)
-            return evaluator.scoped(Scope(scope)) {
+            return evaluator.scoped(Scope.Definition(scope)) {
                 if (ast.parameters.isNotEmpty()) {
                     val parameters = ast.parameters.map {
                         Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
                     }
                     for (i in parameters.indices) {
-                        val variable = Variable.Local(parameters[i].first, parameters[i].second, false)
+                        val variable = Variable.Definition(Variable.Declaration(parameters[i].first, parameters[i].second, false))
                         val value = arguments[i].third
                         evaluator.scope.variables.define(variable)
                     }
                 } else if (arguments.size == 1) {
                     //TODO: entry name is (intentionally) unused
-                    val variable = Variable.Local("val", arguments[0].second, false)
-                    val value = arguments[0].third
-                    evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
+                    val variable = Variable.Definition(Variable.Declaration("val", arguments[0].second, false))
+                    variable.value = arguments[0].third
+                    evaluator.scope.variables.define(variable)
                 } else {
-                    val variable = Variable.Local("val", Library.TYPES["Object"]!!, false)
-                    val value = Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })
-                    evaluator.scope.variables.define(Variable.Local.Runtime(variable, value))
+                    val variable = Variable.Definition(Variable.Declaration("val", Library.TYPES["Object"]!!, false) )
+                    variable.value = Object(Library.TYPES["Object"]!!, arguments.associate { it.first to it.third })
+                    evaluator.scope.variables.define(variable)
                 }
                 try {
                     evaluator.visit(ast.body)
@@ -801,7 +828,7 @@ class Evaluator(private var scope: Scope) : RhovasIr.Visitor<Object> {
     }
 
     data class PatternState(
-        val scope: Scope,
+        val scope: Scope.Definition,
         val value: Object,
     )
 

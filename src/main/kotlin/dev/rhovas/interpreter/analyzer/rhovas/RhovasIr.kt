@@ -41,31 +41,31 @@ sealed class RhovasIr {
         ) : Statement()
 
         data class Function(
-            val function: dev.rhovas.interpreter.environment.Function.Definition,
+            val function: dev.rhovas.interpreter.environment.Function,
             val body: Block,
         ) : Statement()
 
         data class Declaration(
-            val variable: dev.rhovas.interpreter.environment.Variable.Local,
+            val variable: dev.rhovas.interpreter.environment.Variable,
             val value: RhovasIr.Expression?,
         ) : Statement()
 
         sealed class Assignment: Statement() {
 
             data class Variable(
-                val variable: dev.rhovas.interpreter.environment.Variable.Local,
+                val variable: dev.rhovas.interpreter.environment.Variable,
                 val value: RhovasIr.Expression,
             ) : Assignment()
 
             data class Property(
                 val receiver: RhovasIr.Expression,
-                val property: dev.rhovas.interpreter.environment.Variable.Property,
+                val property: dev.rhovas.interpreter.environment.Property,
                 val value: RhovasIr.Expression,
             ) : Assignment()
 
             data class Index(
                 val receiver: RhovasIr.Expression,
-                val method: dev.rhovas.interpreter.environment.Function.Method,
+                val method: dev.rhovas.interpreter.environment.Method,
                 val arguments: List<RhovasIr.Expression>,
                 val value: RhovasIr.Expression,
             ) : Assignment()
@@ -200,14 +200,14 @@ sealed class RhovasIr {
         data class Unary(
             val operator: String,
             val expression: Expression,
-            val method: dev.rhovas.interpreter.environment.Function.Method,
+            val method: dev.rhovas.interpreter.environment.Method,
         ): Expression(method.returns)
 
         data class Binary(
             val operator: String,
             val left: Expression,
             val right: Expression,
-            val method: dev.rhovas.interpreter.environment.Function.Method?,
+            val method: dev.rhovas.interpreter.environment.Method?,
             override val type: dev.rhovas.interpreter.environment.Type,
         ): Expression(type)
 
@@ -216,19 +216,19 @@ sealed class RhovasIr {
         ) : Expression(type) {
 
             data class Variable(
-                val variable: dev.rhovas.interpreter.environment.Variable.Local,
+                val variable: dev.rhovas.interpreter.environment.Variable,
             ) : Access(variable.type)
 
             data class Property(
                 val receiver: Expression,
-                val property: dev.rhovas.interpreter.environment.Variable.Property,
+                val property: dev.rhovas.interpreter.environment.Property,
                 val coalesce: Boolean,
                 override val type: dev.rhovas.interpreter.environment.Type,
             ) : Access(type)
 
             data class Index(
                 val receiver: Expression,
-                val method: dev.rhovas.interpreter.environment.Function.Method,
+                val method: dev.rhovas.interpreter.environment.Method,
                 val arguments: List<Expression>,
             ) : Access(method.returns)
 
@@ -239,13 +239,13 @@ sealed class RhovasIr {
         ) : Expression(type) {
 
             data class Function(
-                val function: dev.rhovas.interpreter.environment.Function.Definition,
+                val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
             ) : Invoke(function.returns)
 
             data class Method(
                 val receiver: Expression,
-                val method: dev.rhovas.interpreter.environment.Function.Method,
+                val method: dev.rhovas.interpreter.environment.Method,
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
@@ -255,7 +255,7 @@ sealed class RhovasIr {
             data class Pipeline(
                 val receiver: Expression,
                 //TODO: Track function namespace (access) for generator
-                val function: dev.rhovas.interpreter.environment.Function.Definition,
+                val function: dev.rhovas.interpreter.environment.Function,
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
@@ -293,7 +293,7 @@ sealed class RhovasIr {
     ) : RhovasIr() {
 
         data class Variable(
-            val variable: dev.rhovas.interpreter.environment.Variable.Local?,
+            val variable: dev.rhovas.interpreter.environment.Variable.Declaration?,
         ) : Pattern(variable?.type ?: Library.TYPES["Void"]!!)
 
         data class Value(

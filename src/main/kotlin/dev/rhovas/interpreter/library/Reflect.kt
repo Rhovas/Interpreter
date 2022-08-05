@@ -39,12 +39,12 @@ object Reflect {
             parameters: Array<Type>,
             returns: Type
         ): dev.rhovas.interpreter.environment.Function.Definition {
-            val function = dev.rhovas.interpreter.environment.Function.Definition(name,
+            val function = dev.rhovas.interpreter.environment.Function.Definition(dev.rhovas.interpreter.environment.Function.Declaration(name,
                 generics.values.toList(),
                 parameters.withIndex().map { Pair("val_${it.index}", resolve(it.value, generics)) },
                 resolve(returns, generics),
                 listOf(), //TODO: Throws
-            )
+            ))
             function.implementation = { arguments ->
                 val transformed = parameters.indices.map {
                     if (method.parameters[it].type == Object::class.java) {
@@ -85,7 +85,7 @@ object Reflect {
                 val function = function(method, annotation.value, arrayOf(type) + annotation.parameters, annotation.returns)
                 initializer.type.scope.functions.define(function)
                 if (annotation.operator.isNotEmpty()) {
-                    val overload = function.copy(name = annotation.operator)
+                    val overload = dev.rhovas.interpreter.environment.Function.Definition(function.declaration.copy(name = annotation.operator))
                     overload.implementation = function.implementation
                     initializer.type.scope.functions.define(overload)
                 }

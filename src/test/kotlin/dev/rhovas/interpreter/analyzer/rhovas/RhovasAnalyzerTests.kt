@@ -22,28 +22,28 @@ import java.util.stream.Stream
 
 class RhovasAnalyzerTests {
 
-    lateinit var STMT_0: Function.Definition
-    lateinit var STMT_1: Function.Definition
+    lateinit var STMT_0: Function.Declaration
+    lateinit var STMT_1: Function.Declaration
 
     @BeforeAll
     fun beforeAll() {
-        STMT_0 = Function.Definition("stmt", listOf(), listOf(), type("Void"), listOf())
-        STMT_1 = Function.Definition("stmt", listOf(), listOf("position" to type("Integer")), type("Void"), listOf())
+        STMT_0 = Function.Declaration("stmt", listOf(), listOf(), type("Void"), listOf())
+        STMT_1 = Function.Declaration("stmt", listOf(), listOf("position" to type("Integer")), type("Void"), listOf())
     }
 
     @Nested
     inner class SourceTests {
 
-        val MODULE = Type.Base("Module", listOf(), listOf(), Scope(null).also {
-            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope(null)).reference, "Type")
+        val MODULE = Type.Base("Module", listOf(), listOf(), Scope.Definition(null).also {
+            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope.Definition(null)).reference, "Type")
         }).reference
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testSource(name: String, input: String, expected: (() -> RhovasIr.Source?)?) {
-            test("source", input, expected?.invoke(), Scope(Library.SCOPE).also {
+            test("source", input, expected?.invoke()) {
                 it.types.define(MODULE)
-            })
+            }
         }
 
         fun testSource(): Stream<Arguments> {
@@ -71,14 +71,14 @@ class RhovasAnalyzerTests {
     @Nested
     inner class ImportTests {
 
-        val MODULE = Type.Base("Module", listOf(), listOf(), Scope(null).also {
-            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope(null)).reference, "Type")
+        val MODULE = Type.Base("Module", listOf(), listOf(), Scope.Definition(null).also {
+            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope.Definition(null)).reference, "Type")
         }).reference
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testImport(name: String, input: String, expected: (() -> RhovasIr.Source?)?) {
-            test("source", input, expected?.invoke(), Scope(Library.SCOPE))
+            test("source", input, expected?.invoke())
         }
 
         fun testImport(): Stream<Arguments> {
@@ -133,7 +133,7 @@ class RhovasAnalyzerTests {
                         struct Name {}
                         val instance: Name;
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
@@ -143,8 +143,8 @@ class RhovasAnalyzerTests {
                         struct Name {}
                         val instance = Name({});
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
-                        val constructor = Function.Definition("Name", listOf(), listOf("fields" to type("Object")), type, listOf())
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
+                        val constructor = Function.Definition(Function.Declaration("Name", listOf(), listOf("fields" to type("Object")), type, listOf()))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(
@@ -158,15 +158,15 @@ class RhovasAnalyzerTests {
                         val instance: Name;
                         print(instance.field);
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
-                        type.base.scope.functions.define(Function.Definition("field", listOf(), listOf("instance" to type), type("Integer"), listOf()))
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
+                        type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf("instance" to type), type("Integer"), listOf())))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
                                 RhovasIr.Statement.Declaration(variable("field", type("Integer")).variable, null)
                             ))),
                             RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
                             RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
-                                Library.SCOPE.functions["print", listOf(type("Any"))]!! as Function.Definition,
+                                Library.SCOPE.functions["print", listOf(type("Any"))]!!,
                                 listOf(RhovasIr.Expression.Access.Property(variable("instance", type), type.properties["field"]!!, false, type("Integer")))
                             ))
                         ))
@@ -229,7 +229,7 @@ class RhovasAnalyzerTests {
                     Arguments.of("Struct", """
                         struct Name {}
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference
+                        val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf()))
                     }),
                 )
@@ -269,11 +269,11 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Statement.Function?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
-                    it.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope(Library.SCOPE)).reference)
-                    it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
-                    it.functions.define(Function.Definition("fail", listOf(), listOf("message" to type("String")), type("Void"), listOf(type("Exception"))))
-                })
+                test("statement", input, expected?.invoke()) {
+                    it.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(Library.SCOPE)).reference)
+                    it.functions.define(Function.Declaration("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
+                    it.functions.define(Function.Declaration("fail", listOf(), listOf("message" to type("String")), type("Void"), listOf(type("Exception"))))
+                }
             }
 
             fun testFunction(): Stream<Arguments> {
@@ -283,7 +283,7 @@ class RhovasAnalyzerTests {
                             name();
                         }
                     """.trimIndent(), {
-                        val func = Function.Definition("name", listOf(), listOf(), type("Void"), listOf())
+                        val func = Function.Declaration("name", listOf(), listOf(), type("Void"), listOf())
                         RhovasIr.Statement.Function(
                             func,
                             block(RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(func, listOf()))),
@@ -295,7 +295,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf("parameter" to type("Integer")), type("Void"), listOf()),
+                            Function.Declaration("name", listOf(), listOf("parameter" to type("Integer")), type("Void"), listOf()),
                             block(stmt(variable("parameter", type("Integer")))),
                         )
                     }),
@@ -305,7 +305,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf(), type("Integer"), listOf()),
+                            Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
                         )
                     }),
@@ -319,7 +319,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf(), type("Integer"), listOf()),
+                            Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.If(
                                 literal(true),
                                 block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
@@ -336,7 +336,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf(), type("Integer"), listOf()),
+                            Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Match.Conditional(
                                 listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger("1")))),
                                 null to RhovasIr.Statement.Return(literal(BigInteger("2"))),
@@ -351,7 +351,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf(), type("Integer"), listOf()),
+                            Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Match.Structural(
                                 literal(true),
                                 listOf(RhovasIr.Pattern.Value(literal(true)) to RhovasIr.Statement.Return(literal(BigInteger("1")))),
@@ -365,9 +365,9 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("name", listOf(), listOf(), type("Void"), listOf(type("Exception"))),
+                            Function.Declaration("name", listOf(), listOf(), type("Void"), listOf(type("Exception"))),
                             block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Function(
-                                Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()),
+                                Function.Declaration("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()),
                                 listOf(literal("message")),
                             ))),
                         )
@@ -379,7 +379,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         val listT = Type.Reference(type("List").base, listOf(Type.Generic("T", type("Any"))))
                         RhovasIr.Statement.Function(
-                            Function.Definition("first",
+                            Function.Declaration("first",
                                 listOf(Type.Generic("T", type("Any"))),
                                 listOf("list" to listT),
                                 Type.Generic("T", type("Any")),
@@ -456,9 +456,9 @@ class RhovasAnalyzerTests {
                         stmt(RhovasIr.Expression.Access.Variable(it.variable)),
                     ))
                 }
-                test("source", input, expected, Scope(Library.SCOPE).also {
+                test("source", input, expected) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testDeclaration(): Stream<Arguments> {
@@ -468,7 +468,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", type("Integer"), false),
+                            Variable.Declaration("name", type("Integer"), false),
                             null,
                         )
                     }),
@@ -477,7 +477,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", type("Integer"), true),
+                            Variable.Declaration("name", type("Integer"), true),
                             null,
                         )
                     }),
@@ -486,7 +486,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", type("Integer"), false),
+                            Variable.Declaration("name", type("Integer"), false),
                             literal(BigInteger("1")),
                         )
                     }),
@@ -495,7 +495,7 @@ class RhovasAnalyzerTests {
                         stmt(name);
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
-                            Variable.Local("name", type("Dynamic"), false),
+                            Variable.Declaration("name", type("Dynamic"), false),
                             literal(BigInteger("1")),
                         )
                     }),
@@ -525,9 +525,9 @@ class RhovasAnalyzerTests {
                         it,
                     ))
                 }
-                test("source", input, expected, Scope(Library.SCOPE).also {
+                test("source", input, expected) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testVariable(): Stream<Arguments> {
@@ -538,7 +538,7 @@ class RhovasAnalyzerTests {
                         variable = 1;
                     """.trimIndent(), {
                         RhovasIr.Statement.Assignment.Variable(
-                            Variable.Local("variable", type("Integer"), true),
+                            Variable.Declaration("variable", type("Integer"), true),
                             literal(BigInteger("1")),
                         )
                     }),
@@ -547,7 +547,7 @@ class RhovasAnalyzerTests {
                         variable = 1;
                     """.trimIndent(), {
                         RhovasIr.Statement.Assignment.Variable(
-                            Variable.Local("variable", type("Dynamic"), true),
+                            Variable.Declaration("variable", type("Dynamic"), true),
                             literal(BigInteger("1")),
                         )
                     }),
@@ -569,20 +569,20 @@ class RhovasAnalyzerTests {
                 )
             }
 
-            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(type("Any")), Scope(Library.SCOPE).also {
-                it.functions.define(Function.Definition("property", listOf(), listOf("instance" to type("Dynamic")), type("Integer"), listOf()))
-                it.functions.define(Function.Definition("property", listOf(), listOf("instance" to type("Dynamic"), "value" to type("Integer")), type("Void"), listOf()))
-                it.functions.define(Function.Definition("dynamic", listOf(), listOf("instance" to type("Dynamic")), type("Dynamic"), listOf()))
-                it.functions.define(Function.Definition("dynamic", listOf(), listOf("instance" to type("Dynamic"), "value" to type("Dynamic")), type("Void"), listOf()))
-                it.functions.define(Function.Definition("unassignable", listOf(), listOf("unassignable" to type("Dynamic")), type("Integer"), listOf()))
+            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(type("Any")), Scope.Definition(Library.SCOPE).also {
+                it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("instance" to type("Dynamic")), type("Integer"), listOf())))
+                it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("instance" to type("Dynamic"), "value" to type("Integer")), type("Void"), listOf())))
+                it.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf("instance" to type("Dynamic")), type("Dynamic"), listOf())))
+                it.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf("instance" to type("Dynamic"), "value" to type("Dynamic")), type("Void"), listOf())))
+                it.functions.define(Function.Definition(Function.Declaration("unassignable", listOf(), listOf("unassignable" to type("Dynamic")), type("Integer"), listOf())))
             }).reference
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Property?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("statement", input, expected?.invoke()) {
                     it.variables.define(variable("object", ObjectType).variable)
-                })
+                }
             }
 
             fun testProperty(): Stream<Arguments> {
@@ -627,10 +627,10 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIndex(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Index?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also { scope ->
-                    scope.variables.define(variable("list", IntegerList).variable)
-                    scope.variables.define(variable("dynamic", DynamicList).variable)
-                })
+                test("statement", input, expected?.invoke()) {
+                    it.variables.define(variable("list", IntegerList).variable)
+                    it.variables.define(variable("dynamic", DynamicList).variable)
+                }
             }
 
             fun testIndex(): Stream<Arguments> {
@@ -787,9 +787,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: (() -> RhovasIr.Statement.Try?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
-                    it.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
-                })
+                test("statement", input, expected?.invoke()) {
+                    it.functions.define(Function.Declaration("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()))
+                }
             }
 
             fun testTry(): Stream<Arguments> {
@@ -1051,7 +1051,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), listOf(), type("Void"), listOf()),
+                            Function.Declaration("test", listOf(), listOf(), type("Void"), listOf()),
                             block(RhovasIr.Statement.Return(null)),
                         )
                     }),
@@ -1061,7 +1061,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
-                            Function.Definition("test", listOf(), listOf(), type("Integer"), listOf()),
+                            Function.Declaration("test", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
                         )
                     }),
@@ -1611,9 +1611,9 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: (() -> RhovasIr.Expression.Access.Variable?)?) {
-                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    test("expression", input, expected?.invoke()) {
                         it.variables.define(variable("variable", type("Any")).variable)
-                    })
+                    }
                 }
 
                 fun testVariable(): Stream<Arguments> {
@@ -1621,7 +1621,7 @@ class RhovasAnalyzerTests {
                         Arguments.of("Variable", """
                             variable
                         """.trimIndent(), {
-                            RhovasIr.Expression.Access.Variable(Variable.Local("variable", type("Any"), false))
+                            RhovasIr.Expression.Access.Variable(Variable.Declaration("variable", type("Any"), false))
                         }),
                         Arguments.of("Undefined", """
                             undefined
@@ -1667,10 +1667,10 @@ class RhovasAnalyzerTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: (() -> RhovasIr.Expression.Access.Index?)?) {
-                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    test("expression", input, expected?.invoke()) {
                         it.variables.define(variable("list", type("List")).variable)
                         it.variables.define(variable("any", type("Any")).variable)
-                    })
+                    }
                 }
 
                 fun testIndex(): Stream<Arguments> {
@@ -1706,14 +1706,14 @@ class RhovasAnalyzerTests {
             @Nested
             inner class FunctionTests {
 
-                val FUNCTION = Function.Definition("function", listOf(), listOf("argument" to type("String")), type("Void"), listOf())
+                val FUNCTION = Function.Declaration("function", listOf(), listOf("argument" to type("String")), type("Void"), listOf())
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Function?)?) {
-                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    test("expression", input, expected?.invoke()) {
                         it.functions.define(FUNCTION)
-                    })
+                    }
                 }
 
                 fun testFunction(): Stream<Arguments> {
@@ -1738,14 +1738,14 @@ class RhovasAnalyzerTests {
             @Nested
             inner class MethodTests {
 
-                val NULLABLE = Function.Definition("Nullable", listOf(), listOf("value" to type("String")), type("Nullable", "String"), listOf())
+                val NULLABLE = Function.Declaration("Nullable", listOf(), listOf("value" to type("String")), type("Nullable", "String"), listOf())
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Method?)?) {
-                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    test("expression", input, expected?.invoke()) {
                         it.functions.define(NULLABLE)
-                    })
+                    }
                 }
 
                 fun testMethod(): Stream<Arguments> {
@@ -1803,15 +1803,15 @@ class RhovasAnalyzerTests {
             @Nested
             inner class PipelineTests {
 
-                val NULLABLE = Function.Definition("Nullable", listOf(), listOf("value" to type("Integer")), type("Nullable", "Integer"), listOf())
+                val NULLABLE = Function.Declaration("Nullable", listOf(), listOf("value" to type("Integer")), type("Nullable", "Integer"), listOf())
 
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Pipeline?)?) {
-                    test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                    test("expression", input, expected?.invoke()) {
                         it.functions.define(NULLABLE)
                         it.variables.define(variable("Kernel", type("Kernel")).variable)
-                    })
+                    }
                 }
 
                 fun testPipeline(): Stream<Arguments> {
@@ -1821,7 +1821,7 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
                                 literal(BigInteger("1")),
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 false,
                                 listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
@@ -1833,7 +1833,7 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
                                 literal(BigInteger("1")),
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 false,
                                 listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
@@ -1845,7 +1845,7 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
                                 RhovasIr.Expression.Invoke.Function(NULLABLE, listOf(literal(BigInteger("1")))),
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 true,
                                 false,
                                 listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
@@ -1857,7 +1857,7 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
                                 literal(BigInteger("1")),
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 true,
                                 listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
@@ -1888,11 +1888,11 @@ class RhovasAnalyzerTests {
             fun testLambda(name: String, input: String, expected: (() -> RhovasIr.Expression.Lambda?)?) {
                 val expected = expected?.invoke()?.let {
                     RhovasIr.Expression.Invoke.Function(
-                        Library.SCOPE.functions["lambda", listOf(type("Lambda"))]!! as Function.Definition,
+                        Library.SCOPE.functions["lambda", listOf(type("Lambda"))]!!,
                         listOf(it)
                     )
                 }
-                test("expression", input, expected, Library.SCOPE)
+                test("expression", input, expected)
             }
 
             fun testLambda(): Stream<Arguments> {
@@ -1925,7 +1925,7 @@ class RhovasAnalyzerTests {
         @Nested
         inner class DslTests {
 
-            val DSL = Function.Definition("dsl",
+            val DSL = Function.Definition(Function.Declaration("dsl",
                 listOf(),
                 listOf(
                     "literals" to type("List", "String"),
@@ -1933,14 +1933,14 @@ class RhovasAnalyzerTests {
                 ),
                 type("Dynamic"),
                 listOf(),
-            )
+            ))
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testDsl(name: String, input: String, expected: (() -> RhovasIr.Expression?)?) {
-                test("expression", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("expression", input, expected?.invoke()) {
                     it.functions.define(DSL)
-                })
+                }
             }
 
             fun testDsl(): Stream<Arguments> {
@@ -2005,7 +2005,7 @@ class RhovasAnalyzerTests {
                             literal(BigInteger("1")),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                RhovasIr.Pattern.Variable(Variable.Declaration("name", type("Integer"), false)),
                                 stmt(variable("name", type("Integer")))
                             )
                         )
@@ -2038,9 +2038,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testValue(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("statement", input, expected?.invoke()) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testValue(): Stream<Arguments> {
@@ -2128,7 +2128,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testPredicate(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE))
+                test("statement", input, expected?.invoke())
             }
 
             fun testPredicate(): Stream<Arguments> {
@@ -2165,7 +2165,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.Predicate(
-                                    RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                    RhovasIr.Pattern.Variable(Variable.Declaration("name", type("Integer"), false)),
                                     RhovasIr.Expression.Binary(">",
                                         variable("name", type("Integer")),
                                         literal(BigInteger("0")),
@@ -2220,9 +2220,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testOrderedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("statement", input, expected?.invoke()) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testOrderedDestructure(): Stream<Arguments> {
@@ -2234,13 +2234,13 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Invoke.Function(
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 listOf(literal(BigInteger("1")), literal(BigInteger("1")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.OrderedDestructure(
-                                    listOf(RhovasIr.Pattern.Variable(variable("elem", type("Integer")).variable)),
+                                    listOf(RhovasIr.Pattern.Variable(Variable.Declaration("elem", type("Integer"), false))),
                                     type("List", "Integer"),
                                 ),
                                 stmt(variable("elem", type("Integer"))),
@@ -2254,7 +2254,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Invoke.Function(
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
@@ -2278,7 +2278,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Invoke.Function(
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
@@ -2298,14 +2298,14 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Invoke.Function(
-                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!! as Function.Definition,
+                                Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.OrderedDestructure(
                                     listOf(RhovasIr.Pattern.VarargDestructure(
-                                        RhovasIr.Pattern.Variable(variable("elements", type("Integer")).variable),
+                                        RhovasIr.Pattern.Variable(Variable.Declaration("elements", type("Integer"), false)),
                                         "*",
                                         type("List", "Integer"),
                                     )),
@@ -2349,9 +2349,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testNamedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("statement", input, expected?.invoke()) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testNamedDestructure(): Stream<Arguments> {
@@ -2368,7 +2368,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("key" to RhovasIr.Pattern.Variable(variable("key", type("Dynamic")).variable)),
+                                    listOf("key" to RhovasIr.Pattern.Variable(Variable.Declaration("key", type("Dynamic"), false))),
                                     type("Object"),
                                 ),
                                 stmt(variable("key", type("Dynamic"))),
@@ -2408,9 +2408,9 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(listOf(
-                                    "x" to RhovasIr.Pattern.Variable(variable("x", type("Dynamic")).variable),
-                                    "y" to RhovasIr.Pattern.Variable(variable("y", type("Dynamic")).variable),
-                                    "z" to RhovasIr.Pattern.Variable(variable("z", type("Dynamic")).variable),
+                                    "x" to RhovasIr.Pattern.Variable(Variable.Declaration("x", type("Dynamic"), false)),
+                                    "y" to RhovasIr.Pattern.Variable(Variable.Declaration("y", type("Dynamic"), false)),
+                                    "z" to RhovasIr.Pattern.Variable(Variable.Declaration("z", type("Dynamic"), false)),
                                 ), type("Object")),
                                 stmt(),
                             ),
@@ -2448,7 +2448,7 @@ class RhovasAnalyzerTests {
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf(null to RhovasIr.Pattern.VarargDestructure(
-                                        RhovasIr.Pattern.Variable(variable("object", type("Dynamic")).variable),
+                                        RhovasIr.Pattern.Variable(Variable.Declaration("object", type("Dynamic"), false)),
                                         "*",
                                         type("Object"),
                                     )),
@@ -2497,9 +2497,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTypedDestructure(name: String, input: String, expected: (() -> RhovasIr.Statement.Match?)?) {
-                test("statement", input, expected?.invoke(), Scope(Library.SCOPE).also {
+                test("statement", input, expected?.invoke()) {
                     it.variables.define(variable("any", type("Any")).variable)
-                })
+                }
             }
 
             fun testTypedDestructure(): Stream<Arguments> {
@@ -2529,7 +2529,7 @@ class RhovasAnalyzerTests {
                             Pair(
                                 RhovasIr.Pattern.TypedDestructure(
                                     type("Integer"),
-                                    RhovasIr.Pattern.Variable(variable("name", type("Integer")).variable),
+                                    RhovasIr.Pattern.Variable(Variable.Declaration("name", type("Integer"), false)),
                                 ),
                                 stmt(variable("name", type("Integer"))),
                             ),
@@ -2567,9 +2567,9 @@ class RhovasAnalyzerTests {
         @ParameterizedTest(name = "{0}")
         @MethodSource
         fun testType(name: String, input: String, expected: (() -> RhovasIr.Type?)?) {
-            test("type", input, expected?.invoke(), Scope(Library.SCOPE).also {
+            test("type", input, expected?.invoke()) {
                 it.types.define(Type.Generic("T", type("Any")), "T")
-            })
+            }
         }
 
         fun testType(): Stream<Arguments> {
@@ -2620,17 +2620,20 @@ class RhovasAnalyzerTests {
     }
 
     private fun variable(name: String, type: Type): RhovasIr.Expression.Access.Variable {
-        return RhovasIr.Expression.Access.Variable(Variable.Local(name, type, false))
+        return RhovasIr.Expression.Access.Variable(Variable.Declaration(name, type, false))
     }
 
     private fun type(name: String, vararg generics: String): Type {
         return Type.Reference(Library.TYPES[name]!!.base, generics.map { Library.TYPES[it]!! })
     }
 
-    private fun test(rule: String, input: String, expected: RhovasIr?, scope: Scope = Scope(Library.SCOPE)) {
-        scope.functions.define(STMT_0)
-        scope.functions.define(STMT_1)
+    private fun test(rule: String, input: String, expected: RhovasIr?, scope: (Scope.Declaration) -> Unit = {}) {
         val input = Input("Test", input)
+        val scope = Scope.Declaration(Library.SCOPE).also {
+            scope.invoke(it)
+            it.functions.define(STMT_0)
+            it.functions.define(STMT_1)
+        }
         try {
             val ast = RhovasParser(input).parse(rule)
             val ir = RhovasAnalyzer(scope).visit(ast)

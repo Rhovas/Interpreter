@@ -5,12 +5,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object Library {
 
-    val SCOPE = Scope(null)
+    val SCOPE = Scope.Definition(null)
     val TYPES get() = SCOPE.types
 
     init {
-        TYPES.define(Type.Base("Type", listOf(), listOf(), Scope(null)).reference)
-        TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope(null)).reference)
+        TYPES.define(Type.Base("Type", listOf(), listOf(), Scope.Definition(null)).reference)
+        TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference)
         val initializers = listOf(
             AnyInitializer,
             KernelInitializer,
@@ -43,7 +43,7 @@ object Library {
 
         val generics = mutableListOf<Type.Generic>()
         val inherits = mutableListOf<Type>()
-        val scope = Scope(null)
+        val scope = Scope.Definition(null)
         val type = Type.Base(name, generics, inherits, scope)
 
         abstract fun initialize()

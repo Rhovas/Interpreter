@@ -1,21 +1,19 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.analyzer.Analyzer
+import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigDecimal
 import java.math.BigInteger
 
-class RhovasAnalyzer(scope: Scope) :
+class RhovasAnalyzer(scope: Scope<*, *>) :
     Analyzer(Context(listOf(
         InputContext(ArrayDeque()),
-        ScopeContext(scope),
+        //TODO: Scope.Definition support
+        ScopeContext(Scope.Declaration(scope)),
         FunctionContext(null),
         LabelContext(mutableSetOf()),
         JumpContext(mutableSetOf()),
@@ -34,26 +32,26 @@ class RhovasAnalyzer(scope: Scope) :
     private val Context.pattern get() = this[PatternContext::class.java]
 
     data class ScopeContext(
-        val scope: Scope,
-    ) : Context.Item<Scope>(scope) {
+        val scope: Scope<Variable, Function>,
+    ) : Context.Item<Scope<Variable, Function>>(scope) {
 
         override fun child(): ScopeContext {
-            return ScopeContext(Scope(scope))
+            return ScopeContext(Scope.Declaration(scope))
         }
 
-        override fun merge(children: List<Scope>) {}
+        override fun merge(children: List<Scope<Variable, Function>>) {}
 
     }
 
     data class FunctionContext(
-        val function: Function.Definition?
-    ) : Context.Item<Function.Definition?>(function) {
+        val function: Function?
+    ) : Context.Item<Function?>(function) {
 
         override fun child(): FunctionContext {
             return this
         }
 
-        override fun merge(children: List<Function.Definition?>) {}
+        override fun merge(children: List<Function?>) {}
 
     }
 
@@ -217,10 +215,10 @@ class RhovasAnalyzer(scope: Scope) :
             val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!) }
             val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
             val throws = ast.throws.map { visit(it).type }
-            val function = Function.Definition(ast.name, generics, parameters, returns, throws)
+            val function = Function.Declaration(ast.name, generics, parameters, returns, throws)
             parent.scope.functions.define(function)
             analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
-                parameters.forEach { context.scope.variables.define(Variable.Local(it.first, it.second, false)) }
+                parameters.forEach { context.scope.variables.define(Variable.Declaration(it.first, it.second, false)) }
                 val body = visit(ast.body) as RhovasIr.Statement.Block
                 require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
                     ast,
@@ -249,7 +247,7 @@ class RhovasAnalyzer(scope: Scope) :
         ) }
         val type = ast.type?.let { visit(it) }
         val value = ast.value?.let { visit(it) }
-        val variable = Variable.Local(ast.name, type?.type ?: value!!.type, ast.mutable)
+        val variable = Variable.Declaration(ast.name, type?.type ?: value!!.type, ast.mutable)
         require(value == null || value.type.isSubtypeOf(variable.type)) { error(
             ast,
             "Invalid value type.",
@@ -395,7 +393,7 @@ class RhovasAnalyzer(scope: Scope) :
                 it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = visit(it.first)
                 context.pattern.bindings.forEach {
-                    context.scope.variables.define(Variable.Local(it.key, it.value, false))
+                    context.scope.variables.define(Variable.Declaration(it.key, it.value, false))
                 }
                 val statement = visit(it.second)
                 it.first.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -407,7 +405,7 @@ class RhovasAnalyzer(scope: Scope) :
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = it.first?.let { visit(it) }
                 context.pattern.bindings.forEach {
-                    context.scope.variables.define(Variable.Local(it.key, it.value, false))
+                    context.scope.variables.define(Variable.Declaration(it.key, it.value, false))
                 }
                 val statement = visit(it.second)
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -434,7 +432,7 @@ class RhovasAnalyzer(scope: Scope) :
         val type = argument.type.methods["get", listOf(Library.TYPES["Integer"]!!)]!!.returns
         return analyze {
             //TODO: Generic types
-            context.scope.variables.define(Variable.Local(ast.name, type, false))
+            context.scope.variables.define(Variable.Declaration(ast.name, type, false))
             context.labels.add(null)
             val body = visit(ast.body)
             //TODO: Validate jump context
@@ -485,7 +483,7 @@ class RhovasAnalyzer(scope: Scope) :
             it.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val type = visit(it.type).type //validated as subtype of Exception above
             analyze(context.child()) {
-                context.scope.variables.define(Variable.Local(it.name, type, false))
+                context.scope.variables.define(Variable.Declaration(it.name, type, false))
                 val body = visit(it.body)
                 RhovasIr.Statement.Try.Catch(it.name, type, body).also {
                     it.context = it.context
@@ -514,7 +512,7 @@ class RhovasAnalyzer(scope: Scope) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val argument = visit(ast.argument)
         return analyze {
-            ast.name?.let { context.scope.variables.define(Variable.Local(ast.name, argument.type, false)) }
+            ast.name?.let { context.scope.variables.define(Variable.Declaration(ast.name, argument.type, false)) }
             val body = visit(ast.body)
             RhovasIr.Statement.With(ast.name, argument, body).also {
                 it.context = ast.context
@@ -808,15 +806,11 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         //TODO: Variable.Local handling
-        val variable = when(val variable = context.scope.variables[ast.name]) {
-            is Variable.Local -> variable
-            is Variable.Local.Runtime -> variable.variable
-            else -> throw error(
-                ast,
-                "Undefined variable.",
-                "The variable ${ast.name} is not defined in the current scope."
-            )
-        }
+        val variable = context.scope.variables[ast.name] ?: throw error(
+            ast,
+            "Undefined variable.",
+            "The variable ${ast.name} is not defined in the current scope."
+        )
         return RhovasIr.Expression.Access.Variable(variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -869,7 +863,7 @@ class RhovasAnalyzer(scope: Scope) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val candidates = context.scope.functions[ast.name, ast.arguments.size]
-            .map { Pair(it as Function.Definition, mutableMapOf<String, Type>()) }
+            .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(
                 ast,
                 "Undefined function.",
@@ -892,15 +886,7 @@ class RhovasAnalyzer(scope: Scope) :
             ) }
         }
         val resolved = filtered.single() //asserts overloads are disjoint
-        val function = Function.Definition(
-            resolved.first.name,
-            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
-            resolved.first.parameters.map { Pair(it.first, it.second.bind(resolved.second)) },
-            resolved.first.returns.bind(resolved.second),
-            resolved.first.throws,
-        ).also {
-            it.implementation = { resolved.first.implementation.invoke(it) }
-        }
+        val function = resolved.first.bind(resolved.second)
         function.throws.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
                 ast,
@@ -951,13 +937,7 @@ class RhovasAnalyzer(scope: Scope) :
             ) }
         }
         val resolved = filtered.single() //asserts overloads are disjoint
-        val method = Function.Method(
-            resolved.first.name,
-            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
-            resolved.first.parameters.drop(1).map { Pair(it.first, it.second.bind(resolved.second)) },
-            resolved.first.returns.bind(resolved.second),
-            resolved.first.throws,
-        )
+        val method = Method.Declaration(resolved.first.bind(resolved.second))
         val type = when {
             ast.cascade -> receiver.type
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(method.returns))
@@ -991,7 +971,7 @@ class RhovasAnalyzer(scope: Scope) :
         }
         val qualifier = ast.qualifier?.let { visit(it) as RhovasIr.Expression.Access }
         val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size + 1]
-            .map { Pair(it as Function.Definition, mutableMapOf<String, Type>()) }
+            .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(
                 ast.qualifier ?: ast,
                 "Undefined function.",
@@ -1024,15 +1004,7 @@ class RhovasAnalyzer(scope: Scope) :
             ) }
         }
         val resolved = filtered.single() //asserts overloads are disjoint
-        val function = Function.Definition(
-            resolved.first.name,
-            resolved.first.generics.map { Type.Generic(it.name, it.bind(resolved.second)) },
-            resolved.first.parameters.map { Pair(it.first, it.second.bind(resolved.second)) },
-            resolved.first.returns.bind(resolved.second),
-            resolved.first.throws,
-        ).also {
-            it.implementation = { resolved.first.implementation.invoke(it) }
-        }
+        val function = resolved.first.bind(resolved.second)
         val type = when {
             ast.cascade -> receiver.type
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
@@ -1057,12 +1029,12 @@ class RhovasAnalyzer(scope: Scope) :
         //TODO: Type inference/unification for parameter types
         //TODO: Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Pair(it.first, it.second?.let { visit(it) }) }
-        val function = Function.Definition("lambda", listOf(), parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
+        val function = Function.Declaration("lambda", listOf(), parameters.map { Pair(it.first, it.second?.type ?: Library.TYPES["Dynamic"]!!) }, Library.TYPES["Dynamic"]!!, listOf())
         return analyze(context.with(FunctionContext(function))) {
             if (parameters.isNotEmpty()) {
-                parameters.forEach { context.scope.variables.define(Variable.Local(it.first, Library.TYPES["Dynamic"]!!, false)) }
+                parameters.forEach { context.scope.variables.define(Variable.Declaration(it.first, Library.TYPES["Dynamic"]!!, false)) }
             } else {
-                context.scope.variables.define(Variable.Local("val", Library.TYPES["Dynamic"]!!, false))
+                context.scope.variables.define(Variable.Declaration("val", Library.TYPES["Dynamic"]!!, false))
             }
             val body = visit(ast.body)
             val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
@@ -1090,6 +1062,7 @@ class RhovasAnalyzer(scope: Scope) :
             "Invalid DSL AST.",
             "The AST of type " + ast.ast + " is not supported by the analyzer.",
         )
+        //TODO: Check for Function.Declaration
         val function = context.scope.functions[ast.name, listOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Any"]!!)))] as Function.Definition? ?: throw error(
             ast,
             "Undefined DSL transformer.",
@@ -1127,7 +1100,7 @@ class RhovasAnalyzer(scope: Scope) :
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
         val variable = if (ast.name == "_") null else {
-            Variable.Local(ast.name, context.pattern.type, false).also {
+            Variable.Declaration(ast.name, context.pattern.type, false).also {
                 context.pattern.bindings[it.name] = it.type
             }
         }
@@ -1154,10 +1127,10 @@ class RhovasAnalyzer(scope: Scope) :
         val existing = context.pattern.bindings.toMutableMap()
         val (pattern, predicate) = analyze(context.with(PatternContext(context.pattern.type, mutableMapOf()))) {
             val pattern = visit(ast.pattern)
-            context.scope.variables.define(Variable.Local("val", context.pattern.type, false))
+            context.scope.variables.define(Variable.Declaration("val", context.pattern.type, false))
             context.pattern.bindings
                 .filterKeys { !existing.containsKey(it) }
-                .forEach { context.scope.variables.define(Variable.Local(it.key, it.value, false)) }
+                .forEach { context.scope.variables.define(Variable.Declaration(it.key, it.value, false)) }
             val predicate = visit(ast.predicate)
             Pair(pattern, predicate)
         }
@@ -1355,7 +1328,7 @@ class RhovasAnalyzer(scope: Scope) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Library.TYPES["Any"]!!), Scope(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference)
             ast.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
 
@@ -1384,13 +1357,13 @@ class RhovasAnalyzer(scope: Scope) :
                     "A struct field requires a defined type.",
                 ) }
                 val fieldType = visit(field.type!!).type
-                structType.base.scope.functions.define(Function.Definition(field.name, listOf(), listOf("instance" to structType), fieldType, listOf()).also {
+                structType.base.scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf("instance" to structType), fieldType, listOf())).also {
                     it.implementation = { arguments ->
                         (arguments[0].value as Map<String, Object>)[field.name]!!
                     }
                 })
                 if (field.mutable) {
-                    structType.base.scope.functions.define(Function.Definition(field.name, listOf(), listOf("instance" to structType, "value" to fieldType), Library.TYPES["Void"]!!, listOf()).also {
+                    structType.base.scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf("instance" to structType, "value" to fieldType), Library.TYPES["Void"]!!, listOf())).also {
                         it.implementation = { arguments ->
                             (arguments[0].value as MutableMap<String, Object>)[field.name] = arguments[1]
                             Object(Library.TYPES["Void"]!!, Unit)
@@ -1401,10 +1374,10 @@ class RhovasAnalyzer(scope: Scope) :
             }
             //TODO: Sequence constructor?
             //TODO: Typecheck argument (struct type / named options?)
-            val constructor = Function.Definition(ast.name, listOf(), listOf("fields" to Library.TYPES["Object"]!!), structType, listOf())
+            val constructor = Function.Definition(Function.Declaration(ast.name, listOf(), listOf("fields" to Library.TYPES["Object"]!!), structType, listOf()))
             structType.base.scope.functions.define(constructor)
             context.scope.functions.define(constructor)
-            structType.base.scope.functions.define(Function.Definition("toString", listOf(), listOf("instance" to structType), Library.TYPES["String"]!!, listOf()).also {
+            structType.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf("instance" to structType), Library.TYPES["String"]!!, listOf())).also {
                 it.implementation = { arguments ->
                     Object(Library.TYPES["String"]!!, ast.name + " " + Object(Library.TYPES["Object"]!!, arguments[0].value).methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 }

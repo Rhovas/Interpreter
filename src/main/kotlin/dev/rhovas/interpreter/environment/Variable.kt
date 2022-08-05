@@ -1,33 +1,22 @@
 package dev.rhovas.interpreter.environment
 
-sealed class Variable(
-    open val name: String,
-    open val type: Type,
-    open val mutable: Boolean,
-) {
+sealed interface Variable {
 
-    data class Local(
+    val name: String
+    val type: Type
+    val mutable: Boolean
+
+    data class Declaration(
         override val name: String,
         override val type: Type,
         override val mutable: Boolean,
-    ) : Variable(name, type, mutable) {
+    ) : Variable
 
-        data class Runtime(
-            val variable: Local,
-            var value: Object,
-        ) : Variable(variable.name, variable.type, variable.mutable)
+    data class Definition(
+        val declaration: Declaration
+    ) : Variable by declaration {
 
-    }
-
-    data class Property(
-        val getter: Function.Method,
-        val setter: Function.Method?,
-    ) : Variable(getter.name, getter.returns, setter != null) {
-
-        data class Bound(
-            val getter: Function.Method.Bound,
-            val setter: Function.Method.Bound?,
-        ) : Variable(getter.name, getter.returns, setter != null)
+        lateinit var value: Object
 
     }
 

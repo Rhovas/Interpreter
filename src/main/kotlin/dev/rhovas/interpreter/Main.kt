@@ -11,7 +11,7 @@ import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import java.io.File
 
-val EVALUATOR = Evaluator(Scope(Library.SCOPE))
+val EVALUATOR = Evaluator(Scope.Definition(Library.SCOPE))
 
 fun main(args: Array<String>) {
     val input = Input(args[0], File(args[0]).readText())

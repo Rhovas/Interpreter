@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.evaluator
 
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
+import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
@@ -222,11 +223,10 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also {
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("variable", type("String"), true),
-                        Object(type("String"), "initial")
-                    ))
+                test("source", input, expected, Scope.Definition(Library.SCOPE).also {
+                    it.variables.define(Variable.Definition(Variable.Declaration("variable", type("String"), true)).also {
+                        it.value = Object(type("String"), "initial")
+                    })
                 })
             }
 
@@ -242,14 +242,14 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testProperty(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also {
-                    val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
-                        it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf()).also {
+                test("source", input, expected, Scope.Definition(Library.SCOPE).also {
+                    val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"]!!
                             }
                         })
-                        it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any"), "value" to type("Any")), type("Any"), listOf()).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any"), "value" to type("Any")), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
                                 Object(type("Void"), Unit)
@@ -274,7 +274,7 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also {
+                test("source", input, expected, Scope.Definition(Library.SCOPE).also {
                     it.variables.define(variable("variable", type("String"), "initial"))
                     it.variables.define(variable("list", type("List", "String"), mutableListOf(
                         literal("initial"),
@@ -504,11 +504,10 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testWhile(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also {
-                    it.variables.define(Variable.Local.Runtime(
-                        Variable.Local("number", type("Integer"), true),
-                        literal(BigInteger.ZERO)
-                    ))
+                test("source", input, expected, Scope.Definition(Library.SCOPE).also {
+                    it.variables.define(Variable.Definition(Variable.Declaration("number", type("Integer"), true)).also {
+                        it.value = literal(BigInteger.ZERO)
+                    })
                 })
             }
 
@@ -582,12 +581,12 @@ class EvaluatorTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
-                test("source", input, expected, Scope(Library.SCOPE).also { scope ->
-                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope(null)).reference)
-                    scope.functions.define(Function.Definition("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf()).also {
+                test("source", input, expected, Scope.Definition(Library.SCOPE).also { scope ->
+                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(null)).reference)
+                    scope.functions.define(Function.Definition(Function.Declaration("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf())).also {
                         it.implementation = { arguments -> Object(type("Exception"), arguments[0].value as String) }
                     })
-                    scope.functions.define(Function.Definition("SubtypeException", listOf(), listOf("message" to type("String")), scope.types["SubtypeException"]!!, listOf()).also {
+                    scope.functions.define(Function.Definition(Function.Declaration("SubtypeException", listOf(), listOf("message" to type("String")), scope.types["SubtypeException"]!!, listOf())).also {
                         it.implementation = { arguments -> Object(scope.types["SubtypeException"]!!, arguments[0].value as String) }
                     })
                 })
@@ -1093,9 +1092,9 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                    test("expression", input, expected) {
                         it.variables.define(variable("variable", type("String"), "variable"))
-                    })
+                    }
                 }
 
                 fun testVariable(): Stream<Arguments> {
@@ -1116,9 +1115,9 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testProperty(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
-                            it.functions.define(Function.Definition("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf()).also {
+                    test("expression", input, expected) {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                            it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     (arguments[0].value as Map<String, Object>)["property"]!!
                                 }
@@ -1127,11 +1126,10 @@ class EvaluatorTests {
                         it.variables.define(variable("object", type, mapOf(
                             "property" to literal("property"),
                         )))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false),
-                            Object(type("Null"), null)
-                        ))
-                    })
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false)).also {
+                            it.value = Object(type("Null"), null)
+                        })
+                    }
                 }
 
                 fun testProperty(): Stream<Arguments> {
@@ -1157,7 +1155,7 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
+                    test("expression", input, expected) {
                         it.variables.define(variable("variable", type("String"), "variable"))
                         it.variables.define(variable("list", type("List", "String"), mutableListOf(
                             literal("element"),
@@ -1165,7 +1163,7 @@ class EvaluatorTests {
                         it.variables.define(variable("object", type("Object"), mutableMapOf(
                             "key" to literal("value"),
                         )))
-                    })
+                    }
                 }
 
                 fun testIndex(): Stream<Arguments> {
@@ -1196,13 +1194,13 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
-                        it.functions.define(Function.Definition("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+                    test("expression", input, expected) {
+                        it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 arguments[0]
                             }
                         })
-                    })
+                    }
                 }
 
                 fun testFunction(): Stream<Arguments> {
@@ -1223,9 +1221,9 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope(null).also {
-                            it.functions.define(Function.Definition("method", listOf(), listOf("this" to type("Any"), "obj" to type("Any")), type("Any"), listOf()).also {
+                    test("expression", input, expected) {
+                        val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                            it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf("this" to type("Any"), "obj" to type("Any")), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[1]
                                 }
@@ -1234,11 +1232,10 @@ class EvaluatorTests {
                         it.variables.define(variable("object", type, mapOf(
                             "property" to literal("property"),
                         )))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false),
-                            Object(type("Null"), null)
-                        ))
-                    })
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false)).also {
+                            it.value = Object(type("Null"), null)
+                        })
+                    }
                 }
 
                 fun testMethod(): Stream<Arguments> {
@@ -1269,20 +1266,19 @@ class EvaluatorTests {
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: Object?) {
-                    test("expression", input, expected, Scope(Library.SCOPE).also {
-                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope(null).also {
-                            it.functions.define(Function.Definition("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+                    test("expression", input, expected) {
+                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope.Definition(null).also {
+                            it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[0]
                                 }
                             })
                         }).reference
                         it.variables.define(variable("Qualified", qualified, Unit))
-                        it.variables.define(Variable.Local.Runtime(
-                            Variable.Local("nullInteger", type("Nullable", "Integer"), false),
-                            Object(type("Null"), null)
-                        ))
-                    })
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullInteger", type("Nullable", "Integer"), false)).also {
+                            it.value = Object(type("Null"), null)
+                        })
+                    }
                 }
 
                 fun testPipeline(): Stream<Arguments> {
@@ -1615,20 +1611,19 @@ class EvaluatorTests {
         }
     }
 
-    private fun variable(name: String, type: Type, value: Any?): Variable {
-        return Variable.Local.Runtime(
-            Variable.Local(name, type, false),
-            Object(type, value)
-        )
+    private fun variable(name: String, type: Type, value: Any?): Variable.Definition {
+        return Variable.Definition(Variable.Declaration(name, type, false)).also {
+            it.value = Object(type, value)
+        }
     }
 
     private fun type(name: String, vararg generics: String): Type {
         return Type.Reference(Library.TYPES[name]!!.base, generics.map { Library.TYPES[it]!! })
     }
 
-    private fun test(rule: String, input: String, expected: String?, scope: Scope = Scope(Library.SCOPE)) {
+    private fun test(rule: String, input: String, expected: String?, scope: Scope.Definition = Scope.Definition(Library.SCOPE)) {
         val log = StringBuilder()
-        scope.functions.define(Function.Definition("log", listOf(), listOf("obj" to type("Any")), type("Any"), listOf()).also {
+        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
             it.implementation = { arguments ->
                 log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]
@@ -1654,8 +1649,11 @@ class EvaluatorTests {
         }
     }
 
-    private fun test(rule: String, input: String, expected: Object?, scope: Scope = Scope(Library.SCOPE)) {
+    private fun test(rule: String, input: String, expected: Object?, scope: (Scope.Definition) -> Unit = {}) {
         val input = Input("Test", input)
+        val scope = Scope.Definition(Library.SCOPE).also {
+            scope.invoke(it)
+        }
         try {
             val ast = RhovasParser(input).parse(rule)
             val ir = RhovasAnalyzer(scope).visit(ast)

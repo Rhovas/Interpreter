@@ -10,25 +10,25 @@ import java.util.stream.Stream
 
 class TypeTests {
 
-    val ANY = Type.Base("Any", listOf(), listOf(), Scope(null)).reference
-    val NUMBER = Type.Base("Number", listOf(), listOf(ANY), Scope(null)).reference
-    val INTEGER = Type.Base("Integer", listOf(), listOf(NUMBER), Scope(null)).reference
-    val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope(null)).reference
-    val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(COLLECTION), Scope(null)).reference
-    val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope(null)).reference
+    val ANY = Type.Base("Any", listOf(), listOf(), Scope.Definition(null)).reference
+    val NUMBER = Type.Base("Number", listOf(), listOf(ANY), Scope.Definition(null)).reference
+    val INTEGER = Type.Base("Integer", listOf(), listOf(NUMBER), Scope.Definition(null)).reference
+    val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
+    val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(COLLECTION), Scope.Definition(null)).reference
+    val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    fun testGetFunction(test: String, scope: Scope, name: String, arguments: List<Type>, expected: Type?) {
+    fun testGetFunction(test: String, scope: Scope.Definition, name: String, arguments: List<Type>, expected: Type?) {
         Assertions.assertEquals(expected, scope.functions[name, arguments]?.returns)
     }
 
     fun testGetFunction(): Stream<Arguments> {
-        val scope = Scope(null)
-        scope.functions.define(Function.Definition("number", listOf(), listOf(Pair("number", NUMBER)), ANY, listOf()))
-        scope.functions.define(Function.Definition("get", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()))
-        scope.functions.define(Function.Definition("set", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER), Pair("value", Type.Generic("T", ANY))), Type.Generic("T", ANY), listOf()))
-        scope.functions.define(Function.Definition("set2", listOf(Type.Generic("T", ANY)), listOf(Pair("value", Type.Generic("T", ANY)), Pair("index", INTEGER), Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))))), Type.Generic("T", ANY), listOf()))
+        val scope = Scope.Definition(null)
+        scope.functions.define(Function.Definition(Function.Declaration("number", listOf(), listOf(Pair("number", NUMBER)), ANY, listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("set", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER), Pair("value", Type.Generic("T", ANY))), Type.Generic("T", ANY), listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("set2", listOf(Type.Generic("T", ANY)), listOf(Pair("value", Type.Generic("T", ANY)), Pair("index", INTEGER), Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))))), Type.Generic("T", ANY), listOf())))
         return Stream.of(
             Arguments.of("Equal", scope, "number", listOf(NUMBER), ANY),
             Arguments.of("Subtype", scope, "number", listOf(INTEGER), ANY),
@@ -53,10 +53,10 @@ class TypeTests {
     }
 
     fun testGetMethod(): Stream<Arguments> {
-        NUMBER.base.scope.functions.define(Function.Definition("<=>", listOf(), listOf(Pair("this", NUMBER), Pair("other", NUMBER)), INTEGER, listOf()).also {
+        NUMBER.base.scope.functions.define(Function.Definition(Function.Declaration("<=>", listOf(), listOf(Pair("this", NUMBER), Pair("other", NUMBER)), INTEGER, listOf())).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
-        LIST.base.scope.functions.define(Function.Definition("get", listOf(Type.Generic("T", ANY)), listOf(Pair("this", LIST), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf()).also {
+        LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Pair("this", LIST), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf())).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
         return Stream.of(
