@@ -1,20 +1,24 @@
 package dev.rhovas.interpreter.library
 
-@Reflect.Type("Exception")
+import dev.rhovas.interpreter.environment.Object
+
 object ExceptionInitializer : Library.TypeInitializer("Exception") {
 
     override fun initialize() {
-        inherits.add(Library.TYPES["Any"]!!)
-    }
+        inherits.add(type("Any"))
 
-    @Reflect.Method("message", returns = Reflect.Type("String"))
-    fun message(instance: String): String {
-        return instance
-    }
+        method("message",
+            returns = type("String"),
+        ) { (instance) ->
+            Object(type("String"), "${instance.value}")
+        }
 
-    @Reflect.Method("toString", returns = Reflect.Type("String"))
-    fun toString(instance: String): String {
-        return instance //TODO: Stacktrace
+        method("toString",
+            returns = type("String"),
+        ) { (instance) ->
+            //TODO: Stacktrace
+            Object(type("String"), "${instance.value}")
+        }
     }
 
 }

@@ -3,48 +3,51 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 
-@Reflect.Type("Nullable", [Reflect.Type("T")])
 object NullableInitializer : Library.TypeInitializer("Nullable") {
 
     override fun initialize() {
-        inherits.add(Library.TYPES["Any"]!!)
-    }
+        generics.add(generic("T"))
+        inherits.add(type("Any"))
 
-    @Reflect.Method("get", returns = Reflect.Type("T"))
-    fun get(instance: Object?): Object {
-        return instance ?: throw EVALUATOR.error(
-            null,
-            "Invalid Nullable access",
-            "The value was not defined.",
-        )
-    }
+        method("get",
+            returns = generic("T"),
+        ) { (instance) ->
+            instance.value as Object? ?: throw EVALUATOR.error(
+                null,
+                "Invalid Nullable access",
+                "The value was not defined.",
+            )
+        }
 
-    @Reflect.Method("equals", operator = "==",
-        parameters = [Reflect.Type("Nullable", [Reflect.Type("T")])],
-        returns = Reflect.Type("Boolean"),
-    )
-    fun equals(instance: Object?, other: Object?): Boolean {
-        return when {
-            instance == null || other == null -> instance == other
-            else -> {
+        method("equals", operator = "==",
+            parameters = listOf("other" to type("Nullable", generic("T"))),
+            returns = type("Boolean"),
+        ) { (instance, other) ->
+            val instance = instance.value as Object?
+            val other = other.value as Object?
+            if (instance == null || other == null) {
+                Object(type("Boolean"), instance == other)
+            } else {
                 val method = instance.methods["==", listOf(instance.type)] ?: throw EVALUATOR.error(
                     null,
                     "Undefined method.",
                     "The method ${instance.type.base.name}.==(${instance.type}) is undefined.",
                 )
                 when {
-                    other.type.isSubtypeOf(method.parameters[0].second) -> method.invoke(listOf(other)).value as Boolean
-                    else -> false
+                    other.type.isSubtypeOf(method.parameters[0].second) -> method.invoke(listOf(other))
+                    else -> Object(type("Boolean"), false)
                 }
             }
         }
-    }
 
-    @Reflect.Method("toString", returns = Reflect.Type("String"))
-    fun toString(instance: Object?): String {
-        return when (instance) {
-            null -> "null"
-            else -> instance.methods["toString", listOf()]!!.invoke(listOf()).value as String
+        method("toString",
+            returns = type("String"),
+        ) { (instance) ->
+            val instance = instance.value as Object?
+            when (instance) {
+                null -> Object(type("String"), "null")
+                else -> instance.methods["toString", listOf()]!!.invoke(listOf())
+            }
         }
     }
 

@@ -1,46 +1,113 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
+import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
+import java.math.BigDecimal
 import java.math.BigInteger
 
-@Reflect.Type("String")
 object StringInitializer : Library.TypeInitializer("String") {
 
     override fun initialize() {
-        inherits.add(Library.TYPES["Any"]!!)
-    }
+        inherits.add(type("Any"))
 
-    @Reflect.Property("size", type = Reflect.Type("Integer"))
-    fun size(instance: String): BigInteger {
-        return instance.length.toBigInteger()
-    }
+        method("size",
+            returns = type("Integer"),
+        ) { (instance) ->
+            val instance = instance.value as String
+            Object(type("Integer"), instance.length.toBigInteger())
+        }
 
-    @Reflect.Method("slice",
-        parameters = [Reflect.Type("Integer")],
-        returns = Reflect.Type("String"),
-    )
-    fun slice(instance: String, start: BigInteger): String {
-        return slice(instance, start, instance.length.toBigInteger())
-    }
+        method("slice",
+            parameters = listOf("start" to type("Integer")),
+            returns = type("List", generic("T")),
+        ) { (instance, start) ->
+            val instance = instance.value as String
+            val start = start.value as BigInteger
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.length.toBigInteger()) { EVALUATOR.error(
+                null,
+                "Invalid index.",
+                "Expected a start index in range [0, ${instance.length}), but received ${start}.",
+            ) }
+            Object(type("String"), instance.substring(start.toInt()))
+        }
 
-    @Reflect.Method("slice",
-        parameters = [Reflect.Type("Integer"), Reflect.Type("Integer")],
-        returns = Reflect.Type("String"),
-    )
-    fun slice(instance: String, start: BigInteger, end: BigInteger): String {
-        //TODO: Consider supporting negative indices
-        EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.length.toBigInteger()) { EVALUATOR.error(
-            null,
-            "Invalid index.",
-            "Expected a start index in range [0, ${instance.length}), but received ${start}.",
-        ) }
-        EVALUATOR.require(end >= start && end <= instance.length.toBigInteger()) { EVALUATOR.error(
-            null,
-            "Invalid index.",
-            "Expected an end index in range [start = ${start}, ${instance.length}), but received ${end}.",
-        ) }
-        return instance.substring(start.toInt(), end.toInt())
+        method("slice",
+            parameters = listOf("start" to type("Integer"), "end" to type("Integer")),
+            returns = type("List", generic("T")),
+        ) { (instance, start, end) ->
+            val instance = instance.value as String
+            val start = start.value as BigInteger
+            val end = end.value as BigInteger
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.length.toBigInteger()) { EVALUATOR.error(
+                null,
+                "Invalid index.",
+                "Expected a start index in range [0, ${instance.length}), but received ${start}.",
+            ) }
+            EVALUATOR.require(end >= start && end <= instance.length.toBigInteger()) { EVALUATOR.error(
+                null,
+                "Invalid index.",
+                "Expected an end index in range [start = ${start}, ${instance.length}), but received ${end}.",
+            ) }
+            Object(type("String"), instance.substring(start.toInt(), end.toInt()))
+        }
+
+        method("contains",
+            parameters = listOf("other" to type("String")),
+            returns = type("Boolean"),
+        ) { (instance, other) ->
+            val instance = instance.value as String
+            val other = other.value as String
+            Object(type("Boolean"), instance.contains(other))
+        }
+
+        method("replace",
+            parameters = listOf("original" to type("String"), "value" to type("String")),
+            returns = type("String"),
+        ) { (instance, original, value) ->
+            val instance = instance.value as String
+            val original = original.value as String
+            val value = value.value as String
+            Object(type("String"), instance.replace(original, value))
+        }
+
+        method("concat", operator = "+",
+            parameters = listOf("other" to type("String")),
+            returns = type("String"),
+        ) { (instance, other) ->
+            val instance = instance.value as String
+            val other = other.value as String
+            Object(type("String"), instance + other)
+        }
+
+        method("equals", operator = "==",
+            parameters = listOf("other" to type("String")),
+            returns = type("Boolean"),
+        ) { (instance, other) ->
+            Object(type("Boolean"), instance.value == other.value)
+        }
+
+        method("compare", operator = "<=>",
+            parameters = listOf("other" to type("String")),
+            returns = type("Integer"),
+        ) { (instance, other) ->
+            val instance = instance.value as String
+            val other = other.value as String
+            Object(type("Integer"), BigInteger.valueOf(instance.compareTo(other).toLong()))
+        }
+
+        method("toString",
+            returns = type("String"),
+        ) { (instance) ->
+            Object(type("String"), "${instance.value}")
+        }
+
+        method("toAtom",
+            returns = type("Atom"),
+        ) { (instance) ->
+            val instance = instance.value as String
+            Object(type("Atom"), instance)
+        }
     }
 
     @Reflect.Method("contains",
@@ -65,33 +132,6 @@ object StringInitializer : Library.TypeInitializer("String") {
     )
     fun concat(instance: String, other: String): String {
         return instance + other
-    }
-
-    @Reflect.Method("equals", operator = "==",
-        parameters = [Reflect.Type("String")],
-        returns = Reflect.Type("Boolean"),
-    )
-    fun equals(instance: String, other: String): Boolean {
-        return instance == other
-    }
-
-    @Reflect.Method("compare", operator = "<=>",
-        parameters = [Reflect.Type("String")],
-        returns = Reflect.Type("Integer"),
-    )
-    fun compare(instance: String, other: String): BigInteger {
-        return BigInteger.valueOf(instance.compareTo(other).toLong())
-    }
-
-    @Reflect.Method("toString", returns = Reflect.Type("String"))
-    fun toString(instance: String): String {
-        return instance
-    }
-
-    @Reflect.Method("toAtom", returns = Reflect.Type("Atom"))
-    fun toAtom(instance: String): RhovasAst.Atom {
-        //TODO: Validate identifier
-        return RhovasAst.Atom(instance)
     }
 
 }

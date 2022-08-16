@@ -794,6 +794,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     ) {
 
         fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
+            //TODO: Use returns parameter
             //TODO: Lambda identification information for errors
             //TODO: Expected count depends on lambda invocation context (direct vs indirect)
             return evaluator.scoped(Scope.Definition(scope)) {

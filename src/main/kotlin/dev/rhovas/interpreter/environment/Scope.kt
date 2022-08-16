@@ -62,8 +62,8 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
             return functions.containsKey(Pair(name, arity)) || !current && parent?.variables?.isDefined(name, current) ?: false
         }
 
-        fun define(function: F) {
-            functions.getOrPut(Pair(function.name, function.parameters.size), ::mutableListOf).add(function)
+        fun define(function: F, alias: String = function.name) {
+            functions.getOrPut(Pair(alias, function.parameters.size), ::mutableListOf).add(function)
         }
 
         internal fun collect(): MutableMap<Pair<String, Int>, List<F>> {

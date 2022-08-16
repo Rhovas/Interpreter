@@ -5,37 +5,37 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigInteger
 
-@Reflect.Type("Kernel")
 object KernelInitializer: Library.TypeInitializer("Kernel") {
 
-    override fun initialize() {}
+    override fun initialize() {
+        function("print",
+            parameters = listOf("object" to type("Any")),
+        ) { (obj) ->
+            println(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
+            Object(type("Void"), null)
+        }
 
-    @Reflect.Function("print",
-        parameters = [Reflect.Type("Any")]
-    )
-    fun print(obj: Object) {
-        println(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
-    }
+        function("range",
+            parameters = listOf("lower" to type("Integer"), "upper" to type("Integer"), "bound" to type("Atom")),
+            returns = type("List", "Integer"),
+        ) { (lower, upper, bound) ->
+            val lower = lower.value as BigInteger
+            val upper = upper.value as BigInteger
+            val bound = bound.value as RhovasAst.Atom
+            val start = if (bound.name in listOf("incl", "incl_excl")) lower else lower.add(BigInteger.ONE)
+            val end = if (bound.name in listOf("incl", "excl_incl")) upper.add(BigInteger.ONE) else upper
+            Object(type("List", "Integer"), generateSequence(start.takeIf { it < end }) {
+                it.add(BigInteger.ONE).takeIf { it < end }
+            }.toList().map { Object(type("Integer"), it) })
+        }
 
-    @Reflect.Function("range",
-        parameters = [Reflect.Type("Integer"), Reflect.Type("Integer"), Reflect.Type("Atom"), ],
-        returns = Reflect.Type("List", [Reflect.Type("Integer")])
-    )
-    fun range(lower: BigInteger, upper: BigInteger, bound: RhovasAst.Atom): List<Object> {
-        val start = if (bound.name in listOf("incl", "incl_excl")) lower else lower.add(BigInteger.ONE)
-        val end = if (bound.name in listOf("incl", "excl_incl")) upper.add(BigInteger.ONE) else upper
-        return generateSequence(start.takeIf { it < end }) {
-            it.add(BigInteger.ONE).takeIf { it < end }
-        }.toList().map { Object(Library.TYPES["Integer"]!!, it) }
-    }
-
-    //TODO: Generic parameter/return types (requires type inference)
-    @Reflect.Function("lambda",
-        parameters = [Reflect.Type("Lambda", [Reflect.Type("Dynamic"), Reflect.Type("Dynamic")])],
-        returns = Reflect.Type("Lambda", [Reflect.Type("Dynamic"), Reflect.Type("Dynamic")]),
-    )
-    fun lambda(lambda: Evaluator.Lambda): Evaluator.Lambda {
-        return lambda
+        function("lambda",
+            generics = listOf(generic("R", type("Dynamic"))),
+            parameters = listOf("lambda" to type("Lambda", generic("R", type("Dynamic")))),
+            returns = type("Lambda", generic("R", type("Dynamic"))),
+        ) { (lambda) ->
+            lambda
+        }
     }
 
 }

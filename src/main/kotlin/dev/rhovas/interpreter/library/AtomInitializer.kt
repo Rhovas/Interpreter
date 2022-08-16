@@ -1,39 +1,42 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import java.math.BigInteger
 
-@Reflect.Type("Atom")
 object AtomInitializer : Library.TypeInitializer("Atom") {
 
     override fun initialize() {
-        inherits.add(Library.TYPES["Any"]!!)
-    }
+        inherits.add(type("Any"))
 
-    @Reflect.Property("name", type = Reflect.Type("String"))
-    fun name(instance: RhovasAst.Atom): String {
-        return instance.name
-    }
+        method("name",
+            returns = type("String")
+        ) { (instance) ->
+            val instance = instance.value as RhovasAst.Atom
+            Object(type("String"), instance.name)
+        }
 
-    @Reflect.Method("equals", operator = "==",
-        parameters = [Reflect.Type("Atom")],
-        returns = Reflect.Type("Boolean")
-    )
-    fun equals(instance: RhovasAst.Atom, other: RhovasAst.Atom): Boolean {
-        return instance == other
-    }
+        method("equals", operator = "==",
+            parameters = listOf("other" to type("Atom")),
+            returns = type("Boolean"),
+        ) { (instance, other) ->
+            Object(type("Boolean"), instance.value == other.value)
+        }
 
-    @Reflect.Method("compare", operator = "<=>",
-        parameters = [Reflect.Type("Atom")],
-        returns = Reflect.Type("Integer")
-    )
-    fun compare(instance: RhovasAst.Atom, other: RhovasAst.Atom): BigInteger {
-        return BigInteger.valueOf(instance.name.compareTo(other.name).toLong())
-    }
+        method("compare", operator = "<=>",
+            parameters = listOf("other" to type("Atom")),
+            returns = type("Integer"),
+        ) { (instance, other) ->
+            val instance = instance.value as RhovasAst.Atom
+            val other = other.value as RhovasAst.Atom
+            Object(type("Integer"), BigInteger.valueOf(instance.name.compareTo(other.name).toLong()))
+        }
 
-    @Reflect.Method("toString", returns = Reflect.Type("String"))
-    fun toString(instance: RhovasAst.Atom): String {
-        return ":${instance.name}"
+        method("toString",
+            returns = type("String"),
+        ) { (instance) ->
+            Object(type("String"), ":${instance.value}")
+        }
     }
 
 }

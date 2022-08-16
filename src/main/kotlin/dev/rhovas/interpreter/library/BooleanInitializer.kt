@@ -1,32 +1,31 @@
 package dev.rhovas.interpreter.library
 
-@Reflect.Type("Boolean")
+import dev.rhovas.interpreter.environment.Object
+
 object BooleanInitializer : Library.TypeInitializer("Boolean") {
 
     override fun initialize() {
-        inherits.add(Library.TYPES["Any"]!!)
-    }
+        inherits.add(type("Any"))
 
-    @Reflect.Method("negate", operator = "!",
-        returns = Reflect.Type("Boolean")
-    )
-    fun negate(instance: Boolean): Boolean {
-        return !instance
-    }
+        method("negate", operator = "!",
+            returns = type("Boolean"),
+        ) { (instance) ->
+            val instance = instance.value as Boolean
+            Object(type("Boolean"), !instance)
+        }
 
-    @Reflect.Method("equals", operator = "==",
-        parameters = [Reflect.Type("Boolean")],
-        returns = Reflect.Type("Boolean"),
-    )
-    fun equals(instance: Boolean, other: Boolean): Boolean {
-        return instance == other
-    }
+        method("equals", operator = "==",
+            parameters = listOf("other" to type("Boolean")),
+            returns = type("Boolean"),
+        ) { (instance, other) ->
+            Object(type("Boolean"), instance.value == other.value)
+        }
 
-    @Reflect.Method("toString",
-        returns = Reflect.Type("String")
-    )
-    fun toString(instance: Boolean): String {
-        return instance.toString()
+        method("toString",
+            returns = type("String"),
+        ) { (instance) ->
+            Object(type("String"), "${instance.value}")
+        }
     }
 
 }
