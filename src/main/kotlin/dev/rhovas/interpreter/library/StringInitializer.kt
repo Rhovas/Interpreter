@@ -110,28 +110,4 @@ object StringInitializer : Library.TypeInitializer("String") {
         }
     }
 
-    @Reflect.Method("contains",
-        parameters = [Reflect.Type("String")],
-        returns = Reflect.Type("Boolean"),
-    )
-    fun contains(instance: String, value: String): Boolean {
-        return instance.contains(value)
-    }
-
-    @Reflect.Method("replace",
-        parameters = [Reflect.Type("String")],
-        returns = Reflect.Type("String"),
-    )
-    fun contains(instance: String, original: String, replacement: String): String {
-        return instance.replace(original, replacement)
-    }
-
-    @Reflect.Method("concat", operator = "+",
-        parameters = [Reflect.Type("String")],
-        returns = Reflect.Type("String"),
-    )
-    fun concat(instance: String, other: String): String {
-        return instance + other
-    }
-
 }

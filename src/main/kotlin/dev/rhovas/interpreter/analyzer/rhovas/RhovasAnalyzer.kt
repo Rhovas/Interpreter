@@ -18,18 +18,18 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         LabelContext(mutableSetOf()),
         JumpContext(mutableSetOf()),
         ExceptionContext(mutableSetOf()),
-    ).associateBy { it.javaClass })),
+    ).associateBy { it::class.simpleName!! })),
     RhovasAst.Visitor<RhovasIr> {
 
     private val declare = DeclarePhase()
     private val define = DefinePhase()
 
-    private val Context.scope get() = this[ScopeContext::class.java]
-    private val Context.function get() = this[FunctionContext::class.java]
-    private val Context.labels get() = this[LabelContext::class.java]
-    private val Context.jumps get() = this[JumpContext::class.java]
-    private val Context.exceptions get() = this[ExceptionContext::class.java]
-    private val Context.pattern get() = this[PatternContext::class.java]
+    private val Context.scope get() = this[ScopeContext::class]
+    private val Context.function get() = this[FunctionContext::class]
+    private val Context.labels get() = this[LabelContext::class]
+    private val Context.jumps get() = this[JumpContext::class]
+    private val Context.exceptions get() = this[ExceptionContext::class]
+    private val Context.pattern get() = this[PatternContext::class]
 
     data class ScopeContext(
         val scope: Scope<Variable, Function>,
@@ -192,7 +192,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         require(ast.expression is RhovasAst.Expression.Invoke) { error(
             ast.expression,
             "Invalid expression statement.",
-            "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression.javaClass.name}.",
+            "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression::class.simpleName}.",
         ) }
         val expression = visit(ast.expression) as RhovasIr.Expression.Invoke
         return RhovasIr.Statement.Expression(expression).also {
@@ -265,7 +265,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         require(ast.receiver is RhovasAst.Expression.Access) { error(
             ast.receiver,
             "Invalid assignment receiver.",
-            "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver.javaClass.name}.",
+            "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver::class.simpleName}.",
         ) }
         return when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
@@ -1286,7 +1286,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             require(type is Type.Reference) { error(
                 ast,
                 "Invalid generic parameters.",
-                "Generic type require a reference type, but recevied a base type of Type.${type.javaClass.simpleName} (${type}).",
+                "Generic type require a reference type, but received a base type of Type.${type::class.simpleName} (${type}).",
             ) }
             val generics = ast.generics.map { visit(it).type }
             require(type.base.generics.size == generics.size) { error(

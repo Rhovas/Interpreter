@@ -6,7 +6,6 @@ import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 import java.math.BigInteger
-import java.util.function.Predicate
 
 class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> {
 
@@ -184,15 +183,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Match.Structural): Object {
         val argument = visit(ir.argument)
-        val predicate = Predicate<RhovasIr.Pattern> {
+        val predicate: (RhovasIr.Pattern) -> Boolean = {
             patternState = PatternState(Scope.Definition(this.scope), argument)
             scoped(patternState.scope) {
                 visit(it).value as Boolean
             }
         }
-        val case = ir.cases.firstOrNull { predicate.test(it.first) }
+        val case = ir.cases.firstOrNull { predicate.invoke(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.test(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type, false)))) { error(
+                require(predicate.invoke(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type, false)))) { error(
                     ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",

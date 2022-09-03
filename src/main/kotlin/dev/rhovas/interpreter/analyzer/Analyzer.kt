@@ -2,19 +2,20 @@ package dev.rhovas.interpreter.analyzer
 
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
+import kotlin.reflect.KClass
 
 abstract class Analyzer(internal var context: Context) {
 
-    protected val Context.inputs get() = this[InputContext::class.java]
+    protected val Context.inputs get() = this[InputContext::class]
 
     data class Context(
-        val items: Map<Class<*>, Item<*>>,
+        val items: Map<String, Item<*>>,
     ) {
 
         private val children = mutableListOf<Context>()
 
-        operator fun <C: Item<T>, T>get(item: Class<C>): T {
-            return items[item]!!.value as T
+        operator fun <C: Item<T>, T>get(item: KClass<C>): T {
+            return items[item.simpleName]!!.value as T
         }
 
         fun child(): Context {
@@ -29,7 +30,7 @@ abstract class Analyzer(internal var context: Context) {
         }
 
         fun with(vararg items: Item<*>): Context {
-            return Context(this.items.toMutableMap().also { it.putAll(items.associateBy { it.javaClass }) })
+            return Context(this.items.toMutableMap().also { it.putAll(items.associateBy { it::class.simpleName!! }) })
         }
 
         abstract class Item<T>(

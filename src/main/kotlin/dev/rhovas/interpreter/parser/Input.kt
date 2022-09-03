@@ -1,7 +1,5 @@
 package dev.rhovas.interpreter.parser
 
-import java.util.*
-
 data class Input(
     val source: String,
     val content: String,
@@ -18,12 +16,11 @@ data class Input(
         val builder = StringBuilder()
             .append("${source}:${range.line}:${range.column}-${range.column + range.length}")
             .append("\nError: ${summary}")
-        val context = TreeSet(compareBy(Range::line)).also {
-            it.add(range)
-            it.addAll(context)
-        }
-        val digits = context.last().line.toString().length
-        context.forEach {
+        val ranges = mutableMapOf(range.line to range).also { map ->
+            context.forEach { map.getOrPut(it.line) { it } }
+        }.toList().sortedBy { it.first }.map { it.second }
+        val digits = ranges.last().line.toString().length
+        ranges.forEach {
             val start = it.index - it.column
             val end = content.indexOfAny(charArrayOf('\n', '\r'), it.index).takeIf { it != -1 } ?: content.length
             builder.append("\n ${it.line.toString().padStart(digits)} | ${content.substring(start, end)}")
