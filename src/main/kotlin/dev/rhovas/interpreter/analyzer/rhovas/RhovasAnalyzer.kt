@@ -194,6 +194,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             "Invalid expression statement.",
             "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression::class.simpleName}.",
         ) }
+        //TODO: Also validate post-macro IR
         val expression = visit(ast.expression) as RhovasIr.Expression.Invoke
         return RhovasIr.Statement.Expression(expression).also {
             it.context = ast.context
@@ -1023,6 +1024,50 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         }
     }
 
+    override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression {
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        if (ast.dsl == null) {
+            //val arguments = ast.arguments.map { visit(it) }
+            throw error(
+                ast,
+                "Unsupported Macro",
+                "Macros without DSLs are not currently supported.",
+            )
+        } else {
+            require(ast.arguments.isEmpty()) { error(
+                ast,
+                "Invalid DSL arguments.",
+                "DSLs with arguments are not currently supported.",
+            ) }
+            if (ast.arguments.isEmpty()) {
+                println("Test!")
+            }
+            val source = ast.dsl as? DslAst.Source ?: throw error(
+                ast,
+                "Invalid DSL AST.",
+                "The AST of type " + ast.dsl + " is not currently supported.",
+            )
+            val function = context.scope.functions[ast.name, listOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)))] ?: throw error(
+                ast,
+                "Undefined DSL transformer.",
+                "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Dynamic>).",
+            )
+            val literals = RhovasIr.Expression.Literal.List(
+                source.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Library.TYPES["String"]!!) },
+                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)),
+            )
+            val arguments = RhovasIr.Expression.Literal.List(
+                source.arguments.map { visit(it as RhovasAst.Expression) },
+                Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
+            )
+            //TODO: Compile-time macro invocation (including argument analysis)
+            return RhovasIr.Expression.Invoke.Function(function, listOf(literals, arguments)).also {
+                it.context = ast.context
+                it.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
+        }
+    }
+
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         //TODO: Validate using same requirements as function statements
@@ -1043,49 +1088,6 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
         }
-    }
-
-    override fun visit(ast: RhovasAst.Expression.Macro): RhovasIr.Expression {
-        return if (ast.arguments.last() is RhovasAst.Expression.Dsl) {
-            //TODO: Syntax macro arguments
-            visit(ast.arguments.last())
-        } else {
-            TODO()
-        }
-    }
-
-    override fun visit(ast: RhovasAst.Expression.Dsl): RhovasIr.Expression {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Delegation of AST analysis
-        val source = ast.ast as? DslAst.Source ?: throw error(
-            ast,
-            "Invalid DSL AST.",
-            "The AST of type " + ast.ast + " is not supported by the analyzer.",
-        )
-        //TODO: Check for Function.Declaration
-        val function = context.scope.functions[ast.name, listOf(Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Any"]!!)))] as Function.Definition? ?: throw error(
-            ast,
-            "Undefined DSL transformer.",
-            "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Any>).",
-        )
-        val literals = RhovasIr.Expression.Literal.List(
-            source.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Library.TYPES["String"]!!) },
-            Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)),
-        )
-        val arguments = RhovasIr.Expression.Literal.List(
-            source.arguments.map { visit(it as RhovasAst.Expression) },
-            Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
-        )
-        //TODO: Compile time invocation
-        return RhovasIr.Expression.Invoke.Function(function, listOf(literals, arguments)).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
-    }
-
-    override fun visit(ast: RhovasAst.Expression.Interpolation): RhovasIr.Expression.Interpolation {
-        val expression = visit(ast.expression)
-        return RhovasIr.Expression.Interpolation(expression)
     }
 
     private fun visit(ast: RhovasAst.Pattern): RhovasIr.Pattern {

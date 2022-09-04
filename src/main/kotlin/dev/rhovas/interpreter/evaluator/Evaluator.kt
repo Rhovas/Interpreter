@@ -571,18 +571,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         )
     }
 
-    override fun visit(ir: RhovasIr.Expression.Macro): Object {
-        TODO()
-    }
-
-    override fun visit(ir: RhovasIr.Expression.Dsl): Object {
-        TODO()
-    }
-
-    override fun visit(ir: RhovasIr.Expression.Interpolation): Object {
-        TODO()
-    }
-
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
         ir.variable?.let {
             val variable = Variable.Definition(it)

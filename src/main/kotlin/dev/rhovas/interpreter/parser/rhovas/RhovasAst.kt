@@ -231,25 +231,17 @@ sealed class RhovasAst {
                 val arguments: List<Expression>,
             ) : Invoke()
 
+            data class Macro(
+                val name: String,
+                val arguments: List<Expression>,
+                val dsl: Any?,
+            ) : Invoke()
+
         }
 
         data class Lambda(
             val parameters: List<Pair<String, Type?>>,
             val body: Statement,
-        ) : Expression()
-
-        data class Macro(
-            val name: String,
-            val arguments: List<Expression>,
-        ) : Expression()
-
-        data class Dsl(
-            val name: String,
-            val ast: Any,
-        ) : Expression()
-
-        data class Interpolation(
-            val expression: Expression,
         ) : Expression()
 
     }
@@ -341,10 +333,8 @@ sealed class RhovasAst {
                 is Expression.Invoke.Function -> visit(ast)
                 is Expression.Invoke.Method -> visit(ast)
                 is Expression.Invoke.Pipeline -> visit(ast)
+                is Expression.Invoke.Macro -> visit(ast)
                 is Expression.Lambda -> visit(ast)
-                is Expression.Macro -> visit(ast)
-                is Expression.Dsl -> visit(ast)
-                is Expression.Interpolation -> visit(ast)
 
                 is Pattern.Variable -> visit(ast)
                 is Pattern.Value -> visit(ast)
@@ -399,10 +389,8 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Invoke.Function): T
         fun visit(ast: Expression.Invoke.Method): T
         fun visit(ast: Expression.Invoke.Pipeline): T
+        fun visit(ast: Expression.Invoke.Macro): T
         fun visit(ast: Expression.Lambda): T
-        fun visit(ast: Expression.Macro): T
-        fun visit(ast: Expression.Dsl): T
-        fun visit(ast: Expression.Interpolation): T
 
         fun visit(ast: Pattern.Variable): T
         fun visit(ast: Pattern.Value): T

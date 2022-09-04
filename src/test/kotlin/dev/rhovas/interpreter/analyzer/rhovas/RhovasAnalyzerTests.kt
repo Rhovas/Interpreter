@@ -1951,9 +1951,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Expression.Invoke.Function(DSL, listOf(
-                            RhovasIr.Expression.Literal.List(listOf(
-                                literal("literal"),
-                            ), type("List", "String")),
+                            RhovasIr.Expression.Literal.List(listOf(literal("literal")), type("List", "String")),
                             RhovasIr.Expression.Literal.List(listOf(), type("List", "Dynamic")),
                         ))
                     }),
@@ -1963,13 +1961,8 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Expression.Invoke.Function(DSL, listOf(
-                            RhovasIr.Expression.Literal.List(listOf(
-                                literal("argument = "),
-                                literal(""),
-                            ), type("List", "String")),
-                            RhovasIr.Expression.Literal.List(listOf(
-                                RhovasIr.Expression.Interpolation(literal("argument")),
-                            ), type("List", "Dynamic")),
+                            RhovasIr.Expression.Literal.List(listOf(literal("argument = "), literal("")), type("List", "String")),
+                            RhovasIr.Expression.Literal.List(listOf(literal("argument")), type("List", "Dynamic")),
                         ))
                     }),
                     Arguments.of("Undefined DSL", """

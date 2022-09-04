@@ -270,22 +270,6 @@ sealed class RhovasIr {
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Expression(type)
 
-        data class Macro(
-            val name: String,
-            val arguments: List<Expression>,
-            override val type: dev.rhovas.interpreter.environment.Type,
-        ) : Expression(type)
-
-        data class Dsl(
-            val name: String,
-            val ast: Any,
-            override val type: dev.rhovas.interpreter.environment.Type,
-        ) : Expression(type)
-
-        data class Interpolation(
-            val expression: Expression,
-        ) : Expression(expression.type)
-
     }
 
     sealed class Pattern(
@@ -380,9 +364,6 @@ sealed class RhovasIr {
                 is Expression.Invoke.Method -> visit(ir)
                 is Expression.Invoke.Pipeline -> visit(ir)
                 is Expression.Lambda -> visit(ir)
-                is Expression.Macro -> visit(ir)
-                is Expression.Dsl -> visit(ir)
-                is Expression.Interpolation -> visit(ir)
 
                 is Pattern.Variable -> visit(ir)
                 is Pattern.Value -> visit(ir)
@@ -440,9 +421,6 @@ sealed class RhovasIr {
         fun visit(ir: Expression.Invoke.Method): T
         fun visit(ir: Expression.Invoke.Pipeline): T
         fun visit(ir: Expression.Lambda): T
-        fun visit(ir: Expression.Macro): T
-        fun visit(ir: Expression.Dsl): T
-        fun visit(ir: Expression.Interpolation): T
 
         fun visit(ir: Pattern.Variable): T
         fun visit(ir: Pattern.Value): T

@@ -849,7 +849,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 context.removeLast()
             }
         }
-        if (match("{")) {
+        val dsl = if (match("{")) {
             context.addLast(tokens[-1]!!.range)
             val parser = DslParser(lexer.input)
             parser.lexer.state = lexer.state.let {
@@ -860,11 +860,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 Pair(it.first.copy(index = it.first.index - 1, column = it.first.column - 1, length = 0), it.second)
             }
             require(match("}"))
-            arguments.add(RhovasAst.Expression.Dsl(name, ast).also {
-                it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-            })
-        }
-        return RhovasAst.Expression.Macro(name, arguments).also {
+            ast
+        } else null
+        return RhovasAst.Expression.Invoke.Macro(name, arguments, dsl).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -995,7 +993,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
     }
 
-    private fun parseInterpolation(): RhovasAst.Expression.Interpolation {
+    private fun parseInterpolation(): RhovasAst.Expression {
         require(match("$", "{"))
         context.addLast(tokens[-2]!!.range)
         val expression = parseExpression()
@@ -1003,9 +1001,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing brace.",
             "An interpolated value requires braces around the expression, as in `\${value}`.",
         ) }
-        return RhovasAst.Expression.Interpolation(expression).also {
-            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-        }
+        return expression
     }
 
     private fun parseIdentifier(details: () -> String): String {

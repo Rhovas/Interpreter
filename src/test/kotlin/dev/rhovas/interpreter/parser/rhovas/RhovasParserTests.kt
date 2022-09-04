@@ -239,7 +239,7 @@ class RhovasParserTests {
                     Arguments.of("Macro", """
                         #macro();
                     """.trimIndent(), RhovasAst.Statement.Expression(
-                        RhovasAst.Expression.Macro("macro", listOf()),
+                        RhovasAst.Expression.Invoke.Macro("macro", listOf(), null),
                     )),
                     Arguments.of("Other", """
                         variable;
@@ -1242,25 +1242,25 @@ class RhovasParserTests {
                         "start${'$'}{argument}end"
                     """.trimIndent(), RhovasAst.Expression.Literal.String(
                         listOf("start", "end"),
-                        listOf(RhovasAst.Expression.Access.Variable("argument")),
+                        listOf(expr("argument")),
                     )),
                     Arguments.of("Interpolation Multiple", """
                         "start${'$'}{first}middle${'$'}{second}end"
                     """.trimIndent(), RhovasAst.Expression.Literal.String(
                         listOf("start", "middle", "end"),
-                        listOf(RhovasAst.Expression.Access.Variable("first"), RhovasAst.Expression.Access.Variable("second")),
+                        listOf(expr("first"), expr("second")),
                     )),
                     Arguments.of("Interpolation Only", """
                         "${'$'}{argument}"
                     """.trimIndent(), RhovasAst.Expression.Literal.String(
                         listOf("", ""),
-                        listOf(RhovasAst.Expression.Access.Variable("argument")),
+                        listOf(expr("argument")),
                     )),
                     Arguments.of("Interpolation Only Multiple", """
                         "${'$'}{first}${'$'}{second}"
                     """.trimIndent(), RhovasAst.Expression.Literal.String(
                         listOf("", "", ""),
-                        listOf(RhovasAst.Expression.Access.Variable("first"), RhovasAst.Expression.Access.Variable("second")),
+                        listOf(expr("first"), expr("second")),
                     )),
                     Arguments.of("Unterminated", """
                         "unterminated
@@ -1964,7 +1964,7 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testMacro(name: String, input: String, expected: RhovasAst.Expression.Macro?) {
+            fun testMacro(name: String, input: String, expected: RhovasAst.Expression.Invoke.Macro?) {
                 test("expression", input, expected)
             }
 
@@ -1972,27 +1972,23 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Zero Arguments", """
                         #macro()
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(), null,
                     )),
                     Arguments.of("Single Argument", """
                         #macro(argument)
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(expr("argument")),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(expr("argument")), null,
                     )),
                     Arguments.of("Multiple Arguments", """
                         #macro(first, second, third)
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(
-                            expr("first"),
-                            expr("second"),
-                            expr("third"),
-                        ),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(expr("first"), expr("second"), expr("third"),), null,
                     )),
                     Arguments.of("Trailing Comma", """
                         #macro(argument,)
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(expr("argument")),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(expr("argument")), null,
                     )),
                     Arguments.of("Missing Opening Parenthesis", """
                         #macro
@@ -2008,7 +2004,7 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testDsl(name: String, input: String, expected: RhovasAst.Expression.Macro?) {
+            fun testDsl(name: String, input: String, expected: RhovasAst.Expression.Invoke.Macro?) {
                 test("expression", input, expected)
             }
 
@@ -2016,37 +2012,27 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Inline", """
                         #macro { source }
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(
-                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf(" source "), listOf())),
-                        ),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(), DslAst.Source(listOf(" source "), listOf()),
                     )),
                     Arguments.of("Multiline", """
                         #macro {
                             source
                         }
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(
-                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf("source"), listOf())),
-                        ),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(), DslAst.Source(listOf("source"), listOf()),
                     )),
                     Arguments.of("Argument", """
                         #macro(argument) { source }
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(
-                            expr("argument"),
-                            RhovasAst.Expression.Dsl("macro", DslAst.Source(listOf(" source "), listOf())),
-                        ),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(expr("argument")), DslAst.Source(listOf(" source "), listOf()),
                     )),
                     Arguments.of("Interpolation", """
                         #macro {
                             value = ${'$'}{argument}
                         }
-                    """.trimIndent(), RhovasAst.Expression.Macro(
-                        "macro", listOf(RhovasAst.Expression.Dsl("macro", DslAst.Source(
-                            listOf("value = ", ""),
-                            listOf(RhovasAst.Expression.Interpolation(RhovasAst.Expression.Access.Variable("argument"))),
-                        ))),
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
+                        "macro", listOf(), DslAst.Source(listOf("value = ", ""), listOf(expr("argument"))),
                     )),
                     Arguments.of("Missing Closing Brace", """
                         #macro { source()
