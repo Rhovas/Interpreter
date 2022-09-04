@@ -39,8 +39,8 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         private val functions = mutableMapOf<Pair<String, Int>, MutableList<F>>()
 
         operator fun get(name: String, arity: Int): List<F> {
-            //TODO: Overriding
-            return functions[Pair(name, arity)] ?: (parent as Scope<*, F>?)?.functions?.get(name, arity) ?: listOf()
+            val list =  ((parent as Scope<*, F>?)?.functions?.get(name, arity) ?: listOf())
+            return functions[Pair(name, arity)]?.let { it + list } ?: list
         }
 
         operator fun get(name: String, arguments: List<Type>): F? {
@@ -54,7 +54,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
             return when (candidates.size) {
                 0 -> null
                 1 -> candidates[0]
-                else -> throw AssertionError()
+                else -> throw AssertionError() //asserts overloads are disjoint
             }
         }
 

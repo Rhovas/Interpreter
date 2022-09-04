@@ -8,6 +8,8 @@ sealed class Type(
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
 
+    internal abstract fun getFunction(name: String, arity: Int): List<Function>
+
     internal abstract fun getFunction(name: String, arguments: List<Type>): Function?
 
     abstract fun bind(parameters: Map<String, Type>): Type
@@ -17,6 +19,10 @@ sealed class Type(
     abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean
 
     inner class FunctionsDelegate {
+
+        operator fun get(name: String, arity: Int): List<Function> {
+            return getFunction(name, arity)
+        }
 
         operator fun get(name: String, arguments: List<Type>): Function? {
             return getFunction(name, arguments)
@@ -74,11 +80,19 @@ sealed class Type(
         val generics: List<Type>,
     ) : Type(base) {
 
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            return if (base.name == "Dynamic") {
+                listOf(Function.Declaration(name, listOf(), (1..arity).map { Pair("val_${it}", this) }, this, listOf()))
+            } else {
+                base.scope.functions[name, arity]
+            }
+        }
+
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             return if (base.name == "Dynamic") {
                 Function.Declaration(name, listOf(), arguments.indices.map { Pair("val_${it}", this) }, this, listOf())
             } else {
-                base.scope.functions[name, arguments]?.let { it as Function.Definition }
+                base.scope.functions[name, arguments]
             }
         }
 
@@ -141,6 +155,10 @@ sealed class Type(
         val name: String,
         val bound: Type,
     ) : Type(bound.base) {
+
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            return bound.getFunction(name, arity)
+        }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             return bound.getFunction(name, arguments)

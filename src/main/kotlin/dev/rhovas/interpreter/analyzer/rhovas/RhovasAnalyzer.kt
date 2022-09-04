@@ -913,7 +913,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         } else {
             receiver.type
         }
-        val candidates = receiverType.base.scope.functions[ast.name, ast.arguments.size + 1]
+        val candidates = receiverType.functions[ast.name, ast.arguments.size + 1]
             .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(
                 ast,
