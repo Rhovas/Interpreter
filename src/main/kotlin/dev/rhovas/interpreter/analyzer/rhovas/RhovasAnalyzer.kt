@@ -204,7 +204,8 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
 
     override fun visit(ast: RhovasAst.Statement.Function): RhovasIr.Statement.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(!context.scope.functions.isDefined(ast.name, ast.parameters.size, true)) { error(
+        //TODO: Overload support
+        require(context.scope.functions[ast.name, ast.parameters.size, true].isEmpty()) { error(
             ast,
             "Redefined function.",
             "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
@@ -236,7 +237,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
 
     override fun visit(ast: RhovasAst.Statement.Declaration): RhovasIr.Statement.Declaration {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(!context.scope.variables.isDefined(ast.name, true)) { error(
+        require(context.scope.variables[ast.name, true] == null) { error(
             ast,
             "Redefined variable.",
             "The variable ${ast.name} is already defined in this scope.",
@@ -246,14 +247,14 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             "Undefined variable type.",
             "A variable declaration requires either a type or an initial value.",
         ) }
-        val type = ast.type?.let { visit(it) }
+        val type = ast.type?.let { visit(it).type }
         val value = ast.value?.let { visit(it) }
-        val variable = Variable.Declaration(ast.name, type?.type ?: value!!.type, ast.mutable)
-        require(value == null || value.type.isSubtypeOf(variable.type)) { error(
+        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(
             ast,
             "Invalid value type.",
-            "The variable ${ast.name} requires a value of type ${variable.type}, but received ${value!!.type}."
+            "The variable ${ast.name} requires a value of type ${type}, but received ${value!!.type}."
         ) }
+        val variable = Variable.Declaration(ast.name, type ?: value!!.type, ast.mutable)
         context.scope.variables.define(variable)
         return RhovasIr.Statement.Declaration(variable, value).also {
             it.context = ast.context

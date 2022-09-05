@@ -62,11 +62,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Function): Object {
         val current = scope
-        val definition = when (ir.function) {
-            is Function.Definition -> ir.function
-            is Function.Declaration -> Function.Definition(ir.function)
-        }
-        definition.implementation = { arguments ->
+        val function = Function.Definition(ir.function)
+        function.implementation = { arguments ->
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
                     val parameter = Variable.Definition(Variable.Declaration(ir.function.parameters[i].first, ir.function.parameters[i].second, false))
@@ -88,17 +85,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
             }
         }
-        scope.functions.define(definition)
+        scope.functions.define(function)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration): Object {
-        val definition = when (ir.variable) {
-            is Variable.Definition -> ir.variable
-            is Variable.Declaration -> Variable.Definition(ir.variable)
-        }
-        definition.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        scope.variables.define(definition)
+        val variable = Variable.Definition(ir.variable)
+        variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        scope.variables.define(variable)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

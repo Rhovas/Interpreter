@@ -91,7 +91,7 @@ class RhovasAnalyzerTests {
                 """.trimIndent(), {
                     RhovasIr.Source(
                         listOf(RhovasIr.Import(type("Module"))),
-                        listOf(RhovasIr.Statement.Declaration(variable("name", type("Module")).variable, null))
+                        listOf(RhovasIr.Statement.Declaration(Variable.Declaration("name", type("Module"), false), null))
                     )
                 }),
                 Arguments.of("Import Submodule", """
@@ -100,7 +100,7 @@ class RhovasAnalyzerTests {
                 """.trimIndent(), {
                     RhovasIr.Source(
                         listOf(RhovasIr.Import(type("Module.Type"))),
-                        listOf(RhovasIr.Statement.Declaration(variable("name", type("Module.Type")).variable, null))
+                        listOf(RhovasIr.Statement.Declaration(Variable.Declaration("name", type("Module.Type"), false), null))
                     )
                 }),
                 Arguments.of("Undefined Import", """
@@ -136,7 +136,7 @@ class RhovasAnalyzerTests {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
-                            RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
+                            RhovasIr.Statement.Declaration(Variable.Declaration("instance", type, false), null),
                         ))
                     }),
                     Arguments.of("Constructor", """
@@ -148,7 +148,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(
-                                variable("instance", type).variable,
+                                Variable.Declaration("instance", type, false),
                                 RhovasIr.Expression.Invoke.Function(constructor, listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object")))),
                             ),
                         ))
@@ -162,9 +162,9 @@ class RhovasAnalyzerTests {
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf("instance" to type), type("Integer"), listOf())))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
-                                RhovasIr.Statement.Declaration(variable("field", type("Integer")).variable, null)
+                                RhovasIr.Statement.Declaration(Variable.Declaration("field", type("Integer"), false), null)
                             ))),
-                            RhovasIr.Statement.Declaration(variable("instance", type).variable, null),
+                            RhovasIr.Statement.Declaration(Variable.Declaration("instance", type, false), null),
                             RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
                                 Library.SCOPE.functions["print", listOf(type("Any"))]!!,
                                 listOf(RhovasIr.Expression.Access.Property(variable("instance", type), type.properties["field"]!!, false, type("Integer")))
@@ -521,7 +521,7 @@ class RhovasAnalyzerTests {
             fun testVariable(name: String, input: String, expected: (() -> RhovasIr.Statement.Assignment.Variable?)?) {
                 val expected = expected?.invoke()?.let {
                     RhovasIr.Source(listOf(), listOf(
-                        RhovasIr.Statement.Declaration(it.variable, null),
+                        RhovasIr.Statement.Declaration(it.variable as Variable.Declaration, null),
                         it,
                     ))
                 }

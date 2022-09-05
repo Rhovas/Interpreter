@@ -14,12 +14,11 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
 
         private val variables = mutableMapOf<String, V>()
 
-        operator fun get(name: String): V? {
-            return variables[name] ?: (parent as Scope<V, *>?)?.variables?.get(name)
-        }
-
-        fun isDefined(name: String, current: Boolean): Boolean {
-            return variables.containsKey(name) || !current && parent?.variables?.isDefined(name, current) ?: false
+        operator fun get(name: String, current: Boolean = false): V? {
+            return variables[name] ?: when {
+                current -> null
+                else -> (parent as Scope<V, *>?)?.variables?.get(name)
+            }
         }
 
         fun define(variable: V) {
@@ -38,13 +37,15 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
 
         private val functions = mutableMapOf<Pair<String, Int>, MutableList<F>>()
 
-        operator fun get(name: String, arity: Int): List<F> {
-            val list =  ((parent as Scope<*, F>?)?.functions?.get(name, arity) ?: listOf())
-            return functions[Pair(name, arity)]?.let { it + list } ?: list
+        operator fun get(name: String, arity: Int, current: Boolean = false): List<F> {
+            return (functions[Pair(name, arity)] ?: listOf()) + when {
+                current -> listOf()
+                else -> ((parent as Scope<*, F>?)?.functions?.get(name, arity) ?: listOf())
+            }
         }
 
-        operator fun get(name: String, arguments: List<Type>): F? {
-            val candidates = get(name, arguments.size).mapNotNull { function ->
+        operator fun get(name: String, arguments: List<Type>, current: Boolean = false): F? {
+            val candidates = get(name, arguments.size, current).mapNotNull { function ->
                 val generics = mutableMapOf<String, Type>()
                 function.takeIf {
                     arguments.zip(function.parameters)
@@ -56,10 +57,6 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                 1 -> candidates[0]
                 else -> throw AssertionError() //asserts overloads are disjoint
             }
-        }
-
-        fun isDefined(name: String, arity: Int, current: Boolean): Boolean {
-            return functions.containsKey(Pair(name, arity)) || !current && parent?.variables?.isDefined(name, current) ?: false
         }
 
         fun define(function: F, alias: String = function.name) {
