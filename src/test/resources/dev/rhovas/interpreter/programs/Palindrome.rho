@@ -1,4 +1,4 @@
-func isPalindrome(list: List) {
+func isPalindrome(list: List<Integer>): Boolean {
     match (list) {
         []: return true;
         [elem]: return true;

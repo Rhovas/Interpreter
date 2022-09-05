@@ -1039,9 +1039,6 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
                 "Invalid DSL arguments.",
                 "DSLs with arguments are not currently supported.",
             ) }
-            if (ast.arguments.isEmpty()) {
-                println("Test!")
-            }
             val source = ast.dsl as? DslAst.Source ?: throw error(
                 ast,
                 "Invalid DSL AST.",
@@ -1101,11 +1098,10 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             "Redefined pattern binding",
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
-        val variable = if (ast.name == "_") null else {
-            Variable.Declaration(ast.name, context.pattern.type, false).also {
-                context.pattern.bindings[it.name] = it.type
-            }
-        }
+        val variable = if (ast.name != "_") {
+            context.pattern.bindings[ast.name] = context.pattern.type
+            Variable.Declaration(ast.name, context.pattern.type, false)
+        } else null
         return RhovasIr.Pattern.Variable(variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }

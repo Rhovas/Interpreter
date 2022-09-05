@@ -41,8 +41,7 @@ class MainTests {
                 Arguments.of("HelloWorld.rho", """
                     Hello, World!
                 """.trimIndent().replace("\n", System.lineSeparator()) + System.lineSeparator()),
-                //TODO: Requires type inference for lambdas & patterns
-                /*Arguments.of("Factorial.rho", """
+                Arguments.of("Factorial.rho", """
                     1
                     1
                     2
@@ -77,7 +76,7 @@ class MainTests {
                     true
                     true
                     false
-                """.trimIndent().replace("\n", System.lineSeparator()) + System.lineSeparator()),*/
+                """.trimIndent().replace("\n", System.lineSeparator()) + System.lineSeparator()),
             )
         }
 

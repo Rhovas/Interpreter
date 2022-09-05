@@ -609,13 +609,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         if (!patternState.value.type.isSubtypeOf(Library.TYPES["List"]!!)) {
             return Object(Library.TYPES["Boolean"]!!, false)
         }
+        val type = patternState.value.type.methods["get", listOf(Library.TYPES["Integer"]!!)]!!.returns
         val list = patternState.value.value as List<Object>
         var i = 0
         for (pattern in ir.patterns) {
             val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 val value = list.subList(i, list.size - ir.patterns.size + i + 1)
                 i += value.size
-                Object(Library.TYPES["List"]!!, value)
+                Object(Type.Reference(Library.TYPES["List"]!!.base, listOf(type)), value)
             } else {
                 list.getOrNull(i++) ?: return Object(Library.TYPES["Boolean"]!!, false)
             }
@@ -677,7 +678,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
                 ir.pattern.variable?.let {
                     val variable = Variable.Definition(it)
-                    variable.value = Object(Library.TYPES["List"]!!, list)
+                    variable.value = patternState.value
                     scope.variables.define(variable)
                 }
                 Object(Library.TYPES["Boolean"]!!, true)
