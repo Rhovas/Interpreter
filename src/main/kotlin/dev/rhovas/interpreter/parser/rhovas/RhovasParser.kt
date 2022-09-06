@@ -49,8 +49,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         do {
             path.add(parseIdentifier { "An import requires a name, as in `import Module.Type;`." })
         } while (match("."))
+        val alias = if (match("as")) parseIdentifier { "An import alias requires a name, as in `import Module.Type as Alias;`." } else null
         requireSemicolon { "An import must be followed by a semicolon, as in `import Module.Type;`." }
-        return RhovasAst.Import(path).also {
+        return RhovasAst.Import(path, alias).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

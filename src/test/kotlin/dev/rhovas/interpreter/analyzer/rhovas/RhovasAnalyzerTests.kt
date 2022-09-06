@@ -103,6 +103,15 @@ class RhovasAnalyzerTests {
                         listOf(RhovasIr.Statement.Declaration(Variable.Declaration("name", type("Module.Type"), false), null))
                     )
                 }),
+                Arguments.of("Import Alias", """
+                    import Module.Type as Alias;
+                    val name: Alias;
+                """.trimIndent(), {
+                    RhovasIr.Source(
+                        listOf(RhovasIr.Import(type("Module.Type"))),
+                        listOf(RhovasIr.Statement.Declaration(Variable.Declaration("name", type("Module.Type"), false), null))
+                    )
+                }),
                 Arguments.of("Undefined Import", """
                     import Undefined;
                 """.trimIndent(), null),

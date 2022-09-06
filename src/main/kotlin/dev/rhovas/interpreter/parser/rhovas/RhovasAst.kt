@@ -14,6 +14,7 @@ sealed class RhovasAst {
 
     data class Import(
         val path: List<String>,
+        val alias: String?,
     ) : RhovasAst()
 
     sealed class Component : RhovasAst() {

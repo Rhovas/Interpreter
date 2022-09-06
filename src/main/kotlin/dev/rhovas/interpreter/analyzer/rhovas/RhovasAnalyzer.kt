@@ -130,8 +130,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             "Undefined type.",
             "The type ${ast.path.joinToString(".")} is not defined."
         )
-        //TODO: Aliasing
-        val alias = ast.path.last()
+        val alias = ast.alias ?: ast.path.last()
         require(!context.scope.types.isDefined(alias, true)) { error(
             ast,
             "Redefined type.",

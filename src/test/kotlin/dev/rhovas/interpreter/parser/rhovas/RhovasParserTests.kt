@@ -34,7 +34,7 @@ class RhovasParserTests {
                 Arguments.of("Single Import", """
                     import Type;
                 """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("Type"))),
+                    listOf(RhovasAst.Import(listOf("Type"), null)),
                     listOf(),
                 )),
                 Arguments.of("Multiple Imports", """
@@ -42,13 +42,7 @@ class RhovasParserTests {
                     import Second;
                     import Third;
                 """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("First")), RhovasAst.Import(listOf("Second")), RhovasAst.Import(listOf("Third"))),
-                    listOf(),
-                )),
-                Arguments.of("Submodule Import", """
-                    import Module.Type;
-                """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("Module", "Type"))),
+                    listOf(RhovasAst.Import(listOf("First"), null), RhovasAst.Import(listOf("Second"), null), RhovasAst.Import(listOf("Third"), null)),
                     listOf(),
                 )),
                 Arguments.of("Single Statement", """
@@ -66,7 +60,7 @@ class RhovasParserTests {
                     import Type;
                     statement;
                 """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("Type"))),
+                    listOf(RhovasAst.Import(listOf("Type"), null)),
                     listOf(stmt("statement")),
                 )),
                 Arguments.of("Import After Statement", """
@@ -92,26 +86,35 @@ class RhovasParserTests {
                 Arguments.of("Import", """
                     import Module;
                 """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("Module"))),
+                    listOf(RhovasAst.Import(listOf("Module"), null)),
                     listOf(),
                 )),
                 Arguments.of("Submodule", """
                     import Module.Type;
                 """.trimIndent(), RhovasAst.Source(
-                    listOf(RhovasAst.Import(listOf("Module", "Type"))),
+                    listOf(RhovasAst.Import(listOf("Module", "Type"), null)),
+                    listOf(),
+                )),
+                Arguments.of("Alias Import", """
+                    import Type as Alias;
+                """.trimIndent(), RhovasAst.Source(
+                    listOf(RhovasAst.Import(listOf("Type"), "Alias")),
                     listOf(),
                 )),
                 Arguments.of("Missing Name", """
                     import ;
                 """.trimIndent(), null),
-                Arguments.of("Missing Period", """
+                Arguments.of("Missing Period/As", """
                     import Module Submodule;
                 """.trimIndent(), null),
                 Arguments.of("Missing Submodule Name", """
                     import Module.;
                 """.trimIndent(), null),
+                Arguments.of("Missing Alias Name", """
+                    import Type as ;
+                """.trimIndent(), null),
                 Arguments.of("Missing Semicolon", """
-                    import Module
+                    import Type
                 """.trimIndent(), null),
             )
         }
