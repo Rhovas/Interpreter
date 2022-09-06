@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.library.Library
+
 sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, out F>?) {
 
     val variables = VariablesDelegate<V>()
@@ -50,7 +52,12 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                 function.takeIf {
                     arguments.zip(function.parameters)
                         .all { zip -> zip.first.isSubtypeOf(zip.second.second, generics) }
-                }?.bind(generics) as F?
+                }?.bind(generics.mapValues {
+                    when (val type = it.value) {
+                        is Type.Variant -> type.upper ?: type.lower ?: Library.TYPES["Any"]!!
+                        else -> type
+                    }
+                }) as F?
             }
             return when (candidates.size) {
                 0 -> null

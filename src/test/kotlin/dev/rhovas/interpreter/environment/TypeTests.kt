@@ -36,7 +36,7 @@ class TypeTests {
             Arguments.of("Generic Unbound", scope, "get", listOf(LIST, INTEGER), Type.Generic("T", ANY)),
             Arguments.of("Generic Bound", scope, "get", listOf(Type.Reference(LIST.base, listOf(INTEGER)), INTEGER), INTEGER),
             Arguments.of("Generic Multiple", scope, "set", listOf(Type.Reference(LIST.base, listOf(INTEGER)), INTEGER, INTEGER), INTEGER),
-            //Arguments.of("Generic Multiple Primitive Subtype First", scope, "set2", listOf(INTEGER, INTEGER, Type.Reference(LIST.base, listOf(NUMBER))), NUMBER), TODO: Variance
+            Arguments.of("Generic Multiple Primitive Subtype First", scope, "set2", listOf(INTEGER, INTEGER, Type.Reference(LIST.base, listOf(NUMBER))), NUMBER),
             Arguments.of("Generic Multiple Primitive Subtype Second", scope, "set2", listOf(NUMBER, INTEGER, Type.Reference(LIST.base, listOf(INTEGER))), null),
             Arguments.of("Generic Multiple Generic Subtype First", scope, "set", listOf(Type.Reference(LIST.base, listOf(INTEGER)), INTEGER, NUMBER), null),
             Arguments.of("Generic Multiple Generic Subtype Second", scope, "set", listOf(Type.Reference(LIST.base, listOf(NUMBER)), INTEGER, INTEGER), NUMBER),
@@ -139,6 +139,21 @@ class TypeTests {
                 Arguments.of("Bound Supertype", Type.Generic("T", NUMBER), INTEGER, false),
                 Arguments.of("Bound Dynamic Subtype", Type.Generic("T", DYNAMIC), NUMBER, true),
                 Arguments.of("Bound Dynamic Supertype", Type.Generic("T", NUMBER), DYNAMIC, true),
+            )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testVariantGeneric(name: String, first: Type, second: Type, expected: Boolean) {
+            Assertions.assertEquals(expected, first.isSubtypeOf(second))
+        }
+
+        fun testVariantGeneric(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Covariant Subtype", INTEGER, Type.Variant(null, NUMBER), true),
+                Arguments.of("Covariant Supertype", ANY, Type.Variant(null, NUMBER), false),
+                Arguments.of("Contravariant Subtype", INTEGER, Type.Variant(NUMBER, ANY), false),
+                Arguments.of("Contravariant Supertype", ANY, Type.Variant(NUMBER, ANY), true),
             )
         }
 

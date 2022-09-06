@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.library.Library
+
 sealed class Type(
     open val base: Base,
 ) {
@@ -107,7 +109,7 @@ sealed class Type(
                         true
                     } else if (base.name == other.base.name) {
                         generics.zip(other.generics).all {
-                            it.first.isSubtypeOf(it.second) && it.second.isSubtypeOf(it.first) //TODO: Variance
+                            it.first.isSubtypeOf(it.second) && it.second.isSubtypeOf(it.first)
                         }
                     } else {
                         val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
@@ -115,6 +117,7 @@ sealed class Type(
                     }
                 }
                 is Generic -> base.name == "Dynamic"
+                is Variant -> (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.let { this.isSubtypeOf(it) } ?: true)
             }
         }
 
@@ -125,9 +128,12 @@ sealed class Type(
                         true
                     } else if (base.name == other.base.name) {
                         generics.zip(other.generics).all { (type, other) ->
-                            //TODO: Variance
                             return when {
-                                other is Generic && !bindings.containsKey(other.name) -> type.isSubtypeOf(other, bindings)
+                                other is Generic -> when (val binding = bindings[other.name]) {
+                                    null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(type, type) }
+                                    is Variant -> ((binding.lower?.let { it.isSubtypeOf(type) } ?: true) && (binding.upper?.let { type.isSubtypeOf(it) } ?: true)).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                                    else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                                }
                                 else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings) //TODO: ???
                             }
                         }
@@ -140,8 +146,9 @@ sealed class Type(
                     base.name == "Dynamic" -> true.also { bindings[other.name] = this }
                     other.base.name == "Dynamic" -> true.also { bindings[other.name] = other }
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = this } ?: false
+                    else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
+                is Variant -> other.upper?.let { this.isSubtypeOf(it, bindings) } ?: true
             }
         }
 
@@ -188,6 +195,33 @@ sealed class Type(
         override fun toString(): String {
             return "${name}: ${bound}"
         }
+    }
+
+    data class Variant(
+        val lower: Type?,
+        val upper: Type?,
+    ) : Type((upper ?: Library.TYPES["Any"]!!).base) {
+
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            return (upper ?: Library.TYPES["Any"]!!).getFunction(name, arity)
+        }
+
+        override fun getFunction(name: String, arguments: List<Type>): Function? {
+            return (upper ?: Library.TYPES["Any"]!!).getFunction(name, arguments)
+        }
+
+        override fun bind(parameters: Map<String, Type>): Type {
+            return Variant(lower?.bind(parameters), upper?.bind(parameters))
+        }
+
+        override fun isSubtypeOf(other: Type): Boolean {
+            return (upper ?: Library.TYPES["Any"]!!).isSubtypeOf(other)
+        }
+
+        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
+            return (upper ?: Library.TYPES["Any"]!!).isSubtypeOf(other, bindings)
+        }
+
     }
 
 }
