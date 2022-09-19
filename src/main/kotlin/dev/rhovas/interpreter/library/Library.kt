@@ -1,10 +1,8 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
+import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Type
 
 object Library {
 
@@ -59,7 +57,7 @@ object Library {
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            val function = Function.Definition(Function.Declaration(name, generics, parameters, returns, throws)).also {
+            val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)).also {
                 it.implementation = { arguments ->
                     //TODO: Address subtyping issues with variant generics
                     /*arguments.indices.forEach {

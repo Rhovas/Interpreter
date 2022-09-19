@@ -34,7 +34,7 @@ object NullableInitializer : Library.TypeInitializer("Nullable") {
                     "The method ${instance.type.base.name}.==(${instance.type}) is undefined.",
                 )
                 when {
-                    other.type.isSubtypeOf(method.parameters[0].second) -> method.invoke(listOf(other))
+                    other.type.isSubtypeOf(method.parameters[0].type) -> method.invoke(listOf(other))
                     else -> Object(type("Boolean"), false)
                 }
             }

@@ -25,10 +25,10 @@ class TypeTests {
 
     fun testGetFunction(): Stream<Arguments> {
         val scope = Scope.Definition(null)
-        scope.functions.define(Function.Definition(Function.Declaration("number", listOf(), listOf(Pair("number", NUMBER)), ANY, listOf())))
-        scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf())))
-        scope.functions.define(Function.Definition(Function.Declaration("set", listOf(Type.Generic("T", ANY)), listOf(Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY)))), Pair("index", INTEGER), Pair("value", Type.Generic("T", ANY))), Type.Generic("T", ANY), listOf())))
-        scope.functions.define(Function.Definition(Function.Declaration("set2", listOf(Type.Generic("T", ANY)), listOf(Pair("value", Type.Generic("T", ANY)), Pair("index", INTEGER), Pair("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))))), Type.Generic("T", ANY), listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("number", listOf(), listOf(Variable.Declaration("number", NUMBER, false)), ANY, listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))), false), Variable.Declaration("index", INTEGER, false)), Type.Generic("T", ANY), listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("set", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))), false), Variable.Declaration("index", INTEGER, false), Variable.Declaration("value", Type.Generic("T", ANY), false)), Type.Generic("T", ANY), listOf())))
+        scope.functions.define(Function.Definition(Function.Declaration("set2", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("value", Type.Generic("T", ANY), false), Variable.Declaration("index", INTEGER, false), Variable.Declaration("list", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))), false)), Type.Generic("T", ANY), listOf())))
         return Stream.of(
             Arguments.of("Equal", scope, "number", listOf(NUMBER), ANY),
             Arguments.of("Subtype", scope, "number", listOf(INTEGER), ANY),
@@ -53,10 +53,10 @@ class TypeTests {
     }
 
     fun testGetMethod(): Stream<Arguments> {
-        NUMBER.base.scope.functions.define(Function.Definition(Function.Declaration("<=>", listOf(), listOf(Pair("this", NUMBER), Pair("other", NUMBER)), INTEGER, listOf())).also {
+        NUMBER.base.scope.functions.define(Function.Definition(Function.Declaration("<=>", listOf(), listOf(Variable.Declaration("this", NUMBER, false), Variable.Declaration("other", NUMBER, false)), INTEGER, listOf())).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
-        LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Pair("this", LIST), Pair("index", INTEGER)), Type.Generic("T", ANY), listOf())).also {
+        LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("this", LIST, false), Variable.Declaration("index", INTEGER, false)), Type.Generic("T", ANY), listOf())).also {
             it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
         })
         return Stream.of(
@@ -65,7 +65,7 @@ class TypeTests {
             Arguments.of("Supertype", NUMBER, "<=>", listOf(ANY), null),
             Arguments.of("Dynamic", DYNAMIC, "undefined", listOf(ANY), DYNAMIC),
             Arguments.of("Generic Unbound", LIST, "get", listOf(INTEGER), Type.Generic("T", ANY)),
-            Arguments.of("Generic Bound", LIST.bind(mapOf(Pair("T", INTEGER))), "get", listOf(INTEGER), INTEGER),
+            Arguments.of("Generic Bound", LIST.bind(mapOf("T" to INTEGER)), "get", listOf(INTEGER), INTEGER),
         )
     }
 

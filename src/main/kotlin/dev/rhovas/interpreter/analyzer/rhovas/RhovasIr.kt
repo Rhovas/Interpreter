@@ -94,8 +94,8 @@ sealed class RhovasIr {
         }
 
         data class For(
-            val name: String,
-            val iterable: RhovasIr.Expression,
+            val variable: dev.rhovas.interpreter.environment.Variable.Declaration,
+            val argument: RhovasIr.Expression,
             val body: Statement,
         ) : Statement()
 
@@ -111,15 +111,14 @@ sealed class RhovasIr {
         ) : Statement() {
 
             data class Catch(
-                val name: String,
-                val type: dev.rhovas.interpreter.environment.Type,
+                val variable: dev.rhovas.interpreter.environment.Variable.Declaration,
                 val body: Statement,
             ) : RhovasIr()
 
         }
 
         data class With(
-            val name: String?,
+            val variable: dev.rhovas.interpreter.environment.Variable.Declaration?,
             val argument: RhovasIr.Expression,
             val body: Statement,
         ) : Statement()
@@ -265,7 +264,7 @@ sealed class RhovasIr {
         }
 
         data class Lambda(
-            val parameters: List<Pair<String, Type?>>,
+            val parameters: List<dev.rhovas.interpreter.environment.Variable.Declaration>,
             val body: Statement,
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Expression(type)

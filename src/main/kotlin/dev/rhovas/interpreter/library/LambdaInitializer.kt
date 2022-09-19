@@ -2,7 +2,6 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
@@ -30,8 +29,8 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
             instance.invoke(arguments.indices.map {
                 val parameter = instance.ast.parameters.getOrNull(it)
                 Triple(
-                    parameter?.first ?: "val_${it}",
-                    parameter?.second?.let { instance.evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!,
+                    parameter?.name ?: "val_${it}",
+                    parameter?.type ?: Library.TYPES["Any"]!!,
                     arguments[it])
             }, Library.TYPES["Any"]!!)
         }

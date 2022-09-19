@@ -51,7 +51,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                 val generics = mutableMapOf<String, Type>()
                 function.takeIf {
                     arguments.zip(function.parameters)
-                        .all { zip -> zip.first.isSubtypeOf(zip.second.second, generics) }
+                        .all { zip -> zip.first.isSubtypeOf(zip.second.type, generics) }
                 }?.bind(generics.mapValues {
                     when (val type = it.value) {
                         is Type.Variant -> type.upper ?: type.lower ?: Library.TYPES["Any"]!!

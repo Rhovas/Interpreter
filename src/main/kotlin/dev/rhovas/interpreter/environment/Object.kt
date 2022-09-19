@@ -13,7 +13,7 @@ data class Object(
     }
 
     operator fun get(method: Method): Method.Bound? {
-        return methods[method.name, method.parameters.map { it.second }]
+        return methods[method.name, method.parameters.map { it.type }]
     }
 
     inner class PropertiesDelegate {

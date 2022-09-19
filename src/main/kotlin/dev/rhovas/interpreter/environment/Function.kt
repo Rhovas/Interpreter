@@ -4,7 +4,7 @@ sealed interface Function {
 
     val name: String
     val generics: List<Type.Generic>
-    val parameters: List<Pair<String, Type>>
+    val parameters: List<Variable.Declaration>
     val returns: Type
     val throws: List<Type>
 
@@ -13,7 +13,7 @@ sealed interface Function {
     data class Declaration(
         override val name: String,
         override val generics: List<Type.Generic>,
-        override val parameters: List<Pair<String, Type>>,
+        override val parameters: List<Variable.Declaration>,
         override val returns: Type,
         override val throws: List<Type>,
     ) : Function {
@@ -22,7 +22,7 @@ sealed interface Function {
             return Declaration(
                 name,
                 this.generics.map { Type.Generic(it.name, it.bound.bind(generics)) },
-                parameters.map { Pair(it.first, it.second.bind(generics)) },
+                parameters.map { Variable.Declaration(it.name, it.type.bind(generics), it.mutable) },
                 returns.bind(generics),
                 throws.map { it.bind(generics) }
             )

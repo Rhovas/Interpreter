@@ -107,7 +107,7 @@ object ListInitializer : Library.TypeInitializer("List") {
                 "The method ${value.type.base.name}.==(${value.type}) is undefined.",
             )
             Object(type("Boolean"), instance.any {
-                it.type.isSubtypeOf(method.parameters[0].second) && method.invoke(listOf(it)).value as Boolean
+                it.type.isSubtypeOf(method.parameters[0].type) && method.invoke(listOf(it)).value as Boolean
             })
         }
 
@@ -234,7 +234,7 @@ object ListInitializer : Library.TypeInitializer("List") {
                     "Undefined method.",
                     "The method ${it.first.type.base.name}.==(${it.first.type}) is undefined.",
                 )
-                if (it.second.type.isSubtypeOf(method.parameters[0].second)) method.invoke(listOf(it.second)).value as Boolean else false
+                if (it.second.type.isSubtypeOf(method.parameters[0].type)) method.invoke(listOf(it.second)).value as Boolean else false
             })
         }
 

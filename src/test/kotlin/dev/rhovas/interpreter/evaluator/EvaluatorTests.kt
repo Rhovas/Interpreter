@@ -244,12 +244,12 @@ class EvaluatorTests {
             fun testProperty(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
                     val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false)), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"]!!
                             }
                         })
-                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any"), "value" to type("Any")), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false), Variable.Declaration("value", type("Any"), false)), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
                                 Object(type("Void"), Unit)
@@ -583,10 +583,10 @@ class EvaluatorTests {
             fun testTry(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also { scope ->
                     scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(null)).reference)
-                    scope.functions.define(Function.Definition(Function.Declaration("Exception", listOf(), listOf("message" to type("String")), type("Exception"), listOf())).also {
+                    scope.functions.define(Function.Definition(Function.Declaration("Exception", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Exception"), listOf())).also {
                         it.implementation = { arguments -> Object(type("Exception"), arguments[0].value as String) }
                     })
-                    scope.functions.define(Function.Definition(Function.Declaration("SubtypeException", listOf(), listOf("message" to type("String")), scope.types["SubtypeException"]!!, listOf())).also {
+                    scope.functions.define(Function.Definition(Function.Declaration("SubtypeException", listOf(), listOf(Variable.Declaration("message", type("String"), false)), scope.types["SubtypeException"]!!, listOf())).also {
                         it.implementation = { arguments -> Object(scope.types["SubtypeException"]!!, arguments[0].value as String) }
                     })
                 })
@@ -1117,7 +1117,7 @@ class EvaluatorTests {
                 fun testProperty(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf("this" to type("Any")), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false)), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     (arguments[0].value as Map<String, Object>)["property"]!!
                                 }
@@ -1195,7 +1195,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
                             it.implementation = { arguments ->
                                 arguments[0]
                             }
@@ -1223,7 +1223,7 @@ class EvaluatorTests {
                 fun testMethod(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf("this" to type("Any"), "obj" to type("Any")), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", type("Any"), false), Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[1]
                                 }
@@ -1268,7 +1268,7 @@ class EvaluatorTests {
                 fun testPipeline(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val qualified = Type.Base("Qualified", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[0]
                                 }
@@ -1623,7 +1623,7 @@ class EvaluatorTests {
 
     private fun test(rule: String, input: String, expected: String?, scope: Scope.Definition = Scope.Definition(Library.SCOPE)) {
         val log = StringBuilder()
-        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf("obj" to type("Any")), type("Any"), listOf())).also {
+        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
             it.implementation = { arguments ->
                 log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]

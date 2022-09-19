@@ -84,7 +84,7 @@ sealed class Type(
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return if (base.name == "Dynamic") {
-                listOf(Function.Declaration(name, listOf(), (1..arity).map { Pair("val_${it}", this) }, this, listOf()))
+                listOf(Function.Declaration(name, listOf(), (1..arity).map { Variable.Declaration("val_${it}", this, false) }, this, listOf()))
             } else {
                 base.scope.functions[name, arity]
             }
@@ -92,7 +92,7 @@ sealed class Type(
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             return if (base.name == "Dynamic") {
-                Function.Declaration(name, listOf(), arguments.indices.map { Pair("val_${it}", this) }, this, listOf())
+                Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", this, false) }, this, listOf())
             } else {
                 base.scope.functions[name, arguments]
             }

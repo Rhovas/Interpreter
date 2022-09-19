@@ -66,7 +66,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         function.implementation = { arguments ->
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
-                    val parameter = Variable.Definition(Variable.Declaration(ir.function.parameters[i].first, ir.function.parameters[i].second, false))
+                    val parameter = Variable.Definition(ir.function.parameters[i])
                     parameter.value = arguments[i]
                     scope.variables.define(parameter)
                 }
@@ -120,12 +120,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Unassignable property.",
             "The property ${receiver.type.base.name}.${ir.property.name} does not support assignment.",
         )
-        require(value.type.isSubtypeOf(method.parameters[0].second)) { error(
+        require(value.type.isSubtypeOf(method.parameters[0].type)) { error(
             ir.value,
             "Invalid property value type.",
-            "The property ${receiver.type.base.name}.${method.name} requires the value to be type ${method.parameters[0].second}, but received ${value.type}.",
+            "The property ${receiver.type.base.name}.${method.name} requires the value to be type ${method.parameters[0].type}, but received ${value.type}.",
         ) }
-        trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(listOf(value))
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -137,16 +137,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val method = receiver[ir.method]  ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${ir.method.name}(${ir.method.parameters.map { it.second }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
         )
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(
                 ir.arguments.getOrNull(i) ?: ir.value,
                 "Invalid method argument type.",
-                "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
+                "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -203,14 +203,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Statement.For): Object {
-        val iterable = visit(ir.iterable)
+        val iterable = visit(ir.argument)
         val label = this.label
         this.label = null
         for (element in iterable.value as List<Object>) {
             try {
                 scoped(Scope.Definition(scope)) {
                     //TODO: Generic types
-                    val variable = Variable.Definition(Variable.Declaration(ir.name, Library.TYPES["Any"]!!, false))
+                    val variable = Variable.Definition(ir.variable)
                     variable.value = element
                     scope.variables.define(variable)
                     visit(ir.body)
@@ -262,11 +262,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         try {
             visit(ir.body)
         } catch (e: Throw) {
-            val catch = ir.catches.firstOrNull { e.exception.type.isSubtypeOf(it.type) }
+            val catch = ir.catches.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
             //TODO: Nested exceptions
             if (catch != null) {
                 scoped(Scope.Definition(scope)) {
-                    val variable = Variable.Definition(Variable.Declaration(catch.name, catch.type, false))
+                    val variable = Variable.Definition(catch.variable)
                     variable.value = e.exception
                     scope.variables.define(variable)
                     visit(catch.body)
@@ -394,11 +394,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val method = left[ir.method!!] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method op==(${ir.method.parameters.map { it.second }}) is not defined in ${left.type.base.name}.",
+                    "The method op==(${ir.method.parameters.map { it.type }}) is not defined in ${left.type.base.name}.",
                 )
                 val right = visit(ir.right)
-                val result = if (right.type.isSubtypeOf(method.parameters[0].second)) {
-                    trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+                val result = if (right.type.isSubtypeOf(method.parameters[0].type)) {
+                    trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                         method.invoke(listOf(right)).value as Boolean
                     }
                 } else false
@@ -416,15 +416,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val method = left[ir.method!!] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method ${ir.method.name}(${ir.method.parameters.map { it.second }.joinToString(", ")}) is not defined in ${left.type.base.name}.",
+                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type.base.name}.",
                 )
                 val right = visit(ir.right)
-                require(right.type.isSubtypeOf(method.parameters[0].second)) { error(
+                require(right.type.isSubtypeOf(method.parameters[0].type)) { error(
                     ir.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].second}, but received ${right.type}."
+                    "The method ${left.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].type}, but received ${right.type}."
                 ) }
-                val result = trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+                val result = trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right)).value as BigInteger
                 }
                 val value = when (ir.operator) {
@@ -440,10 +440,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val method = left[ir.method!!] ?: throw error(
                     ir,
                     "Undefined method.",
-                    "The method ${ir.method.name}(${ir.method.parameters.map { it.second }.joinToString(", ")}) is not defined in ${left.type.base.name}.",
+                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type.base.name}.",
                 )
                 val right = visit(ir.right)
-                trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+                trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right))
                 }
             }
@@ -466,7 +466,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "Undefined property.",
                 "The property ${ir.property.name} is not defined in ${receiver.type.base.name}.",
             )
-            trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+            trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                 method.invoke(listOf())
             }
         }
@@ -478,31 +478,31 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val method = receiver[ir.method] ?: throw error(
             ir,
             "Undefined method.",
-            "The method ${ir.method.name}(${ir.method.parameters.map { it.second }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
         )
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(
                 ir.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
+                "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
-        val function = scope.functions[ir.function.name, ir.function.parameters.map { it.second }]!!
+        val function = scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].second)) { error(
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
                 ir.arguments[i],
                 "Invalid function argument type.",
-                "The function ${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].second}, but received ${arguments[i].type}.",
+                "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("Source.${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             function.invoke(arguments)
         }
     }
@@ -516,16 +516,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             val method = receiver[ir.method]  ?: throw error(
                 ir,
                 "Undefined method.",
-                "The method ${ir.method.name}(${ir.method.parameters.map { it.second }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
+                "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
             )
             for (i in arguments.indices) {
-                require(arguments[i].type.isSubtypeOf(method.parameters[i].second)) { error(
+                require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(
                     ir.arguments[i],
                     "Invalid method argument type.",
-                    "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].second}, but received ${arguments[i].type}.",
+                    "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
                 ) }
             }
-            val result = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+            val result = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                 method.invoke(arguments)
             }
             return if (ir.cascade) receiver else result
@@ -535,7 +535,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Expression.Invoke.Pipeline): Object {
         val function = when (ir.function) {
             is Function.Definition -> ir.function
-            is Function.Declaration -> scope.functions[ir.function.name, ir.function.parameters.map { it.second }]!!
+            is Function.Declaration -> scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
         }
         val receiver = visit(ir.receiver)
         return if (ir.coalesce && receiver.type.isSubtypeOf(Library.TYPES["Null"]!!)) {
@@ -544,13 +544,13 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
             for (i in arguments.indices) {
                 //TODO: Include qualifier for error message
-                require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].second)) { error(
+                require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
                     ir.arguments[i],
                     "Invalid function argument type.",
-                    "The function ${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].second}, but received ${arguments[i].type}.",
+                    "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
                 ) }
             }
-            val result = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+            val result = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                 function.invoke(arguments)
             }
             return if (ir.cascade) receiver else result
@@ -582,8 +582,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Undefined method.",
             "The method op==(${value.type}) is not defined in ${value.type.base.name}.",
         )
-        val result = if (patternState.value.type.isSubtypeOf(method.parameters[0].second)) {
-            trace("${value.type.base.name}.${method.name}(${method.parameters.map { it.second }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val result = if (patternState.value.type.isSubtypeOf(method.parameters[0].type)) {
+            trace("${value.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                 method.invoke(listOf(patternState.value)).value as Boolean
             }
         } else false
@@ -781,16 +781,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             //TODO: Expected count depends on lambda invocation context (direct vs indirect)
             return evaluator.scoped(Scope.Definition(scope)) {
                 if (ast.parameters.isNotEmpty()) {
-                    val parameters = ast.parameters.map {
-                        Pair(it.first, it.second?.let { evaluator.visit(it).value as Type } ?: Library.TYPES["Any"]!!)
-                    }
-                    for (i in parameters.indices) {
-                        val variable = Variable.Definition(Variable.Declaration(parameters[i].first, parameters[i].second, false))
-                        val value = arguments[i].third
+                    for (i in ast.parameters.indices) {
+                        val variable = Variable.Definition(ast.parameters[i])
+                        variable.value = arguments[i].third
                         evaluator.scope.variables.define(variable)
                     }
                 } else if (arguments.size == 1) {
-                    //TODO: entry name is (intentionally) unused
                     val variable = Variable.Definition(Variable.Declaration("val", arguments[0].second, false))
                     variable.value = arguments[0].third
                     evaluator.scope.variables.define(variable)
