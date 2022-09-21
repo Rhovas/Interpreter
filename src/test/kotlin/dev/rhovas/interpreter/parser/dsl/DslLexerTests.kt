@@ -179,8 +179,9 @@ class DslLexerTests {
 
     private fun test(input: String, expected: List<Token<DslTokenType>>, success: Boolean) {
         val input = Input("Test", input)
+        val lexer = DslLexer(input)
         try {
-            val tokens = DslLexer(input).lex()
+            val tokens = generateSequence { lexer.lexToken() }.toList()
             if (success) {
                 Assertions.assertEquals(expected, tokens)
             } else {

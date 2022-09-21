@@ -8,6 +8,13 @@ import java.math.BigInteger
 
 class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
 
+    /**
+     * Main lexer method, which dispatches to the correct `lex` method and
+     * also skips comments/newlines.
+     *
+     *  - `comment = "//" [^\n\r]+`
+     *  - `newline = "\n" "\r"? | "\r" "\n"?`
+     */
     override fun lexToken(): Token<RhovasTokenType>? {
         if (mode == "string") {
             return lexStringMode()
@@ -30,12 +37,20 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
         }
     }
 
+    /**
+     *  - `identifier = [A-Za-z_][A-Za-z0-9_]*`
+     */
     private fun lexIdentifier(): Token<RhovasTokenType> {
         require(match("[A-Za-z_]"))
         while (match("[A-Za-z0-9_]")) {}
         return chars.emit(RhovasTokenType.IDENTIFIER)
     }
 
+    /**
+     *  - `number = integer | decimal`
+     *     - `integer = "0" ("b" [0-1] | "o" [0-7] | "x" [0-9A-F]) | [0-9]+`
+     *     - `decimal = [0-9]+ "." [0-9]+ ("e" [0-9]+)`
+     */
     private fun lexNumber(): Token<RhovasTokenType> {
         require(match("[0-9]"))
         if (chars[-1] == '0' && peek("[box]")) {
@@ -61,12 +76,23 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
         }
     }
 
+    /**
+     *  - `operator = [^A-Za-z_0-9]`
+     */
     private fun lexOperator(): Token<RhovasTokenType> {
         require(chars[0] != null)
         chars.advance()
         return chars.emit(RhovasTokenType.OPERATOR)
     }
 
+    /**
+     * Lexer mode for within string literals to support interpolation. Mode
+     * switches and other validation occur in the parser
+     *
+     *  - `operator = [\"\n\r] | "${"`
+     *  - `string = ([^\"\n\r\\] & (?! "${") | escape)*`
+     *     - `escape = "\" ([nrt\"\$\\] | "u" [0-9A-F]{4})`
+     */
     private fun lexStringMode(): Token<RhovasTokenType>? {
         return when {
             chars[0] == null -> null

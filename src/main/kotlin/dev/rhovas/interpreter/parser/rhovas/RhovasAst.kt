@@ -249,17 +249,12 @@ sealed class RhovasAst {
 
     sealed class Pattern : RhovasAst() {
 
-        data class Variable(
-            val name: String,
-        ) : Pattern()
-
         data class Value(
             val value: Expression,
         ) : Pattern()
 
-        data class Predicate(
-            val pattern: Pattern,
-            val predicate: Expression,
+        data class Variable(
+            val name: String,
         ) : Pattern()
 
         data class OrderedDestructure(
@@ -278,6 +273,11 @@ sealed class RhovasAst {
         data class VarargDestructure(
             val pattern: Pattern?,
             val operator: String,
+        ) : Pattern()
+
+        data class Predicate(
+            val pattern: Pattern,
+            val predicate: Expression,
         ) : Pattern()
 
     }

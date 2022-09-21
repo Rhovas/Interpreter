@@ -12,7 +12,6 @@ import org.junit.jupiter.params.provider.MethodSource
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.stream.Stream
-import kotlin.math.exp
 
 class RhovasLexerTests {
 
@@ -423,8 +422,9 @@ class RhovasLexerTests {
 
     private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
         val input = Input("Test", input)
+        val lexer = RhovasLexer(input)
         try {
-            val tokens = RhovasLexer(input).lex()
+            val tokens = generateSequence { lexer.lexToken() }.toList()
             if (success) {
                 Assertions.assertEquals(expected, tokens)
             } else {
@@ -518,8 +518,9 @@ class RhovasLexerTests {
 
         private fun test(input: String, expected: List<Token<RhovasTokenType>>, success: Boolean) {
             val input = Input("Test", input)
+            val lexer = RhovasLexer(input).also { it.mode = "string" }
             try {
-                val tokens = RhovasLexer(input).also { it.mode = "string" }.lex()
+                val tokens = generateSequence { lexer.lexToken() }.toList()
                 if (success) {
                     Assertions.assertEquals(expected, tokens)
                 } else {

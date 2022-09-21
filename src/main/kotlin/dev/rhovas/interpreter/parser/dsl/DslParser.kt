@@ -13,6 +13,15 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
         }.also { require(tokens[0] == null) { error("Expected end of input.") } }
     }
 
+    /**
+     * Parses a DSL using an indentation-based approach to identify the
+     * start/end without grammar restrictions. This is either inline (without
+     * newlines/interpolation) or multiline (with newlines/interpolation).
+     *
+     *  - `inline = "{" (text | "$")* "}"`
+     *  - `multiline = "{" (indent[n] line indent[0]*)* indent[<n] "}"`
+     *     - `line = "$" "{" rhovas-expression "}" | operator | text`
+     */
     private fun parseSource(): DslAst.Source {
         require(match("{"))
         context.addLast(tokens[-1]!!.range)

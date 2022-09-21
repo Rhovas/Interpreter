@@ -15,6 +15,12 @@ class DslLexer(input: Input) : Lexer<DslTokenType>(input) {
         }
     }
 
+    /**
+     * Lexes the indentation following a newline (used for the indentation-based
+     * approach by the parser to avoid grammar restrictions).
+     *
+     *  - `indent = (?<= "\n" "\r"? | "\r" "\n"?) [ \t]*`
+     */
     private fun lexIndent(): Token<DslTokenType> {
         require(match("[\n\r]"))
         match(if (chars[-1] == '\n') '\r' else '\n')
@@ -23,11 +29,17 @@ class DslLexer(input: Input) : Lexer<DslTokenType>(input) {
         return chars.emit(DslTokenType.INDENT)
     }
 
+    /**
+     *  - `operator = [\${}]`
+     */
     private fun lexOperator(): Token<DslTokenType> {
         require(match("[\${}]"))
         return chars.emit(DslTokenType.OPERATOR)
     }
 
+    /**
+     *  - `text := [^\n\r\${}]*`
+     */
     private fun lexText(): Token<DslTokenType> {
         require(chars[0] != null)
         while (match("[^\n\r\${}]")) {}

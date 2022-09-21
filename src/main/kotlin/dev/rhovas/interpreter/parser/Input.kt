@@ -12,6 +12,10 @@ data class Input(
         val length: Int,
     )
 
+    /**
+     * Builds a diagnostic error message that includes relevant lines from the
+     * [context]. The exact format of this message is subject to change.
+     */
     fun diagnostic(summary: String, details: String, range: Range, context: List<Range>): String {
         val builder = StringBuilder()
             .append("${source}:${range.line}:${range.column}-${range.column + range.length}")
