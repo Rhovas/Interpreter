@@ -192,6 +192,7 @@ sealed class RhovasAst {
         sealed class Access : Expression() {
 
             data class Variable(
+                val qualifier: Type?,
                 val name: String,
             ) : Access()
 
@@ -211,6 +212,7 @@ sealed class RhovasAst {
         sealed class Invoke : Expression() {
 
             data class Function(
+                val qualifier: Type?,
                 val name: String,
                 val arguments: List<Expression>,
             ) : Invoke()
@@ -227,7 +229,7 @@ sealed class RhovasAst {
                 val receiver: Expression,
                 val coalesce: Boolean,
                 val cascade: Boolean,
-                val qualifier: Access?,
+                val qualifier: Type?,
                 val name: String,
                 val arguments: List<Expression>,
             ) : Invoke()

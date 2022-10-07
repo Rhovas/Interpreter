@@ -806,13 +806,13 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
 
     override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Variable.Local handling
-        val variable = context.scope.variables[ast.name] ?: throw error(
+        val qualifier = ast.qualifier?.let { visit(it) }
+        val variable = (qualifier?.type?.base?.scope ?: context.scope).variables[ast.name] ?: throw error(
             ast,
             "Undefined variable.",
-            "The variable ${ast.name} is not defined in the current scope."
+            "The variable ${ast.name} is not defined in ${qualifier?.type ?: "the current scope"}."
         )
-        return RhovasIr.Expression.Access.Variable(variable).also {
+        return RhovasIr.Expression.Access.Variable(qualifier, variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -863,12 +863,13 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val candidates = context.scope.functions[ast.name, ast.arguments.size]
+        val qualifier = ast.qualifier?.let { visit(it) }
+        val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size]
             .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(
                 ast,
                 "Undefined function.",
-                "The function ${ast.name}/${ast.arguments.size} is not defined in the current scope.",
+                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: "the current scope"}.\".",
             ) }
         val filtered = candidates.toMutableList()
         val arguments = mutableListOf<RhovasIr.Expression>()
@@ -895,7 +896,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
             ) }
         }
-        return RhovasIr.Expression.Invoke.Function(function, arguments).also {
+        return RhovasIr.Expression.Invoke.Function(qualifier, function, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -919,7 +920,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             .ifEmpty { throw error(
                 ast,
                 "Undefined method.",
-                "The method ${ast.name}/${ast.arguments.size} is not defined for type ${receiverType.base.name}.",
+                "The method ${ast.name}/${ast.arguments.size} is not defined in ${receiverType}.",
             ) }
         val filtered = candidates.toMutableList()
         val arguments = mutableListOf<RhovasIr.Expression>()
@@ -970,13 +971,13 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
         } else {
             receiver.type
         }
-        val qualifier = ast.qualifier?.let { visit(it) as RhovasIr.Expression.Access }
+        val qualifier = ast.qualifier?.let { visit(it) }
         val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size + 1]
             .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(
                 ast.qualifier ?: ast,
                 "Undefined function.",
-                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: "the current scope"}.",
+                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: " in the current scope"}.",
             ) }
         val filtered = candidates.toMutableList()
         filtered.retainAll { receiverType.isSubtypeOf(it.first.parameters[0].type, it.second) }
@@ -1018,7 +1019,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
             ) }
         }
-        return RhovasIr.Expression.Invoke.Pipeline(receiver, function, ast.coalesce, ast.cascade, arguments, type).also {
+        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1058,7 +1059,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
                 Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)),
             )
             //TODO: Compile-time macro invocation (including argument analysis)
-            return RhovasIr.Expression.Invoke.Function(function, listOf(literals, arguments)).also {
+            return RhovasIr.Expression.Invoke.Function(null, function, listOf(literals, arguments)).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
@@ -1277,7 +1278,7 @@ class RhovasAnalyzer(scope: Scope<*, *>) :
             type = type.base.scope.types[it] ?: throw error(
                 ast,
                 "Undefined type.",
-                "The type ${it} is not defined in ${type.base.name}."
+                "The type ${it} is not defined in ${type}."
             )
         }
         if (ast.generics != null) {

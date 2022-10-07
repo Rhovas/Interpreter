@@ -1274,7 +1274,7 @@ class EvaluatorTests {
                                 }
                             })
                         }).reference
-                        it.variables.define(variable("Qualified", qualified, Unit))
+                        it.types.define(qualified)
                         it.variables.define(Variable.Definition(Variable.Declaration("nullInteger", type("Nullable", "Integer"), false)).also {
                             it.value = Object(type("Null"), null)
                         })

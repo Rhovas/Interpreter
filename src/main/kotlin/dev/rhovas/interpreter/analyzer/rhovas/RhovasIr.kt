@@ -215,6 +215,7 @@ sealed class RhovasIr {
         ) : Expression(type) {
 
             data class Variable(
+                val qualifier: Type?,
                 val variable: dev.rhovas.interpreter.environment.Variable,
             ) : Access(variable.type)
 
@@ -238,6 +239,7 @@ sealed class RhovasIr {
         ) : Expression(type) {
 
             data class Function(
+                val qualifier: Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
             ) : Invoke(function.returns)
@@ -253,7 +255,7 @@ sealed class RhovasIr {
 
             data class Pipeline(
                 val receiver: Expression,
-                //TODO: Track function namespace (access) for generator
+                val qualifier: Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val coalesce: Boolean,
                 val cascade: Boolean,
