@@ -1,9 +1,10 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.decimal.DecimalMode
+import com.ionspin.kotlin.bignum.decimal.RoundingMode
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
-import java.math.BigDecimal
-import java.math.BigInteger
-import java.math.RoundingMode
 
 object DecimalInitializer : Library.TypeInitializer("Decimal") {
 
@@ -50,7 +51,7 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Decimal"), instance.divide(other, RoundingMode.DOWN)) //TODO: Rounding specification
+            Object(type("Decimal"), instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale))) //TODO: Rounding specification
         }
 
         method("equals", operator = "==",
@@ -66,7 +67,7 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Integer"), BigInteger.valueOf(instance.compareTo(other).toLong()))
+            Object(type("Integer"), BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("toInteger",

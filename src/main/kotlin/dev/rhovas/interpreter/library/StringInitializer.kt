@@ -1,10 +1,8 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigDecimal
-import java.math.BigInteger
 
 object StringInitializer : Library.TypeInitializer("String") {
 
@@ -15,7 +13,7 @@ object StringInitializer : Library.TypeInitializer("String") {
             returns = type("Integer"),
         ) { (instance) ->
             val instance = instance.value as String
-            Object(type("Integer"), instance.length.toBigInteger())
+            Object(type("Integer"), BigInteger.fromInt(instance.length))
         }
 
         method("slice",
@@ -24,12 +22,12 @@ object StringInitializer : Library.TypeInitializer("String") {
         ) { (instance, start) ->
             val instance = instance.value as String
             val start = start.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.length.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
             ) }
-            Object(type("String"), instance.substring(start.toInt()))
+            Object(type("String"), instance.substring(start.intValue()))
         }
 
         method("slice",
@@ -39,17 +37,17 @@ object StringInitializer : Library.TypeInitializer("String") {
             val instance = instance.value as String
             val start = start.value as BigInteger
             val end = end.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.length.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= instance.length.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.length}), but received ${end}.",
             ) }
-            Object(type("String"), instance.substring(start.toInt(), end.toInt()))
+            Object(type("String"), instance.substring(start.intValue(), end.intValue()))
         }
 
         method("contains",
@@ -93,7 +91,7 @@ object StringInitializer : Library.TypeInitializer("String") {
         ) { (instance, other) ->
             val instance = instance.value as String
             val other = other.value as String
-            Object(type("Integer"), BigInteger.valueOf(instance.compareTo(other).toLong()))
+            Object(type("Integer"), BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("toString",

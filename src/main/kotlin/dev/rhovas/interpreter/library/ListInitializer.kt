@@ -1,9 +1,9 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.evaluator.Evaluator
-import java.math.BigInteger
 
 object ListInitializer : Library.TypeInitializer("List") {
 
@@ -15,7 +15,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             returns = type("Integer"),
         ) { (instance) ->
             val instance = instance.value as List<Object>
-            Object(type("Integer"), instance.size.toBigInteger())
+            Object(type("Integer"), BigInteger.fromInt(instance.size))
         }
 
         method("first",
@@ -38,12 +38,12 @@ object ListInitializer : Library.TypeInitializer("List") {
         ) { (instance, index) ->
             val instance = instance.value as List<Object>
             val index = index.value as BigInteger
-            EVALUATOR.require(index >= BigInteger.ZERO && index < instance.size.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(
                 null,
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
-            instance[index.toInt()]
+            instance[index.intValue()]
         }
 
         method("set", operator = "[]=",
@@ -51,12 +51,12 @@ object ListInitializer : Library.TypeInitializer("List") {
         ) { (instance, index, value) ->
             val instance = instance.value as MutableList<Object>
             val index = index.value as BigInteger
-            EVALUATOR.require(index >= BigInteger.ZERO && index < instance.size.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(
                 null,
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
-            instance[index.toInt()] = value
+            instance[index.intValue()] = value
             Object(type("Void"), null)
         }
 
@@ -67,12 +67,12 @@ object ListInitializer : Library.TypeInitializer("List") {
             val elementType = instance.type.methods["get", listOf(type("Integer"))]!!.returns
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.size.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
-            Object(type("List", elementType), instance.subList(start.toInt(), instance.size))
+            Object(type("List", elementType), instance.subList(start.intValue(), instance.size))
         }
 
         method("slice",
@@ -83,17 +83,17 @@ object ListInitializer : Library.TypeInitializer("List") {
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
             val end = end.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= instance.size.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= instance.size.toBigInteger()) { EVALUATOR.error(
+            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
                 null,
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.size}), but received ${end}.",
             ) }
-            Object(type("List", elementType), instance.subList(start.toInt(), end.toInt()))
+            Object(type("List", elementType), instance.subList(start.intValue(), end.intValue()))
         }
 
         method("contains",

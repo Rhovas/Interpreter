@@ -1,13 +1,13 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigDecimal
-import java.math.BigInteger
 
 class RhovasAnalyzer(scope: Scope<*, *>) :
     Analyzer(Context(listOf(

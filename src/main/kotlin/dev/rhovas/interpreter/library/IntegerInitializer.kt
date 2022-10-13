@@ -1,7 +1,8 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
-import java.math.BigInteger
 
 object IntegerInitializer : Library.TypeInitializer("Integer") {
 
@@ -73,14 +74,14 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
         ) { (instance, other) ->
             val instance = instance.value as BigInteger
             val other = other.value as BigInteger
-            Object(type("Integer"), BigInteger.valueOf(instance.compareTo(other).toLong()))
+            Object(type("Integer"), BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("toDecimal",
             returns = type("Decimal"),
         ) { (instance) ->
             val instance = instance.value as BigInteger
-            Object(type("Decimal"), instance.toBigDecimal())
+            Object(type("Decimal"), BigDecimal.fromBigInteger(instance))
         }
 
         method("toString",

@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.dsl.DslAst
@@ -8,8 +10,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.stream.Stream
 
 class RhovasParserTests {
@@ -1196,22 +1196,22 @@ class RhovasParserTests {
                     Arguments.of("Integer", """
                         123
                     """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigInteger("123"),
+                        BigInteger.parseString("123"),
                     )),
                     Arguments.of("Integer Above Long Max", """
                         1${"0".repeat(19)}
                     """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigInteger("1" + "0".repeat(19)),
+                        BigInteger.parseString("1" + "0".repeat(19)),
                     )),
                     Arguments.of("Decimal", """
                         123.456
                     """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigDecimal("123.456"),
+                        BigDecimal.parseString("123.456"),
                     )),
                     Arguments.of("Decimal Above Double Max", """
                         1${"0".repeat(308)}.0
                     """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigDecimal("1${"0".repeat(308)}.0"),
+                        BigDecimal.parseString("1${"0".repeat(308)}.0"),
                     )),
                     Arguments.of("Atom", """
                         :atom
@@ -2112,12 +2112,12 @@ class RhovasParserTests {
                     Arguments.of("Integer", """
                         0
                     """.trimIndent(), RhovasAst.Pattern.Value(
-                        RhovasAst.Expression.Literal.Scalar(BigInteger("0")),
+                        RhovasAst.Expression.Literal.Scalar(BigInteger.parseString("0")),
                     )),
                     Arguments.of("Decimal", """
                         0.0
                     """.trimIndent(), RhovasAst.Pattern.Value(
-                        RhovasAst.Expression.Literal.Scalar(BigDecimal("0.0")),
+                        RhovasAst.Expression.Literal.Scalar(BigDecimal.parseString("0.0")),
                     )),
                     Arguments.of("String", """
                         "string"

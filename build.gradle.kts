@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.5.10"
+    kotlin("jvm") version "1.7.20"
     id("com.github.johnrengelman.shadow") version "7.0.0"
 }
 
@@ -13,6 +13,7 @@ repositories {
 }
 
 dependencies {
+    implementation("com.ionspin.kotlin:bignum:0.3.7")
     testImplementation("org.junit.jupiter:junit-jupiter:5.7.2")
 }
 

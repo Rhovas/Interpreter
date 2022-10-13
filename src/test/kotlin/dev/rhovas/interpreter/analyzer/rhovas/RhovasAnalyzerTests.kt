@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Scope
@@ -16,8 +18,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.stream.Stream
 
 class RhovasAnalyzerTests {
@@ -316,7 +316,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
                             Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
-                            block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
+                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                         )
                     }),
                     Arguments.of("If Return", """
@@ -332,8 +332,8 @@ class RhovasAnalyzerTests {
                             Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.If(
                                 literal(true),
-                                block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
-                                block(RhovasIr.Statement.Return(literal(BigInteger("2")))),
+                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("2")))),
                             )),
                         )
                     }),
@@ -348,8 +348,8 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Function(
                             Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Match.Conditional(
-                                listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger("1")))),
-                                null to RhovasIr.Statement.Return(literal(BigInteger("2"))),
+                                listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                                null to RhovasIr.Statement.Return(literal(BigInteger.parseString("2"))),
                             )),
                         )
                     }),
@@ -364,7 +364,7 @@ class RhovasAnalyzerTests {
                             Function.Declaration("name", listOf(), listOf(), type("Integer"), listOf()),
                             block(RhovasIr.Statement.Match.Structural(
                                 literal(true),
-                                listOf(RhovasIr.Pattern.Value(literal(true)) to RhovasIr.Statement.Return(literal(BigInteger("1")))),
+                                listOf(RhovasIr.Pattern.Value(literal(true)) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                                 null,
                             )),
                         )
@@ -399,7 +399,7 @@ class RhovasAnalyzerTests {
                             block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Index(
                                 variable("list", listT),
                                 listT.methods["[]", listOf(type("Integer"))]!!,
-                                listOf(literal(BigInteger("0"))),
+                                listOf(literal(BigInteger.parseString("0"))),
                             ))),
                         )
                     }),
@@ -498,7 +498,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
                             Variable.Declaration("name", type("Integer"), false),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Subtype Value", """
@@ -507,7 +507,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Declaration(
                             Variable.Declaration("name", type("Dynamic"), false),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Undefined Type", """
@@ -550,7 +550,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Assignment.Variable(
                             Variable.Declaration("variable", type("Integer"), true),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Subtype Value", """
@@ -559,7 +559,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Assignment.Variable(
                             Variable.Declaration("variable", type("Dynamic"), true),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Undefined Variable", """
@@ -605,7 +605,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Assignment.Property(
                             variable("object", ObjectType),
                             ObjectType.properties["property"]!!,
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Subtype Value", """
@@ -614,7 +614,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Assignment.Property(
                             variable("object", ObjectType),
                             ObjectType.properties["dynamic"]!!,
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Undefined Property", """
@@ -653,8 +653,8 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Assignment.Index(
                             variable("list", IntegerList),
                             IntegerList.methods["[]=", listOf(type("Integer"), type("Integer"))]!!,
-                            listOf(literal(BigInteger("0"))),
-                            literal(BigInteger("1")),
+                            listOf(literal(BigInteger.parseString("0"))),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Subtype Value", """
@@ -663,8 +663,8 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Assignment.Index(
                             variable("dynamic", DynamicList),
                             DynamicList.methods["[]=", listOf(type("Integer"), type("Dynamic"))]!!,
-                            listOf(literal(BigInteger("0"))),
-                            literal(BigInteger("1")),
+                            listOf(literal(BigInteger.parseString("0"))),
+                            literal(BigInteger.parseString("1")),
                         )
                     }),
                     Arguments.of("Undefined Method", """
@@ -753,7 +753,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.For(
                             Variable.Declaration("element", type("Dynamic"), false),
                             RhovasIr.Expression.Literal.List(listOf(
-                                literal(BigInteger("1")),
+                                literal(BigInteger.parseString("1")),
                             ), type("List", "Dynamic")),
                             block(stmt(variable("element", type("Dynamic")))),
                         )
@@ -876,7 +876,7 @@ class RhovasAnalyzerTests {
                         with (1) { stmt(); }
                     """.trimIndent(), {
                         RhovasIr.Statement.With(null,
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             block(stmt()),
                         )
                     }),
@@ -885,7 +885,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.With(
                             Variable.Declaration("name", type("Integer"), false),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             block(stmt(variable("name", type("Integer")))),
                         )
                     }),
@@ -1076,7 +1076,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
                             Function.Declaration("test", listOf(), listOf(), type("Integer"), listOf()),
-                            block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
+                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                         )
                     }),
                     Arguments.of("Invalid Return", """
@@ -1220,12 +1220,12 @@ class RhovasAnalyzerTests {
                     Arguments.of("Integer", """
                         123
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Scalar(BigInteger("123"), type("Integer"))
+                        RhovasIr.Expression.Literal.Scalar(BigInteger.parseString("123"), type("Integer"))
                     }),
                     Arguments.of("Decimal", """
                         123.456
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Scalar(BigDecimal("123.456"), type("Decimal"))
+                        RhovasIr.Expression.Literal.Scalar(BigDecimal.parseString("123.456"), type("Decimal"))
                     }),
                     Arguments.of("String", """
                         "string"
@@ -1258,16 +1258,16 @@ class RhovasAnalyzerTests {
                         [1]
                     """.trimIndent(), {
                         RhovasIr.Expression.Literal.List(listOf(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         ), type("List", "Dynamic"))
                     }),
                     Arguments.of("Multiple", """
                         [1, 2, 3]
                     """.trimIndent(), {
                         RhovasIr.Expression.Literal.List(listOf(
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
-                            literal(BigInteger("3")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
+                            literal(BigInteger.parseString("3")),
                         ), type("List", "Dynamic"))
                     }),
                 )
@@ -1369,7 +1369,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         //TODO: Depends on unsigned number literals
                         RhovasIr.Expression.Unary("-",
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             type("Integer").methods["-", listOf()]!!,
                         )
                     }),
@@ -1468,8 +1468,8 @@ class RhovasAnalyzerTests {
                         1 == 2
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("==",
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                             type("Integer").methods["==", listOf(type("Integer"))],
                             type("Boolean"),
                         )
@@ -1479,8 +1479,8 @@ class RhovasAnalyzerTests {
                         1 != 2.0
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("!=",
-                            literal(BigInteger("1")),
-                            literal(BigDecimal("2.0")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigDecimal.parseString("2.0")),
                             type("Integer").methods["==", listOf(type("Integer"))],
                             type("Boolean"),
                         )
@@ -1500,8 +1500,8 @@ class RhovasAnalyzerTests {
                         1 === 2
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("===",
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                             null,
                             type("Boolean"),
                         )
@@ -1511,8 +1511,8 @@ class RhovasAnalyzerTests {
                         1 !== 2.0
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("!==",
-                            literal(BigInteger("1")),
-                            literal(BigDecimal("2.0")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigDecimal.parseString("2.0")),
                             null,
                             type("Boolean"),
                         )
@@ -1532,8 +1532,8 @@ class RhovasAnalyzerTests {
                         1 < 2
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("<",
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                             type("Integer").methods["<=>", listOf(type("Integer"))]!!,
                             type("Boolean"),
                         )
@@ -1542,8 +1542,8 @@ class RhovasAnalyzerTests {
                         1.0 >= 2.0
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary(">=",
-                            literal(BigDecimal("1.0")),
-                            literal(BigDecimal("2.0")),
+                            literal(BigDecimal.parseString("1.0")),
+                            literal(BigDecimal.parseString("2.0")),
                             type("Decimal").methods["<=>", listOf(type("Decimal"))],
                             type("Boolean"),
                         )
@@ -1569,8 +1569,8 @@ class RhovasAnalyzerTests {
                         1 + 2
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("+",
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                             type("Integer").methods["+", listOf(type("Integer"))],
                             type("Integer"),
                         )
@@ -1579,8 +1579,8 @@ class RhovasAnalyzerTests {
                         1.0 - 2.0
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("-",
-                            literal(BigDecimal("1.0")),
-                            literal(BigDecimal("2.0")),
+                            literal(BigDecimal.parseString("1.0")),
+                            literal(BigDecimal.parseString("2.0")),
                             type("Decimal").methods["-", listOf(type("Decimal"))],
                             type("Decimal"),
                         )
@@ -1589,8 +1589,8 @@ class RhovasAnalyzerTests {
                         1 * 2
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("*",
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                             type("Integer").methods["*", listOf(type("Integer"))],
                             type("Integer"),
                         )
@@ -1599,8 +1599,8 @@ class RhovasAnalyzerTests {
                         1.0 / 2.0
                     """.trimIndent(), {
                         RhovasIr.Expression.Binary("/",
-                            literal(BigDecimal("1.0")),
-                            literal(BigDecimal("2.0")),
+                            literal(BigDecimal.parseString("1.0")),
+                            literal(BigDecimal.parseString("2.0")),
                             type("Decimal").methods["/", listOf(type("Decimal"))],
                             type("Decimal"),
                         )
@@ -1695,7 +1695,7 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Access.Index(
                                 variable("list", type("List")),
                                 type("List").methods["[]", listOf(type("Integer"))]!!,
-                                listOf(literal(BigInteger("0"))),
+                                listOf(literal(BigInteger.parseString("0"))),
                             )
                         }),
                         Arguments.of("Invalid Arity", """
@@ -1834,12 +1834,12 @@ class RhovasAnalyzerTests {
                             1.|range(2, :incl)
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
-                                literal(BigInteger("1")),
+                                literal(BigInteger.parseString("1")),
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 false,
-                                listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
                                 type("List", "Integer"),
                             )
                         }),
@@ -1847,12 +1847,12 @@ class RhovasAnalyzerTests {
                             1.|Kernel.range(2, :incl)
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
-                                literal(BigInteger("1")),
+                                literal(BigInteger.parseString("1")),
                                 RhovasIr.Type(type("Kernel")),
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 false,
-                                listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
                                 type("List", "Integer"),
                             )
                         }),
@@ -1860,12 +1860,12 @@ class RhovasAnalyzerTests {
                             Nullable(1)?.|range(2, :incl)
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
-                                RhovasIr.Expression.Invoke.Function(null, NULLABLE, listOf(literal(BigInteger("1")))),
+                                RhovasIr.Expression.Invoke.Function(null, NULLABLE, listOf(literal(BigInteger.parseString("1")))),
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 true,
                                 false,
-                                listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
                                 Type.Reference(type("Nullable").base, listOf(type("List", "Integer"))),
                             )
                         }),
@@ -1873,12 +1873,12 @@ class RhovasAnalyzerTests {
                             1..|range(2, :incl)
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
-                                literal(BigInteger("1")),
+                                literal(BigInteger.parseString("1")),
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 true,
-                                listOf(literal(BigInteger("2")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
                                 type("Integer"),
                             )
                         }),
@@ -1930,7 +1930,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Expression.Lambda(
                             listOf(),
-                            block(RhovasIr.Statement.Return(literal(BigInteger("1")))),
+                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                             type("Lambda", "Dynamic", "Dynamic"),
                         )
                     }),
@@ -2014,7 +2014,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.Variable(Variable.Declaration("name", type("Integer"), false)),
@@ -2028,7 +2028,7 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(RhovasIr.Pattern.Variable(null), stmt())
                         )
@@ -2074,9 +2074,9 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
-                            Pair(RhovasIr.Pattern.Value(literal(BigInteger("1"))), stmt())
+                            Pair(RhovasIr.Pattern.Value(literal(BigInteger.parseString("1"))), stmt())
                         )
                     }),
                     Arguments.of("Decimal", """
@@ -2085,9 +2085,9 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigDecimal("1.0")),
+                            literal(BigDecimal.parseString("1.0")),
                             listOf(),
-                            Pair(RhovasIr.Pattern.Value(literal(BigDecimal("1.0"))), stmt())
+                            Pair(RhovasIr.Pattern.Value(literal(BigDecimal.parseString("1.0"))), stmt())
                         )
                     }),
                     Arguments.of("String", """
@@ -2121,7 +2121,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Match.Structural(
                             variable("any", type("Any")),
                             listOf(),
-                            Pair(RhovasIr.Pattern.Value(literal(BigInteger("1"))), stmt())
+                            Pair(RhovasIr.Pattern.Value(literal(BigInteger.parseString("1"))), stmt())
                         )
                     }),
                     Arguments.of("Unmatchable Argument", """
@@ -2151,14 +2151,14 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.Predicate(
                                     RhovasIr.Pattern.Variable(null),
                                     RhovasIr.Expression.Binary(">",
                                         variable("val", type("Integer")),
-                                        literal(BigInteger("0")),
+                                        literal(BigInteger.parseString("0")),
                                         type("Integer").methods["<=>", listOf(type("Integer"))]!!,
                                         type("Boolean"),
                                     ),
@@ -2173,14 +2173,14 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.Predicate(
                                     RhovasIr.Pattern.Variable(Variable.Declaration("name", type("Integer"), false)),
                                     RhovasIr.Expression.Binary(">",
                                         variable("name", type("Integer")),
-                                        literal(BigInteger("0")),
+                                        literal(BigInteger.parseString("0")),
                                         type("Integer").methods["<=>", listOf(type("Integer"))]!!,
                                         type("Boolean"),
                                     ),
@@ -2195,14 +2195,14 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.Predicate(
                                     RhovasIr.Pattern.Variable(null),
                                     RhovasIr.Expression.Binary(">",
                                         variable("val", type("Integer")),
-                                        literal(BigInteger("0")),
+                                        literal(BigInteger.parseString("0")),
                                         type("Integer").methods["<=>", listOf(type("Integer"))]!!,
                                         type("Boolean"),
                                     ),
@@ -2248,7 +2248,7 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
-                                listOf(literal(BigInteger("1")), literal(BigInteger("1")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("1")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
@@ -2269,15 +2269,15 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
-                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.OrderedDestructure(
                                     listOf(
-                                        RhovasIr.Pattern.Value(literal(BigInteger("1"))),
-                                        RhovasIr.Pattern.Value(literal(BigInteger("2"))),
-                                        RhovasIr.Pattern.Value(literal(BigInteger("3"))),
+                                        RhovasIr.Pattern.Value(literal(BigInteger.parseString("1"))),
+                                        RhovasIr.Pattern.Value(literal(BigInteger.parseString("2"))),
+                                        RhovasIr.Pattern.Value(literal(BigInteger.parseString("3"))),
                                     ),
                                     type("List", "Integer"),
                                 ),
@@ -2294,7 +2294,7 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
-                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
@@ -2315,7 +2315,7 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
-                                listOf(literal(BigInteger("1")), literal(BigInteger("3")), literal(RhovasAst.Atom("incl"))),
+                                listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
                             ),
                             listOf(),
                             Pair(
@@ -2330,7 +2330,7 @@ class RhovasAnalyzerTests {
                                 stmt(RhovasIr.Expression.Access.Index(
                                     variable("elements", type("List", "Integer")),
                                     type("List", "Integer").methods["[]", listOf(type("Integer"))]!!,
-                                    listOf(literal(BigInteger("0"))),
+                                    listOf(literal(BigInteger.parseString("0"))),
                                 )),
                             ),
                         )
@@ -2379,7 +2379,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger("1")),
+                                "key" to literal(BigInteger.parseString("1")),
                             ), type("Object")),
                             listOf(),
                             Pair(
@@ -2398,12 +2398,12 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger("1")),
+                                "key" to literal(BigInteger.parseString("1")),
                             ), type("Object")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("key" to RhovasIr.Pattern.Value(literal(BigInteger("1")))),
+                                    listOf("key" to RhovasIr.Pattern.Value(literal(BigInteger.parseString("1")))),
                                     type("Object"),
                                 ),
                                 stmt(variable("key", type("Integer"))),
@@ -2417,9 +2417,9 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Literal.Object(mapOf(
-                                "x" to literal(BigInteger("1")),
-                                "y" to literal(BigInteger("2")),
-                                "z" to literal(BigInteger("3")),
+                                "x" to literal(BigInteger.parseString("1")),
+                                "y" to literal(BigInteger.parseString("2")),
+                                "z" to literal(BigInteger.parseString("3")),
                             ), type("Object")),
                             listOf(),
                             Pair(
@@ -2439,7 +2439,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger("1")),
+                                "key" to literal(BigInteger.parseString("1")),
                             ), type("Object")),
                             listOf(),
                             Pair(
@@ -2458,7 +2458,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
                             RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger("1")),
+                                "key" to literal(BigInteger.parseString("1")),
                             ), type("Object")),
                             listOf(),
                             Pair(
@@ -2526,7 +2526,7 @@ class RhovasAnalyzerTests {
                         }
                     """, {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.TypedDestructure(type("Integer"), null),
@@ -2540,7 +2540,7 @@ class RhovasAnalyzerTests {
                         }
                     """, {
                         RhovasIr.Statement.Match.Structural(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.TypedDestructure(
@@ -2613,7 +2613,7 @@ class RhovasAnalyzerTests {
     }
 
     private fun stmt(position: Int): RhovasIr.Statement {
-        return stmt(literal(position.toBigInteger()))
+        return stmt(literal(BigInteger.fromInt(position)))
     }
 
     private fun stmt(argument: RhovasIr.Expression? = null): RhovasIr.Statement {
@@ -2631,7 +2631,7 @@ class RhovasAnalyzerTests {
             is BigDecimal -> RhovasIr.Expression.Literal.Scalar(value, type("Decimal"))
             is RhovasAst.Atom -> RhovasIr.Expression.Literal.Scalar(value, type("Atom"))
             is String -> RhovasIr.Expression.Literal.String(listOf(value), listOf(), type("String"))
-            else -> throw AssertionError()
+            else -> throw AssertionError(value.javaClass)
         }
     }
 

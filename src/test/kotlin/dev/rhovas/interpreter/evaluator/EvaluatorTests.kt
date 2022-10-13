@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.evaluator
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
@@ -18,8 +20,6 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.stream.Stream
 
 class EvaluatorTests {
@@ -757,12 +757,12 @@ class EvaluatorTests {
                     Arguments.of("Integer", """
                         123
                     """.trimIndent(),
-                        literal(BigInteger("123")),
+                        literal(BigInteger.parseString("123")),
                     ),
                     Arguments.of("Decimal", """
                         123.456
                     """.trimIndent(),
-                        literal(BigDecimal("123.456")),
+                        literal(BigDecimal.parseString("123.456")),
                     ),
                     Arguments.of("String", """
                         "string"
@@ -794,16 +794,16 @@ class EvaluatorTests {
                         [1]
                     """.trimIndent(),
                         Object(type("List", "Dynamic"), mutableListOf(
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         )),
                     ),
                     Arguments.of("Multiple", """
                         [1, 2, 3]
                     """.trimIndent(),
                         Object(type("List", "Dynamic"), mutableListOf(
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
-                            literal(BigInteger("3")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
+                            literal(BigInteger.parseString("3")),
                         )),
                     ),
                 )
@@ -890,7 +890,7 @@ class EvaluatorTests {
                     Arguments.of("Numerical Negation", """
                         -1
                     """.trimIndent(),
-                        literal(BigInteger("-1")),
+                        literal(BigInteger.parseString("-1")),
                     ),
                     Arguments.of("Logical Negation", """
                         !true
@@ -1048,22 +1048,22 @@ class EvaluatorTests {
                     Arguments.of("Integer Add", """
                         1 + 2
                     """.trimIndent(),
-                        literal(BigInteger("3")),
+                        literal(BigInteger.parseString("3")),
                     ),
                     Arguments.of("Integer Subtract", """
                         1 - 2
                     """.trimIndent(),
-                        literal(BigInteger("-1")),
+                        literal(BigInteger.parseString("-1")),
                     ),
                     Arguments.of("Decimal Multiply", """
                         1.2 * 2.3
                     """.trimIndent(),
-                        literal(BigDecimal("2.76")),
+                        literal(BigDecimal.parseString("2.76")),
                     ),
                     Arguments.of("Decimal Divide", """
                         1.2 / 2.3
                     """.trimIndent(),
-                        literal(BigDecimal("0.5")),
+                        literal(BigDecimal.parseString("0.52")),
                     ),
                     Arguments.of("String Concat", """
                         "first" + "second"
@@ -1074,8 +1074,8 @@ class EvaluatorTests {
                         [1] + [2]
                     """.trimIndent(),
                         Object(type("List", "Dynamic"), listOf(
-                            literal(BigInteger("1")),
-                            literal(BigInteger("2")),
+                            literal(BigInteger.parseString("1")),
+                            literal(BigInteger.parseString("2")),
                         )),
                     ),
                 )
@@ -1253,7 +1253,7 @@ class EvaluatorTests {
                         Arguments.of("Cascade", """
                             1..add(2)
                         """.trimIndent(),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         ),
                     )
                 }
@@ -1287,14 +1287,14 @@ class EvaluatorTests {
                             1.|range(2, :incl)
                         """.trimIndent(),
                             Object(type("List", "Integer"), mutableListOf(
-                                literal(BigInteger("1")),
-                                literal(BigInteger("2")),
+                                literal(BigInteger.parseString("1")),
+                                literal(BigInteger.parseString("2")),
                             )),
                         ),
                         Arguments.of("Qualified", """
                             1.|Qualified.function()
                         """.trimIndent(),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         ),
                         Arguments.of("Coalesce", """
                             nullInteger?.|range(2, :incl)
@@ -1304,7 +1304,7 @@ class EvaluatorTests {
                         Arguments.of("Cascade", """
                             1..|range(2, :incl)
                         """.trimIndent(),
-                            literal(BigInteger("1")),
+                            literal(BigInteger.parseString("1")),
                         ),
                     )
                 }

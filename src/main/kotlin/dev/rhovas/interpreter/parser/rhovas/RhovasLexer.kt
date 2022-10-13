@@ -1,10 +1,10 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.Lexer
 import dev.rhovas.interpreter.parser.Token
-import java.math.BigDecimal
-import java.math.BigInteger
 
 class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
 
@@ -56,7 +56,7 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
         if (chars[-1] == '0' && peek("[box]")) {
             fun lexBase(base: Int, digits: String): Token<RhovasTokenType> {
                 while (match(digits)) {}
-                return chars.emit(RhovasTokenType.INTEGER, BigInteger(chars.literal().substring(2), base))
+                return chars.emit(RhovasTokenType.INTEGER, BigInteger.parseString(chars.literal().substring(2), base))
             }
             when {
                 match('b', "[0-1]") -> return lexBase(2, "[0-1]")
@@ -70,9 +70,9 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
             if (match("e", "[0-9]") || match("e", "[+\\-]", "[0-9]")) {
                 while (match("[0-9]")) {}
             }
-            chars.emit(RhovasTokenType.DECIMAL, BigDecimal(chars.literal()))
+            chars.emit(RhovasTokenType.DECIMAL, BigDecimal.parseString(chars.literal()))
         } else {
-            chars.emit(RhovasTokenType.INTEGER, BigInteger(chars.literal()))
+            chars.emit(RhovasTokenType.INTEGER, BigInteger.parseString(chars.literal()))
         }
     }
 

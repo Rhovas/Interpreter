@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Token
@@ -9,8 +11,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import java.math.BigDecimal
-import java.math.BigInteger
 import java.util.stream.Stream
 
 class RhovasLexerTests {
@@ -98,13 +98,13 @@ class RhovasLexerTests {
 
         fun testInteger(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of("Single Digit", "1", BigInteger("1")),
-                Arguments.of("Multiple Digits", "123", BigInteger("123")),
-                Arguments.of("Above Long Max", "1" + "0".repeat(19), BigInteger("1" + "0".repeat(19))),
+                Arguments.of("Single Digit", "1", BigInteger.parseString("1")),
+                Arguments.of("Multiple Digits", "123", BigInteger.parseString("123")),
+                Arguments.of("Above Long Max", "1" + "0".repeat(19), BigInteger.parseString("1" + "0".repeat(19))),
                 Arguments.of("Signed Integer", "-123", null),
-                Arguments.of("Binary", "0b10", BigInteger("10", 2)),
-                Arguments.of("Octal", "0o123", BigInteger("123", 8)),
-                Arguments.of("Hexadecimal", "0x123ABC", BigInteger("123ABC", 16)),
+                Arguments.of("Binary", "0b10", BigInteger.parseString("10", 2)),
+                Arguments.of("Octal", "0o123", BigInteger.parseString("123", 8)),
+                Arguments.of("Hexadecimal", "0x123ABC", BigInteger.parseString("123ABC", 16)),
                 Arguments.of("Non-Leading Zero Base", "1b10", null),
                 Arguments.of("Trailing Base", "0b", null),
                 Arguments.of("Invalid Leading Digit", "0b2", null),
@@ -127,16 +127,16 @@ class RhovasLexerTests {
 
         fun testDecimal(): Stream<Arguments> {
             return Stream.of(
-                Arguments.of("Single Digit", "1.0", BigDecimal("1.0")),
-                Arguments.of("Multiple Digits", "123.456", BigDecimal("123.456")),
-                Arguments.of("Above Double Max", "1" + "0".repeat(308) + ".0", BigDecimal("1" + "0".repeat(308) + ".0")),
-                Arguments.of("Leading Zeros", "000.456", BigDecimal("000.456")),
-                Arguments.of("Trailing Zeros", "123.000", BigDecimal("123.000")),
+                Arguments.of("Single Digit", "1.0", BigDecimal.parseString("1.0")),
+                Arguments.of("Multiple Digits", "123.456", BigDecimal.parseString("123.456")),
+                Arguments.of("Above Double Max", "1" + "0".repeat(308) + ".0", BigDecimal.parseString("1" + "0".repeat(308) + ".0")),
+                Arguments.of("Leading Zeros", "000.456", BigDecimal.parseString("000.456")),
+                Arguments.of("Trailing Zeros", "123.000", BigDecimal.parseString("123.000")),
                 Arguments.of("Leading Decimal", ".456", null),
                 Arguments.of("Trailing Decimal", "123.", null),
                 Arguments.of("Signed Decimal", "-123.456", null),
-                Arguments.of("Scientific", "123.456e789", BigDecimal("123.456e789")),
-                Arguments.of("Signed Exponent", "123.456e-789", BigDecimal("123.456e-789")),
+                Arguments.of("Scientific", "123.456e789", BigDecimal.parseString("123.456e789")),
+                Arguments.of("Signed Exponent", "123.456e-789", BigDecimal.parseString("123.456e-789")),
                 Arguments.of("Trailing Exponent", "123.456e", null),
                 Arguments.of("Trailing Exponent Sign", "123.456e-", null),
             )
@@ -206,49 +206,49 @@ class RhovasLexerTests {
                 )),
                 //identifier
                 Arguments.of("Leading Digits", "123abc", listOf(
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(0, 1, 0, 3)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger.parseString("123"), Input.Range(0, 1, 0, 3)),
                     Token(RhovasTokenType.IDENTIFIER, "abc", null, Input.Range(3, 1, 3, 3)),
                 )),
                 //integer
                 Arguments.of("Signed Integer", "-123", listOf(
                     Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(0, 1, 0, 1)),
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(1, 1, 1, 3)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger.parseString("123"), Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Non-Leading Zero Base", "1b10", listOf(
-                    Token(RhovasTokenType.INTEGER, "1", BigInteger("1"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.INTEGER, "1", BigInteger.parseString("1"), Input.Range(0, 1, 0, 1)),
                     Token(RhovasTokenType.IDENTIFIER, "b10", null, Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Trailing Base", "0b", listOf(
-                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(0, 1, 0, 1)),
                     Token(RhovasTokenType.IDENTIFIER, "b", null, Input.Range(1, 1, 1, 1)),
                 )),
                 Arguments.of("Invalid Leading Digit", "0b2", listOf(
-                    Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(0, 1, 0, 1)),
+                    Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(0, 1, 0, 1)),
                     Token(RhovasTokenType.IDENTIFIER, "b2", null, Input.Range(1, 1, 1, 2)),
                 )),
                 Arguments.of("Invalid Inner Digit", "0b10201", listOf(
-                    Token(RhovasTokenType.INTEGER, "0b10", BigInteger("10", 2), Input.Range(0, 1, 0, 4)),
-                    Token(RhovasTokenType.INTEGER, "201", BigInteger("201"), Input.Range(4, 1, 4, 3)),
+                    Token(RhovasTokenType.INTEGER, "0b10", BigInteger.parseString("10", 2), Input.Range(0, 1, 0, 4)),
+                    Token(RhovasTokenType.INTEGER, "201", BigInteger.parseString("201"), Input.Range(4, 1, 4, 3)),
                 )),
                 //decimal
                 Arguments.of("Leading Decimal", ".123", listOf(
                     Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(0, 1, 0, 1)),
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(1, 1, 1, 3)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger.parseString("123"), Input.Range(1, 1, 1, 3)),
                 )),
                 Arguments.of("Trailing Decimal", "123.", listOf(
-                    Token(RhovasTokenType.INTEGER, "123", BigInteger("123"), Input.Range(0, 1, 0, 3)),
+                    Token(RhovasTokenType.INTEGER, "123", BigInteger.parseString("123"), Input.Range(0, 1, 0, 3)),
                     Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(3, 1, 3, 1)),
                 )),
                 Arguments.of("Signed Decimal", "-123.456", listOf(
                     Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(0, 1, 0, 1)),
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(1, 1, 1, 7)),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal.parseString("123.456"), Input.Range(1, 1, 1, 7)),
                 )),
                 Arguments.of("Trailing Exponent", "123.456e", listOf(
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(0, 1, 0, 7)),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal.parseString("123.456"), Input.Range(0, 1, 0, 7)),
                     Token(RhovasTokenType.IDENTIFIER, "e", null, Input.Range(7, 1, 7, 1)),
                 )),
                 Arguments.of("Trailing Exponent Sign", "123.456e-", listOf(
-                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal("123.456"), Input.Range(0, 1, 0, 7)),
+                    Token(RhovasTokenType.DECIMAL, "123.456", BigDecimal.parseString("123.456"), Input.Range(0, 1, 0, 7)),
                     Token(RhovasTokenType.IDENTIFIER, "e", null, Input.Range(7, 1, 7, 1)),
                     Token(RhovasTokenType.OPERATOR, "-", null, Input.Range(8, 1, 8, 1)),
                 )),
@@ -329,7 +329,7 @@ class RhovasLexerTests {
 
                 Token(RhovasTokenType.IDENTIFIER, "range", null, Input.Range(34, 2, 4, 5)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(39, 2, 9, 1)),
-                Token(RhovasTokenType.INTEGER, "1", BigInteger("1"), Input.Range(40, 2, 10, 1)),
+                Token(RhovasTokenType.INTEGER, "1", BigInteger.parseString("1"), Input.Range(40, 2, 10, 1)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(41, 2, 11, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "num", null, Input.Range(43, 2, 13, 3)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(46, 2, 16, 1)),
@@ -347,23 +347,23 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(80, 3, 19, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "mod", null, Input.Range(81, 3, 20, 3)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(84, 3, 23, 1)),
-                Token(RhovasTokenType.INTEGER, "3", BigInteger("3"), Input.Range(85, 3, 24, 1)),
+                Token(RhovasTokenType.INTEGER, "3", BigInteger.parseString("3"), Input.Range(85, 3, 24, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(86, 3, 25, 1)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(87, 3, 26, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "val", null, Input.Range(89, 3, 28, 3)),
                 Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(92, 3, 31, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "mod", null, Input.Range(93, 3, 32, 3)),
                 Token(RhovasTokenType.OPERATOR, "(", null, Input.Range(96, 3, 35, 1)),
-                Token(RhovasTokenType.INTEGER, "5", BigInteger("5"), Input.Range(97, 3, 36, 1)),
+                Token(RhovasTokenType.INTEGER, "5", BigInteger.parseString("5"), Input.Range(97, 3, 36, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(98, 3, 37, 1)),
                 Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(99, 3, 38, 1)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(100, 3, 39, 1)),
                 Token(RhovasTokenType.OPERATOR, "{", null, Input.Range(102, 3, 41, 1)),
 
                 Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(116, 4, 12, 1)),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(117, 4, 13, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(117, 4, 13, 1)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(118, 4, 14, 1)),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(120, 4, 16, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(120, 4, 16, 1)),
                 Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(121, 4, 17, 1)),
                 Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(122, 4, 18, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(124, 4, 20, 5)),
@@ -375,7 +375,7 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ";", null, Input.Range(141, 4, 37, 1)),
 
                 Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(155, 5, 12, 1)),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(156, 5, 13, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(156, 5, 13, 1)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(157, 5, 14, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "_", null, Input.Range(159, 5, 16, 1)),
                 Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(160, 5, 17, 1)),
@@ -391,7 +391,7 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, "[", null, Input.Range(190, 6, 12, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "_", null, Input.Range(191, 6, 13, 1)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(192, 6, 14, 1)),
-                Token(RhovasTokenType.INTEGER, "0", BigInteger("0"), Input.Range(194, 6, 16, 1)),
+                Token(RhovasTokenType.INTEGER, "0", BigInteger.parseString("0"), Input.Range(194, 6, 16, 1)),
                 Token(RhovasTokenType.OPERATOR, "]", null, Input.Range(195, 6, 17, 1)),
                 Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(196, 6, 18, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "print", null, Input.Range(198, 6, 20, 5)),

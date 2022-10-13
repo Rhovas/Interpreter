@@ -2,9 +2,7 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigInteger
 
 object ObjectInitializer : Library.TypeInitializer("Object") {
 

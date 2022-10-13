@@ -1,8 +1,8 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigInteger
 
 object AtomInitializer : Library.TypeInitializer("Atom") {
 
@@ -29,7 +29,7 @@ object AtomInitializer : Library.TypeInitializer("Atom") {
         ) { (instance, other) ->
             val instance = instance.value as RhovasAst.Atom
             val other = other.value as RhovasAst.Atom
-            Object(type("Integer"), BigInteger.valueOf(instance.name.compareTo(other.name).toLong()))
+            Object(type("Integer"), BigInteger.fromInt(instance.name.compareTo(other.name)))
         }
 
         method("toString",

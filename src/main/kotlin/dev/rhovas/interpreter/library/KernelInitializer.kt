@@ -1,9 +1,8 @@
 package dev.rhovas.interpreter.library
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.evaluator.Evaluator
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import java.math.BigInteger
 
 object KernelInitializer: Library.TypeInitializer("Kernel") {
 
