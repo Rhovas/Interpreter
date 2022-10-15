@@ -153,7 +153,7 @@ class RhovasAnalyzerTests {
                         val instance = Name({});
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
-                        val constructor = Function.Definition(Function.Declaration("Name", listOf(), listOf(Variable.Declaration("fields", type("Object"), false)), type, listOf()))
+                        val constructor = Function.Declaration("Name", listOf(), listOf(Variable.Declaration("fields", type("Object"), false)), type, listOf())
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(

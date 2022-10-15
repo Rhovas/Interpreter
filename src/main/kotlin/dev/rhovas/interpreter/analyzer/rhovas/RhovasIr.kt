@@ -41,12 +41,12 @@ sealed class RhovasIr {
         ) : Statement()
 
         data class Function(
-            val function: dev.rhovas.interpreter.environment.Function.Declaration,
+            val function: dev.rhovas.interpreter.environment.Function,
             val body: Block,
         ) : Statement()
 
         data class Declaration(
-            val variable: dev.rhovas.interpreter.environment.Variable.Declaration,
+            val variable: dev.rhovas.interpreter.environment.Variable,
             val value: RhovasIr.Expression?,
         ) : Statement()
 

@@ -28,7 +28,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope
         //TODO: Hack to access unwrapped function definition
-        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single()
+        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single().let {
+            it as? Function.Definition ?: Function.Definition(it as Any as Function.Declaration).also { scope.functions.define(it) }
+        }
         constructor.implementation = { arguments ->
             scoped(current) {
                 Object(ir.type, ir.fields.associate {
@@ -39,7 +41,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }.toMutableMap())
             }
         }
-        scope.functions.define(constructor)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -62,7 +63,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Function): Object {
         val current = scope
-        val function = Function.Definition(ir.function)
+        val function = ir.function as? Function.Definition ?: Function.Definition(ir.function as Function.Declaration).also { scope.functions.define(it) }
         function.implementation = { arguments ->
             scoped(current) {
                 for (i in ir.function.parameters.indices) {
@@ -85,14 +86,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
             }
         }
-        scope.functions.define(function)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration): Object {
-        val variable = Variable.Definition(ir.variable)
+        val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
         variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
-        scope.variables.define(variable)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
