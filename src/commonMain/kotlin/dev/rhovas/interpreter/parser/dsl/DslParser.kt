@@ -10,7 +10,7 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
         return when (rule) {
             "source" -> parseSource()
             else -> throw AssertionError()
-        }.also { require(tokens[0] == null) { error("Expected end of input.") } }
+        }
     }
 
     /**
