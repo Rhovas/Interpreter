@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.INTERPRETER
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
@@ -10,7 +11,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         function("print",
             parameters = listOf("object" to type("Any")),
         ) { (obj) ->
-            println(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
+            INTERPRETER.stdout(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
             Object(type("Void"), null)
         }
 

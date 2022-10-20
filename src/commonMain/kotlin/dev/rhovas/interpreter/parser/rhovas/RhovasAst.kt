@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.parser.rhovas
 
 import dev.rhovas.interpreter.parser.Input
+import kotlin.js.JsName
 
 sealed class RhovasAst {
 
@@ -359,7 +360,7 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
-        fun visit(ast: Statement.Function): T
+        @JsName("visitFunction") fun visit(ast: Statement.Function): T
         fun visit(ast: Statement.Declaration): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T
@@ -386,16 +387,16 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Group): T
         fun visit(ast: Expression.Unary): T
         fun visit(ast: Expression.Binary): T
-        fun visit(ast: Expression.Access.Variable): T
+        @JsName("visitAccessVariable") fun visit(ast: Expression.Access.Variable): T
         fun visit(ast: Expression.Access.Property): T
         fun visit(ast: Expression.Access.Index): T
-        fun visit(ast: Expression.Invoke.Function): T
+        @JsName("visitInvokeFunction") fun visit(ast: Expression.Invoke.Function): T
         fun visit(ast: Expression.Invoke.Method): T
         fun visit(ast: Expression.Invoke.Pipeline): T
         fun visit(ast: Expression.Invoke.Macro): T
         fun visit(ast: Expression.Lambda): T
 
-        fun visit(ast: Pattern.Variable): T
+        @JsName("visitPatternVariable") fun visit(ast: Pattern.Variable): T
         fun visit(ast: Pattern.Value): T
         fun visit(ast: Pattern.Predicate): T
         fun visit(ast: Pattern.OrderedDestructure): T

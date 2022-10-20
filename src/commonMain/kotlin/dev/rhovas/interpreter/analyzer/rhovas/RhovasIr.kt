@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
+import kotlin.js.JsName
 
 sealed class RhovasIr {
 
@@ -386,11 +387,11 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Block): T
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
-        fun visit(ir: Statement.Function): T
+        @JsName("visitFunction") fun visit(ir: Statement.Function): T
         fun visit(ir: Statement.Declaration): T
-        fun visit(ir: Statement.Assignment.Variable): T
-        fun visit(ir: Statement.Assignment.Property): T
-        fun visit(ir: Statement.Assignment.Index): T
+        @JsName("visitAssignmentVariable") fun visit(ir: Statement.Assignment.Variable): T
+        @JsName("visitAssignmentProperty") fun visit(ir: Statement.Assignment.Property): T
+        @JsName("visitAssignmentIndex") fun visit(ir: Statement.Assignment.Index): T
         fun visit(ir: Statement.If): T
         fun visit(ir: Statement.Match.Conditional): T
         fun visit(ir: Statement.Match.Structural): T
@@ -415,15 +416,15 @@ sealed class RhovasIr {
         fun visit(ir: Expression.Group): T
         fun visit(ir: Expression.Unary): T
         fun visit(ir: Expression.Binary): T
-        fun visit(ir: Expression.Access.Variable): T
-        fun visit(ir: Expression.Access.Property): T
-        fun visit(ir: Expression.Access.Index): T
-        fun visit(ir: Expression.Invoke.Function): T
+        @JsName("visitAccessVariable") fun visit(ir: Expression.Access.Variable): T
+        @JsName("visitAccessProperty") fun visit(ir: Expression.Access.Property): T
+        @JsName("visitAccessIndex") fun visit(ir: Expression.Access.Index): T
+        @JsName("visitInvokeFunction") fun visit(ir: Expression.Invoke.Function): T
         fun visit(ir: Expression.Invoke.Method): T
         fun visit(ir: Expression.Invoke.Pipeline): T
         fun visit(ir: Expression.Lambda): T
 
-        fun visit(ir: Pattern.Variable): T
+        @JsName("visitPatternVariable") fun visit(ir: Pattern.Variable): T
         fun visit(ir: Pattern.Value): T
         fun visit(ir: Pattern.Predicate): T
         fun visit(ir: Pattern.OrderedDestructure): T
