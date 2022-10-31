@@ -319,7 +319,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         require(condition.value as Boolean) { error(
             ir,
             "Failed assertion",
-            "The assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
+            "The assertion failed" + ir.message?.let { " (${visit(it).value})" }.orEmpty() + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -329,7 +329,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         require(condition.value as Boolean) { error(
             ir,
             "Failed precondition assertion.",
-            "The precondition assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
+            "The precondition assertion failed" + ir.message?.let { " (${visit(it).value})" }.orEmpty() + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -339,7 +339,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         require(condition.value as Boolean) { error(
             ir,
             "Failed postcondition assertion.",
-            "The postcondition assertion failed" + ir.message?.let { " (${visit(it).value})" } + ".",
+            "The postcondition assertion failed" + ir.message?.let { " (${visit(it).value})" }.orEmpty() + ".",
         ) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
