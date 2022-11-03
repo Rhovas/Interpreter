@@ -1,0 +1,26 @@
+func pfib(n: Integer): Integer {
+    require n >= 0;
+
+    var lastFib = -1;
+    var fib = 1;
+    range(0, n, :incl).for {
+        var sum = fib + lastFib;
+        lastFib = fib;
+        fib = sum;
+    };
+    return fib;
+}
+
+func fib(n: Integer): Integer {
+    match ([n < 0, n.mod(2)]){
+        [true, 0]: return -pfib(-n);
+        [true, _]: return  pfib(-n);
+        else:      return  pfib( n);
+    }
+}
+
+assert fib(0) == 0;
+assert fib(1) == 1;
+assert fib(6) == 8;
+assert fib(-20) == -6765;
+assert fib(-5) == 5;
