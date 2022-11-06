@@ -1,26 +1,27 @@
-func pfib(n: Integer): Integer {
-    require n >= 0;
+func fibonacci(n: Integer): Integer {
+    func positive_fibonacci(n: Integer): Integer {
+        require n >= 0;
 
-    var lastFib = -1;
-    var fib = 1;
-    range(0, n, :incl).for {
-        var sum = fib + lastFib;
-        lastFib = fib;
-        fib = sum;
-    };
-    return fib;
-}
-
-func fib(n: Integer): Integer {
-    match ([n < 0, n.mod(2)]){
-        [true, 0]: return -pfib(-n);
-        [true, _]: return  pfib(-n);
-        else:      return  pfib( n);
+        var previous = 1;
+        var current = 0;
+        range(1, n, :incl).for {
+            val next = current + previous;
+            previous = current;
+            current = next;
+        };
+        return current;
+    }
+    
+    match {
+        n >= 0: return positive_fibonacci(n);
+        n.mod(2) == 0: return  -positive_fibonacci(-n);
+        else: return  positive_fibonacci(-n);
     }
 }
 
-assert fib(0) == 0;
-assert fib(1) == 1;
-assert fib(6) == 8;
-assert fib(-20) == -6765;
-assert fib(-5) == 5;
+assert fibonacci(0) == 0;
+assert fibonacci(1) == 1;
+assert fibonacci(5) == 5;
+assert fibonacci(20) == 6765;
+assert fibonacci(-5) == 5;
+assert fibonacci(-20) == -6765;
