@@ -1,12 +1,28 @@
-func factorial(num: Integer): Integer {
+func iterFactorial(num: Integer): Integer {
+    require num >= 0;
+    var result = 1;
+    for (val i in range(2, num, :incl)) {
+        result = result * i;
+    }
+    return result;
+}
+
+assert iterFactorial(0) == 1;
+assert iterFactorial(1) == 1;
+assert iterFactorial(5) == 120;
+assert iterFactorial(10) == 3628800;
+assert iterFactorial(20) == 2432902008176640000;
+
+func recFactorial(num: Integer): Integer {
+    require num >= 0;
     match {
         num == 0: return 1;
-        else: return num * factorial(num - 1);
+        else: return num * recFactorial(num - 1);
     }
 }
 
-assert factorial(0) == 1;
-assert factorial(1) == 1;
-assert factorial(5) == 120;
-assert factorial(10) == 3628800;
-assert factorial(20) == 2432902008176640000;
+assert recFactorial(0) == 1;
+assert recFactorial(1) == 1;
+assert recFactorial(5) == 120;
+assert recFactorial(10) == 3628800;
+assert recFactorial(20) == 2432902008176640000;

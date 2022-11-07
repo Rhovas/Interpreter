@@ -120,6 +120,8 @@ class TypeTests {
                 Arguments.of("Subtype", LIST, COLLECTION, true),
                 Arguments.of("Supertype", COLLECTION, LIST, false),
                 Arguments.of("Grandchild", LIST, ANY, true),
+                Arguments.of("Generic Subtype", Type.Reference(LIST.base, listOf(INTEGER)), LIST, true),
+                Arguments.of("Generic Supertype", LIST, Type.Reference(LIST.base, listOf(INTEGER)), false),
                 Arguments.of("Generic Dynamic Subtype", Type.Reference(LIST.base, listOf(DYNAMIC)), LIST, true),
                 Arguments.of("Generic Dynamic Supertype", LIST, Type.Reference(LIST.base, listOf(DYNAMIC)), true),
             )

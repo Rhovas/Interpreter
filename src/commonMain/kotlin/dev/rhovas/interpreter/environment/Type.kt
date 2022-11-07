@@ -16,7 +16,7 @@ sealed class Type(
 
     abstract fun bind(parameters: Map<String, Type>): Type
 
-    abstract fun isSubtypeOf(other: Type): Boolean
+    fun isSubtypeOf(other: Type): Boolean = isSubtypeOf(other, mutableMapOf())
 
     abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean
 
@@ -102,35 +102,16 @@ sealed class Type(
             return Reference(base, generics.map { it.bind(parameters) })
         }
 
-        override fun isSubtypeOf(other: Type): Boolean {
-            return when (other) {
-                is Reference -> {
-                    if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
-                        true
-                    } else if (base.name == other.base.name) {
-                        generics.zip(other.generics).all {
-                            it.first.isSubtypeOf(it.second) && it.second.isSubtypeOf(it.first)
-                        }
-                    } else {
-                        val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
-                        base.inherits.any { it.bind(parameters).isSubtypeOf(other) }
-                    }
-                }
-                is Generic -> base.name == "Dynamic"
-                is Variant -> (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.let { this.isSubtypeOf(it) } ?: true)
-            }
-        }
-
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Reference -> {
                     if (base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any") {
                         true
                     } else if (base.name == other.base.name) {
-                        generics.zip(other.generics).all { (type, other) ->
-                            return when {
+                        return generics.zip(other.generics).all { (type, other) ->
+                            when {
                                 other is Generic -> when (val binding = bindings[other.name]) {
-                                    null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(type, type) }
+                                    null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
                                     is Variant -> ((binding.lower?.let { it.isSubtypeOf(type) } ?: true) && (binding.upper?.let { type.isSubtypeOf(it) } ?: true)).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
                                     else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                                 }
@@ -148,7 +129,7 @@ sealed class Type(
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
                     else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
-                is Variant -> other.upper?.let { this.isSubtypeOf(it, bindings) } ?: true
+                is Variant ->  (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.let { this.isSubtypeOf(it) } ?: true)
             }
         }
 
@@ -175,16 +156,10 @@ sealed class Type(
             return parameters[name] ?: bound //TODO ???
         }
 
-        override fun isSubtypeOf(other: Type): Boolean {
-            return when(other) {
-                is Generic -> name == other.name //TODO: ???
-                else -> bound.isSubtypeOf(other)
-            }
-        }
-
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Generic -> when {
+                    name != other.name -> false
                     bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other)
                     else -> bound.isSubtypeOf(other.bound).takeIf { it }?.also { bindings[name] = other } ?: false
                 }
@@ -214,12 +189,15 @@ sealed class Type(
             return Variant(lower?.bind(parameters), upper?.bind(parameters))
         }
 
-        override fun isSubtypeOf(other: Type): Boolean {
-            return (upper ?: Library.TYPES["Any"]!!).isSubtypeOf(other)
-        }
-
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return (upper ?: Library.TYPES["Any"]!!).isSubtypeOf(other, bindings)
+        }
+
+        override fun toString(): String {
+            return when {
+                lower == null && upper == null -> "*"
+                else -> "${lower ?: "*"} : ${upper ?: "*"}"
+            }
         }
 
     }
