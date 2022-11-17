@@ -582,12 +582,10 @@ class EvaluatorTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also { scope ->
-                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(null)).reference)
-                    scope.functions.define(Function.Definition(Function.Declaration("Exception", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Exception"), listOf())).also {
-                        it.implementation = { arguments -> Object(type("Exception"), arguments[0].value as String) }
-                    })
-                    scope.functions.define(Function.Definition(Function.Declaration("SubtypeException", listOf(), listOf(Variable.Declaration("message", type("String"), false)), scope.types["SubtypeException"]!!, listOf())).also {
-                        it.implementation = { arguments -> Object(scope.types["SubtypeException"]!!, arguments[0].value as String) }
+                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(null)).reference.also { type ->
+                        type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type, listOf())).also {
+                            it.implementation = { arguments -> Object(type, arguments[0].value as String) }
+                        })
                     })
                 })
             }
@@ -1187,6 +1185,28 @@ class EvaluatorTests {
 
         @Nested
         inner class InvokeTests {
+
+            @Nested
+            inner class ConstructorTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testConstructor(name: String, input: String, expected: Object?) {
+                    test("expression", input, expected)
+                }
+
+                fun testConstructor(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Constructor", """
+                            Nullable("argument")
+                        """.trimIndent(),
+                            //TODO: Runtime generics
+                            Object(type("Nullable", "String"), literal("argument"))
+                        ),
+                    )
+                }
+
+            }
 
             @Nested
             inner class FunctionTests {

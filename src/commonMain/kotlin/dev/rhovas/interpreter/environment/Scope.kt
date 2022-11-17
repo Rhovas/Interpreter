@@ -52,7 +52,6 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                 function.takeIf {
                     arguments.zip(function.parameters)
                         .all { zip -> zip.first.isSubtypeOf(zip.second.type, generics) }
-                        .also { println(generics) }
                 }?.bind(generics.mapValues {
                     when (val type = it.value) {
                         is Type.Variant -> type.upper ?: type.lower ?: Library.TYPES["Any"]!!

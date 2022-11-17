@@ -239,6 +239,12 @@ sealed class RhovasIr {
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Expression(type) {
 
+            data class Constructor(
+                val reference: dev.rhovas.interpreter.environment.Type.Reference,
+                val function: dev.rhovas.interpreter.environment.Function,
+                val arguments: List<Expression>,
+            ) : Invoke(function.returns)
+
             data class Function(
                 val qualifier: Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
@@ -362,6 +368,7 @@ sealed class RhovasIr {
                 is Expression.Access.Variable -> visit(ir)
                 is Expression.Access.Property -> visit(ir)
                 is Expression.Access.Index -> visit(ir)
+                is Expression.Invoke.Constructor -> visit(ir)
                 is Expression.Invoke.Function -> visit(ir)
                 is Expression.Invoke.Method -> visit(ir)
                 is Expression.Invoke.Pipeline -> visit(ir)
@@ -419,6 +426,7 @@ sealed class RhovasIr {
         @JsName("visitAccessVariable") fun visit(ir: Expression.Access.Variable): T
         @JsName("visitAccessProperty") fun visit(ir: Expression.Access.Property): T
         @JsName("visitAccessIndex") fun visit(ir: Expression.Access.Index): T
+        fun visit(ir: Expression.Invoke.Constructor): T
         @JsName("visitInvokeFunction") fun visit(ir: Expression.Invoke.Function): T
         fun visit(ir: Expression.Invoke.Method): T
         fun visit(ir: Expression.Invoke.Pipeline): T

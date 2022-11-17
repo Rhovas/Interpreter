@@ -59,6 +59,7 @@ sealed class Type(
         val scope: Scope.Definition,
     ) {
 
+        //TODO: Audit inclusion of generics here (Nullable != Nullable<T: Any>)
         val reference = Reference(this, generics)
 
         override fun toString(): String {

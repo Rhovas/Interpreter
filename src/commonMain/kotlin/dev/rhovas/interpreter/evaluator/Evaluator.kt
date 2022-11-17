@@ -28,8 +28,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope
         //TODO: Hack to access unwrapped function definition
-        val constructor = ir.type.base.scope.functions[ir.type.base.name, 1].single().let {
-            it as? Function.Definition ?: Function.Definition(it as Any as Function.Declaration).also { scope.functions.define(it) }
+        val constructor = ir.type.base.scope.functions["", 1].single().let {
+            it as? Function.Definition ?: Function.Definition(it as Function.Declaration).also { scope.functions.define(it) }
         }
         constructor.implementation = { arguments ->
             scoped(current) {
@@ -488,6 +488,22 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         return trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
+        }
+    }
+
+    override fun visit(ir: RhovasIr.Expression.Invoke.Constructor): Object {
+        val function = ir.function as? Function.Definition ?: scope.types[ir.type.base.name]!!.functions[ir.function.name, ir.function.parameters.map { it.type }]!! as Function.Definition
+        val arguments = ir.arguments.map { visit(it) }
+        for (i in arguments.indices) {
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
+                ir.arguments[i],
+                "Invalid function argument type.",
+                "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
+            ) }
+        }
+        println("constructor " + ir.reference + ", " + ir.function)
+        return trace("${ir.type.base.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+            function.invoke(arguments)
         }
     }
 

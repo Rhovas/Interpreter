@@ -7,6 +7,14 @@ object ExceptionInitializer : Library.TypeInitializer("Exception") {
     override fun initialize() {
         inherits.add(type("Any"))
 
+        function("",
+            parameters = listOf("message" to type("String")),
+            returns = type("Exception"),
+        ) { (message) ->
+            val message = message.value as String
+            Object(type("Exception"), message)
+        }
+
         method("message",
             returns = type("String"),
         ) { (instance) ->

@@ -1695,6 +1695,58 @@ class RhovasParserTests {
         inner class InvokeTests {
 
             @Nested
+            inner class ConstructorTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testConstructor(name: String, input: String, expected: RhovasAst.Expression.Invoke.Constructor?) {
+                    test("expression", input, expected)
+                }
+
+                fun testConstructor(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Qualifier", """
+                            Qualifier.Type()
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            RhovasAst.Type(listOf("Qualifier", "Type"), null), listOf(),
+                        )),
+                        Arguments.of("Generics", """
+                            Type<Generic>()
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            RhovasAst.Type(listOf("Type"), listOf(type("Generic"))), listOf()
+                        )),
+                        Arguments.of("Zero Arguments", """
+                            Type()
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            type("Type"), listOf(),
+                        )),
+                        Arguments.of("Single Argument", """
+                            Type(argument)
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            type("Type"), listOf(expr("argument")),
+                        )),
+                        Arguments.of("Multiple Arguments", """
+                            Type(first, second, third)
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            type("Type"), listOf(expr("first"), expr("second"), expr("third"))
+                        )),
+                        Arguments.of("Trailing Comma", """
+                            Type(argument,)
+                        """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
+                            type("Type"), listOf(expr("argument"))
+                        )),
+                        Arguments.of("Missing Comma", """
+                            Type(first second)
+                        """.trimIndent(), null),
+                        Arguments.of("Missing Closing Parenthesis", """
+                            Type(argument
+                        """.trimIndent(), null),
+                    )
+                }
+
+            }
+
+            @Nested
             inner class FunctionTests {
 
                 @ParameterizedTest(name = "{0}")

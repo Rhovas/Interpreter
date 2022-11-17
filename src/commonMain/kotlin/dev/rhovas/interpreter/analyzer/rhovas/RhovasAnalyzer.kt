@@ -868,6 +868,51 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
+    override fun visit(ast: RhovasAst.Expression.Invoke.Constructor): RhovasIr {
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val type = visit(ast.type).type
+        require(type is Type.Reference) { error(
+            ast,
+            "Unconstructable type.",
+            "The type ${type} cannot be constructed (only reference types)."
+        ) }
+        val candidates = type.functions["", ast.arguments.size]
+            .map { Pair(it, mutableMapOf<String, Type>()) }
+            .ifEmpty { throw error(
+                ast,
+                "Undefined function.",
+                "The constructor ${type}/${ast.arguments.size} is not defined.",
+            ) }
+        val filtered = candidates.toMutableList()
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        for (i in ast.arguments.indices) {
+            //TODO: Context for inferred types
+            arguments.add(visit(ast.arguments[i]))
+            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i].type, it.second) }
+            require(filtered.isNotEmpty()) { error(
+                ast.arguments[i],
+                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
+                if (candidates.size == 1) {
+                    "The constructor ${type}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i].type}."
+                } else {
+                    "The constructor ${type}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}"
+                }
+            ) }
+        }
+        val function = type.functions["", arguments.map { it.type }]!!
+        function.throws.forEach { exception ->
+            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
+                ast,
+                "Uncaught exception.",
+                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
+            ) }
+        }
+        return RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val qualifier = ast.qualifier?.let { visit(it) }
@@ -894,8 +939,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
             ) }
         }
-        val resolved = filtered.single() //asserts overloads are disjoint
-        val function = resolved.first.bind(resolved.second)
+        val function = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, arguments.map { it.type }]!!
         function.throws.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
                 ast,
@@ -945,8 +989,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
             ) }
         }
-        val resolved = filtered.single() //asserts overloads are disjoint
-        val method = Method.Declaration(resolved.first.bind(resolved.second))
+        val method = receiverType.methods[ast.name, arguments.map { it.type }]!!
         val type = when {
             ast.cascade -> receiver.type
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(method.returns))
@@ -1012,8 +1055,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
             ) }
         }
-        val resolved = filtered.single() //asserts overloads are disjoint
-        val function = resolved.first.bind(resolved.second)
+        val function = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, listOf(receiverType) + arguments.map { it.type }]!!
         val type = when {
             ast.cascade -> receiver.type
             ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
@@ -1380,7 +1422,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             //TODO: Sequence constructor?
             //TODO: Typecheck argument (struct type / named options?)
-            val constructor = Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("fields", Library.TYPES["Object"]!!, false)), structType, listOf()).let {
+            val constructor = Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Library.TYPES["Object"]!!, false)), structType, listOf()).let {
                 when (val scope = context.scope) {
                     is Scope.Declaration -> it.also { scope.functions.define(it) }
                     is Scope.Definition -> Function.Definition(it).also { scope.functions.define(it) }

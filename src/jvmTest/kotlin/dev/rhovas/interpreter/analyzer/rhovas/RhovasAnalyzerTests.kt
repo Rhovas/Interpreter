@@ -153,12 +153,15 @@ class RhovasAnalyzerTests {
                         val instance = Name({});
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
-                        val constructor = Function.Declaration("Name", listOf(), listOf(Variable.Declaration("fields", type("Object"), false)), type, listOf())
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration(
                                 Variable.Declaration("instance", type, false),
-                                RhovasIr.Expression.Invoke.Function(null, constructor, listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object")))),
+                                RhovasIr.Expression.Invoke.Constructor(
+                                    type,
+                                    Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type("Object"), false)), type, listOf()),
+                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), type("Object"))),
+                                ),
                             ),
                         ))
                     }),
@@ -281,7 +284,6 @@ class RhovasAnalyzerTests {
             fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Statement.Function?)?) {
                 test("statement", input, expected?.invoke()) {
                     it.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(Library.SCOPE)).reference)
-                    it.functions.define(Function.Declaration("Exception", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Exception"), listOf()))
                     it.functions.define(Function.Declaration("fail", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Void"), listOf(type("Exception"))))
                 }
             }
@@ -376,9 +378,9 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Statement.Function(
                             Function.Declaration("name", listOf(), listOf(), type("Void"), listOf(type("Exception"))),
-                            block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Function(
-                                null,
-                                Function.Declaration("Exception", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Exception"), listOf()),
+                            block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Constructor(
+                                type("Exception").base.reference,
+                                type("Exception").functions["", listOf(type("String"))]!! as Function.Definition,
                                 listOf(literal("message")),
                             ))),
                         )
@@ -799,9 +801,7 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testTry(name: String, input: String, expected: (() -> RhovasIr.Statement.Try?)?) {
-                test("statement", input, expected?.invoke()) {
-                    it.functions.define(Function.Declaration("Exception", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type("Exception"), listOf()))
-                }
+                test("statement", input, expected?.invoke())
             }
 
             fun testTry(): Stream<Arguments> {
@@ -1718,6 +1718,38 @@ class RhovasAnalyzerTests {
         inner class InvokeTests {
 
             @Nested
+            inner class ConstructorTests {
+
+                @ParameterizedTest(name = "{0}")
+                @MethodSource
+                fun testConstructor(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Constructor?)?) {
+                    test("expression", input, expected?.invoke())
+                }
+
+                fun testConstructor(): Stream<Arguments> {
+                    return Stream.of(
+                        Arguments.of("Function", """
+                            Nullable("argument")
+                        """.trimIndent(), {
+                            RhovasIr.Expression.Invoke.Constructor(
+                                type("Nullable").base.reference,
+                                type("Nullable").functions["", listOf(type("String"))]!!,
+                                listOf(literal("argument")),
+                            )
+                        }),
+                        //TODO: Generics
+                        Arguments.of("Invalid Arity", """
+                            Nullable()
+                        """.trimIndent(), null),
+                        Arguments.of("Undefined", """
+                            Undefined()
+                        """.trimIndent(), null),
+                    )
+                }
+
+            }
+
+            @Nested
             inner class FunctionTests {
 
                 val FUNCTION = Function.Declaration("function", listOf(), listOf(Variable.Declaration("argument", type("String"), false)), type("Void"), listOf())
@@ -1742,7 +1774,7 @@ class RhovasAnalyzerTests {
                             function()
                         """.trimIndent(), null),
                         Arguments.of("Undefined", """
-                            undefined
+                            undefined()
                         """.trimIndent(), null),
                     )
                 }
@@ -1752,14 +1784,10 @@ class RhovasAnalyzerTests {
             @Nested
             inner class MethodTests {
 
-                val NULLABLE = Function.Declaration("Nullable", listOf(), listOf(Variable.Declaration("value", type("String"), false)), type("Nullable", "String"), listOf())
-
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Method?)?) {
-                    test("expression", input, expected?.invoke()) {
-                        it.functions.define(NULLABLE)
-                    }
+                    test("expression", input, expected?.invoke())
                 }
 
                 fun testMethod(): Stream<Arguments> {
@@ -1780,7 +1808,11 @@ class RhovasAnalyzerTests {
                             Nullable("string")?.contains("")
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Method(
-                                RhovasIr.Expression.Invoke.Function(null, NULLABLE, listOf(literal("string"))),
+                                RhovasIr.Expression.Invoke.Constructor(
+                                    type("Nullable").base.reference,
+                                    type("Nullable").functions["", listOf(type("String"))]!! as Function.Definition,
+                                    listOf(literal("string")),
+                                ),
                                 type("String").methods["contains", listOf(type("String"))]!!,
                                 true,
                                 false,
@@ -1817,14 +1849,11 @@ class RhovasAnalyzerTests {
             @Nested
             inner class PipelineTests {
 
-                val NULLABLE = Function.Declaration("Nullable", listOf(), listOf(Variable.Declaration("value", type("Integer"), false)), type("Nullable", "Integer"), listOf())
-
                 @ParameterizedTest(name = "{0}")
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: (() -> RhovasIr.Expression.Invoke.Pipeline?)?) {
                     test("expression", input, expected?.invoke()) {
-                        it.functions.define(NULLABLE)
-                        it.variables.define(variable("Kernel", type("Kernel")).variable)
+                        it.variables.define(variable("nullable", type("Nullable", "Integer")).variable)
                     }
                 }
 
@@ -1860,7 +1889,11 @@ class RhovasAnalyzerTests {
                             Nullable(1)?.|range(2, :incl)
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
-                                RhovasIr.Expression.Invoke.Function(null, NULLABLE, listOf(literal(BigInteger.parseString("1")))),
+                                RhovasIr.Expression.Invoke.Constructor(
+                                    type("Nullable").base.reference,
+                                    type("Nullable").functions["", listOf(type("Integer"))]!! as Function.Definition,
+                                    listOf(literal(BigInteger.parseString("1"))),
+                                ),
                                 null,
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 true,

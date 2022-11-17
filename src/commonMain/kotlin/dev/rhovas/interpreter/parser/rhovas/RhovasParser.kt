@@ -767,13 +767,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `primary = literal | group | variable | function | macro`
+     *  - `primary = literal | group | constructor | variable | function | macro`
      *     - `literal = "null" | "true" | "false" | integer | decimal | string | atom | list | object`
      *        - `string = "\"" (lexer-string | "${" expression "}")* "\""`
      *        - `atom = ":" identifier`
      *        - `list = "[" (expression ("," expression)* ","?)? "]"`
      *        - `object = "{" (property ("," property)* ","?)? "}"`
      *           - `property = identifier (":" expression)?`
+     *     - `constructor = type invoke-arguments`
      *     - `variable = (type ".")? identifier`
      *     - `function = (type ".")? identifier invoke-arguments`
      */
@@ -882,34 +883,34 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
-            peek(RhovasTokenType.IDENTIFIER) -> {
-                val qualifier = if (tokens[0]!!.literal[0].isUpperCase() && tokens[1]?.literal == ".") {
-                    val qualifier = parseType()
-                    context.addLast(qualifier.context.first())
-                    require(match(".")) { error(
-                        "Expected period.",
-                        "A function qualifier must be followed by a period, as in `Qualifier.function()`."
-                    ) }
-                    require(peek(RhovasTokenType.IDENTIFIER)) { error(
-                        "Expected identifier.",
-                        "A qualified variable/function expression requires a name, as in `Qualifier.variable` or `Qualifier.function()`.",
-                    ) }
-                    qualifier
-                } else null
-                require(match(RhovasTokenType.IDENTIFIER))
+            peek(RhovasTokenType.IDENTIFIER) && tokens[0]!!.literal[0].isUpperCase() -> {
+                val type = parseType()
+                context.addLast(type.context.first())
+                val name = if (match(".", RhovasTokenType.IDENTIFIER)) tokens[-1]!!.literal else null
+                name?.let { context.addLast(tokens[-1]!!.range) }
+                val arguments = if (peek(listOf("(", "{")) || peek("|", RhovasTokenType.IDENTIFIER)) parseInvokeExpressionArguments() else null
+                when {
+                    name == null && arguments == null -> throw error(
+                        "Invalid expression.",
+                        "A type must be followed by a constructor invocation, variable access, or function call, as in `Type()`, `Type.variable`, or `Type.function()`."
+                    )
+                    name == null -> RhovasAst.Expression.Invoke.Constructor(type, arguments!!)
+                    arguments == null -> RhovasAst.Expression.Access.Variable(type, name)
+                    else -> RhovasAst.Expression.Invoke.Function(type, name, arguments)
+                }.also {
+                    name?.let { context.removeLast() }
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+                }
+            }
+            match(RhovasTokenType.IDENTIFIER) -> {
                 val name = tokens[-1]!!.literal
                 context.addLast(tokens[-1]!!.range)
-                if (peek(listOf("(", "{")) || peek("|", RhovasTokenType.IDENTIFIER)) {
-                    val arguments = parseInvokeExpressionArguments()
-                    RhovasAst.Expression.Invoke.Function(qualifier, name, arguments).also {
-                        it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-                        qualifier?.let { context.removeLast() }
-                    }
-                } else {
-                    RhovasAst.Expression.Access.Variable(qualifier, name).also {
-                        it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-                        qualifier?.let { context.removeLast() }
-                    }
+                val arguments = if (peek(listOf("(", "{")) || peek("|", RhovasTokenType.IDENTIFIER)) parseInvokeExpressionArguments() else null
+                when (arguments) {
+                    null -> RhovasAst.Expression.Access.Variable(null, name)
+                    else -> RhovasAst.Expression.Invoke.Function(null, name, arguments)
+                }.also {
+                    it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
             peek("#", RhovasTokenType.IDENTIFIER) -> parseMacroExpression()

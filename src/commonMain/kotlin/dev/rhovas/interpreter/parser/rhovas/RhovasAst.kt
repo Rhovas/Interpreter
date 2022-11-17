@@ -212,6 +212,11 @@ sealed class RhovasAst {
 
         sealed class Invoke : Expression() {
 
+            data class Constructor(
+                val type: Type,
+                val arguments: List<Expression>,
+            ) : Invoke()
+
             data class Function(
                 val qualifier: Type?,
                 val name: String,
@@ -334,6 +339,7 @@ sealed class RhovasAst {
                 is Expression.Access.Variable -> visit(ast)
                 is Expression.Access.Property -> visit(ast)
                 is Expression.Access.Index -> visit(ast)
+                is Expression.Invoke.Constructor -> visit(ast)
                 is Expression.Invoke.Function -> visit(ast)
                 is Expression.Invoke.Method -> visit(ast)
                 is Expression.Invoke.Pipeline -> visit(ast)
@@ -390,6 +396,7 @@ sealed class RhovasAst {
         @JsName("visitAccessVariable") fun visit(ast: Expression.Access.Variable): T
         fun visit(ast: Expression.Access.Property): T
         fun visit(ast: Expression.Access.Index): T
+        fun visit(ast: Expression.Invoke.Constructor): T
         @JsName("visitInvokeFunction") fun visit(ast: Expression.Invoke.Function): T
         fun visit(ast: Expression.Invoke.Method): T
         fun visit(ast: Expression.Invoke.Pipeline): T

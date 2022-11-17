@@ -9,6 +9,14 @@ object NullableInitializer : Library.TypeInitializer("Nullable") {
         generics.add(generic("T"))
         inherits.add(type("Any"))
 
+        function("",
+            generics = listOf(generic("T")),
+            parameters = listOf("value" to generic("T")),
+            returns = type("Nullable", generic("T")),
+        ) { (value) ->
+            Object(type("Nullable", value.type), value)
+        }
+
         method("get",
             returns = generic("T"),
         ) { (instance) ->
