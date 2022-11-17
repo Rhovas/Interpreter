@@ -840,6 +840,22 @@ class EvaluatorTests {
                 )
             }
 
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testType(name: String, input: String, expected: Object?) {
+                test("expression", input, expected)
+            }
+
+            fun testType(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Type", """
+                        Any
+                    """.trimIndent(),
+                        Object(type("Type"), type("Any")),
+                    ),
+                )
+            }
+
         }
 
         @Nested

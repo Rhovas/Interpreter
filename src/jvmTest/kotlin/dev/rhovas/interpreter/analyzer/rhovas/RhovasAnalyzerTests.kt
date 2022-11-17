@@ -1305,6 +1305,23 @@ class RhovasAnalyzerTests {
                 )
             }
 
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testType(name: String, input: String, expected: RhovasIr.Expression.Literal.Type) {
+                test("expression", input, expected)
+            }
+
+            fun testType(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Type", """
+                        Any
+                    """.trimIndent(), RhovasIr.Expression.Literal.Type(
+                        type("Any"),
+                        type("Type"),
+                    )),
+                )
+            }
+
         }
 
         @Nested

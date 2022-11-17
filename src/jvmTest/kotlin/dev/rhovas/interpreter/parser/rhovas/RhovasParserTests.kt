@@ -1365,6 +1365,32 @@ class RhovasParserTests {
                 )
             }
 
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testType(name: String, input: String, expected: RhovasAst.Expression.Literal.Type) {
+                test("expression", input, expected)
+            }
+
+            fun testType(): Stream<Arguments> {
+                return Stream.of(
+                    Arguments.of("Type", """
+                        Type
+                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
+                        type("Type"),
+                    )),
+                    Arguments.of("Nesting", """
+                        First.Second.Third
+                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
+                        RhovasAst.Type(listOf("First", "Second", "Third"), null)
+                    )),
+                    Arguments.of("Generic", """
+                        Type<Generic>
+                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
+                        RhovasAst.Type(listOf("Type"), listOf(type("Generic"))),
+                    )),
+                )
+            }
+
         }
 
         @Nested

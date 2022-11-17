@@ -734,6 +734,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
+    override fun visit(ast: RhovasAst.Expression.Literal.Type): RhovasIr.Expression.Literal.Type {
+        val type = visit(ast.type).type
+        return RhovasIr.Expression.Literal.Type(type, Library.TYPES["Type"]!!).also {
+            it.context = ast.context
+        }
+    }
+
     override fun visit(ast: RhovasAst.Expression.Group): RhovasIr.Expression.Group {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val expression = visit(ast.expression)

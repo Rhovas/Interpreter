@@ -368,6 +368,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(ir.type, value)
     }
 
+    override fun visit(ir: RhovasIr.Expression.Literal.Type): Object {
+        return Object(ir.type, ir.literal)
+    }
+
     override fun visit(ir: RhovasIr.Expression.Group): Object {
         return visit(ir.expression)
     }

@@ -768,7 +768,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     /**
      *  - `primary = literal | group | constructor | variable | function | macro`
-     *     - `literal = "null" | "true" | "false" | integer | decimal | string | atom | list | object`
+     *     - `literal = "null" | "true" | "false" | integer | decimal | string | atom | list | object | type`
      *        - `string = "\"" (lexer-string | "${" expression "}")* "\""`
      *        - `atom = ":" identifier`
      *        - `list = "[" (expression ("," expression)* ","?)? "]"`
@@ -890,10 +890,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 name?.let { context.addLast(tokens[-1]!!.range) }
                 val arguments = if (peek(listOf("(", "{")) || peek("|", RhovasTokenType.IDENTIFIER)) parseInvokeExpressionArguments() else null
                 when {
-                    name == null && arguments == null -> throw error(
-                        "Invalid expression.",
-                        "A type must be followed by a constructor invocation, variable access, or function call, as in `Type()`, `Type.variable`, or `Type.function()`."
-                    )
+                    name == null && arguments == null -> RhovasAst.Expression.Literal.Type(type)
                     name == null -> RhovasAst.Expression.Invoke.Constructor(type, arguments!!)
                     arguments == null -> RhovasAst.Expression.Access.Variable(type, name)
                     else -> RhovasAst.Expression.Invoke.Function(type, name, arguments)

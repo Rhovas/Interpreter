@@ -173,6 +173,10 @@ sealed class RhovasAst {
                 val properties: Map<kotlin.String, Expression>,
             ) : Literal()
 
+            data class Type(
+                val type: RhovasAst.Type,
+            ) : Literal()
+
         }
 
         data class Group(
@@ -333,6 +337,7 @@ sealed class RhovasAst {
                 is Expression.Literal.String -> visit(ast)
                 is Expression.Literal.List -> visit(ast)
                 is Expression.Literal.Object -> visit(ast)
+                is Expression.Literal.Type -> visit(ast)
                 is Expression.Group -> visit(ast)
                 is Expression.Unary -> visit(ast)
                 is Expression.Binary -> visit(ast)
@@ -390,6 +395,7 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Literal.String): T
         fun visit(ast: Expression.Literal.List): T
         fun visit(ast: Expression.Literal.Object): T
+        fun visit(ast: Expression.Literal.Type): T
         fun visit(ast: Expression.Group): T
         fun visit(ast: Expression.Unary): T
         fun visit(ast: Expression.Binary): T

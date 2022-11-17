@@ -191,6 +191,11 @@ sealed class RhovasIr {
                 override val type: dev.rhovas.interpreter.environment.Type,
             ) : Literal(type)
 
+            data class Type(
+                val literal: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Literal(type)
+
         }
 
         data class Group(
@@ -362,6 +367,7 @@ sealed class RhovasIr {
                 is Expression.Literal.String -> visit(ir)
                 is Expression.Literal.List -> visit(ir)
                 is Expression.Literal.Object -> visit(ir)
+                is Expression.Literal.Type -> visit(ir)
                 is Expression.Group -> visit(ir)
                 is Expression.Unary -> visit(ir)
                 is Expression.Binary -> visit(ir)
@@ -420,6 +426,7 @@ sealed class RhovasIr {
         fun visit(ir: Expression.Literal.String): T
         fun visit(ir: Expression.Literal.List): T
         fun visit(ir: Expression.Literal.Object): T
+        fun visit(ir: Expression.Literal.Type): T
         fun visit(ir: Expression.Group): T
         fun visit(ir: Expression.Unary): T
         fun visit(ir: Expression.Binary): T
