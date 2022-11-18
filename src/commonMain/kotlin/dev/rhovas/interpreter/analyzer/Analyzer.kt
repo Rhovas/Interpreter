@@ -78,11 +78,11 @@ abstract class Analyzer(internal var context: Context) {
     }
 
     fun error(ast: RhovasAst, summary: String, details: String): AnalyzeException {
-        return error(summary, details, ast.context?.first() ?: Input.Range(0, 1, 0, 0))
+        return error(summary, details, ast.context.firstOrNull())
     }
 
-    fun error(summary: String, details: String, range: Input.Range): AnalyzeException {
-        return AnalyzeException(summary, details, range, context.inputs)
+    fun error(summary: String, details: String, range: Input.Range?): AnalyzeException {
+        return AnalyzeException(summary, details, range ?: Input.Range(0, 1, 0, 0), context.inputs)
     }
 
 }

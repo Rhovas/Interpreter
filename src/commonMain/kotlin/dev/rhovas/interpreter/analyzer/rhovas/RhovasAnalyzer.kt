@@ -883,36 +883,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Unconstructable type.",
             "The type ${type} cannot be constructed (only reference types)."
         ) }
-        val candidates = type.functions["", ast.arguments.size]
-            .map { Pair(it, mutableMapOf<String, Type>()) }
-            .ifEmpty { throw error(
-                ast,
-                "Undefined function.",
-                "The constructor ${type}/${ast.arguments.size} is not defined.",
-            ) }
-        val filtered = candidates.toMutableList()
         val arguments = mutableListOf<RhovasIr.Expression>()
-        for (i in ast.arguments.indices) {
-            //TODO: Context for inferred types
-            arguments.add(visit(ast.arguments[i]))
-            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i].type, it.second) }
-            require(filtered.isNotEmpty()) { error(
-                ast.arguments[i],
-                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
-                if (candidates.size == 1) {
-                    "The constructor ${type}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i].type}."
-                } else {
-                    "The constructor ${type}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}"
-                }
-            ) }
-        }
-        val function = type.functions["", arguments.map { it.type }]!!
-        function.throws.forEach { exception ->
-            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
-                ast,
-                "Uncaught exception.",
-                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
-            ) }
+        val function = resolveFunction("constructor", ast, type, "", ast.arguments.size) {
+            ast.arguments[it] to visit(ast.arguments[it]).also { arguments.add(it) }.type
         }
         return RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments).also {
             it.context = ast.context
@@ -923,36 +896,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val qualifier = ast.qualifier?.let { visit(it) }
-        val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size]
-            .map { Pair(it, mutableMapOf<String, Type>()) }
-            .ifEmpty { throw error(
-                ast,
-                "Undefined function.",
-                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: "the current scope"}.\".",
-            ) }
-        val filtered = candidates.toMutableList()
         val arguments = mutableListOf<RhovasIr.Expression>()
-        for (i in ast.arguments.indices) {
-            //TODO: Context for inferred types
-            arguments.add(visit(ast.arguments[i]))
-            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i].type, it.second) }
-            require(filtered.isNotEmpty()) { error(
-                ast.arguments[i],
-                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
-                if (candidates.size == 1) {
-                    "The function ${ast.name}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i].type}."
-                } else {
-                    "The function ${ast.name}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}"
-                }
-            ) }
-        }
-        val function = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, arguments.map { it.type }]!!
-        function.throws.forEach { exception ->
-            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
-                ast,
-                "Uncaught exception.",
-                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
-            ) }
+        val function = resolveFunction("function", ast, qualifier?.type, ast.name, ast.arguments.size) {
+            Pair(ast.arguments[it], visit(ast.arguments[it]).also { arguments.add(it) }.type)
         }
         return RhovasIr.Expression.Invoke.Function(qualifier, function, arguments).also {
             it.context = ast.context
@@ -963,52 +909,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Method): RhovasIr.Expression.Invoke.Method {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val receiverType = if (ast.coalesce) {
-            require(receiver.type.base == Library.TYPES["Nullable"]!!.base) { error(
-                ast,
-                "Invalid null coalesce.",
-                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
-            ) }
-            receiver.type.methods["get", listOf()]!!.returns
-        } else {
-            receiver.type
-        }
-        val candidates = receiverType.functions[ast.name, ast.arguments.size + 1]
-            .map { Pair(it, mutableMapOf<String, Type>()) }
-            .ifEmpty { throw error(
-                ast,
-                "Undefined method.",
-                "The method ${ast.name}/${ast.arguments.size} is not defined in ${receiverType}.",
-            ) }
-        val filtered = candidates.toMutableList()
+        val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val arguments = mutableListOf<RhovasIr.Expression>()
-        for (i in ast.arguments.indices) {
-            //TODO: Context for inferred types
-            arguments.add(visit(ast.arguments[i]))
-            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i + 1].type, it.second) }
-            require(filtered.isNotEmpty()) { error(
-                ast.arguments[i],
-                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
-                if (candidates.size == 1) {
-                    "The method ${receiverType.base.name}.${ast.name}/${ast.arguments.size} requires argument ${i} to be type ${candidates[0].first.parameters[i + 1].type.bind(candidates[0].second)} but received ${arguments[i].type}."
-                } else {
-                    "The method ${receiverType.base.name}.${ast.name}/${ast.arguments.size} could not be resolved to one of the available overloads below with arguments  (${arguments.map { it.type }.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.drop(1).joinToString { "${it.type}" }}" }}"
-                }
-            ) }
+        val function = resolveFunction("method", ast, receiverType, ast.name, ast.arguments.size + 1) {
+            when (it) {
+                0 -> Pair(ast.receiver, receiverType)
+                else -> Pair(ast.arguments[it - 1], visit(ast.arguments[it - 1]).also { arguments.add(it) }.type)
+            }
         }
-        val method = receiverType.methods[ast.name, arguments.map { it.type }]!!
-        val type = when {
-            ast.cascade -> receiver.type
-            ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(method.returns))
-            else -> method.returns
-        }
-        method.throws.forEach { exception ->
-            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
-                ast,
-                "Uncaught exception.",
-                "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
-            ) }
-        }
+        val method = receiverType.methods[function.name, function.parameters.drop(1).map { it.type }]!!
+        val type = computeCoalesceCascadeReturn(function, receiver, ast.coalesce, ast.cascade)
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1018,67 +928,83 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): RhovasIr.Expression.Invoke.Pipeline {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val receiverType = if (ast.coalesce) {
+        val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
+        val qualifier = ast.qualifier?.let { visit(it) }
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        val function = resolveFunction("function", ast, qualifier?.type, ast.name, ast.arguments.size + 1) {
+            when (it) {
+                0 -> Pair(ast.receiver, receiverType)
+                else -> Pair(ast.arguments[it - 1], visit(ast.arguments[it - 1]).also { arguments.add(it) }.type)
+            }
+        }
+        val type = computeCoalesceCascadeReturn(function, receiver, ast.coalesce, ast.cascade)
+        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, ast.coalesce, ast.cascade, arguments, type).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
+    private fun computeCoalesceReceiver(receiver: RhovasIr.Expression, coalesce: Boolean): Type {
+        return if (coalesce) {
             require(receiver.type.base == Library.TYPES["Nullable"]!!.base) { error(
-                ast,
                 "Invalid null coalesce.",
                 "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
+                receiver.context.firstOrNull(),
             ) }
             receiver.type.methods["get", listOf()]!!.returns
         } else {
             receiver.type
         }
-        val qualifier = ast.qualifier?.let { visit(it) }
-        val candidates = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, ast.arguments.size + 1]
-            .map { Pair(it, mutableMapOf<String, Type>()) }
-            .ifEmpty { throw error(
-                ast.qualifier ?: ast,
-                "Undefined function.",
-                "The function ${ast.name}/${ast.arguments.size} is not defined in ${qualifier?.type ?: " in the current scope"}.",
-            ) }
-        val filtered = candidates.toMutableList()
-        filtered.retainAll { receiverType.isSubtypeOf(it.first.parameters[0].type, it.second) }
-        require(filtered.isNotEmpty()) { error(
-            ast.receiver,
-            "Invalid receiver.",
-            if (candidates.size == 1) {
-                "The function ${ast.name}/${ast.arguments.size + 1} requires argument 0 to be type ${candidates[0].first.parameters[0].type.bind(candidates[0].second)} but received ${receiverType}."
-            } else {
-                "The function ${ast.name}/${ast.arguments.size + 1} could not be resolved to one of the available overloads below with receiver ${receiverType}:\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}"
-            }
-        ) }
-        val arguments = mutableListOf<RhovasIr.Expression>()
-        for (i in ast.arguments.indices) {
-            //TODO: Context for inferred types
-            arguments.add(visit(ast.arguments[i]))
-            filtered.retainAll { arguments[i].type.isSubtypeOf(it.first.parameters[i + 1].type, it.second) }
-            require(filtered.isNotEmpty()) { error(
-                ast.arguments[i],
-                if (candidates.size == 1) "Invalid argument." else "Unresolved function.",
-                if (candidates.size == 1) {
-                    "The function ${ast.name}/${ast.arguments.size + 1} requires argument ${i + 1} to be type ${candidates[0].first.parameters[i + 1].type.bind(candidates[0].second)} but received ${arguments[i].type}."
-                } else {
-                    "The function ${ast.name}/${ast.arguments.size + 1} could not be resolved to one of the available overloads below with arguments (${(listOf(receiverType) + arguments.map { it.type }).joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}"
-                }
-            ) }
-        }
-        val function = (qualifier?.type?.base?.scope ?: context.scope).functions[ast.name, listOf(receiverType) + arguments.map { it.type }]!!
-        val type = when {
-            ast.cascade -> receiver.type
-            ast.coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
+    }
+
+    private fun computeCoalesceCascadeReturn(function: Function, receiver: RhovasIr.Expression, coalesce: Boolean, cascade: Boolean): Type {
+        return when {
+            cascade -> receiver.type
+            coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
             else -> function.returns
         }
+    }
+
+    private fun resolveFunction(
+        term: String,
+        ast: RhovasAst.Expression.Invoke,
+        qualifier: Type?,
+        name: String,
+        arity: Int,
+        generator: (Int) -> Pair<RhovasAst.Expression, Type>,
+    ): Function {
+        val descriptor = listOfNotNull(qualifier ?: "", name.takeIf { it.isNotEmpty() }).joinToString(".") + "/" + arity
+        val candidates = (qualifier?.functions?.get(name, arity) ?: context.scope.functions[name, arity])
+            .map { Pair(it, mutableMapOf<String, Type>()) }
+            .ifEmpty { throw error(ast,
+                "Undefined ${term}.",
+                "The ${term} ${descriptor} is not defined.",
+            ) }
+        val filtered = candidates.toMutableList()
+        val arguments = mutableListOf<Type>()
+        for (i in 0 until arity) {
+            //TODO: Context for inferred types
+            val (ast, type) = generator(i).also { arguments.add(it.second) }
+            filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, it.second) }
+            require(filtered.isNotEmpty()) { when (candidates.size) {
+                1 -> error(ast,
+                    "Invalid argument.",
+                    "The ${term} ${descriptor} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i]}.",
+                )
+                else -> error(ast,
+                    "Unresolved method.",
+                    "The ${term} ${descriptor} could not be resolved to one of the available overloads below with arguments (${arguments.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}",
+                )
+            } }
+        }
+        val function = (qualifier?.functions?.get(name, arguments) ?: context.scope.functions[name, arguments])!!
         function.throws.forEach { exception ->
-            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(
-                ast,
+            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
             ) }
         }
-        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, ast.coalesce, ast.cascade, arguments, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        return function
     }
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression {

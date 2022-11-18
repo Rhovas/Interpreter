@@ -245,7 +245,7 @@ sealed class RhovasIr {
         ) : Expression(type) {
 
             data class Constructor(
-                val reference: dev.rhovas.interpreter.environment.Type.Reference,
+                val qualifier: dev.rhovas.interpreter.environment.Type.Reference,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
             ) : Invoke(function.returns)

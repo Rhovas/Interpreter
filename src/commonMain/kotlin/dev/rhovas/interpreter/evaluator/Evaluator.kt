@@ -505,7 +505,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        println("constructor " + ir.reference + ", " + ir.function)
+        println("constructor " + ir.qualifier + ", " + ir.function)
         return trace("${ir.type.base.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             function.invoke(arguments)
         }
