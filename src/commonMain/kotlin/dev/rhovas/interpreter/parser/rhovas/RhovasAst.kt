@@ -395,7 +395,7 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Literal.String): T
         fun visit(ast: Expression.Literal.List): T
         fun visit(ast: Expression.Literal.Object): T
-        fun visit(ast: Expression.Literal.Type): T
+        @JsName("visitLiteralType") fun visit(ast: Expression.Literal.Type): T
         fun visit(ast: Expression.Group): T
         fun visit(ast: Expression.Unary): T
         fun visit(ast: Expression.Binary): T
@@ -417,7 +417,7 @@ sealed class RhovasAst {
         fun visit(ast: Pattern.TypedDestructure): T
         fun visit(ast: Pattern.VarargDestructure): T
 
-        fun visit(ast: Type): T
+        @JsName("visitType") fun visit(ast: Type): T
 
     }
 

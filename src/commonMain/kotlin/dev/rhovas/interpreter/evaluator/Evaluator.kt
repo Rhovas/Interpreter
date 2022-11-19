@@ -369,6 +369,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Type): Object {
+        //TODO: Lookup the runtime type to account for anonymous types
         return Object(ir.type, ir.literal)
     }
 
@@ -728,7 +729,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Type): Object {
-        return Object(Library.TYPES["Type"]!!, ir.type)
+        throw AssertionError()
     }
 
     private fun <T> scoped(scope: Scope.Definition, block: () -> T): T {
