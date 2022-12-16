@@ -143,7 +143,7 @@ class RhovasParserTests {
                             val name: Type;
                         }
                     """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(
-                        RhovasAst.Statement.Declaration(false, "name", type("Type"), null),
+                        RhovasAst.Statement.Declaration.Variable(false, "name", type("Type"), null),
                     ))),
                     Arguments.of("Function", """
                         struct Name {
@@ -262,7 +262,7 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testFunction(name: String, input: String, expected: RhovasAst.Statement.Function?) {
+            fun testFunction(name: String, input: String, expected: RhovasAst.Statement.Declaration.Function?) {
                 test("statement", input, expected)
             }
 
@@ -270,57 +270,57 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Function", """
                         func name() {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf(), null, listOf(), block(),
                     )),
                     Arguments.of("Single Generic", """
                         func name<T>() {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf("T" to null), listOf(), null, listOf(), block(),
                     )),
                     Arguments.of("Multiple Generics", """
                         func name<T1, T2, T3>() {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block(),
                     )),
                     Arguments.of("Bound Generic", """
                         func name<T: Bound>() {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf("T" to type("Bound")), listOf(), null, listOf(), block(),
                     )),
                     Arguments.of("Single Parameter", """
                         func name(parameter) {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf("parameter" to null), null, listOf(), block(),
                     )),
                     Arguments.of("Multiple Parameters", """
                         func name(first, second, third) {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block(),
                     )),
                     Arguments.of("Typed Parameter", """
                         func name(parameter: Type) {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf("parameter" to type("Type")), null, listOf(), block(),
                     )),
                     Arguments.of("Trailing Comma", """
                         func name(parameter,) {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf("parameter" to null), null, listOf(), block(),
                     )),
                     Arguments.of("Return Type", """
                         func name(): Type {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf(), type("Type"), listOf(), block(),
                     )),
                     Arguments.of("Single Throws", """
                         func name() throws Type {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf(), null, listOf(type("Type")), block(),
                     )),
                     Arguments.of("Multiple Throws", """
                         func name() throws First, Second, Third {}
-                    """.trimIndent(), RhovasAst.Statement.Function(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
                         "name", listOf(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block(),
                     )),
                     Arguments.of("Missing Name", """
@@ -366,7 +366,7 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testDeclaration(name: String, input: String, expected: RhovasAst.Statement.Declaration?) {
+            fun testDeclaration(name: String, input: String, expected: RhovasAst.Statement.Declaration.Variable?) {
                 test("statement", input, expected)
             }
 
@@ -374,22 +374,22 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Val", """
                         val name;
-                    """.trimIndent(), RhovasAst.Statement.Declaration(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
                         false, "name", null, null
                     )),
                     Arguments.of("Var", """
                         var name;
-                    """.trimIndent(), RhovasAst.Statement.Declaration(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
                         true, "name", null, null
                     )),
                     Arguments.of("Type", """
                         val name: Type;
-                    """.trimIndent(), RhovasAst.Statement.Declaration(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
                         false, "name", type("Type"), null
                     )),
                     Arguments.of("Value", """
                         var name = value;
-                    """.trimIndent(), RhovasAst.Statement.Declaration(
+                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
                         true, "name", null, expr("value")
                     )),
                     Arguments.of("Missing Name", """

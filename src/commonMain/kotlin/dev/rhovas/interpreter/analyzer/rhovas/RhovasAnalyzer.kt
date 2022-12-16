@@ -200,7 +200,38 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Function): RhovasIr.Statement.Function {
+    override fun visit(ast: RhovasAst.Statement.Declaration.Variable): RhovasIr.Statement.Declaration.Variable {
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        require(context.scope.variables[ast.name, true] == null) { error(
+            ast,
+            "Redefined variable.",
+            "The variable ${ast.name} is already defined in this scope.",
+        ) }
+        require(ast.type != null || ast.value != null) { error(
+            ast,
+            "Undefined variable type.",
+            "A variable declaration requires either a type or an initial value.",
+        ) }
+        val type = ast.type?.let { visit(it).type }
+        val value = ast.value?.let { visit(it) }
+        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(
+            ast,
+            "Invalid value type.",
+            "The variable ${ast.name} requires a value of type ${type}, but received ${value!!.type}."
+        ) }
+        val variable = Variable.Declaration(ast.name, type ?: value!!.type, ast.mutable).let {
+            when (val scope = context.scope) {
+                is Scope.Declaration -> it.also { scope.variables.define(it) }
+                is Scope.Definition -> Variable.Definition(it).also { scope.variables.define(it) }
+            }
+        }
+        return RhovasIr.Statement.Declaration.Variable(variable, value).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Declaration.Function): RhovasIr.Statement.Declaration.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         //TODO: Overload support
         require(context.scope.functions[ast.name, ast.parameters.size, true].isEmpty()) { error(
@@ -229,42 +260,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     "Missing return value.",
                     "The function ${ast.name}/${ast.parameters.size} requires a return value.",
                 ) }
-                RhovasIr.Statement.Function(function, body).also {
+                RhovasIr.Statement.Declaration.Function(function, body).also {
                     it.context = ast.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
                 }
             }
-        }
-    }
-
-    override fun visit(ast: RhovasAst.Statement.Declaration): RhovasIr.Statement.Declaration {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.scope.variables[ast.name, true] == null) { error(
-            ast,
-            "Redefined variable.",
-            "The variable ${ast.name} is already defined in this scope.",
-        ) }
-        require(ast.type != null || ast.value != null) { error(
-            ast,
-            "Undefined variable type.",
-            "A variable declaration requires either a type or an initial value.",
-        ) }
-        val type = ast.type?.let { visit(it).type }
-        val value = ast.value?.let { visit(it) }
-        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(
-            ast,
-            "Invalid value type.",
-            "The variable ${ast.name} requires a value of type ${type}, but received ${value!!.type}."
-        ) }
-        val variable = Variable.Declaration(ast.name, type ?: value!!.type, ast.mutable).let {
-            when (val scope = context.scope) {
-                is Scope.Declaration -> it.also { scope.variables.define(it) }
-                is Scope.Definition -> Variable.Definition(it).also { scope.variables.define(it) }
-            }
-        }
-        return RhovasIr.Statement.Declaration(variable, value).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
 

@@ -88,13 +88,13 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected opening brace.",
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
-        val fields = mutableListOf<RhovasAst.Statement.Declaration>()
+        val fields = mutableListOf<RhovasAst.Statement.Declaration.Variable>()
         while (!match("}")) {
             require(peek(listOf("val", "var"))) { error(
                 "Expected variable declaration.",
                 "A struct requires variable declarations, as in `struct Name { val field: Type; }`.",
             ) }
-            fields.add(parseDeclarationStatement())
+            fields.add(parseVariableDeclarationStatement())
         }
         return RhovasAst.Component.Struct(name, fields).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
@@ -111,8 +111,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseStatement(): RhovasAst.Statement {
         return when {
             peek("{") -> parseBlockStatement()
-            peek("func") -> parseFunctionStatement()
-            peek(listOf("val", "var")) -> parseDeclarationStatement()
+            peek(listOf("val", "var")) -> parseVariableDeclarationStatement()
+            peek("func") -> parseFunctionDeclarationStatement()
             peek("if") -> parseIfStatement()
             peek("match") -> parseMatchStatement()
             peek("for") -> parseForStatement()
@@ -166,6 +166,22 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
+     *  - `variable = ("val" | "var") identifier (":" type)? ("=" expression)? ";"`
+     */
+    private fun parseVariableDeclarationStatement(): RhovasAst.Statement.Declaration.Variable {
+        require(match(listOf("val", "var")))
+        context.addLast(tokens[-1]!!.range)
+        val mutable = tokens[-1]!!.literal == "var"
+        val name = parseIdentifier { "A variable declaration requires a name after `val`/`var`, as in `val name = value;` or `var name: Type;`." }
+        val type = if (match(":")) parseType() else null
+        val value = if (match("=")) parseExpression() else null
+        requireSemicolon { "A variable declaration must be followed by a semicolon, as in `val name = value;` or `var name: Type;`." }
+        return RhovasAst.Statement.Declaration.Variable(mutable, name, type, value).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    /**
      *  - `function = "func" generics? parameters returns? throws? statement`
      *     - `generics = "<" generic? ("," generic)* ","? ">"`
      *        - `generic = identifier (":" type)?`
@@ -174,7 +190,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      *     - `returns = ":" type`
      *     - `throws = "throws" type ("," type)*`
      */
-    private fun parseFunctionStatement(): RhovasAst.Statement.Function {
+    private fun parseFunctionDeclarationStatement(): RhovasAst.Statement.Declaration.Function {
         require(match("func"))
         context.addLast(tokens[-1]!!.range)
         val name = parseIdentifier { "A function declaration requires a name after `func`, as in `func name() { ... }`." }
@@ -216,23 +232,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             } while (match(","))
         }
         val body = parseStatement()
-        return RhovasAst.Statement.Function(name, generics, parameters, returns, throws, body).also {
-            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-        }
-    }
-
-    /**
-     *  - `declaration = ("val" | "var") identifier (":" type)? ("=" expression)? ";"`
-     */
-    private fun parseDeclarationStatement(): RhovasAst.Statement.Declaration {
-        require(match(listOf("val", "var")))
-        context.addLast(tokens[-1]!!.range)
-        val mutable = tokens[-1]!!.literal == "var"
-        val name = parseIdentifier { "A variable declaration requires a name after `val`/`var`, as in `val name = value;` or `var name: Type;`." }
-        val type = if (match(":")) parseType() else null
-        val value = if (match("=")) parseExpression() else null
-        requireSemicolon { "A variable declaration must be followed by a semicolon, as in `val name = value;` or `var name: Type;`." }
-        return RhovasAst.Statement.Declaration(mutable, name, type, value).also {
+        return RhovasAst.Statement.Declaration.Function(name, generics, parameters, returns, throws, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

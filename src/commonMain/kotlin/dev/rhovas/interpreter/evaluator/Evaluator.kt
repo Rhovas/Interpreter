@@ -61,7 +61,13 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ir: RhovasIr.Statement.Function): Object {
+    override fun visit(ir: RhovasIr.Statement.Declaration.Variable): Object {
+        val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
+        variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Statement.Declaration.Function): Object {
         val current = scope
         val function = ir.function as? Function.Definition ?: Function.Definition(ir.function as Function.Declaration).also { scope.functions.define(it) }
         function.implementation = { arguments ->
@@ -86,12 +92,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
             }
         }
-        return Object(Library.TYPES["Void"]!!, Unit)
-    }
-
-    override fun visit(ir: RhovasIr.Statement.Declaration): Object {
-        val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
-        variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

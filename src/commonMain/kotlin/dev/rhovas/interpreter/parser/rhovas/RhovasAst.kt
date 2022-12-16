@@ -22,7 +22,7 @@ sealed class RhovasAst {
 
         data class Struct(
             val name: String,
-            val fields: List<Statement.Declaration>,
+            val fields: List<Statement.Declaration.Variable>,
         ) : Component()
 
     }
@@ -41,21 +41,25 @@ sealed class RhovasAst {
             val expression: RhovasAst.Expression,
         ) : Statement()
 
-        data class Function(
-            val name: String,
-            val generics: List<Pair<String, Type?>>,
-            val parameters: List<Pair<String, Type?>>,
-            val returns: Type?,
-            val throws: List<Type>,
-            val body: Statement,
-        ) : Statement()
+        sealed class Declaration : Statement() {
 
-        data class Declaration(
-            val mutable: Boolean,
-            val name: String,
-            val type: Type?,
-            val value: RhovasAst.Expression?,
-        ) : Statement()
+            data class Variable(
+                val mutable: Boolean,
+                val name: String,
+                val type: Type?,
+                val value: RhovasAst.Expression?,
+            ) : Declaration()
+
+            data class Function(
+                val name: String,
+                val generics: List<Pair<String, Type?>>,
+                val parameters: List<Pair<String, Type?>>,
+                val returns: Type?,
+                val throws: List<Type>,
+                val body: Statement,
+            ) : Declaration()
+
+        }
 
         data class Assignment(
             val receiver: RhovasAst.Expression,
@@ -163,7 +167,7 @@ sealed class RhovasAst {
             data class String(
                 val literals: kotlin.collections.List<kotlin.String>,
                 val arguments: kotlin.collections.List<Expression>,
-            ): Literal()
+            ) : Literal()
 
             data class List(
                 val elements: kotlin.collections.List<Expression>,
@@ -313,8 +317,8 @@ sealed class RhovasAst {
                 is Statement.Block -> visit(ast)
                 is Statement.Component -> visit(ast)
                 is Statement.Expression -> visit(ast)
-                is Statement.Function -> visit(ast)
-                is Statement.Declaration -> visit(ast)
+                is Statement.Declaration.Variable -> visit(ast)
+                is Statement.Declaration.Function -> visit(ast)
                 is Statement.Assignment -> visit(ast)
                 is Statement.If -> visit(ast)
                 is Statement.Match.Conditional -> visit(ast)
@@ -371,8 +375,8 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
-        @JsName("visitFunction") fun visit(ast: Statement.Function): T
-        fun visit(ast: Statement.Declaration): T
+        @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T
+        @JsName("visitDeclarationFunction") fun visit(ast: Statement.Declaration.Function): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T
         fun visit(ast: Statement.Match.Conditional): T

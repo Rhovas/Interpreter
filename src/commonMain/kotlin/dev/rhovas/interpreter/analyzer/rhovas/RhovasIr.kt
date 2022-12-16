@@ -18,16 +18,16 @@ sealed class RhovasIr {
         val type: dev.rhovas.interpreter.environment.Type,
     ) : RhovasIr()
 
-    sealed class Component: RhovasIr() {
+    sealed class Component : RhovasIr() {
 
         data class Struct(
             val type: dev.rhovas.interpreter.environment.Type,
-            val fields: List<Statement.Declaration>,
+            val fields: List<Statement.Declaration.Variable>,
         ) : Component()
 
     }
 
-    sealed class Statement: RhovasIr() {
+    sealed class Statement : RhovasIr() {
 
         data class Block(
             val statements: List<Statement>,
@@ -41,17 +41,21 @@ sealed class RhovasIr {
             val expression: RhovasIr.Expression.Invoke,
         ) : Statement()
 
-        data class Function(
-            val function: dev.rhovas.interpreter.environment.Function,
-            val body: Block,
-        ) : Statement()
+        sealed class Declaration : Statement() {
 
-        data class Declaration(
-            val variable: dev.rhovas.interpreter.environment.Variable,
-            val value: RhovasIr.Expression?,
-        ) : Statement()
+            data class Variable(
+                val variable: dev.rhovas.interpreter.environment.Variable,
+                val value: RhovasIr.Expression?,
+            ) : Statement()
 
-        sealed class Assignment: Statement() {
+            data class Function(
+                val function: dev.rhovas.interpreter.environment.Function,
+                val body: Block,
+            ) : Statement()
+
+        }
+
+        sealed class Assignment : Statement() {
 
             data class Variable(
                 val variable: dev.rhovas.interpreter.environment.Variable,
@@ -79,7 +83,7 @@ sealed class RhovasIr {
             val elseStatement: Statement?,
         ) : Statement()
 
-        sealed class Match: Statement() {
+        sealed class Match : Statement() {
 
             data class Conditional(
                 val cases: List<Pair<RhovasIr.Expression, Statement>>,
@@ -164,7 +168,7 @@ sealed class RhovasIr {
 
     sealed class Expression(
         open val type: dev.rhovas.interpreter.environment.Type,
-    ): RhovasIr() {
+    ) : RhovasIr() {
 
         sealed class Literal(
             override val type: dev.rhovas.interpreter.environment.Type,
@@ -179,7 +183,7 @@ sealed class RhovasIr {
                 val literals: kotlin.collections.List<kotlin.String>,
                 val arguments: kotlin.collections.List<Expression>,
                 override val type: dev.rhovas.interpreter.environment.Type,
-            ): Literal(type)
+            ) : Literal(type)
 
             data class List(
                 val elements: kotlin.collections.List<Expression>,
@@ -200,13 +204,13 @@ sealed class RhovasIr {
 
         data class Group(
             val expression: Expression,
-        ): Expression(expression.type)
+        ) : Expression(expression.type)
 
         data class Unary(
             val operator: String,
             val expression: Expression,
             val method: dev.rhovas.interpreter.environment.Method,
-        ): Expression(method.returns)
+        ) : Expression(method.returns)
 
         data class Binary(
             val operator: String,
@@ -214,7 +218,7 @@ sealed class RhovasIr {
             val right: Expression,
             val method: dev.rhovas.interpreter.environment.Method?,
             override val type: dev.rhovas.interpreter.environment.Type,
-        ): Expression(type)
+        ) : Expression(type)
 
         sealed class Access(
             override val type: dev.rhovas.interpreter.environment.Type,
@@ -315,7 +319,7 @@ sealed class RhovasIr {
         data class TypedDestructure(
             override val type: dev.rhovas.interpreter.environment.Type,
             val pattern: Pattern?,
-        ): Pattern(type)
+        ) : Pattern(type)
 
         data class VarargDestructure(
             val pattern: Pattern?,
@@ -341,8 +345,8 @@ sealed class RhovasIr {
                 is Statement.Block -> visit(ir)
                 is Statement.Component -> visit(ir)
                 is Statement.Expression -> visit(ir)
-                is Statement.Function -> visit(ir)
-                is Statement.Declaration -> visit(ir)
+                is Statement.Declaration.Variable -> visit(ir)
+                is Statement.Declaration.Function -> visit(ir)
                 is Statement.Assignment.Variable -> visit(ir)
                 is Statement.Assignment.Property -> visit(ir)
                 is Statement.Assignment.Index -> visit(ir)
@@ -400,8 +404,8 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Block): T
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
-        @JsName("visitFunction") fun visit(ir: Statement.Function): T
-        fun visit(ir: Statement.Declaration): T
+        @JsName("visitDeclarationVariable") fun visit(ir: Statement.Declaration.Variable): T
+        @JsName("visitDeclarationFunction") fun visit(ir: Statement.Declaration.Function): T
         @JsName("visitAssignmentVariable") fun visit(ir: Statement.Assignment.Variable): T
         @JsName("visitAssignmentProperty") fun visit(ir: Statement.Assignment.Property): T
         @JsName("visitAssignmentIndex") fun visit(ir: Statement.Assignment.Index): T
