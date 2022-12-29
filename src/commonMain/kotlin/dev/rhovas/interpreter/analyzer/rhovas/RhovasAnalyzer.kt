@@ -692,6 +692,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return super.visit(ast) as RhovasIr.Expression
     }
 
+    override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block {
+        val statements = ast.statements.map { visit(it) }
+        val expression = ast.expression?.let { visit(it) }
+        val type = expression?.type ?: Library.TYPES["Void"]!!
+        return RhovasIr.Expression.Block(statements, expression, type)
+    }
+
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr {
         val type = when (ast.value) {
             null -> Library.TYPES["Null"]!!
@@ -1062,6 +1069,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", Library.TYPES["Dynamic"]!!, false))
             }
             val body = visit(ast.body)
+            require(body.type.isSubtypeOf(context.function!!.returns) || context.jumps.contains("")) { error(
+                ast,
+                "Invalid return value type.",
+                "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${body.type}.",
+            ) }
             val type = Type.Reference(Library.TYPES["Lambda"]!!.base, listOf(Library.TYPES["Dynamic"]!!, Library.TYPES["Dynamic"]!!))
             RhovasIr.Expression.Lambda(parameters, body, type).also {
                 it.context = ast.context

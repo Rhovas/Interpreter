@@ -158,6 +158,11 @@ sealed class RhovasAst {
 
     sealed class Expression : RhovasAst() {
 
+        data class Block(
+            val statements: List<Statement>,
+            val expression: Expression?,
+        ) : Expression()
+
         sealed class Literal : Expression() {
 
             data class Scalar(
@@ -258,7 +263,7 @@ sealed class RhovasAst {
 
         data class Lambda(
             val parameters: List<Pair<String, Type?>>,
-            val body: Statement,
+            val body: Block,
         ) : Expression()
 
     }
@@ -337,6 +342,7 @@ sealed class RhovasAst {
                 is Statement.Ensure -> visit(ast)
                 is Statement.Require -> visit(ast)
 
+                is Expression.Block -> visit(ast)
                 is Expression.Literal.Scalar -> visit(ast)
                 is Expression.Literal.String -> visit(ast)
                 is Expression.Literal.List -> visit(ast)
@@ -372,7 +378,7 @@ sealed class RhovasAst {
 
         fun visit(ast: Component.Struct): T
 
-        fun visit(ast: Statement.Block): T
+        @JsName("visitStatementBlock") fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T
@@ -395,6 +401,7 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Require): T
         fun visit(ast: Statement.Ensure): T
 
+        @JsName("visitExpressionBlock") fun visit(ast: Expression.Block): T
         fun visit(ast: Expression.Literal.Scalar): T
         fun visit(ast: Expression.Literal.String): T
         fun visit(ast: Expression.Literal.List): T

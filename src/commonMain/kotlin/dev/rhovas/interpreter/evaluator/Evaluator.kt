@@ -344,6 +344,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Expression.Block): Object {
+        ir.statements.forEach { visit(it) }
+        val expression = ir.expression?.let { visit(it) }
+        return expression ?: Object(Library.TYPES["Void"]!!, Unit)
+    }
+
     override fun visit(ir: RhovasIr.Expression.Literal.Scalar): Object {
         return Object(ir.type, ir.value)
     }

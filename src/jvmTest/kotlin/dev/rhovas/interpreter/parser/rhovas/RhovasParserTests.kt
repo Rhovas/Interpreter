@@ -1958,14 +1958,21 @@ class RhovasParserTests {
                         function { body; }
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), block(stmt("body"))),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(stmt("body")), null)),
+                        ),
+                    )),
+                    Arguments.of("Expression", """
+                        function { expr }
+                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
+                        null, "function", listOf(
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), expr("expr"))),
                         ),
                     )),
                     Arguments.of("Empty Block", """
                         function {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), block()),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Argument", """
@@ -1973,35 +1980,35 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
                             expr("argument"),
-                            RhovasAst.Expression.Lambda(listOf(), block()),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Single Parameter", """
                         function |parameter| {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                            RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Multiple Parameters", """
                         function |first, second, third| {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf("first" to null, "second" to null, "third" to null), block()),
+                            RhovasAst.Expression.Lambda(listOf("first" to null, "second" to null, "third" to null), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Typed Parameter", """
                         function |parameter: Type| {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf("parameter" to type("Type")), block()),
+                            RhovasAst.Expression.Lambda(listOf("parameter" to type("Type")), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Trailing Comma", """
                         function |parameter,| {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                            RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Argument & Parameter", """
@@ -2009,21 +2016,21 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
                             expr("argument"),
-                            RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                            RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Method", """
                         receiver.method {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Method(
                         expr("receiver"), false, false, "method", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), block()),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Pipeline", """
                         receiver.|function {}
                     """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
                         expr("receiver"), false, false, null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), block()),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Missing Comma", """

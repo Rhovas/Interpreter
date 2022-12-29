@@ -1971,16 +1971,16 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Expression.Lambda(
                             listOf(),
-                            block(stmt()),
+                            RhovasIr.Expression.Block(listOf(stmt()), null, type("Void")),
                             type("Lambda", "Dynamic", "Dynamic"),
                         )
                     }),
-                    Arguments.of("Return Value", """
-                        lambda { return 1; }
+                    Arguments.of("Expression", """
+                        lambda { 1 }
                     """.trimIndent(), {
                         RhovasIr.Expression.Lambda(
                             listOf(),
-                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                            RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), type("Integer")),
                             type("Lambda", "Dynamic", "Dynamic"),
                         )
                     }),

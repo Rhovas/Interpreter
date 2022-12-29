@@ -4,6 +4,7 @@ import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
 import dev.rhovas.interpreter.parser.dsl.DslParser
+import kotlin.math.exp
 
 class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
@@ -103,9 +104,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
     /**
      * Dispatches to the appropriate `parse` method, falling back to an
-     * expression / assignment statement.
+     * expression / assignment statement. Semicolons following expression
+     * statements are optional if at the end of a block.
      *
-     *  - `expression-statement ::= expression ";"`
+     *  - `expression-statement ::= expression (";" | (?= "}"))
      *  - `assignment-statement ::= expression "=" expression ";"`
      */
     private fun parseStatement(): RhovasAst.Statement {
@@ -141,7 +143,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         it.context = listOf(expression.context.first(), tokens[-1]!!.range)
                     }
                 } else {
-                    requireSemicolon { "An expression statement must be followed by a semicolon, as in `expression;`" }
+                    require(match(";") || peek("}")) { error(
+                        "Expected semicolon.",
+                        "An expression statement must be followed by a semicolon or the end of an expression block, as in `expression;` or `{ expression }`.",
+                    ) }
                     RhovasAst.Statement.Expression(expression).also {
                         it.context = listOf(expression.context.first(), tokens[-1]!!.range)
                     }
@@ -159,6 +164,12 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val statements = mutableListOf<RhovasAst.Statement>()
         while (!match("}")) {
             statements.add(parseStatement())
+            if (statements.last() is RhovasAst.Statement.Expression && tokens[-1]!!.literal != ";") {
+                throw error(
+                    "Expected semicolon.",
+                    "An expression statement must be followed by a semicolon within a statement block, as in `if { expression; }`.",
+                )
+            }
         }
         return RhovasAst.Statement.Block(statements).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
@@ -780,6 +791,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      */
     private fun parsePrimaryExpression(): RhovasAst.Expression {
         return when {
+            match("do") -> parseBlockExpression()
             match("null") -> {
                 RhovasAst.Expression.Literal.Scalar(null).also {
                     it.context = listOf(tokens[-1]!!.range)
@@ -918,6 +930,25 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         }
     }
 
+    private fun parseBlockExpression(): RhovasAst.Expression.Block {
+        require(match("{"))
+        context.addLast(tokens[-1]!!.range)
+        val statements = mutableListOf<RhovasAst.Statement>()
+        var expression: RhovasAst.Expression? = null
+        while (!match("}")) {
+            val statement = parseStatement()
+            if (statement is RhovasAst.Statement.Expression && tokens[-1]!!.literal != ";") {
+                expression = statement.expression
+                require(peek("}"))
+            } else {
+                statements.add(statement)
+            }
+        }
+        return RhovasAst.Expression.Block(statements, expression).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
     /**
      *  - `invoke-arguments = arguments lambda? | lambda`
      *     - `arguments = "(" (expression ("," expression)* ","?)? ")"`
@@ -961,7 +992,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 "A lambda's parameters must be followed by an opening brace `{`, as in `lambda |parameter| { ... }"
             ) }
             context.addLast(tokens[-1]!!.range)
-            val body = parseStatement()
+            val body = parseBlockExpression()
             context.removeLast()
             arguments.add(RhovasAst.Expression.Lambda(parameters, body).also {
                 it.context = listOf(context.removeLast(), tokens[-1]!!.range)

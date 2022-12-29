@@ -170,6 +170,12 @@ sealed class RhovasIr {
         open val type: dev.rhovas.interpreter.environment.Type,
     ) : RhovasIr() {
 
+        data class Block(
+            val statements: List<Statement>,
+            val expression: Expression?,
+            override val type: dev.rhovas.interpreter.environment.Type,
+        ) : Expression(type)
+
         sealed class Literal(
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Expression(type) {
@@ -283,7 +289,7 @@ sealed class RhovasIr {
 
         data class Lambda(
             val parameters: List<dev.rhovas.interpreter.environment.Variable.Declaration>,
-            val body: Statement,
+            val body: Block,
             override val type: dev.rhovas.interpreter.environment.Type,
         ) : Expression(type)
 
@@ -367,6 +373,7 @@ sealed class RhovasIr {
                 is Statement.Ensure -> visit(ir)
                 is Statement.Require -> visit(ir)
 
+                is Expression.Block -> visit(ir)
                 is Expression.Literal.Scalar -> visit(ir)
                 is Expression.Literal.String -> visit(ir)
                 is Expression.Literal.List -> visit(ir)
@@ -401,7 +408,7 @@ sealed class RhovasIr {
 
         fun visit(ir: Component.Struct): T
 
-        fun visit(ir: Statement.Block): T
+        @JsName("visitStatementBlock") fun visit(ir: Statement.Block): T
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ir: Statement.Declaration.Variable): T
@@ -426,6 +433,7 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Require): T
         fun visit(ir: Statement.Ensure): T
 
+        @JsName("visitExpressionBlock") fun visit(ir: Expression.Block): T
         fun visit(ir: Expression.Literal.Scalar): T
         fun visit(ir: Expression.Literal.String): T
         fun visit(ir: Expression.Literal.List): T
