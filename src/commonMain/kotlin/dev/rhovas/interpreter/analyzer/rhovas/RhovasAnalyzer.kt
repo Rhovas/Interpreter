@@ -236,13 +236,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
-                val body = visit(ast.body)
+                val block = visit(ast.block)
                 require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
                     ast,
                     "Missing return value.",
                     "The function ${ast.name}/${ast.parameters.size} requires a return value.",
                 ) }
-                RhovasIr.Statement.Declaration.Function(function, body).also {
+                RhovasIr.Statement.Declaration.Function(function, block).also {
                     it.context = ast.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
                 }
@@ -325,14 +325,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid if condition type.",
             "An if statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
-        val thenStatement = analyze(context.child()) {
-            visit(ast.thenStatement)
+        val thenBlock = analyze(context.child()) {
+            visit(ast.thenBlock)
         }
-        val elseStatement = analyze(context.child()) {
-            ast.elseStatement?.let { visit(it) }
+        val elseBlock = analyze(context.child()) {
+            ast.elseBlock?.let { visit(it) }
         }
         context.merge()
-        return RhovasIr.Statement.If(condition, thenStatement, elseStatement).also {
+        return RhovasIr.Statement.If(condition, thenBlock, elseBlock).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -422,10 +422,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
             context.labels.add(null)
-            val body = visit(ast.body)
+            val block = visit(ast.block)
             //TODO: Validate jump context
             context.jumps.clear()
-            RhovasIr.Statement.For(variable, argument, body).also {
+            RhovasIr.Statement.For(variable, argument, block).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
@@ -442,10 +442,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ) }
         return analyze {
             context.labels.add(null)
-            val body = visit(ast.body)
+            val block = visit(ast.block)
             context.jumps.clear()
             //TODO: Validate jump context
-            RhovasIr.Statement.While(condition, body).also {
+            RhovasIr.Statement.While(condition, block).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
@@ -455,7 +455,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val child = context.child()
-        ast.catches.forEach {
+        ast.catchBlocks.forEach {
             it.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val type = visit(it.type).type
             require(type.isSubtypeOf(Library.TYPES["Exception"]!!)) { error(
@@ -466,28 +466,28 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             child.exceptions.add(type)
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
-        val body = analyze(child) { visit(ast.body) }
-        val catches = ast.catches.map {
+        val tryBlock = analyze(child) { visit(ast.tryBlock) }
+        val catchBlocks = ast.catchBlocks.map {
             it.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val type = visit(it.type).type //validated as subtype of Exception above
             val variable = Variable.Declaration(it.name, type, false)
             analyze(context.child()) {
                 (context.scope as Scope.Declaration).variables.define(variable)
-                val body = visit(it.body)
-                RhovasIr.Statement.Try.Catch(variable, body).also {
+                val block = visit(it.block)
+                RhovasIr.Statement.Try.Catch(variable, block).also {
                     it.context = it.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
                 }
             }
         }
         context.merge()
-        val finallyStatement = ast.finallyStatement?.let {
+        val finallyBlock = ast.finallyBlock?.let {
             //TODO: Include finally information in invalid exception error message
             analyze(context.with(ExceptionContext(mutableSetOf()))) {
                 visit(it)
             }
         }
-        return RhovasIr.Statement.Try(body, catches, finallyStatement).also {
+        return RhovasIr.Statement.Try(tryBlock, catchBlocks, finallyBlock).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -503,8 +503,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val variable = ast.name?.let { Variable.Declaration(ast.name, argument.type, false) }
         return analyze {
             variable?.let { (context.scope as Scope.Declaration).variables.define(it) }
-            val body = visit(ast.body)
-            RhovasIr.Statement.With(variable, argument, body).also {
+            val block = visit(ast.block)
+            RhovasIr.Statement.With(variable, argument, block).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }

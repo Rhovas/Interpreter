@@ -112,7 +112,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      */
     private fun parseStatement(): RhovasAst.Statement {
         return when {
-            peek("{") -> parseBlockStatement()
+            peek("{") -> RhovasAst.Statement.Expression(parseBlockStatement()).also { it.context = it.expression.context }
             peek(listOf("val", "var")) -> parseVariableDeclarationStatement()
             peek("func") -> parseFunctionDeclarationStatement()
             peek("if") -> parseIfStatement()
@@ -158,8 +158,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     /**
      *  - `block := "{" statement* "}"`
      */
-    private fun parseBlockStatement(): RhovasAst.Statement {
-        require(match("{"))
+    private fun parseBlockStatement(): RhovasAst.Expression.Block {
+        require(match("{")) { error(
+            "Expected opening brace.",
+            "A block statement must begin with an opening brace, as in `{ statement; }`."
+        ) }
         context.addLast(tokens[-1]!!.range)
         val statements = mutableListOf<RhovasAst.Statement>()
         while (!match("}")) {
@@ -167,15 +170,12 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             if (statements.last() is RhovasAst.Statement.Expression && tokens[-1]!!.literal != ";") {
                 throw error(
                     "Expected semicolon.",
-                    "An expression statement must be followed by a semicolon within a statement block, as in `if { expression; }`.",
+                    "An expression statement must be followed by a semicolon within a statement block, as in `{ expression; }`.",
                 )
             }
         }
-        val block = RhovasAst.Expression.Block(statements, null).also {
+        return RhovasAst.Expression.Block(statements, null).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
-        }
-        return RhovasAst.Statement.Expression(block).also {
-            it.context = it.expression.context
         }
     }
 
@@ -245,8 +245,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 throws.add(parseType())
             } while (match(","))
         }
-        val body = parseStatement()
-        return RhovasAst.Statement.Declaration.Function(name, generics, parameters, returns, throws, body).also {
+        val block = parseBlockStatement()
+        return RhovasAst.Statement.Declaration.Function(name, generics, parameters, returns, throws, block).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -266,14 +266,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing parenthesis.",
             "An if statement condition must be followed by a closing parenthesis, as in `if (condition) { ... }`.",
         ) }
-        val thenStatement = parseStatement()
-        val elseStatement = if (match("else")) {
+        val thenBlock = parseBlockStatement()
+        val elseBlock = if (match("else")) {
             context.addLast(tokens[-1]!!.range)
-            val elseStatement = parseStatement()
+            val elseBlock = parseBlockStatement()
             context.removeLast()
-            elseStatement
+            elseBlock
         } else null
-        return RhovasAst.Statement.If(condition, thenStatement, elseStatement).also {
+        return RhovasAst.Statement.If(condition, thenBlock, elseBlock).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -406,7 +406,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing parenthesis.",
             "A for loop requires parenthesis around the argument, as in `for (val name in iterable) { ... }`.",
         ) }
-        val body = parseStatement()
+        val body = parseBlockStatement()
         return RhovasAst.Statement.For(name, iterable, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
@@ -427,7 +427,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing parenthesis.",
             "A while loop requires parenthesis around the condition, as in `while (condition) { ... }`.",
         ) }
-        val body = parseStatement()
+        val body = parseBlockStatement()
         return RhovasAst.Statement.While(condition, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
@@ -439,7 +439,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseTryStatement(): RhovasAst.Statement.Try {
         require(match("try"))
         context.addLast(tokens[-1]!!.range)
-        val body = parseStatement()
+        val body = parseBlockStatement()
         val catches = mutableListOf<RhovasAst.Statement.Try.Catch>()
         while (match("catch")) {
             context.addLast(tokens[-1]!!.range)
@@ -461,18 +461,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 "Expected closing parenthesis.",
                 "A catch block requires parenthesis around the argument, as in `try { ... } catch (val name: Type) { ... }`.",
             ) }
-            val body = parseStatement()
+            val body = parseBlockStatement()
             catches.add(RhovasAst.Statement.Try.Catch(name, type, body).also {
                 it.context = listOf(context.removeLast(), tokens[-1]!!.range)
             })
         }
-        val finallyStatement = if (match("finally")) {
+        val finallyBlock = if (match("finally")) {
             context.addLast(tokens[-1]!!.range)
-            val finallyStatement = parseStatement()
+            val finallyBlock = parseBlockStatement()
             context.removeLast()
-            finallyStatement
+            finallyBlock
         } else null
-        return RhovasAst.Statement.Try(body, catches, finallyStatement).also {
+        return RhovasAst.Statement.Try(body, catches, finallyBlock).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -500,7 +500,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing parenthesis.",
             "A with statement requires parenthesis around the argument, as in `with (argument) { ... }` or `with (val name = value) { ... }`.",
         ) }
-        val body = parseStatement()
+        val body = parseBlockStatement()
         return RhovasAst.Statement.With(name, argument, body).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }

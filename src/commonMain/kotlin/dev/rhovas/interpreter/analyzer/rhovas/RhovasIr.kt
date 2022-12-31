@@ -46,7 +46,7 @@ sealed class RhovasIr {
 
             data class Function(
                 val function: dev.rhovas.interpreter.environment.Function,
-                val body: Statement,
+                val block: RhovasIr.Expression.Block,
             ) : Statement()
 
         }
@@ -75,8 +75,8 @@ sealed class RhovasIr {
 
         data class If(
             val condition: RhovasIr.Expression,
-            val thenStatement: Statement,
-            val elseStatement: Statement?,
+            val thenBlock: RhovasIr.Expression.Block,
+            val elseBlock: RhovasIr.Expression.Block?,
         ) : Statement()
 
         sealed class Match : Statement() {
@@ -97,23 +97,23 @@ sealed class RhovasIr {
         data class For(
             val variable: dev.rhovas.interpreter.environment.Variable.Declaration,
             val argument: RhovasIr.Expression,
-            val body: Statement,
+            val block: RhovasIr.Expression.Block,
         ) : Statement()
 
         data class While(
             val condition: RhovasIr.Expression,
-            val body: Statement,
+            val block: RhovasIr.Expression.Block,
         ) : Statement()
 
         data class Try(
-            val body: Statement,
-            val catches: List<Catch>,
-            val finallyStatement: Statement?
+            val tryBlock: RhovasIr.Expression.Block,
+            val catchBlocks: List<Catch>,
+            val finallyBlock: RhovasIr.Expression.Block?
         ) : Statement() {
 
             data class Catch(
                 val variable: dev.rhovas.interpreter.environment.Variable.Declaration,
-                val body: Statement,
+                val block: Expression.Block,
             ) : RhovasIr()
 
         }
@@ -121,7 +121,7 @@ sealed class RhovasIr {
         data class With(
             val variable: dev.rhovas.interpreter.environment.Variable.Declaration?,
             val argument: RhovasIr.Expression,
-            val body: Statement,
+            val block: RhovasIr.Expression.Block,
         ) : Statement()
 
         data class Label(

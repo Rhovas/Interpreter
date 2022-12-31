@@ -467,32 +467,18 @@ class RhovasParserTests {
             fun testIf(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Then", """
-                        if (condition) thenStatement;
+                        if (condition) { stmt; }
                     """.trimIndent(), RhovasAst.Statement.If(
                         expr("condition"),
-                        stmt("thenStatement"),
+                        block(stmt("stmt")),
                         null,
                     )),
-                    Arguments.of("Empty Then", """
-                        if (condition) {}
-                    """.trimIndent(), RhovasAst.Statement.If(
-                        expr("condition"),
-                        block(),
-                        null
-                    )),
                     Arguments.of("Else", """
-                        if (condition) {} else elseStatement;
+                        if (condition) {} else { stmt; }
                     """.trimIndent(), RhovasAst.Statement.If(
                         expr("condition"),
                         block(),
-                        stmt("elseStatement")
-                    )),
-                    Arguments.of("Empty Else", """
-                        if (condition) {} else {}
-                    """.trimIndent(), RhovasAst.Statement.If(
-                        expr("condition"),
-                        block(),
-                        block()
+                        block(stmt("stmt")),
                     )),
                     Arguments.of("Missing Opening Parenthesis", """
                         if condition) {}
@@ -686,14 +672,9 @@ class RhovasParserTests {
             fun testFor(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("For", """
-                        for (val name in iterable) body;
+                        for (val name in iterable) { stmt; }
                     """.trimIndent(), RhovasAst.Statement.For(
-                        "name", expr("iterable"), stmt("body"),
-                    )),
-                    Arguments.of("Empty Body", """
-                        for (val name in iterable) {}
-                    """.trimIndent(), RhovasAst.Statement.For(
-                        "name", expr("iterable"), block(),
+                        "name", expr("iterable"), block(stmt("stmt")),
                     )),
                     Arguments.of("Missing Opening Parenthesis", """
                         for val name in iterable) {}
@@ -737,14 +718,9 @@ class RhovasParserTests {
             fun testWhile(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("While", """
-                        while (condition) body;
+                        while (condition) { stmt; }
                     """.trimIndent(), RhovasAst.Statement.While(
-                        expr("condition"), stmt("body"),
-                    )),
-                    Arguments.of("Empty Body", """
-                        while (condition) {}
-                    """.trimIndent(), RhovasAst.Statement.While(
-                        expr("condition"), block(),
+                        expr("condition"), block(stmt("stmt")),
                     )),
                     Arguments.of("Missing Opening Parenthesis", """
                         while condition) {}
@@ -775,27 +751,15 @@ class RhovasParserTests {
             fun testTry(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Try", """
-                        try body;
+                        try { stmt; }
                     """.trimIndent(), RhovasAst.Statement.Try(
-                        stmt("body"), listOf(), null,
-                    )),
-                    Arguments.of("Empty Body", """
-                        try {}
-                    """.trimIndent(), RhovasAst.Statement.Try(
-                        block(), listOf(), null,
+                        block(stmt("stmt")), listOf(), null,
                     )),
                     Arguments.of("Catch", """
-                        try {} catch (val name: Type) body;
+                        try {} catch (val name: Type) { stmt; }
                     """.trimIndent(), RhovasAst.Statement.Try(
                         block(),
-                        listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), stmt("body"))),
-                        null,
-                    )),
-                    Arguments.of("Empty Catch", """
-                        try {} catch (val name: Type) {}
-                    """.trimIndent(), RhovasAst.Statement.Try(
-                        block(),
-                        listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block())),
+                        listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block(stmt("stmt")))),
                         null,
                     )),
                     Arguments.of("Multiple Catch", """
@@ -813,14 +777,9 @@ class RhovasParserTests {
                         null,
                     )),
                     Arguments.of("Finally", """
-                        try {} finally body;
+                        try {} finally { stmt; }
                     """.trimIndent(), RhovasAst.Statement.Try(
-                        block(), listOf(), stmt("body"),
-                    )),
-                    Arguments.of("Empty Finally", """
-                        try {} finally {}
-                    """.trimIndent(), RhovasAst.Statement.Try(
-                        block(), listOf(), block(),
+                        block(), listOf(), block(stmt("stmt")),
                     )),
                     Arguments.of("Both Catch & Finally", """
                         try {} catch (val name: Type) {} finally {}
@@ -1955,10 +1914,10 @@ class RhovasParserTests {
             fun testLambda(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Lambda", """
-                        function { body; }
+                        function { stmt; }
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(stmt("body")), null)),
+                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(stmt("stmt")), null)),
                         ),
                     )),
                     Arguments.of("Expression", """
@@ -1966,13 +1925,6 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Expression.Invoke.Function(
                         null, "function", listOf(
                             RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), expr("expr"))),
-                        ),
-                    )),
-                    Arguments.of("Empty Block", """
-                        function {}
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        null, "function", listOf(
-                            RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
                         ),
                     )),
                     Arguments.of("Argument", """
@@ -2556,8 +2508,8 @@ class RhovasParserTests {
 
     }
 
-    private fun block(vararg statements: RhovasAst.Statement): RhovasAst.Statement {
-        return RhovasAst.Statement.Expression(RhovasAst.Expression.Block(statements.toList(), null))
+    private fun block(vararg statements: RhovasAst.Statement): RhovasAst.Expression.Block {
+        return RhovasAst.Expression.Block(statements.toList(), null)
     }
 
     private fun stmt(name: String): RhovasAst.Statement {

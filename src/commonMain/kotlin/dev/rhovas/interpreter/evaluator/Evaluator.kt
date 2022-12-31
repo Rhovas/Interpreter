@@ -71,7 +71,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     scope.variables.define(parameter)
                 }
                 try {
-                    visit(ir.body)
+                    visit(ir.block)
                     Object(Library.TYPES["Void"]!!, Unit)
                 } catch (e: Throw) {
                     require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(
@@ -147,9 +147,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Statement.If): Object {
         val condition = visit(ir.condition)
         if (condition.value as Boolean) {
-            visit(ir.thenStatement)
-        } else if (ir.elseStatement != null) {
-            visit(ir.elseStatement)
+            visit(ir.thenBlock)
+        } else if (ir.elseBlock != null) {
+            visit(ir.elseBlock)
         }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
@@ -205,7 +205,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     val variable = Variable.Definition(ir.variable)
                     variable.value = element
                     scope.variables.define(variable)
-                    visit(ir.body)
+                    visit(ir.block)
                 }
             } catch (e: Break) {
                 if (e.label != null && e.label != label) {
@@ -230,7 +230,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             if (condition.value as Boolean) {
                 try {
                     scoped(Scope.Definition(scope)) {
-                        visit(ir.body)
+                        visit(ir.block)
                     }
                 } catch (e: Break) {
                     if (e.label != null && e.label != label) {
@@ -252,23 +252,23 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Try): Object {
         try {
-            visit(ir.body)
+            visit(ir.tryBlock)
         } catch (e: Throw) {
-            val catch = ir.catches.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
+            val catch = ir.catchBlocks.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
             //TODO: Nested exceptions
             if (catch != null) {
                 scoped(Scope.Definition(scope)) {
                     val variable = Variable.Definition(catch.variable)
                     variable.value = e.exception
                     scope.variables.define(variable)
-                    visit(catch.body)
+                    visit(catch.block)
                 }
             } else {
-                ir.finallyStatement?.let { visit(it) }
+                ir.finallyBlock?.let { visit(it) }
                 throw e
             }
         }
-        ir.finallyStatement?.let { visit(it) }
+        ir.finallyBlock?.let { visit(it) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

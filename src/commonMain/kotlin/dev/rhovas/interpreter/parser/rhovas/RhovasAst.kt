@@ -52,7 +52,7 @@ sealed class RhovasAst {
                 val parameters: List<Pair<String, Type?>>,
                 val returns: Type?,
                 val throws: List<Type>,
-                val body: Statement,
+                val block: RhovasAst.Expression.Block,
             ) : Declaration()
 
         }
@@ -64,8 +64,8 @@ sealed class RhovasAst {
 
         data class If(
             val condition: RhovasAst.Expression,
-            val thenStatement: Statement,
-            val elseStatement: Statement?,
+            val thenBlock: RhovasAst.Expression.Block,
+            val elseBlock: RhovasAst.Expression.Block?,
         ) : Statement()
 
         sealed class Match : Statement() {
@@ -86,24 +86,24 @@ sealed class RhovasAst {
         data class For(
             val name: String,
             val argument: RhovasAst.Expression,
-            val body: Statement,
+            val block: RhovasAst.Expression.Block,
         ) : Statement()
 
         data class While(
             val condition: RhovasAst.Expression,
-            val body: Statement,
+            val block: RhovasAst.Expression.Block,
         ) : Statement()
 
         data class Try(
-            val body: Statement,
-            val catches: List<Catch>,
-            val finallyStatement: Statement?
+            val tryBlock: RhovasAst.Expression.Block,
+            val catchBlocks: List<Catch>,
+            val finallyBlock: RhovasAst.Expression.Block?
         ) : Statement() {
 
             data class Catch(
                 val name: String,
                 val type: Type,
-                val body: Statement,
+                val block: Expression.Block,
             ) : RhovasAst()
 
         }
@@ -111,7 +111,7 @@ sealed class RhovasAst {
         data class With(
             val name: String?,
             val argument: RhovasAst.Expression,
-            val body: Statement,
+            val block: RhovasAst.Expression.Block,
         ) : Statement()
 
         data class Label(

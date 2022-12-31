@@ -2658,8 +2658,8 @@ class RhovasAnalyzerTests {
 
     }
 
-    private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Statement {
-        return RhovasIr.Statement.Expression(RhovasIr.Expression.Block(statements.toList(), null, Library.TYPES["Void"]!!))
+    private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Expression.Block {
+        return RhovasIr.Expression.Block(statements.toList(), null, Library.TYPES["Void"]!!)
     }
 
     private fun stmt(position: Int): RhovasIr.Statement {
