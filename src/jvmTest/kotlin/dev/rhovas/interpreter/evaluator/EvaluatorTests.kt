@@ -851,7 +851,7 @@ class EvaluatorTests {
                     Arguments.of("Type", """
                         Any
                     """.trimIndent(),
-                        Object(type("Type"), type("Any")),
+                        Object(type("Type", "Any"), type("Any")),
                     ),
                 )
             }

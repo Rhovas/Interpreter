@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 
@@ -10,7 +9,7 @@ object Library {
     val TYPES get() = SCOPE.types
 
     init {
-        TYPES.define(Type.Base("Type", listOf(), listOf(), Scope.Definition(null)).reference)
+        TYPES.define(Type.Base("Type", listOf(Type.Generic("T", AnyInitializer.type.reference)), listOf(), Scope.Definition(null)).reference)
         TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference)
         val initializers = listOf(
             AnyInitializer,
@@ -31,8 +30,15 @@ object Library {
         initializers.forEach {
             TYPES.define(it.type.reference)
         }
-        initializers.forEach {
-            it.initialize()
+        initializers.forEach { type ->
+            type.initialize()
+            //Hacky approach to add methods from inherited types (does not support overriding)
+            type.inherits.forEach { supertype ->
+                supertype.base.scope.functions.collect()
+                    .flatMap { it.value }
+                    .filter { it.parameters.firstOrNull()?.type?.isSubtypeOf(supertype) ?: false }
+                    .forEach { type.scope.functions.define(it) }
+            }
         }
         KernelInitializer.scope.functions.collect().values.flatten().forEach {
             SCOPE.functions.define(it)

@@ -1317,7 +1317,7 @@ class RhovasAnalyzerTests {
                         Any
                     """.trimIndent(), RhovasIr.Expression.Literal.Type(
                         type("Any"),
-                        type("Type"),
+                        type("Type", "Any"),
                     )),
                 )
             }

@@ -743,7 +743,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Type): RhovasIr.Expression.Literal.Type {
         val type = visit(ast.type).type
-        return RhovasIr.Expression.Literal.Type(type, Library.TYPES["Type"]!!).also {
+        val expressionType = Type.Reference(Library.TYPES["Type"]!!.base, listOf(type))
+        return RhovasIr.Expression.Literal.Type(type, expressionType).also {
             it.context = ast.context
         }
     }
@@ -925,7 +926,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
         }
         val method = receiverType.methods[function.name, function.parameters.drop(1).map { it.type }]!!
-        val type = computeCoalesceCascadeReturn(function, receiver, ast.coalesce, ast.cascade)
+        val type = computeCoalesceCascadeReturn(method.returns, receiver.type, ast.coalesce, ast.cascade)
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -944,7 +945,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 else -> Pair(ast.arguments[it - 1], visit(ast.arguments[it - 1]).also { arguments.add(it) }.type)
             }
         }
-        val type = computeCoalesceCascadeReturn(function, receiver, ast.coalesce, ast.cascade)
+        val type = computeCoalesceCascadeReturn(function.returns, receiver.type, ast.coalesce, ast.cascade)
         return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -964,11 +965,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
-    private fun computeCoalesceCascadeReturn(function: Function, receiver: RhovasIr.Expression, coalesce: Boolean, cascade: Boolean): Type {
+    private fun computeCoalesceCascadeReturn(returns: Type, receiver: Type, coalesce: Boolean, cascade: Boolean): Type {
         return when {
-            cascade -> receiver.type
-            coalesce -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(function.returns))
-            else -> function.returns
+            cascade -> receiver
+            coalesce -> when {
+                returns.isSubtypeOf(Library.TYPES["Nullable"]!!) -> returns
+                else -> Type.Reference(Library.TYPES["Nullable"]!!.base, listOf(returns))
+            }
+            else -> returns
         }
     }
 
@@ -980,7 +984,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         arity: Int,
         generator: (Int) -> Pair<RhovasAst.Expression, Type>,
     ): Function {
-        val descriptor = listOfNotNull(qualifier ?: "", name.takeIf { it.isNotEmpty() }).joinToString(".") + "/" + arity
+        val descriptor = listOfNotNull(qualifier ?: "", name.takeIf { it.isNotEmpty() }).joinToString(".") + "/" + (if (term == "method") arity - 1 else arity)
         val candidates = (qualifier?.functions?.get(name, arity) ?: context.scope.functions[name, arity])
             .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(ast,
