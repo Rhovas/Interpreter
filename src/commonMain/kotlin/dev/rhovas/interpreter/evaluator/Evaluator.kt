@@ -44,13 +44,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
-    override fun visit(ir: RhovasIr.Statement.Block): Object {
-        scoped(Scope.Definition(scope)) {
-            ir.statements.forEach { visit(it) }
-        }
-        return Object(Library.TYPES["Void"]!!, Unit)
-    }
-
     override fun visit(ir: RhovasIr.Statement.Component): Object {
         visit(ir.component)
         return Object(Library.TYPES["Void"]!!, Unit)

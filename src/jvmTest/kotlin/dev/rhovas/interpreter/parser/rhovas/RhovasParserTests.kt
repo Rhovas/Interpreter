@@ -168,26 +168,26 @@ class RhovasParserTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testBlock(name: String, input: String, expected: RhovasAst.Statement.Block?) {
-                test("statement", input, expected)
+            fun testBlock(name: String, input: String, expected: RhovasAst.Expression.Block?) {
+                test("statement", input, expected?.let { RhovasAst.Statement.Expression(it) })
             }
 
             fun testBlock(): Stream<Arguments> {
                 return Stream.of(
                     Arguments.of("Empty", """
                         {}
-                    """, RhovasAst.Statement.Block(
-                        listOf()
+                    """, RhovasAst.Expression.Block(
+                        listOf(), null,
                     )),
                     Arguments.of("Single", """
                         { statement; }
-                    """.trimIndent(), RhovasAst.Statement.Block(
-                        listOf(stmt("statement")),
+                    """.trimIndent(), RhovasAst.Expression.Block(
+                        listOf(stmt("statement")), null,
                     )),
                     Arguments.of("Multiple", """
                         { first; second; third; }
-                    """.trimIndent(), RhovasAst.Statement.Block(
-                        listOf(stmt("first"), stmt("second"), stmt("third")),
+                    """.trimIndent(), RhovasAst.Expression.Block(
+                        listOf(stmt("first"), stmt("second"), stmt("third")), null,
                     )),
                     Arguments.of("Missing Closing Brace", """
                         { statement;
@@ -2556,8 +2556,8 @@ class RhovasParserTests {
 
     }
 
-    private fun block(vararg statements: RhovasAst.Statement): RhovasAst.Statement.Block {
-        return RhovasAst.Statement.Block(statements.toList())
+    private fun block(vararg statements: RhovasAst.Statement): RhovasAst.Statement {
+        return RhovasAst.Statement.Expression(RhovasAst.Expression.Block(statements.toList(), null))
     }
 
     private fun stmt(name: String): RhovasAst.Statement {

@@ -199,8 +199,8 @@ class RhovasAnalyzerTests {
 
             @ParameterizedTest(name = "{0}")
             @MethodSource
-            fun testBlock(name: String, input: String, expected: (() -> RhovasIr.Statement.Block?)?) {
-                test("statement", input, expected?.invoke())
+            fun testBlock(name: String, input: String, expected: (() -> RhovasIr.Expression.Block?)?) {
+                test("statement", input, expected?.invoke()?.let { RhovasIr.Statement.Expression(it) })
             }
 
             fun testBlock(): Stream<Arguments> {
@@ -208,17 +208,17 @@ class RhovasAnalyzerTests {
                     Arguments.of("Empty", """
                         {}
                     """.trimIndent(), {
-                        RhovasIr.Statement.Block(listOf())
+                        RhovasIr.Expression.Block(listOf(), null, Library.TYPES["Void"]!!)
                     }),
                     Arguments.of("Single", """
                         { stmt(); }
                     """.trimIndent(), {
-                        RhovasIr.Statement.Block(listOf(stmt()))
+                        RhovasIr.Expression.Block(listOf(stmt()), null, Library.TYPES["Void"]!!)
                     }),
                     Arguments.of("Multiple", """
                         { stmt(1); stmt(2); stmt(3); }
                     """.trimIndent(), {
-                        RhovasIr.Statement.Block(listOf(stmt(1), stmt(2), stmt(3)))
+                        RhovasIr.Expression.Block(listOf(stmt(1), stmt(2), stmt(3)), null, Library.TYPES["Void"]!!)
                     }),
                     Arguments.of("Unreachable", """
                         { return; stmt(); }
@@ -2658,8 +2658,8 @@ class RhovasAnalyzerTests {
 
     }
 
-    private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Statement.Block {
-        return RhovasIr.Statement.Block(statements.toList())
+    private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Statement {
+        return RhovasIr.Statement.Expression(RhovasIr.Expression.Block(statements.toList(), null, Library.TYPES["Void"]!!))
     }
 
     private fun stmt(position: Int): RhovasIr.Statement {

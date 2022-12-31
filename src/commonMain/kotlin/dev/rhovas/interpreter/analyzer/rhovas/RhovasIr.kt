@@ -29,16 +29,12 @@ sealed class RhovasIr {
 
     sealed class Statement : RhovasIr() {
 
-        data class Block(
-            val statements: List<Statement>,
-        ) : Statement()
-
         data class Component(
             val component: RhovasIr.Component,
         ) : Statement()
 
         data class Expression(
-            val expression: RhovasIr.Expression.Invoke,
+            val expression: RhovasIr.Expression,
         ) : Statement()
 
         sealed class Declaration : Statement() {
@@ -50,7 +46,7 @@ sealed class RhovasIr {
 
             data class Function(
                 val function: dev.rhovas.interpreter.environment.Function,
-                val body: Block,
+                val body: Statement,
             ) : Statement()
 
         }
@@ -348,7 +344,6 @@ sealed class RhovasIr {
 
                 is Component.Struct -> visit(ir)
 
-                is Statement.Block -> visit(ir)
                 is Statement.Component -> visit(ir)
                 is Statement.Expression -> visit(ir)
                 is Statement.Declaration.Variable -> visit(ir)
@@ -408,7 +403,6 @@ sealed class RhovasIr {
 
         fun visit(ir: Component.Struct): T
 
-        @JsName("visitStatementBlock") fun visit(ir: Statement.Block): T
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ir: Statement.Declaration.Variable): T
@@ -433,7 +427,7 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Require): T
         fun visit(ir: Statement.Ensure): T
 
-        @JsName("visitExpressionBlock") fun visit(ir: Expression.Block): T
+        fun visit(ir: Expression.Block): T
         fun visit(ir: Expression.Literal.Scalar): T
         fun visit(ir: Expression.Literal.String): T
         fun visit(ir: Expression.Literal.List): T

@@ -159,24 +159,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return super.visit(ast) as RhovasIr.Statement
     }
 
-    override fun visit(ast: RhovasAst.Statement.Block): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        return analyze {
-            val statements = ast.statements.withIndex().map {
-                require(it.index == ast.statements.lastIndex || context.jumps.isEmpty()) { error(
-                    ast,
-                    "Unreachable statement.",
-                    "The previous statement changes control flow to always jump past this statement.",
-                ) }
-                visit(it.value)
-            }
-            RhovasIr.Statement.Block(statements).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
-        }
-    }
-
     override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
         declare.visit(ast.component)
         define.visit(ast.component)
@@ -187,13 +169,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Statement.Expression): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(ast.expression is RhovasAst.Expression.Invoke) { error(
+        require(ast.expression is RhovasAst.Expression.Block || ast.expression is RhovasAst.Expression.Invoke) { error(
             ast.expression,
             "Invalid expression statement.",
             "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression::class.simpleName}.",
         ) }
         //TODO: Also validate post-macro IR
-        val expression = visit(ast.expression) as RhovasIr.Expression.Invoke
+        val expression = visit(ast.expression)
         return RhovasIr.Statement.Expression(expression).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -254,7 +236,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
-                val body = visit(ast.body) as RhovasIr.Statement.Block
+                val body = visit(ast.body)
                 require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
                     ast,
                     "Missing return value.",
@@ -693,10 +675,29 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block {
-        val statements = ast.statements.map { visit(it) }
-        val expression = ast.expression?.let { visit(it) }
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val statements = ast.statements.withIndex().map {
+            //TODO: This index check is wrong, also seems like continue isn't working right
+            require(it.index == ast.statements.lastIndex || context.jumps.isEmpty()) { error(
+                ast,
+                "Unreachable statement.",
+                "The previous statement changes control flow to always jump past this statement.",
+            ) }
+            visit(it.value)
+        }
+        val expression = ast.expression?.let {
+            require(context.jumps.isEmpty()) { error(
+                ast,
+                "Unreachable statement.",
+                "The previous statement changes control flow to always jump past this statement.",
+            ) }
+            visit(it)
+        }
         val type = expression?.type ?: Library.TYPES["Void"]!!
-        return RhovasIr.Expression.Block(statements, expression, type)
+        return RhovasIr.Expression.Block(statements, expression, type).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr {

@@ -29,10 +29,6 @@ sealed class RhovasAst {
 
     sealed class Statement : RhovasAst() {
 
-        data class Block(
-            val statements: List<Statement>,
-        ) : Statement()
-
         data class Component(
             val component: RhovasAst.Component,
         ) : Statement()
@@ -319,7 +315,6 @@ sealed class RhovasAst {
 
                 is Component.Struct -> visit(ast)
 
-                is Statement.Block -> visit(ast)
                 is Statement.Component -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Declaration.Variable -> visit(ast)
@@ -378,7 +373,6 @@ sealed class RhovasAst {
 
         fun visit(ast: Component.Struct): T
 
-        @JsName("visitStatementBlock") fun visit(ast: Statement.Block): T
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T

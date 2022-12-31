@@ -158,7 +158,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     /**
      *  - `block := "{" statement* "}"`
      */
-    private fun parseBlockStatement(): RhovasAst.Statement.Block {
+    private fun parseBlockStatement(): RhovasAst.Statement {
         require(match("{"))
         context.addLast(tokens[-1]!!.range)
         val statements = mutableListOf<RhovasAst.Statement>()
@@ -171,8 +171,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                 )
             }
         }
-        return RhovasAst.Statement.Block(statements).also {
+        val block = RhovasAst.Expression.Block(statements, null).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+        return RhovasAst.Statement.Expression(block).also {
+            it.context = it.expression.context
         }
     }
 
