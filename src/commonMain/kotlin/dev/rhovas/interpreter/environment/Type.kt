@@ -16,9 +16,11 @@ sealed class Type(
 
     abstract fun bind(parameters: Map<String, Type>): Type
 
-    fun isSubtypeOf(other: Type): Boolean = isSubtypeOf(other, mutableMapOf())
+    abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean
 
-    abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean
+    fun isSupertypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
+        return other.isSubtypeOf(this, bindings)
+    }
 
     inner class FunctionsDelegate {
 

@@ -32,11 +32,14 @@ object Library {
         }
         initializers.forEach { type ->
             type.initialize()
-            //Hacky approach to add methods from inherited types (does not support overriding)
+            //Hacky approach to add methods from inherited types (only disjoint overloads)
             type.inherits.forEach { supertype ->
                 supertype.base.scope.functions.collect()
                     .flatMap { it.value }
-                    .filter { it.parameters.firstOrNull()?.type?.isSubtypeOf(supertype) ?: false }
+                    .filter { function -> (
+                        (function.parameters.firstOrNull()?.type?.isSubtypeOf(supertype) ?: false) &&
+                        type.scope.functions[function.name, function.parameters.size].all { it.isDisjointWith(function) }
+                    ) }
                     .forEach { type.scope.functions.define(it) }
             }
         }

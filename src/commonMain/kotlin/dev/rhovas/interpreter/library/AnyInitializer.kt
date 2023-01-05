@@ -32,12 +32,11 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             instance.methods["toString", listOf()]!!.invoke(listOf())
         }
 
-        //TODO: Support overriding methods with inheritance
-        /*method("toString",
+        method("toString",
             returns = type("String"),
         ) { (instance) ->
             Object(type("String"), "${instance.value}")
-        }*/
+        }
     }
 
 }

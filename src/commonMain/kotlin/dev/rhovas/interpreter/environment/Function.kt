@@ -10,6 +10,20 @@ sealed interface Function {
 
     fun bind(generics: Map<String, Type>): Function
 
+    /**
+     * Returns true if this function is disjoint with [other], aka there is no
+     * overlap between function signatures.
+     */
+    fun isDisjointWith(other: Function): Boolean {
+        val function = bind(generics.associate { Pair(it.name, it.bound) })
+        val other = bind(other.generics.associate { Pair(it.name, it.bound) })
+        return (
+            function.name != other.name ||
+            function.parameters.size != other.parameters.size &&
+            function.parameters.zip(other.parameters).all { it.first.type.isSubtypeOf(it.second.type) || it.first.type.isSupertypeOf(it.second.type) }
+        )
+    }
+
     data class Declaration(
         override val name: String,
         override val generics: List<Type.Generic>,

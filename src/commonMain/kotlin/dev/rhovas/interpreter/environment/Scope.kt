@@ -47,7 +47,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         }
 
         operator fun get(name: String, arguments: List<Type>, current: Boolean = false): F? {
-            val candidates = get(name, arguments.size, current).mapNotNull { function ->
+            return get(name, arguments.size, current).firstNotNullOfOrNull { function ->
                 val generics = mutableMapOf<String, Type>()
                 function.takeIf {
                     arguments.zip(function.parameters)
@@ -59,15 +59,12 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                     }
                 }) as F?
             }
-            return when (candidates.size) {
-                0 -> null
-                1 -> candidates[0]
-                else -> throw AssertionError() //asserts overloads are disjoint
-            }
         }
 
         fun define(function: F, alias: String = function.name) {
-            functions.getOrPut(Pair(alias, function.parameters.size), ::mutableListOf).add(function)
+            val overloads = functions.getOrPut(Pair(alias, function.parameters.size), ::mutableListOf)
+            require(overloads.all { it.isDisjointWith(function) })
+            overloads.add(function)
         }
 
         internal fun collect(): MutableMap<Pair<String, Int>, List<F>> {
