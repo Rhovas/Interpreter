@@ -89,15 +89,19 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected opening brace.",
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
-        val fields = mutableListOf<RhovasAst.Statement.Declaration.Variable>()
-        while (!match("}")) {
-            require(peek(listOf("val", "var"))) { error(
-                "Expected variable declaration.",
-                "A struct requires variable declarations, as in `struct Name { val field: Type; }`.",
-            ) }
-            fields.add(parseVariableDeclarationStatement())
+        val properties = mutableListOf<RhovasAst.Statement.Declaration.Property>()
+        while (peek(listOf("val", "var"))) {
+            properties.add(parsePropertyDeclarationStatement())
         }
-        return RhovasAst.Component.Struct(name, fields).also {
+        val functions = mutableListOf<RhovasAst.Statement.Declaration.Function>()
+        while (peek("func")) {
+            functions.add(parseFunctionDeclarationStatement())
+        }
+        require(match("}")) { error(
+            "Expected closing brace.",
+            "A struct declaration requires a closing brace, as in `struct Name { val field: Type; } or `struct Name { func method() {} }`.",
+        ) }
+        return RhovasAst.Component.Struct(name, properties, functions).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -191,6 +195,26 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val value = if (match("=")) parseExpression() else null
         requireSemicolon { "A variable declaration must be followed by a semicolon, as in `val name = value;` or `var name: Type;`." }
         return RhovasAst.Statement.Declaration.Variable(mutable, name, type, value).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    /**
+     *  - `property = ("val" | "var") identifier ":" type ("=" expression)? ";"`
+     */
+    private fun parsePropertyDeclarationStatement(): RhovasAst.Statement.Declaration.Property {
+        require(match(listOf("val", "var")))
+        context.addLast(tokens[-1]!!.range)
+        val mutable = tokens[-1]!!.literal == "var"
+        val name = parseIdentifier { "A variable declaration requires a name after `val`/`var`, as in `val name: Type = value;` or `var name: Type;`." }
+        require(match(":")) { error(
+            "Expected colon",
+            "A property declaration requires a type, as in `val name: Type = value;` or `var name: Type`.",
+        ) }
+        val type = parseType()
+        val value = if (match("=")) parseExpression() else null
+        requireSemicolon { "A property declaration must be followed by a semicolon, as in `val name: Type = value;` or `var name: Type;`." }
+        return RhovasAst.Statement.Declaration.Property(mutable, name, type, value).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

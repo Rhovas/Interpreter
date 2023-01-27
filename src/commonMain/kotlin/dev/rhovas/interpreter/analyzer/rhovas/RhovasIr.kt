@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import kotlin.js.JsName
 
 sealed class RhovasIr {
@@ -22,7 +23,8 @@ sealed class RhovasIr {
 
         data class Struct(
             val type: dev.rhovas.interpreter.environment.Type,
-            val fields: List<Statement.Declaration.Variable>,
+            val properties: List<Statement.Declaration.Property>,
+            val methods: List<Statement.Declaration.Function>,
         ) : Component()
 
     }
@@ -42,12 +44,18 @@ sealed class RhovasIr {
             data class Variable(
                 val variable: dev.rhovas.interpreter.environment.Variable,
                 val value: RhovasIr.Expression?,
-            ) : Statement()
+            ) : Declaration()
+
+            data class Property(
+                val getter: dev.rhovas.interpreter.environment.Function.Definition,
+                val setter: dev.rhovas.interpreter.environment.Function.Definition?,
+                val value: RhovasIr.Expression?,
+            ) : Declaration()
 
             data class Function(
                 val function: dev.rhovas.interpreter.environment.Function,
                 val block: RhovasIr.Expression.Block,
-            ) : Statement()
+            ) : Declaration()
 
         }
 
@@ -347,6 +355,7 @@ sealed class RhovasIr {
                 is Statement.Component -> visit(ir)
                 is Statement.Expression -> visit(ir)
                 is Statement.Declaration.Variable -> visit(ir)
+                is Statement.Declaration.Property -> visit(ir)
                 is Statement.Declaration.Function -> visit(ir)
                 is Statement.Assignment.Variable -> visit(ir)
                 is Statement.Assignment.Property -> visit(ir)
@@ -406,6 +415,7 @@ sealed class RhovasIr {
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ir: Statement.Declaration.Variable): T
+        @JsName("visitDeclarationProperty") fun visit(ir: Statement.Declaration.Property): T
         @JsName("visitDeclarationFunction") fun visit(ir: Statement.Declaration.Function): T
         @JsName("visitAssignmentVariable") fun visit(ir: Statement.Assignment.Variable): T
         @JsName("visitAssignmentProperty") fun visit(ir: Statement.Assignment.Property): T
@@ -454,6 +464,45 @@ sealed class RhovasIr {
         fun visit(ir: Pattern.VarargDestructure): T
 
         @JsName("visitType") fun visit(ir: Type): T
+
+    }
+
+    sealed class DefinitionPhase {
+
+        data class Struct(
+            val ast: RhovasAst.Component.Struct,
+            val properties: List<Property>,
+            val methods: List<Function>,
+        ) : DefinitionPhase()
+
+        data class Property(
+            val ast: RhovasAst.Statement.Declaration.Property,
+            val getter: dev.rhovas.interpreter.environment.Function.Definition,
+            val setter: dev.rhovas.interpreter.environment.Function.Definition?,
+        ) : DefinitionPhase()
+
+        data class Function(
+            val ast: RhovasAst.Statement.Declaration.Function,
+            val function: dev.rhovas.interpreter.environment.Function,
+        ) : DefinitionPhase()
+
+        interface Visitor<T> : RhovasAst.Visitor<T> {
+
+            fun visit(ir: DefinitionPhase): T {
+                return when (ir) {
+                    is Struct -> visit(ir)
+                    is Property -> visit(ir)
+                    is Function -> visit(ir)
+                }
+            }
+
+            @JsName("visitDefinitionPhaseStruct") fun visit(ir: Struct): T
+            @JsName("visitDefinitionPhaseProperty") fun visit(ir: Property): T
+            @JsName("visitDefinitionPhaseFunction") fun visit(ir: Function): T
+
+            override fun visit(ast: RhovasAst.Statement.Declaration.Property): T = throw AssertionError()
+
+        }
 
     }
 

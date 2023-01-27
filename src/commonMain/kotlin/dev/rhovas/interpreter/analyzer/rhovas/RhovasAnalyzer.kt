@@ -18,7 +18,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         JumpContext(mutableSetOf()),
         ExceptionContext(mutableSetOf()),
     ).associateBy { it::class.simpleName!! })),
-    RhovasAst.Visitor<RhovasIr> {
+    RhovasIr.DefinitionPhase.Visitor<RhovasIr> {
 
     private val declare = DeclarePhase()
     private val define = DefinePhase()
@@ -146,11 +146,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Component.Struct): RhovasIr.Component.Struct {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val type = context.scope.types[ast.name]!!
-        val fields = ast.fields.map { visit(it) }
-        return RhovasIr.Component.Struct(type, fields).also {
-            it.context = ast.context
+        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+    }
+
+    override fun visit(ir: RhovasIr.DefinitionPhase.Struct): RhovasIr.Component.Struct {
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val type = context.scope.types[ir.ast.name]!!
+        val properties = ir.properties.map { visit(it) }
+        val methods = ir.methods.map { visit(it) }
+        return RhovasIr.Component.Struct(type, properties, methods).also {
+            it.context = ir.ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
@@ -160,8 +165,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
-        declare.visit(ast.component)
-        define.visit(ast.component)
         return RhovasIr.Statement.Component(visit(ast.component)).also {
             it.context = ast.context
         }
@@ -213,39 +216,42 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Declaration.Function): RhovasIr.Statement.Declaration.Function {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Overload support
-        require(context.scope.functions[ast.name, ast.parameters.size, true].isEmpty()) { error(
-            ast,
-            "Redefined function.",
-            "The function ${ast.name}/${ast.parameters.size} is already defined in this scope.",
+    override fun visit(ir: RhovasIr.DefinitionPhase.Property): RhovasIr.Statement.Declaration.Property {
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val value = ir.ast.value?.let { visit(it) }
+        require(value == null || value.type.isSubtypeOf(ir.getter.returns)) { error(
+            ir.ast,
+            "Invalid value type.",
+            "The property ${ir.ast.name} requires a value of type ${ir.getter.returns}, but received ${value!!.type}."
         ) }
-        val parent = context
-        return analyze {
-            val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
-            generics.forEach { context.scope.types.define(it, it.name) }
-            val parameters = ast.parameters.map { Variable.Declaration(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!, false) }
-            val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
-            val throws = ast.throws.map { visit(it).type }
-            val function = Function.Declaration(ast.name, generics, parameters, returns, throws).let {
-                when (val scope = parent.scope) {
-                    is Scope.Declaration -> it.also { scope.functions.define(it) }
-                    is Scope.Definition -> Function.Definition(it).also { scope.functions.define(it) }
-                }
-            }
-            analyze(context.with(FunctionContext(function), ExceptionContext(throws.toMutableSet()))) {
-                parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
-                val block = visit(ast.block)
-                require(returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
-                    ast,
-                    "Missing return value.",
-                    "The function ${ast.name}/${ast.parameters.size} requires a return value.",
-                ) }
-                RhovasIr.Statement.Declaration.Function(function, block).also {
-                    it.context = ast.context
-                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+        return RhovasIr.Statement.Declaration.Property(ir.getter, ir.setter, value).also {
+            it.context = ir.ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Declaration.Function): RhovasIr.Statement.Declaration.Function {
+        return define.visit(ast).let { visit(it) }
+    }
+
+    override fun visit(ir: RhovasIr.DefinitionPhase.Function): RhovasIr.Statement.Declaration.Function {
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        return analyze(context.with(
+            ScopeContext(Scope.Declaration(context.scope)),
+            FunctionContext(ir.function),
+            ExceptionContext(ir.function.throws.toMutableSet()),
+        )) {
+            ir.function.generics.forEach { context.scope.types.define(it) }
+            ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
+            val block = visit(ir.ast.block)
+            require(ir.function.returns.isSubtypeOf(Library.TYPES["Void"]!!) || context.jumps.contains("")) { error(
+                ir.ast,
+                "Missing return value.",
+                "The function ${ir.ast.name}/${ir.ast.parameters.size} requires a return value.",
+            ) }
+            RhovasIr.Statement.Declaration.Function(ir.function, block).also {
+                it.context = ir.ast.context
+                it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
         }
     }
@@ -1338,38 +1344,22 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      */
     private inner class DefinePhase {
 
-        fun visit(ast: RhovasAst.Component) {
-            when (ast) {
-                is RhovasAst.Component.Struct -> visit(ast)
-            }
-        }
-
-        fun visit(ast: RhovasAst.Component.Struct) {
+        fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Struct {
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val structType = context.scope.types[ast.name]!!
-            ast.fields.forEach { field ->
-                field.context.firstOrNull()?.let { context.inputs.addLast(it) }
-                require(field.type != null) { error(
-                    field,
-                    "Invalid field declaration.",
-                    "A struct field requires a defined type.",
-                ) }
-                val fieldType = visit(field.type!!).type
-                structType.base.scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("instance", structType, false)), fieldType, listOf())).also {
-                    it.implementation = { arguments ->
-                        (arguments[0].value as Map<String, Object>)[field.name]!!
+            val properties = ast.properties.map {
+                visit(it, structType).also { property ->
+                    //TODO: Move to evaluator
+                    property.getter.implementation = { arguments ->
+                        (arguments[0].value as Map<String, Object>)[property.getter.name]!!
                     }
-                })
-                if (field.mutable) {
-                    structType.base.scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("instance", structType, false), Variable.Declaration("value", fieldType, false)), Library.TYPES["Void"]!!, listOf())).also {
-                        it.implementation = { arguments ->
-                            (arguments[0].value as MutableMap<String, Object>)[field.name] = arguments[1]
-                            Object(Library.TYPES["Void"]!!, Unit)
-                        }
-                    })
+                    property.setter?.implementation = { arguments ->
+                        (arguments[0].value as MutableMap<String, Object>)[property.getter.name] = arguments[1]
+                        Object(Library.TYPES["Void"]!!, Unit)
+                    }
                 }
-                field.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
+            val methods = ast.methods.map { visit(it, structType) }
             //TODO: Sequence constructor?
             //TODO: Typecheck argument (struct type / named options?)
             val constructor = Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Library.TYPES["Object"]!!, false)), structType, listOf()).let {
@@ -1380,12 +1370,59 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             //TODO: Unsafe generics hack for non-concrete types
             (structType.base.scope as Scope<*, in Function>).functions.define(constructor)
-            structType.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf(Variable.Declaration("instance", structType, false)), Library.TYPES["String"]!!, listOf())).also {
+            structType.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf(Variable.Declaration("this", structType, false)), Library.TYPES["String"]!!, listOf())).also {
                 it.implementation = { arguments ->
                     Object(Library.TYPES["String"]!!, ast.name + " " + Object(Library.TYPES["Object"]!!, arguments[0].value).methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 }
             })
             ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+            return RhovasIr.DefinitionPhase.Struct(ast, properties, methods)
+        }
+
+        fun visit(ast: RhovasAst.Statement.Declaration.Property, component: Type): RhovasIr.DefinitionPhase.Property {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            require(component.properties[ast.name] == null) { error(
+                ast,
+                "Redefined property.",
+                "The property ${ast.name} is already defined in ${component.base.name}.",
+            ) }
+            val type = ast.type.let { visit(it).type }
+            val getter = Function.Definition(Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("this", component, false)), type, listOf()))
+            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("this", component, false), Variable.Declaration("value", type, false)), Library.TYPES["Void"]!!, listOf())) else null
+            component.base.scope.functions.define(getter)
+            setter?.let { component.base.scope.functions.define(it) }
+            return RhovasIr.DefinitionPhase.Property(ast, getter, setter).also {
+                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
+        }
+
+        fun visit(ast: RhovasAst.Statement.Declaration.Function, component: Type? = null): RhovasIr.DefinitionPhase.Function {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val scope = component?.base?.scope ?: context.scope
+            return analyze {
+                val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
+                generics.forEach { context.scope.types.define(it, it.name) }
+                val parameters = run {
+                    val receiver = component?.let { Variable.Declaration("this", it, false) }
+                    val parameters = ast.parameters.map { Variable.Declaration(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!, false) }
+                    listOfNotNull(receiver) + parameters
+                }
+                val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
+                val throws = ast.throws.map { visit(it).type }
+                val declaration = Function.Declaration(ast.name, generics, parameters, returns, throws)
+                require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(
+                    ast,
+                    "Redefined function.",
+                    "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.base?.name ?: "this scope"}.",
+                ) }
+                val method = when (scope) {
+                    is Scope.Declaration -> declaration.also { scope.functions.define(it) }
+                    is Scope.Definition -> Function.Definition(declaration).also { scope.functions.define(it) }
+                }
+                RhovasIr.DefinitionPhase.Function(ast, method).also {
+                    ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+                }
+            }
         }
 
     }

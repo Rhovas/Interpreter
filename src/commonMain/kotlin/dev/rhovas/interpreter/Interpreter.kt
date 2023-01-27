@@ -40,6 +40,7 @@ class Interpreter(
             val ast = try {
                 RhovasParser(input).parse("source")
             } catch (e: ParseException) {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
                 try {
                     RhovasParser(input).parse("expression")
                 } catch (ignored: ParseException) {

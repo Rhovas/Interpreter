@@ -77,6 +77,17 @@ class EvaluatorTests {
                         struct Name { val field: Integer; }
                         log(Name({field: 1}).field);
                     """.trimIndent(), "1"),
+                    Arguments.of("Method", """
+                        struct Name { func method(): Integer { return 1; } }
+                        log(Name({}).method());
+                    """.trimIndent(), "1"),
+                    Arguments.of("This", """
+                        struct Name {
+                            val field: Integer = 1;
+                            func method(): Integer { return this.field * this.field; }
+                        }
+                        log(Name({}).method());
+                    """.trimIndent(), "1"),
                 )
             }
 

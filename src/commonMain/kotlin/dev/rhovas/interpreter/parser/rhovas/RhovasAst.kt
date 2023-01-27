@@ -22,7 +22,8 @@ sealed class RhovasAst {
 
         data class Struct(
             val name: String,
-            val fields: List<Statement.Declaration.Variable>,
+            val properties: List<Statement.Declaration.Property>,
+            val methods: List<Statement.Declaration.Function>,
         ) : Component()
 
     }
@@ -43,6 +44,13 @@ sealed class RhovasAst {
                 val mutable: Boolean,
                 val name: String,
                 val type: Type?,
+                val value: RhovasAst.Expression?,
+            ) : Declaration()
+
+            data class Property(
+                val mutable: Boolean,
+                val name: String,
+                val type: Type,
                 val value: RhovasAst.Expression?,
             ) : Declaration()
 
@@ -318,6 +326,7 @@ sealed class RhovasAst {
                 is Statement.Component -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Declaration.Variable -> visit(ast)
+                is Statement.Declaration.Property -> visit(ast)
                 is Statement.Declaration.Function -> visit(ast)
                 is Statement.Assignment -> visit(ast)
                 is Statement.If -> visit(ast)
@@ -376,6 +385,7 @@ sealed class RhovasAst {
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T
+        @JsName("visitDeclarationProperty") fun visit(ast: Statement.Declaration.Property): T
         @JsName("visitDeclarationFunction") fun visit(ast: Statement.Declaration.Function): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T
@@ -405,7 +415,7 @@ sealed class RhovasAst {
         fun visit(ast: Expression.Unary): T
         fun visit(ast: Expression.Binary): T
         @JsName("visitAccessVariable") fun visit(ast: Expression.Access.Variable): T
-        fun visit(ast: Expression.Access.Property): T
+        @JsName("visitAccessProperty") fun visit(ast: Expression.Access.Property): T
         fun visit(ast: Expression.Access.Index): T
         fun visit(ast: Expression.Invoke.Constructor): T
         @JsName("visitInvokeFunction") fun visit(ast: Expression.Invoke.Function): T

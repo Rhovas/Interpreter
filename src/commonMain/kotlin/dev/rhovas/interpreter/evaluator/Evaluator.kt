@@ -33,14 +33,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         constructor.implementation = { arguments ->
             scoped(current) {
-                Object(ir.type, ir.fields.associate {
-                    val value = (arguments[0].value as Map<String, Object>)[it.variable.name]
+                Object(ir.type, ir.properties.associate {
+                    val value = (arguments[0].value as Map<String, Object>)[it.getter.name]
                         ?: it.value?.let { visit(it) }
                         ?: Object(Library.TYPES["Null"]!!, null)
-                    Pair(it.variable.name, value)
+                    Pair(it.getter.name, value)
                 }.toMutableMap())
             }
         }
+        ir.methods.forEach { visit(it) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -58,6 +59,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
         variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
         return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Statement.Declaration.Property): Object {
+        throw AssertionError()
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Function): Object {
@@ -505,7 +510,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        println("constructor " + ir.qualifier + ", " + ir.function)
         return trace("${ir.type.base.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             function.invoke(arguments)
         }
