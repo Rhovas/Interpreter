@@ -24,7 +24,17 @@ sealed class RhovasIr {
         data class Struct(
             val type: dev.rhovas.interpreter.environment.Type,
             val properties: List<Statement.Declaration.Property>,
+            val initializers: List<Member.Initializer>,
             val methods: List<Statement.Declaration.Function>,
+        ) : Component()
+
+    }
+
+    sealed class Member : RhovasIr() {
+
+        data class Initializer(
+            val function: dev.rhovas.interpreter.environment.Function.Definition,
+            val block: Expression.Block,
         ) : Component()
 
     }
@@ -351,6 +361,7 @@ sealed class RhovasIr {
                 is Import -> visit(ir)
 
                 is Component.Struct -> visit(ir)
+                is Member.Initializer -> visit(ir)
 
                 is Statement.Component -> visit(ir)
                 is Statement.Expression -> visit(ir)
@@ -411,6 +422,7 @@ sealed class RhovasIr {
         fun visit(ir: Import): T
 
         fun visit(ir: Component.Struct): T
+        fun visit(ir: Member.Initializer): T
 
         fun visit(ir: Statement.Component): T
         fun visit(ir: Statement.Expression): T
@@ -472,6 +484,7 @@ sealed class RhovasIr {
         data class Struct(
             val ast: RhovasAst.Component.Struct,
             val properties: List<Property>,
+            val initializers: List<Initializer>,
             val functions: List<Function>,
         ) : DefinitionPhase()
 
@@ -479,6 +492,11 @@ sealed class RhovasIr {
             val ast: RhovasAst.Statement.Declaration.Property,
             val getter: dev.rhovas.interpreter.environment.Function.Definition,
             val setter: dev.rhovas.interpreter.environment.Function.Definition?,
+        ) : DefinitionPhase()
+
+        data class Initializer(
+            val ast: RhovasAst.Member.Initializer,
+            val function: dev.rhovas.interpreter.environment.Function.Definition,
         ) : DefinitionPhase()
 
         data class Function(
@@ -492,14 +510,17 @@ sealed class RhovasIr {
                 return when (ir) {
                     is Struct -> visit(ir)
                     is Property -> visit(ir)
+                    is Initializer -> visit(ir)
                     is Function -> visit(ir)
                 }
             }
 
             @JsName("visitDefinitionPhaseStruct") fun visit(ir: Struct): T
             @JsName("visitDefinitionPhaseProperty") fun visit(ir: Property): T
+            @JsName("visitDefinitionPhaseInitializer") fun visit(ir: Initializer): T
             @JsName("visitDefinitionPhaseFunction") fun visit(ir: Function): T
 
+            override fun visit(ast: RhovasAst.Member.Initializer): T = throw AssertionError()
             override fun visit(ast: RhovasAst.Statement.Declaration.Property): T = throw AssertionError()
 
         }

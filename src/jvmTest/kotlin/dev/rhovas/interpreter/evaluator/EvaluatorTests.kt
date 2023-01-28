@@ -68,13 +68,22 @@ class EvaluatorTests {
                         struct Name {}
                         log(Name({}));
                     """.trimIndent(), "Name {}"),
-                    Arguments.of("Default Field", """
+                    Arguments.of("Default Initializer", """
                         struct Name { val field: Integer = 1; }
                         log(Name({}).field);
                     """.trimIndent(), "1"),
-                    Arguments.of("Initialized Field", """
-                        struct Name { val field: Integer; }
-                        log(Name({field: 1}).field);
+                    Arguments.of("Default Initializer Value", """
+                        struct Name { val field: Integer = 1; }
+                        log(Name({field: 2}).field);
+                    """.trimIndent(), "2"),
+                    Arguments.of("Custom Initializer", """
+                        struct Name {
+                            var field: Integer;
+                            init(field: Integer) {
+                                this.field = field;
+                            }
+                        }
+                        log(Name(1).field);
                     """.trimIndent(), "1"),
                     Arguments.of("Function", """
                         struct Name { func function(): Integer { return 1; } }

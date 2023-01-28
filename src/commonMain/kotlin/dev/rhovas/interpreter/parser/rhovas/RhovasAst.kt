@@ -23,8 +23,20 @@ sealed class RhovasAst {
         data class Struct(
             val name: String,
             val properties: List<Statement.Declaration.Property>,
+            val initializers: List<Member.Initializer>,
             val methods: List<Statement.Declaration.Function>,
         ) : Component()
+
+    }
+
+    sealed class Member : RhovasAst() {
+
+        data class Initializer(
+            val parameters: List<Pair<String, Type?>>,
+            val returns: Type?,
+            val throws: List<Type>,
+            val block: Expression.Block,
+        ) : Member()
 
     }
 
@@ -322,6 +334,7 @@ sealed class RhovasAst {
                 is Import -> visit(ast)
 
                 is Component.Struct -> visit(ast)
+                is Member.Initializer -> visit(ast)
 
                 is Statement.Component -> visit(ast)
                 is Statement.Expression -> visit(ast)
@@ -381,6 +394,7 @@ sealed class RhovasAst {
         fun visit(ast: Import): T
 
         fun visit(ast: Component.Struct): T
+        fun visit(ast: Member.Initializer): T
 
         fun visit(ast: Statement.Component): T
         fun visit(ast: Statement.Expression): T

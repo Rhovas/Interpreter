@@ -153,10 +153,29 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val type = context.scope.types[ir.ast.name]!!
         val properties = ir.properties.map { visit(it) }
+        val initializers = ir.initializers.map { visit(it) }
         val methods = ir.functions.map { visit(it) }
-        return RhovasIr.Component.Struct(type, properties, methods).also {
+        return RhovasIr.Component.Struct(type, properties, initializers, methods).also {
             it.context = ir.ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
+    override fun visit(ir: RhovasIr.DefinitionPhase.Initializer): RhovasIr.Member.Initializer {
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        return analyze(context.with(
+            ScopeContext(Scope.Declaration(context.scope)),
+            FunctionContext(ir.function.declaration.copy(returns = Library.TYPES["Void"]!!)), //TODO: Hack to prevent manual returning
+            ExceptionContext(ir.function.throws.toMutableSet()),
+        )) {
+            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns, false))
+            ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
+            val block = visit(ir.ast.block)
+            RhovasIr.Member.Initializer(ir.function, block).also {
+                it.context = ir.ast.context
+                it.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
         }
     }
 
@@ -1359,6 +1378,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     }
                 }
             }
+            val initializers = ast.initializers.map {
+                visit(it, structType).also { initializer ->
+                    (structType.base.scope as Scope<*, in Function>).functions.define(initializer.function, structType.base.name)
+                }
+            }
             val methods = ast.methods.map { visit(it, structType) }
             //TODO: Sequence constructor?
             //TODO: Typecheck argument (struct type / named options?)
@@ -1376,7 +1400,27 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
             })
             ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            return RhovasIr.DefinitionPhase.Struct(ast, properties, methods)
+            return RhovasIr.DefinitionPhase.Struct(ast, properties, initializers, methods)
+        }
+
+        fun visit(ast: RhovasAst.Member.Initializer, component: Type): RhovasIr.DefinitionPhase.Initializer {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val parameters = ast.parameters.mapIndexed { index, parameter ->
+                val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: Library.TYPES["Dynamic"]!!
+                Variable.Declaration(parameter.first, type, false)
+            }
+            val returns = ast.returns?.let { visit(it).type } ?: component
+            val throws = ast.throws.map { visit(it).type }
+            val declaration = Function.Declaration("", listOf(), parameters, returns, throws)
+            require(component.base.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(
+                ast,
+                "Redefined initializer.",
+                "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.base.name}.",
+            ) }
+            val initializer = Function.Definition(declaration).also { component.base.scope.functions.define(it) }
+            return RhovasIr.DefinitionPhase.Initializer(ast, initializer).also {
+                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
         }
 
         fun visit(ast: RhovasAst.Statement.Declaration.Property, component: Type): RhovasIr.DefinitionPhase.Property {

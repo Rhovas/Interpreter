@@ -28,9 +28,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope
         //TODO: Hack to access unwrapped function definition
-        val constructor = ir.type.base.scope.functions["", 1].single().let {
-            it as? Function.Definition ?: Function.Definition(it as Function.Declaration).also { scope.functions.define(it) }
-        }
+        val constructor = ir.type.base.scope.functions["", 1]
+            .first { it.parameters.first().type.isSubtypeOf(Library.TYPES["Object"]!!) }
+            .let { it as? Function.Definition ?: Function.Definition(it as Function.Declaration).also { scope.functions.define(it) } }
         constructor.implementation = { arguments ->
             scoped(current) {
                 Object(ir.type, ir.properties.associate {
@@ -41,7 +41,36 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }.toMutableMap())
             }
         }
+        ir.initializers.forEach { visit(it) }
         ir.methods.forEach { visit(it) }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Member.Initializer): Object {
+        val current = scope
+        ir.function.implementation = { arguments ->
+            scoped(current) {
+                val instance = Variable.Definition(Variable.Declaration("this", ir.function.returns, false))
+                instance.value = Object(instance.type, mutableMapOf<String, Object>())
+                scope.variables.define(instance)
+                for (i in ir.function.parameters.indices) {
+                    val parameter = Variable.Definition(ir.function.parameters[i])
+                    parameter.value = arguments[i]
+                    scope.variables.define(parameter)
+                }
+                try {
+                    visit(ir.block)
+                } catch (e: Throw) {
+                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(
+                        ir,
+                        "Uncaught exception.",
+                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods["toString", listOf()]!!.invoke(listOf()).value as String}"
+                    ) }
+                    throw e
+                } catch (ignored: Return) {}
+                instance.value
+            }
+        }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 

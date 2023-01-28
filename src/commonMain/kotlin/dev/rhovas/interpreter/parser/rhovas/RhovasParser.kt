@@ -93,6 +93,10 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         while (peek(listOf("val", "var"))) {
             properties.add(parsePropertyDeclarationStatement())
         }
+        val initializers = mutableListOf<RhovasAst.Member.Initializer>()
+        while (peek(listOf("init"))) {
+            initializers.add(parseInitializerMember())
+        }
         val functions = mutableListOf<RhovasAst.Statement.Declaration.Function>()
         while (peek("func")) {
             functions.add(parseFunctionDeclarationStatement())
@@ -101,7 +105,46 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected closing brace.",
             "A struct declaration requires a closing brace, as in `struct Name { val field: Type; } or `struct Name { func method() {} }`.",
         ) }
-        return RhovasAst.Component.Struct(name, properties, functions).also {
+        return RhovasAst.Component.Struct(name, properties, initializers, functions).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    /**
+     *  - `initializer = "init" parameters returns? throws? statement`
+     *     - `parameters = "(" (parameter ("," parameter)* ","?) ")"`
+     *        - `parameter = identifier (":" type)?`
+     *     - `returns = ":" type`
+     *     - `throws = "throws" type ("," type)*`
+     */
+    private fun parseInitializerMember(): RhovasAst.Member.Initializer {
+        require(match("init"))
+        context.addLast(tokens[-1]!!.range)
+        val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
+        require(match("(")) { error(
+            "Expected opening parenthesis.",
+            "An initializer requires parenthesis after the name, as in `init() { ... }` or `init(x, y, z) { ... }`.",
+        ) }
+        while (!match(")")) {
+            val name = parseIdentifier { "An initializer parameter requires a name, as in `init(name: Type) { ... }`." }
+            context.addLast(tokens[-1]!!.range)
+            val type = if (match(":")) parseType() else null
+            parameters.add(Pair(name, type))
+            require(peek(")") || match(",")) { error(
+                "Expected closing parenthesis or comma.",
+                "An initializer parameter must be followed by a closing parenthesis `)` or comma `,`, as in `init() { ... }` or `init(x, y, z) { ... }`.",
+            ) }
+            context.removeLast()
+        }
+        val returns = if (match(":")) parseType() else null
+        val throws = mutableListOf<RhovasAst.Type>()
+        if (match("throws")) {
+            do {
+                throws.add(parseType())
+            } while (match(","))
+        }
+        val block = parseBlockStatement()
+        return RhovasAst.Member.Initializer(parameters, returns, throws, block).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

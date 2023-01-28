@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.library.Library
+
 sealed interface Function {
 
     val name: String
@@ -16,11 +18,11 @@ sealed interface Function {
      */
     fun isDisjointWith(other: Function): Boolean {
         val function = bind(generics.associate { Pair(it.name, it.bound) })
-        val other = bind(other.generics.associate { Pair(it.name, it.bound) })
+        val other = other.bind(other.generics.associate { Pair(it.name, it.bound) })
         return (
             function.name != other.name ||
-            function.parameters.size != other.parameters.size &&
-            function.parameters.zip(other.parameters).all { it.first.type.isSubtypeOf(it.second.type) || it.first.type.isSupertypeOf(it.second.type) }
+            function.parameters.size != other.parameters.size ||
+            function.parameters.zip(other.parameters).any { println(it); !it.first.type.isSubtypeOf(it.second.type) && !it.first.type.isSupertypeOf(it.second.type) }
         )
     }
 

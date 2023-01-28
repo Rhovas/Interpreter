@@ -137,7 +137,7 @@ class RhovasParserTests {
                 return Stream.of(
                     Arguments.of("Empty", """
                         struct Name {}
-                    """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(), listOf())),
+                    """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(), listOf(), listOf())),
                     Arguments.of("Property", """
                         struct Name {
                             val name: Type;
@@ -145,12 +145,14 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Component.Struct("Name",
                         listOf(RhovasAst.Statement.Declaration.Property(false, "name", type("Type"), null)),
                         listOf(),
+                        listOf(),
                     )),
                     Arguments.of("Function", """
                         struct Name {
                             func name(): Type {}
                         }
                     """.trimIndent(), RhovasAst.Component.Struct("Name",
+                        listOf(),
                         listOf(),
                         listOf(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())),
                     )),
@@ -215,7 +217,7 @@ class RhovasParserTests {
                     Arguments.of("Struct", """
                         struct Name {}
                     """.trimIndent(), RhovasAst.Statement.Component(
-                        RhovasAst.Component.Struct("Name", listOf(), listOf())
+                        RhovasAst.Component.Struct("Name", listOf(), listOf(), listOf())
                     )),
                 )
             }
