@@ -516,7 +516,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
-        val function = scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
+        //TODO: Ensure accuracy with qualifiers
+        val function = ir.function as? Function.Definition ?: scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(

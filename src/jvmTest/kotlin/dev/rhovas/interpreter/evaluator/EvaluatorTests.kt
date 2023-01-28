@@ -4,7 +4,6 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
-import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
@@ -77,14 +76,14 @@ class EvaluatorTests {
                         struct Name { val field: Integer; }
                         log(Name({field: 1}).field);
                     """.trimIndent(), "1"),
-                    Arguments.of("Method", """
-                        struct Name { func method(): Integer { return 1; } }
-                        log(Name({}).method());
+                    Arguments.of("Function", """
+                        struct Name { func function(): Integer { return 1; } }
+                        log(Name.function());
                     """.trimIndent(), "1"),
-                    Arguments.of("This", """
+                    Arguments.of("Method", """
                         struct Name {
                             val field: Integer = 1;
-                            func method(): Integer { return this.field * this.field; }
+                            func method(this): Integer { return this.field; }
                         }
                         log(Name({}).method());
                     """.trimIndent(), "1"),

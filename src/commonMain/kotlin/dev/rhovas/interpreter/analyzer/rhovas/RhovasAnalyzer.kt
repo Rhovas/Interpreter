@@ -153,7 +153,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val type = context.scope.types[ir.ast.name]!!
         val properties = ir.properties.map { visit(it) }
-        val methods = ir.methods.map { visit(it) }
+        val methods = ir.functions.map { visit(it) }
         return RhovasIr.Component.Struct(type, properties, methods).also {
             it.context = ir.ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -910,9 +910,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val qualifier = ast.qualifier?.let { visit(it) }
+        val qualifier = ast.qualifier?.let { visit(it).type }
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("function", ast, qualifier?.type, ast.name, ast.arguments.size) {
+        val function = resolveFunction("function", ast, qualifier, ast.name, ast.arguments.size) {
             Pair(ast.arguments[it], visit(ast.arguments[it]).also { arguments.add(it) }.type)
         }
         return RhovasIr.Expression.Invoke.Function(qualifier, function, arguments).also {
@@ -944,9 +944,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
-        val qualifier = ast.qualifier?.let { visit(it) }
+        val qualifier = ast.qualifier?.let { visit(it).type }
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("function", ast, qualifier?.type, ast.name, ast.arguments.size + 1) {
+        val function = resolveFunction("function", ast, qualifier, ast.name, ast.arguments.size + 1) {
             when (it) {
                 0 -> Pair(ast.receiver, receiverType)
                 else -> Pair(ast.arguments[it - 1], visit(ast.arguments[it - 1]).also { arguments.add(it) }.type)
@@ -1402,10 +1402,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             return analyze {
                 val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Any"]!!) }
                 generics.forEach { context.scope.types.define(it, it.name) }
-                val parameters = run {
-                    val receiver = component?.let { Variable.Declaration("this", it, false) }
-                    val parameters = ast.parameters.map { Variable.Declaration(it.first, it.second?.let { visit(it).type } ?: Library.TYPES["Dynamic"]!!, false) }
-                    listOfNotNull(receiver) + parameters
+                val parameters = ast.parameters.mapIndexed { index, parameter ->
+                    val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: Library.TYPES["Dynamic"]!!
+                    Variable.Declaration(parameter.first, type, false)
                 }
                 val returns = ast.returns?.let { visit(it).type } ?: Library.TYPES["Void"]!! //TODO or Dynamic?
                 val throws = ast.throws.map { visit(it).type }

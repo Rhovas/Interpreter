@@ -185,33 +185,31 @@ class RhovasAnalyzerTests {
                             ))
                         ))
                     }),
-                    Arguments.of("Method", """
-                        struct Name { func method(): Integer { return 1; } }
-                        val instance: Name;
-                        print(instance.method());
+                    Arguments.of("Function", """
+                        struct Name { func function(): Integer { return 1; } }
+                        print(Name.function());
                     """.trimIndent(), {
                         val type = Type.Base("Name", listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference
-                        type.base.scope.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", type, false)), type("Integer"), listOf())))
+                        type.base.scope.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(), type("Integer"), listOf())))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type,
                                 listOf(),
                                 listOf(RhovasIr.Statement.Declaration.Function(
-                                    type.methods["method", listOf()]!!.function,
+                                    type.functions["function", listOf()]!!,
                                     block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                                 )),
                             )),
-                            RhovasIr.Statement.Declaration.Variable(Variable.Declaration("instance", type, false), null),
                             RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["print", listOf(type("Any"))]!!,
-                                listOf(RhovasIr.Expression.Invoke.Method(variable("instance", type), type.methods["method", listOf()]!!, false, false, listOf(), type("Integer"))),
+                                listOf(RhovasIr.Expression.Invoke.Function(type, type.functions["function", listOf()]!!, listOf())),
                             )),
                         ))
                     }),
-                    Arguments.of("This", """
+                    Arguments.of("Method", """
                         struct Name {
                             val field: Integer;
-                            func method(): Integer { return this.field * this.field; }
+                            func method(this): Integer { return this.field; }
                         }
                         val instance: Name;
                         print(instance.method());
@@ -224,12 +222,7 @@ class RhovasAnalyzerTests {
                                 listOf(RhovasIr.Statement.Declaration.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null)),
                                 listOf(RhovasIr.Statement.Declaration.Function(
                                     type.methods["method", listOf()]!!.function,
-                                    block(RhovasIr.Statement.Return(RhovasIr.Expression.Binary("*",
-                                        RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, type("Integer")),
-                                        RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, type("Integer")),
-                                        type("Integer").methods["*", listOf(type("Integer"))]!!,
-                                        type("Integer"),
-                                    ))),
+                                    block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, type("Integer")))),
                                 )),
                             )),
                             RhovasIr.Statement.Declaration.Variable(Variable.Declaration("instance", type, false), null),
@@ -1950,7 +1943,7 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Pipeline(
                                 literal(BigInteger.parseString("1")),
-                                RhovasIr.Type(type("Kernel")),
+                                type("Kernel"),
                                 Library.SCOPE.functions["range", listOf(type("Integer"), type("Integer"), type("Atom"))]!!,
                                 false,
                                 false,

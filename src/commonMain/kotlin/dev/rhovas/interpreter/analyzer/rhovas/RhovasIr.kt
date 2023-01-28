@@ -265,7 +265,7 @@ sealed class RhovasIr {
             ) : Invoke(function.returns)
 
             data class Function(
-                val qualifier: Type?,
+                val qualifier: dev.rhovas.interpreter.environment.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
             ) : Invoke(function.returns)
@@ -281,7 +281,7 @@ sealed class RhovasIr {
 
             data class Pipeline(
                 val receiver: Expression,
-                val qualifier: Type?,
+                val qualifier: dev.rhovas.interpreter.environment.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val coalesce: Boolean,
                 val cascade: Boolean,
@@ -472,7 +472,7 @@ sealed class RhovasIr {
         data class Struct(
             val ast: RhovasAst.Component.Struct,
             val properties: List<Property>,
-            val methods: List<Function>,
+            val functions: List<Function>,
         ) : DefinitionPhase()
 
         data class Property(
