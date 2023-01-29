@@ -62,9 +62,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         }
 
         fun define(function: F, alias: String = function.name) {
-            println("function = ${function}")
             val overloads = functions.getOrPut(Pair(alias, function.parameters.size), ::mutableListOf)
-            println("overloads = ${overloads}")
             require(overloads.all { it.isDisjointWith(function) })
             overloads.add(function)
         }

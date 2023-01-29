@@ -2,16 +2,19 @@ package dev.rhovas.interpreter.analyzer.rhovas
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
+import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     Analyzer(Context(listOf(
         InputContext(ArrayDeque()),
+        InitializationContext(mutableMapOf()),
         ScopeContext(scope),
         FunctionContext(null),
         LabelContext(mutableSetOf()),
@@ -24,6 +27,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private val define = DefinePhase()
 
     private val Context.scope get() = this[ScopeContext::class]
+    private val Context.initialization get() = this[InitializationContext::class]
     private val Context.function get() = this[FunctionContext::class]
     private val Context.labels get() = this[LabelContext::class]
     private val Context.jumps get() = this[JumpContext::class]
@@ -39,6 +43,39 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
 
         override fun merge(children: List<Scope<out Variable, out Function>>) {}
+
+    }
+
+    data class InitializationContext(
+        val variables: MutableMap<String, Data>,
+    ) : Context.Item<MutableMap<String, InitializationContext.Data>>(variables) {
+
+        data class Data(
+            var initialized: Boolean,
+            val declaration: RhovasAst.Statement.Declaration.Variable,
+            val context: MutableList<RhovasAst.Statement.Assignment>,
+        )
+
+        override fun child(): InitializationContext {
+            return InitializationContext(variables.mapValues { it.value.copy() }.toMutableMap())
+        }
+
+        override fun merge(children: List<MutableMap<String, Data>>) {
+            for ((variable, data) in variables) {
+                if (!data.initialized) {
+                    when (children.count { it[variable]!!.initialized }) {
+                        0 -> {}
+                        children.size -> variables[variable] = Data(true, data.declaration, children.flatMap { it[variable]!!.context }.toMutableList())
+                        else -> throw AnalyzeException(
+                            "Invalid initialization.",
+                            "The variable ${variable} is being partially initialized across branches.",
+                            data.declaration.context.firstOrNull() ?: Input.Range(0, 1, 0, 0),
+                            (data.context + children.flatMap { it[variable]!!.context }).mapNotNull { it.context.firstOrNull() },
+                        )
+                    }
+                }
+            }
+        }
 
     }
 
@@ -229,6 +266,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 is Scope.Definition -> Variable.Definition(it).also { scope.variables.define(it) }
             }
         }
+        if (value == null) {
+            context.initialization[variable.name] = InitializationContext.Data(false, ast, mutableListOf())
+        }
         return RhovasIr.Statement.Declaration.Variable(variable, value).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -284,12 +324,28 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ) }
         return when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
-                val receiver = visit(ast.receiver)
-                require(receiver.variable.mutable) { error(
-                    ast.receiver,
-                    "Unassignable variable.",
-                    "The variable ${receiver.variable.name} is not assignable.",
-                ) }
+                val initialization = context.initialization[ast.receiver.name]
+                val receiver = when {
+                    initialization == null -> visit(ast.receiver).also {
+                        require(it.variable.mutable) { error(
+                            ast.receiver,
+                            "Unassignable variable.",
+                            "The variable ${it.variable.name} is not assignable.",
+                        ) }
+                    }
+                    initialization.initialized -> visit(ast.receiver).also {
+                        require(it.variable.mutable) { error(
+                            ast.receiver,
+                            "Reinitialized variable.",
+                            "The variable ${it.variable.name} is already initialized.",
+                        ) }
+                    }
+                    else -> {
+                        initialization.initialized = true
+                        initialization.context.add(ast)
+                        visit(ast.receiver)
+                    }
+                }
                 val value = visit(ast.value)
                 require(value.type.isSubtypeOf(receiver.variable.type)) { error(
                     ast.value,
@@ -860,6 +916,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Undefined variable.",
             "The variable ${ast.name} is not defined in ${qualifier?.type ?: "the current scope"}."
         )
+        val initialization = context.initialization[ast.name]
+        require(initialization == null || initialization.initialized) {
+            initialization!!.declaration.context.firstOrNull()?.let { context.inputs.add(it) }
+            error(ast,
+                "Uninitialized variable.",
+                "The variable ${ast.name} is not initialized.",
+            )
+        }
         return RhovasIr.Expression.Access.Variable(qualifier, variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }

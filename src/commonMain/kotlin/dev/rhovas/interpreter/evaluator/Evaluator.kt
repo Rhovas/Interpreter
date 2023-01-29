@@ -124,11 +124,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
         val variable = scope.variables[ir.variable.name]!!
-        require(variable.mutable) { error(
-            ir,
-            "Unassignable variable.",
-            "The variable ${variable.name} is immutable and does not support assignment.",
-        ) }
+        //TODO: What degree of enforcement should the evaluator have above semantic analysis?
+        //require(variable.mutable) { error(
+        //    ir,
+        //    "Unassignable variable.",
+        //    "The variable ${variable.name} is immutable and does not support assignment.",
+        //) }
         variable.value = visit(ir.value)
         return Object(Library.TYPES["Void"]!!, Unit)
     }

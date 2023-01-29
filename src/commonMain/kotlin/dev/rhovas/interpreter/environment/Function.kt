@@ -22,7 +22,7 @@ sealed interface Function {
         return (
             function.name != other.name ||
             function.parameters.size != other.parameters.size ||
-            function.parameters.zip(other.parameters).any { println(it); !it.first.type.isSubtypeOf(it.second.type) && !it.first.type.isSupertypeOf(it.second.type) }
+            function.parameters.zip(other.parameters).any { !it.first.type.isSubtypeOf(it.second.type) && !it.first.type.isSupertypeOf(it.second.type) }
         )
     }
 
