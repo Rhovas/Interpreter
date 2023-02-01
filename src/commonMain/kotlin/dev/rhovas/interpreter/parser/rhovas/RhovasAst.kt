@@ -46,6 +46,12 @@ sealed class RhovasAst {
             val component: RhovasAst.Component,
         ) : Statement()
 
+        data class Initializer(
+            val name: String,
+            val arguments: List<RhovasAst.Expression>,
+            val initializer: RhovasAst.Expression.Literal.Object,
+        ) : Statement()
+
         data class Expression(
             val expression: RhovasAst.Expression,
         ) : Statement()
@@ -337,6 +343,7 @@ sealed class RhovasAst {
                 is Member.Initializer -> visit(ast)
 
                 is Statement.Component -> visit(ast)
+                is Statement.Initializer -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Declaration.Variable -> visit(ast)
                 is Statement.Declaration.Property -> visit(ast)
@@ -394,9 +401,10 @@ sealed class RhovasAst {
         fun visit(ast: Import): T
 
         fun visit(ast: Component.Struct): T
-        fun visit(ast: Member.Initializer): T
+        @JsName("visitMemberInitializer") fun visit(ast: Member.Initializer): T
 
         fun visit(ast: Statement.Component): T
+        @JsName("visitStatementInitializer") fun visit(ast: Statement.Initializer): T
         fun visit(ast: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T
         @JsName("visitDeclarationProperty") fun visit(ast: Statement.Declaration.Property): T

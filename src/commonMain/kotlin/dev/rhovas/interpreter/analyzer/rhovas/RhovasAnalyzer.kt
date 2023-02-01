@@ -207,6 +207,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             ExceptionContext(ir.function.throws.toMutableSet()),
         )) {
             (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns, false))
+            context.initialization["this"] = InitializationContext.Data(false, RhovasAst.Statement.Declaration.Variable(false, "this", null, null).also { it.context = ir.ast.context }, mutableListOf())
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
             RhovasIr.Member.Initializer(ir.function, block).also {
@@ -223,6 +224,28 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
         return RhovasIr.Statement.Component(visit(ast.component)).also {
             it.context = ast.context
+        }
+    }
+
+    override fun visit(ast: RhovasAst.Statement.Initializer): RhovasIr {
+        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        require(context.function?.name == "") { error(ast,
+            "Invalid initializer.",
+            "An instance initializer can only be called within an initializer function.",
+        ) }
+        val initialization = context.initialization["this"]!!
+        require(!initialization.initialized) {
+            initialization.declaration.context.firstOrNull()?.let { context.inputs.add(it) }
+            error(ast,
+                "Reinitialized instance.",
+                "An instance initializer can only be called once.",
+            )
+        }
+        val initializer = visit(ast.initializer) as RhovasIr.Expression.Literal.Object
+        //TODO: Validate available fields
+        return RhovasIr.Statement.Initializer(initializer).also {
+            it.context = ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
 

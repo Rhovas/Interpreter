@@ -45,6 +45,10 @@ sealed class RhovasIr {
             val component: RhovasIr.Component,
         ) : Statement()
 
+        data class Initializer(
+            val initializer: RhovasIr.Expression.Literal.Object,
+        ) : Statement()
+
         data class Expression(
             val expression: RhovasIr.Expression,
         ) : Statement()
@@ -364,6 +368,7 @@ sealed class RhovasIr {
                 is Member.Initializer -> visit(ir)
 
                 is Statement.Component -> visit(ir)
+                is Statement.Initializer -> visit(ir)
                 is Statement.Expression -> visit(ir)
                 is Statement.Declaration.Variable -> visit(ir)
                 is Statement.Declaration.Property -> visit(ir)
@@ -422,9 +427,10 @@ sealed class RhovasIr {
         fun visit(ir: Import): T
 
         fun visit(ir: Component.Struct): T
-        fun visit(ir: Member.Initializer): T
+        @JsName("visitInitializerMember") fun visit(ir: Member.Initializer): T
 
         fun visit(ir: Statement.Component): T
+        @JsName("visitInitializerStatement") fun visit(ir: Statement.Initializer): T
         fun visit(ir: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ir: Statement.Declaration.Variable): T
         @JsName("visitDeclarationProperty") fun visit(ir: Statement.Declaration.Property): T

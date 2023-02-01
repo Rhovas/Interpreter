@@ -160,6 +160,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseStatement(): RhovasAst.Statement {
         return when {
             peek("{") -> RhovasAst.Statement.Expression(parseBlockStatement()).also { it.context = it.expression.context }
+            peek(listOf("this"), listOf("(", "{")) -> parseInitializerStatement()
             peek(listOf("val", "var")) -> parseVariableDeclarationStatement()
             peek("func") -> parseFunctionDeclarationStatement()
             peek("if") -> parseIfStatement()
@@ -222,6 +223,21 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             }
         }
         return RhovasAst.Expression.Block(statements, null).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    private fun parseInitializerStatement(): RhovasAst.Statement.Initializer {
+        require(match("this"))
+        val name = tokens[-1]!!.literal
+        context.addLast(tokens[-1]!!.range)
+        require(peek("{")) { error(
+            "Expected opening brace.",
+            "An initializer statement requires an initializer block, as in `init { field };`.",
+        ) }
+        val initializer = parsePrimaryExpression() as RhovasAst.Expression.Literal.Object
+        requireSemicolon { "An initializer statement must be followed by a semicolon, as in `init { field };`." }
+        return RhovasAst.Statement.Initializer(name, listOf(), initializer).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }

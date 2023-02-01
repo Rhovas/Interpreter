@@ -79,6 +79,13 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Statement.Initializer): Object {
+        val fields = visit(ir.initializer).value as MutableMap<String, Object>
+        val instance = scope.variables["this"]!!.value.value as MutableMap<String, Object>
+        instance.putAll(fields)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
     override fun visit(ir: RhovasIr.Statement.Expression): Object {
         visit(ir.expression)
         return Object(Library.TYPES["Void"]!!, Unit)
