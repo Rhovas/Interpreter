@@ -22,20 +22,29 @@ sealed class RhovasAst {
 
         data class Struct(
             val name: String,
-            val properties: List<Statement.Declaration.Property>,
-            val initializers: List<Member.Initializer>,
-            val methods: List<Statement.Declaration.Function>,
+            val members: List<Member>,
         ) : Component()
 
     }
 
     sealed class Member : RhovasAst() {
 
+        data class Property(
+            val mutable: Boolean,
+            val name: String,
+            val type: Type,
+            val value: Expression?,
+        ) : Member()
+
         data class Initializer(
             val parameters: List<Pair<String, Type?>>,
             val returns: Type?,
             val throws: List<Type>,
             val block: Expression.Block,
+        ) : Member()
+
+        data class Method(
+            val function: Statement.Declaration.Function
         ) : Member()
 
     }
@@ -62,13 +71,6 @@ sealed class RhovasAst {
                 val mutable: Boolean,
                 val name: String,
                 val type: Type?,
-                val value: RhovasAst.Expression?,
-            ) : Declaration()
-
-            data class Property(
-                val mutable: Boolean,
-                val name: String,
-                val type: Type,
                 val value: RhovasAst.Expression?,
             ) : Declaration()
 
@@ -340,13 +342,14 @@ sealed class RhovasAst {
                 is Import -> visit(ast)
 
                 is Component.Struct -> visit(ast)
+                is Member.Property -> visit(ast)
                 is Member.Initializer -> visit(ast)
+                is Member.Method -> visit(ast)
 
                 is Statement.Component -> visit(ast)
                 is Statement.Initializer -> visit(ast)
                 is Statement.Expression -> visit(ast)
                 is Statement.Declaration.Variable -> visit(ast)
-                is Statement.Declaration.Property -> visit(ast)
                 is Statement.Declaration.Function -> visit(ast)
                 is Statement.Assignment -> visit(ast)
                 is Statement.If -> visit(ast)
@@ -401,13 +404,14 @@ sealed class RhovasAst {
         fun visit(ast: Import): T
 
         fun visit(ast: Component.Struct): T
+        @JsName("visitMemberProperty") fun visit(ast: Member.Property): T
         @JsName("visitMemberInitializer") fun visit(ast: Member.Initializer): T
+        @JsName("visitMemberMethod") fun visit(ast: Member.Method): T
 
         fun visit(ast: Statement.Component): T
         @JsName("visitStatementInitializer") fun visit(ast: Statement.Initializer): T
         fun visit(ast: Statement.Expression): T
         @JsName("visitDeclarationVariable") fun visit(ast: Statement.Declaration.Variable): T
-        @JsName("visitDeclarationProperty") fun visit(ast: Statement.Declaration.Property): T
         @JsName("visitDeclarationFunction") fun visit(ast: Statement.Declaration.Function): T
         fun visit(ast: Statement.Assignment): T
         fun visit(ast: Statement.If): T

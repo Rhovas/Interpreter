@@ -28,21 +28,35 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         scope.types.define(ir.type, ir.type.base.name)
         val current = scope
         //TODO: Hack to access unwrapped function definition
-        val constructor = ir.type.base.scope.functions["", 1]
-            .first { it.parameters.first().type.isSubtypeOf(Library.TYPES["Object"]!!) }
-            .let { it as? Function.Definition ?: Function.Definition(it as Function.Declaration).also { scope.functions.define(it) } }
-        constructor.implementation = { arguments ->
+        val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Library.TYPES["Object"]!!) }
+        initializer.implementation = { arguments ->
             scoped(current) {
-                Object(ir.type, ir.properties.associate {
-                    val value = (arguments[0].value as Map<String, Object>)[it.getter.name]
-                        ?: it.value?.let { visit(it) }
-                        ?: Object(Library.TYPES["Null"]!!, null)
-                    Pair(it.getter.name, value)
-                }.toMutableMap())
+                val fields = arguments[0].value as Map<String, Object>
+                Object(ir.type, ir.members.filterIsInstance<RhovasIr.Member.Property>().associate {
+                    Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null))
+                })
             }
         }
-        ir.initializers.forEach { visit(it) }
-        ir.methods.forEach { visit(it) }
+        val toString = ir.type.base.scope.functions["toString", 1].first { it.parameters.first().type.isSubtypeOf(ir.type) }
+        toString.implementation = { arguments ->
+            val instance = arguments[0].value as Map<String, Object>
+            val fields = Object(Library.TYPES["Object"]!!, instance).methods["toString", listOf()]!!.invoke(listOf()).value as String
+            Object(Library.TYPES["String"]!!, "${ir.type.base.name} ${fields}")
+        }
+        ir.members.forEach { visit(it) }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Member.Property): Object {
+        ir.getter.implementation = { arguments ->
+            val instance = arguments[0].value as MutableMap<String, Object>
+            instance[ir.getter.name]!!
+        }
+        ir.setter?.implementation = { arguments ->
+            val instance = arguments[0].value as MutableMap<String, Object>
+            instance[ir.getter.name] = arguments[1]
+            Object(Library.TYPES["Void"]!!, Unit)
+        }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
@@ -74,6 +88,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Library.TYPES["Void"]!!, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Member.Method): Object {
+        visit(ir.function)
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
     override fun visit(ir: RhovasIr.Statement.Component): Object {
         visit(ir.component)
         return Object(Library.TYPES["Void"]!!, Unit)
@@ -95,10 +114,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
         variable.value = ir.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null)
         return Object(Library.TYPES["Void"]!!, Unit)
-    }
-
-    override fun visit(ir: RhovasIr.Statement.Declaration.Property): Object {
-        throw AssertionError()
     }
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Function): Object {

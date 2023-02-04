@@ -80,7 +80,7 @@ class EvaluatorTests {
                         struct Name {
                             var field: Integer;
                             init(field: Integer) {
-                                this.field = field;
+                                this { field };
                             }
                         }
                         log(Name(1).field);
