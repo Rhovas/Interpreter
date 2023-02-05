@@ -25,6 +25,11 @@ sealed class RhovasAst {
             val members: List<Member>,
         ) : Component()
 
+        data class Class(
+            val name: String,
+            val members: List<Member>,
+        ) : Component()
+
     }
 
     sealed class Member : RhovasAst() {
@@ -342,6 +347,8 @@ sealed class RhovasAst {
                 is Import -> visit(ast)
 
                 is Component.Struct -> visit(ast)
+                is Component.Class -> visit(ast)
+
                 is Member.Property -> visit(ast)
                 is Member.Initializer -> visit(ast)
                 is Member.Method -> visit(ast)
@@ -404,6 +411,8 @@ sealed class RhovasAst {
         fun visit(ast: Import): T
 
         fun visit(ast: Component.Struct): T
+        fun visit(ast: Component.Class): T
+
         @JsName("visitMemberProperty") fun visit(ast: Member.Property): T
         @JsName("visitMemberInitializer") fun visit(ast: Member.Initializer): T
         @JsName("visitMemberMethod") fun visit(ast: Member.Method): T

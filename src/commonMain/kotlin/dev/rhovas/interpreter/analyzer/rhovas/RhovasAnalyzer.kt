@@ -196,6 +196,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
+    override fun visit(ast: RhovasAst.Component.Class): RhovasIr.Component.Class {
+        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+    }
+
+    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class {
+        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val type = context.scope.types[ir.ast.name]!!
+        val members = ir.members.map { visit(it) }
+        return RhovasIr.Component.Class(type, members).also {
+            it.context = ir.ast.context
+            it.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+    }
+
     private fun visit(ir: RhovasIr.DefinitionPhase.Member): RhovasIr.Member {
         return super.visit(ir) as RhovasIr.Member
     }
@@ -1437,10 +1451,22 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         fun visit(ast: RhovasAst.Component) {
             when (ast) {
                 is RhovasAst.Component.Struct -> visit(ast)
+                is RhovasAst.Component.Class -> visit(ast)
             }
         }
 
         fun visit(ast: RhovasAst.Component.Struct) {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            require(!context.scope.types.isDefined(ast.name, true)) { error(
+                ast,
+                "Redefined type.",
+                "The type ${ast.name} is already defined in this scope.",
+            ) }
+            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Library.TYPES["Any"]!!), Scope.Definition(null)).reference)
+            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+        }
+
+        fun visit(ast: RhovasAst.Component.Class) {
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
             require(!context.scope.types.isDefined(ast.name, true)) { error(
                 ast,
@@ -1467,8 +1493,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             //TODO: Typecheck argument (struct type / named options?)
             struct.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Library.TYPES["Object"]!!, false)), struct, listOf())))
             struct.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf(Variable.Declaration("this", struct, false)), Library.TYPES["String"]!!, listOf())))
-            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            return RhovasIr.DefinitionPhase.Component.Struct(ast, members)
+            return RhovasIr.DefinitionPhase.Component.Struct(ast, members).also {
+                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
+        }
+
+        fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class {
+            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            val clazz = context.scope.types[ast.name]!!
+            val members = ast.members.map { visit(it, clazz) }.toMutableList()
+            return RhovasIr.DefinitionPhase.Component.Class(ast, members).also {
+                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
+            }
         }
 
         fun visit(ast: RhovasAst.Member, component: Type): RhovasIr.DefinitionPhase.Member {

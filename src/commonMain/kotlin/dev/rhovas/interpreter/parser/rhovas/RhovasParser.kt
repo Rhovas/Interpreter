@@ -69,17 +69,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `component = struct`
+     *  - `component = struct | class`
      */
     private fun parseComponent(): RhovasAst.Component {
         return when {
             peek("struct") -> parseStruct()
+            peek("class") -> parseClass()
             else -> throw AssertionError()
         }
     }
 
     /**
-     *  - `struct = "struct" identifier "{" declaration* "}"`
+     *  - `struct = "struct" identifier "{" member* "}"`
      */
     private fun parseStruct(): RhovasAst.Component.Struct {
         require(match("struct"))
@@ -90,14 +91,30 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
         val members = mutableListOf<RhovasAst.Member>()
-        while (!peek("}")) {
+        while (!match("}")) {
             members.add(parseMember())
         }
-        require(match("}")) { error(
-            "Expected closing brace.",
-            "A struct declaration requires a closing brace, as in `struct Name { val field: Type; } or `struct Name { func method() {} }`.",
-        ) }
         return RhovasAst.Component.Struct(name, members).also {
+            it.context = listOf(context.removeLast(), tokens[-1]!!.range)
+        }
+    }
+
+    /**
+     *  - `class = "class" identifier "{" member* "}"`
+     */
+    private fun parseClass(): RhovasAst.Component.Class {
+        require(match("class"))
+        context.addLast(tokens[-1]!!.range)
+        val name = parseIdentifier { "A class requires a name after `class`, as in `class Name { ... }`." }
+        require(match("{")) { error(
+            "Expected opening brace.",
+            "A class requires braces for defining members, as in `class Name { ... }`.",
+        ) }
+        val members = mutableListOf<RhovasAst.Member>()
+        while (!match("}")) {
+            members.add(parseMember())
+        }
+        return RhovasAst.Component.Class(name, members).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
     }
@@ -213,7 +230,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             peek("require") -> parseRequireStatement()
             peek("ensure") -> parseEnsureStatement()
             peek(RhovasTokenType.IDENTIFIER, ":") -> parseLabelStatement()
-            peek(listOf("struct")) -> {
+            peek(listOf("struct", "class")) -> {
                 RhovasAst.Statement.Component(parseComponent()).also {
                     it.context = it.component.context
                 }

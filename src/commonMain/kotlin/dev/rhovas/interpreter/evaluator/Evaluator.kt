@@ -26,6 +26,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Component.Struct): Object {
         scope.types.define(ir.type, ir.type.base.name)
+        ir.members.forEach { visit(it) }
         val current = scope
         //TODO: Hack to access unwrapped function definition
         val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Library.TYPES["Object"]!!) }
@@ -43,6 +44,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             val fields = Object(Library.TYPES["Object"]!!, instance).methods["toString", listOf()]!!.invoke(listOf()).value as String
             Object(Library.TYPES["String"]!!, "${ir.type.base.name} ${fields}")
         }
+        return Object(Library.TYPES["Void"]!!, Unit)
+    }
+
+    override fun visit(ir: RhovasIr.Component.Class): Object {
+        scope.types.define(ir.type, ir.type.base.name)
         ir.members.forEach { visit(it) }
         return Object(Library.TYPES["Void"]!!, Unit)
     }
