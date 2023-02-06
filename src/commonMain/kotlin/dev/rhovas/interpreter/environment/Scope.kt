@@ -24,6 +24,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         }
 
         fun define(variable: V) {
+            require(!variables.containsKey(variable.name))
             variables[variable.name] = variable
         }
 
@@ -89,6 +90,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         }
 
         fun define(type: Type, alias: String = type.base.name) {
+            require(!types.containsKey(alias))
             types[alias] = type
         }
 

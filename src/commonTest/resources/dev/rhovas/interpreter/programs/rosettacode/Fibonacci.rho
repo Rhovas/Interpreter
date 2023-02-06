@@ -1,26 +1,43 @@
-func fibonacci(n: Integer): Integer {
-    func positiveFibonacci(n: Integer): Integer {
-        require n >= 0;
-        var previous = 1;
-        var current = 0;
-        range(1, n, :incl).for {
-            val next = current + previous;
-            previous = current;
-            current = next;
-        };
-        return current;
+func iterFibonacci(num: Integer): Integer {
+    require num >= 0;
+    var previous = 1;
+    var current = 0;
+    for (val _ in range(1, num, :incl)) {
+        val next = current + previous;
+        previous = current;
+        current = next;
     }
+    return current;
+}
 
+assert iterFibonacci(0) == 0;
+assert iterFibonacci(1) == 1;
+assert iterFibonacci(5) == 5;
+assert iterFibonacci(20) == 6765;
+
+func recFibonacci(num: Integer): Integer {
+    require num >= 0;
     match {
-        n >= 0: return positiveFibonacci(n);
-        n.mod(2) == 0: return -positiveFibonacci(-n);
-        else: return positiveFibonacci(-n);
+        num == 0: return 0;
+        num == 1: return 1;
+        else: return recFibonacci(num - 1) + recFibonacci(num - 2);
     }
 }
 
-assert fibonacci(0) == 0;
-assert fibonacci(1) == 1;
-assert fibonacci(5) == 5;
-assert fibonacci(20) == 6765;
-assert fibonacci(-5) == 5;
-assert fibonacci(-20) == -6765;
+assert recFibonacci(0) == 0;
+assert recFibonacci(1) == 1;
+assert recFibonacci(5) == 5;
+assert recFibonacci(20) == 6765;
+
+func negFibonacci(num: Integer): Integer {
+    match {
+        num >= 0: return iterFibonacci(num);
+        num.mod(2) != 0: return iterFibonacci(-num);
+        else: return -iterFibonacci(-num);
+    }
+}
+
+assert negFibonacci(0) == 0;
+assert negFibonacci(1) == 1;
+assert negFibonacci(-5) == 5;
+assert negFibonacci(-20) == -6765;

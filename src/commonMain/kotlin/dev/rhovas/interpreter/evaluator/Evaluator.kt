@@ -25,13 +25,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Component.Struct): Object {
-        scope.types.define(ir.type, ir.type.base.name)
+        //TODO: Componet declaration/definition handling
+        if (!scope.types.isDefined(ir.type.base.name, true)) {
+            scope.types.define(ir.type, ir.type.base.name)
+        }
         ir.members.forEach { visit(it) }
         val current = scope
         //TODO: Hack to access unwrapped function definition
         val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Library.TYPES["Object"]!!) }
         initializer.implementation = { arguments ->
-            scoped(current) {
+            scoped(Scope.Definition(current)) {
                 val fields = arguments[0].value as Map<String, Object>
                 Object(ir.type, ir.members.filterIsInstance<RhovasIr.Member.Property>().associate {
                     Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Library.TYPES["Null"]!!, null))
@@ -69,7 +72,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Member.Initializer): Object {
         val current = scope
         ir.function.implementation = { arguments ->
-            scoped(current) {
+            scoped(Scope.Definition(current)) {
                 val instance = Variable.Definition(Variable.Declaration("this", ir.function.returns, false))
                 instance.value = Object(instance.type, mutableMapOf<String, Object>())
                 scope.variables.define(instance)
@@ -126,7 +129,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         val function = ir.function as? Function.Definition ?: Function.Definition(ir.function as Function.Declaration).also { scope.functions.define(it) }
         function.implementation = { arguments ->
-            scoped(current) {
+            scoped(Scope.Definition(current)) {
                 for (i in ir.function.parameters.indices) {
                     val parameter = Variable.Definition(ir.function.parameters[i])
                     parameter.value = arguments[i]
@@ -730,7 +733,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             } else {
                 map[key] ?: return Object(Library.TYPES["Boolean"]!!, false)
             }
-            if (key != null) {
+            //TODO: Better solution for avoiding duplicate definitions?
+            if (key != null && (pattern as? RhovasIr.Pattern.Variable)?.variable?.name != key) {
                 val variable = Variable.Definition(Variable.Declaration(key, value.type, false))
                 variable.value = value
                 patternState.scope.variables.define(variable)
