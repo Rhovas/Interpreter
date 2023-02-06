@@ -11,6 +11,9 @@ class RosettaCodeTests {
     fun testFactorial() = test("Factorial.rho")
 
     @Test
+    fun testFibonacci() = test("Fibonacci.rho")
+
+    @Test
     fun testFizzBuzz() = test("FizzBuzz.rho", """
         1
         2
