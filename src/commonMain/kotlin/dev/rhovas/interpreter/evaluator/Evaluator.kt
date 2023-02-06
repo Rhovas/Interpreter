@@ -340,7 +340,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Statement.With): Object {
-        TODO()
+        val argument = visit(ir.argument)
+        return scoped(Scope.Definition(scope)) {
+            ir.variable?.let {
+                val variable = Variable.Definition(ir.variable)
+                variable.value = argument
+                scope.variables.define(variable)
+            }
+            visit(ir.block)
+        }
     }
 
     override fun visit(ir: RhovasIr.Statement.Label): Object {
