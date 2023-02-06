@@ -1,7 +1,6 @@
 func fibonacci(n: Integer): Integer {
-    func positive_fibonacci(n: Integer): Integer {
+    func positiveFibonacci(n: Integer): Integer {
         require n >= 0;
-
         var previous = 1;
         var current = 0;
         range(1, n, :incl).for {
@@ -11,11 +10,11 @@ func fibonacci(n: Integer): Integer {
         };
         return current;
     }
-    
+
     match {
-        n >= 0: return positive_fibonacci(n);
-        n.mod(2) == 0: return  -positive_fibonacci(-n);
-        else: return  positive_fibonacci(-n);
+        n >= 0: return positiveFibonacci(n);
+        n.mod(2) == 0: return -positiveFibonacci(-n);
+        else: return positiveFibonacci(-n);
     }
 }
 
