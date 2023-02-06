@@ -4,7 +4,6 @@ import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
 import dev.rhovas.interpreter.parser.dsl.DslParser
-import kotlin.math.exp
 
 class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
 
@@ -57,10 +56,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseImport(): RhovasAst.Import {
         require(match("import"))
         context.addLast(tokens[-1]!!.range)
-        val path = mutableListOf<String>()
-        do {
-            path.add(parseIdentifier { "An import requires a name, as in `import Module.Type;`." })
-        } while (match("."))
+        val path = parseSequence(".") {
+            parseIdentifier { "An import requires a name, as in `import Module.Type;`." }
+        }
         val alias = if (match("as")) parseIdentifier { "An import alias requires a name, as in `import Module.Type as Alias;`." } else null
         requireSemicolon { "An import must be followed by a semicolon, as in `import Module.Type;`." }
         return RhovasAst.Import(path, alias).also {
@@ -86,14 +84,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match("struct"))
         context.addLast(tokens[-1]!!.range)
         val name = parseIdentifier { "A struct requires a name after `struct`, as in `struct Name { ... }`." }
-        require(match("{")) { error(
+        require(peek("{")) { error(
             "Expected opening brace.",
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
-        val members = mutableListOf<RhovasAst.Member>()
-        while (!match("}")) {
-            members.add(parseMember())
-        }
+        val members = parseSequence("{", null, "}") { parseMember() }!!
         return RhovasAst.Component.Struct(name, members).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
@@ -106,14 +101,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match("class"))
         context.addLast(tokens[-1]!!.range)
         val name = parseIdentifier { "A class requires a name after `class`, as in `class Name { ... }`." }
-        require(match("{")) { error(
+        require(peek("{")) { error(
             "Expected opening brace.",
             "A class requires braces for defining members, as in `class Name { ... }`.",
         ) }
-        val members = mutableListOf<RhovasAst.Member>()
-        while (!match("}")) {
-            members.add(parseMember())
-        }
+        val members = parseSequence("{", null, "}") { parseMember() }!!
         return RhovasAst.Component.Class(name, members).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
@@ -164,29 +156,26 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseInitializerMember(): RhovasAst.Member.Initializer {
         require(match("init"))
         context.addLast(tokens[-1]!!.range)
-        val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
-        require(match("(")) { error(
+        require(peek("(")) { error(
             "Expected opening parenthesis.",
             "An initializer requires parenthesis after the name, as in `init() { ... }` or `init(x, y, z) { ... }`.",
         ) }
-        while (!match(")")) {
+        val parameters = parseSequence("(", ",", ")") {
             val name = parseIdentifier { "An initializer parameter requires a name, as in `init(name: Type) { ... }`." }
             context.addLast(tokens[-1]!!.range)
             val type = if (match(":")) parseType() else null
-            parameters.add(Pair(name, type))
-            require(peek(")") || match(",")) { error(
-                "Expected closing parenthesis or comma.",
-                "An initializer parameter must be followed by a closing parenthesis `)` or comma `,`, as in `init() { ... }` or `init(x, y, z) { ... }`.",
-            ) }
-            context.removeLast()
-        }
+            Pair(name, type).also {
+                require(peek(")") || match(",")) { error(
+                    "Expected closing parenthesis or comma.",
+                    "An initializer parameter must be followed by a closing parenthesis `)` or comma `,`, as in `init() { ... }` or `init(x, y, z) { ... }`.",
+                ) }
+                context.removeLast()
+            }
+        }!!
         val returns = if (match(":")) parseType() else null
-        val throws = mutableListOf<RhovasAst.Type>()
-        if (match("throws")) {
-            do {
-                throws.add(parseType())
-            } while (match(","))
-        }
+        val throws = if (match("throw")) {
+            parseSequence(",") { parseType() }
+        } else listOf()
         val block = parseBlockStatement()
         return RhovasAst.Member.Initializer(parameters, returns, throws, block).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
@@ -260,21 +249,19 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      *  - `block := "{" statement* "}"`
      */
     private fun parseBlockStatement(): RhovasAst.Expression.Block {
-        require(match("{")) { error(
+        require(peek("{")) { error(
             "Expected opening brace.",
             "A block statement must begin with an opening brace, as in `{ statement; }`."
         ) }
-        context.addLast(tokens[-1]!!.range)
-        val statements = mutableListOf<RhovasAst.Statement>()
-        while (!match("}")) {
-            statements.add(parseStatement())
-            if (statements.last() is RhovasAst.Statement.Expression && tokens[-1]!!.literal != ";") {
-                throw error(
+        context.addLast(tokens[0]!!.range)
+        val statements = parseSequence("{", null, "}") {
+            parseStatement().also {
+                require(it !is RhovasAst.Statement.Expression || tokens[-1]!!.literal == ";") { error(
                     "Expected semicolon.",
                     "An expression statement must be followed by a semicolon within a statement block, as in `{ expression; }`.",
-                )
+                ) }
             }
-        }
+        }!!
         return RhovasAst.Expression.Block(statements, null).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
         }
@@ -324,43 +311,36 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match("func"))
         context.addLast(tokens[-1]!!.range)
         val name = parseIdentifier { "A function declaration requires a name after `func`, as in `func name() { ... }`." }
-        val generics = mutableListOf<Pair<String, RhovasAst.Type?>>()
-        if (match("<")) {
-            do {
-                val name = parseIdentifier { "A function generic type declaration requires a name, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`." }
-                context.addLast(tokens[-1]!!.range)
-                val type = if (match(":")) parseType() else null
-                generics.add(Pair(name, type))
-                require(peek(">") || match(",")) { error(
+        val generics = parseSequence("<", ",", ">") {
+            val name = parseIdentifier { "A function generic type declaration requires a name, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`." }
+            context.addLast(tokens[-1]!!.range)
+            val type = if (match(":")) parseType() else null
+            Pair(name, type).also {
+                require(peek(listOf(",", ">"))) { error(
                     "Expected closing angle bracket or comma.",
                     "A function generic type declaration must be followed by a closing angle bracket `>` or comma `,`, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`.",
                 ) }
                 context.removeLast()
-            } while (!match(">"))
-        }
-        val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
-        require(match("(")) { error(
+            }
+        } ?: listOf()
+        require(peek("(")) { error(
             "Expected opening parenthesis.",
             "A function declaration requires parenthesis after the name, as in `func name() { ... }` or `func name(x, y, z) { ... }`.",
         ) }
-        while (!match(")")) {
+        val parameters = parseSequence("(", ",", ")") {
             val name = parseIdentifier { "A function parameter requires a name, as in `func f(name: Type) { ... }`." }
             context.addLast(tokens[-1]!!.range)
             val type = if (match(":")) parseType() else null
-            parameters.add(Pair(name, type))
-            require(peek(")") || match(",")) { error(
-                "Expected closing parenthesis or comma.",
-                "A function parameter must be followed by a closing parenthesis `)` or comma `,`, as in `func name() { ... }` or `func name(x, y, z) { ... }`.",
-            ) }
-            context.removeLast()
-        }
+            Pair(name, type).also {
+                require(peek(listOf(",", ")"))) { error(
+                    "Expected closing parenthesis or comma.",
+                    "A function parameter must be followed by a closing parenthesis `)` or comma `,`, as in `func name() { ... }` or `func name(x, y, z) { ... }`.",
+                ) }
+                context.removeLast()
+            }
+        }!!
         val returns = if (match(":")) parseType() else null
-        val throws = mutableListOf<RhovasAst.Type>()
-        if (match("throws")) {
-            do {
-                throws.add(parseType())
-            } while (match(","))
-        }
+        val throws = if (match("throws")) parseSequence(",", this::parseType) else listOf()
         val block = parseBlockStatement()
         return RhovasAst.Statement.Declaration.Function(name, generics, parameters, returns, throws, block).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)
@@ -874,15 +854,15 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         }
                     }
                 }
-                match("[") -> {
-                    val arguments = mutableListOf<RhovasAst.Expression>()
-                    while (!match("]")) {
-                        arguments.add(parseExpression())
-                        require(peek("]") || match(",")) { error(
-                            "Expected closing bracket or comma.",
-                            "An index expression must be followed by a closing bracket `]` or comma `,`, as in `expression[index]` or `expression[x, y, z]`.",
-                        ) }
-                    }
+                peek("[") -> {
+                    val arguments = parseSequence("[", ",", "]") {
+                        parseExpression().also {
+                            require(peek(listOf(",", "]"))) { error(
+                                "Expected closing bracket or comma.",
+                                "An index expression must be followed by a closing bracket `]` or comma `,`, as in `expression[index]` or `expression[x, y, z]`.",
+                            ) }
+                        }
+                    }!!
                     RhovasAst.Expression.Access.Index(expression, arguments).also {
                         it.context = listOf(context[context.size - 2], tokens[-1]!!.range)
                     }
@@ -966,39 +946,38 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
                 }
             }
-            match("[") -> {
-                context.addLast(tokens[-1]!!.range)
-                val elements = mutableListOf<RhovasAst.Expression>()
-                while (!match("]")) {
-                    elements.add(parseExpression())
-                    context.addLast(tokens[-1]!!.range)
-                    require(peek("]") || match(",")) { error(
-                        "Expected closing bracket or comma.",
-                        "A list literal element must be followed by a closing bracket `]` or comma `,`, as in `[element]` or `[x, y, z]`.",
-                    ) }
-                    context.removeLast()
-                }
+            peek("[") -> {
+                context.addLast(tokens[0]!!.range)
+                val elements = parseSequence("[", ",", "]") {
+                    parseExpression().also {
+                        context.addLast(tokens[-1]!!.range)
+                        require(peek(listOf(",", "]"))) { error(
+                            "Expected closing bracket or comma.",
+                            "A list literal element must be followed by a closing bracket `]` or comma `,`, as in `[element]` or `[x, y, z]`.",
+                        ) }
+                        context.removeLast()
+                    }
+                }!!
                 RhovasAst.Expression.Literal.List(elements).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
-            match("{") -> {
-                context.addLast(tokens[-1]!!.range)
-                val properties = mutableMapOf<String, RhovasAst.Expression>()
-                while (!match("}")) {
+            peek("{") -> {
+                context.addLast(tokens[0]!!.range)
+                val properties = parseSequence("{", ",", "}") {
                     val key = parseIdentifier { "An object literal entry requires a key, as in `{key: value}` or `{x, y, z}`." }
                     context.addLast(tokens[-1]!!.range)
-                    properties[key] = if (match(":")) parseExpression() else RhovasAst.Expression.Access.Variable(null, key).also {
-                        it.context = listOf(tokens[-1]!!.range)
-                    }
+                    val value = if (match(":")) parseExpression() else RhovasAst.Expression.Access.Variable(null, key).also { it.context = listOf(tokens[-1]!!.range) }
                     context.addLast(tokens[-1]!!.range)
-                    require(peek("}") || match(",")) { error(
-                        "Expected closing parenthesis or comma.",
-                        "An object literal entry must be followed by a closing parenthesis `}` or comma `,`, as in `{key: value}` or `{x, y, z}`.",
-                    ) }
-                    context.removeLast()
-                    context.removeLast()
-                }
+                    Pair(key, value).also {
+                        require(peek(listOf(",", "}"))) { error(
+                            "Expected closing parenthesis or comma.",
+                            "An object literal entry must be followed by a closing parenthesis `}` or comma `,`, as in `{key: value}` or `{x, y, z}`.",
+                        ) }
+                        context.removeLast()
+                        context.removeLast()
+                    }
+                }!!
                 RhovasAst.Expression.Literal.Object(properties).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
@@ -1076,36 +1055,32 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      */
     private fun parseInvokeExpressionArguments(): List<RhovasAst.Expression> {
         require(peek(listOf("(", "|", "{")))
-        val arguments = mutableListOf<RhovasAst.Expression>()
-        if (match("(")) {
-            while (!match(")")) {
-                arguments.add(parseExpression())
+        val arguments = parseSequence("(", ",", ")") {
+            parseExpression().also {
                 context.addLast(tokens[-1]!!.range)
-                require(peek(")") || match(",")) { error(
+                require(peek(listOf(",", ")"))) { error(
                     "Expected closing parenthesis or comma.",
-                    "A function argument must be followed by a closing parenthesis `)` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
+                    "An macro argument must be followed by a closing parenthesis `}` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
                 ) }
                 context.removeLast()
             }
-        }
+        }?.toMutableList() ?: mutableListOf()
         if (peek("|", RhovasTokenType.IDENTIFIER) || peek("{")) {
             context.addLast(tokens[0]!!.range)
-            val parameters = mutableListOf<Pair<String, RhovasAst.Type?>>()
-            if (match("|")) {
-                while (!match("|")) {
-                    val name = parseIdentifier { "A lambda parameter requires a name, as in `lambda |name| { ... }`." }
-                    context.addLast(tokens[-1]!!.range)
-                    val type = if (match(":")) parseType() else null
-                    context.addLast(tokens[-1]!!.range)
-                    parameters.add(Pair(name, type))
-                    require(peek("|") || match(",")) { error(
+            val parameters = parseSequence("|", ",", "|") {
+                val name = parseIdentifier { "A lambda parameter requires a name, as in `lambda |name| { ... }`." }
+                context.addLast(tokens[-1]!!.range)
+                val type = if (match(":")) parseType() else null
+                context.addLast(tokens[-1]!!.range)
+                Pair(name, type).also {
+                    require(peek(listOf(",", "|"))) { error(
                         "Expected closing pipe or comma.",
                         "A lambda parameter must be followed by a closing pipe `|` or comma `,`, as in `lambda |parameter| { ... }` or `lambda |x, y, z| { ... }`.",
                     ) }
                     context.removeLast()
                     context.removeLast()
                 }
-            }
+            } ?: listOf()
             require(peek("{")) { error(
                 "Expected opening brace.",
                 "A lambda's parameters must be followed by an opening brace `{`, as in `lambda |parameter| { ... }"
@@ -1133,20 +1108,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "Expected opening parenthesis or brace.",
         "A macro expression must be followed by an opening parenthesis `(` or brace `{`, as in `#macro()` or `#dsl { ... }`.",
         ) }
-        val arguments = mutableListOf<RhovasAst.Expression>()
-        if (match("(")) {
-            while (!match(")")) {
-                context.addLast((tokens[0] ?: tokens[-1]!!).range)
-                arguments.add(parseExpression())
+        val arguments = parseSequence("(", ",", ")") {
+            context.addLast((tokens[0] ?: tokens[-1]!!).range)
+            parseExpression().also {
                 context.addLast(tokens[-1]!!.range)
-                require(peek(")") || match(",")) { error(
+                require(peek(listOf(",", ")"))) { error(
                     "Expected closing parenthesis or comma.",
                     "An macro argument must be followed by a closing parenthesis `}` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
                 ) }
                 context.removeLast()
                 context.removeLast()
             }
-        }
+        } ?: listOf()
         val dsl = if (match("{")) {
             context.addLast(tokens[-1]!!.range)
             val parser = DslParser(lexer.input)
@@ -1200,34 +1173,34 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     }
                 }
             }
-            match("[") -> {
-                context.addLast(tokens[-1]!!.range)
-                val patterns = mutableListOf<RhovasAst.Pattern>()
-                while (!match("]")) {
-                    patterns.add(parsePattern())
-                    require(peek("]") || match(",")) { error(
-                        "Expected closing bracket or comma.",
-                        "An ordered destructuring element must be followed by a closing bracket `]` or comma `,`, as in `[argument]` or `[x, y, z]`.",
-                    ) }
-                }
+            peek("[") -> {
+                context.addLast(tokens[0]!!.range)
+                val patterns = parseSequence("[", ",", "]") {
+                    parsePattern().also {
+                        require(peek(listOf(",", "]"))) { error(
+                            "Expected closing bracket or comma.",
+                            "An ordered destructuring element must be followed by a closing bracket `]` or comma `,`, as in `[argument]` or `[x, y, z]`.",
+                        ) }
+                    }
+                }!!
                 RhovasAst.Pattern.OrderedDestructure(patterns).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
-            match("{") -> {
-                context.addLast(tokens[-1]!!.range)
-                val patterns = mutableListOf<Pair<String?, RhovasAst.Pattern>>()
-                while (!match("}")) {
+            peek("{") -> {
+                context.addLast(tokens[0]!!.range)
+                val patterns = parseSequence("{", ",", "}") {
                     context.addLast((tokens[0] ?: tokens[-1]!!).range)
                     val key = if (match(RhovasTokenType.IDENTIFIER, ":")) tokens[-2]!!.literal else null
                     val pattern = parsePattern()
-                    patterns.add(Pair(key, pattern))
-                    require(peek("}") || match(",")) { error(
-                        "Expected closing brace or comma.",
-                        "A named destructuring entry must be followed by a closing brace `}` or comma `,`, as in `{key: value}` or `{x, y, z}`.",
-                    ) }
-                    context.removeLast()
-                }
+                    Pair(key, pattern).also {
+                        require(peek(listOf(",", "}"))) { error(
+                            "Expected closing brace or comma.",
+                            "A named destructuring entry must be followed by a closing brace `}` or comma `,`, as in `{key: value}` or `{x, y, z}`.",
+                        ) }
+                        context.removeLast()
+                    }
+                }!!
                 RhovasAst.Pattern.NamedDestructure(patterns).also {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
@@ -1278,7 +1251,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `type = identifier ("." identifier)* ("<" type ("," type)* ">")?`
+     *  - `type = identifier ("." identifier)* ("<" (type ",")* ">")?`
      */
     private fun parseType(): RhovasAst.Type {
         val path = mutableListOf<String>()
@@ -1288,12 +1261,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             require(match(".", RhovasTokenType.IDENTIFIER))
             path.add(tokens[-1]!!.literal)
         }
-        var generics: MutableList<RhovasAst.Type>? = null
-        if (match("<")) {
-            generics = mutableListOf()
-            while (!match(">")) {
-                generics.add(parseType())
-                require(match(",") || peek(">")) { error(
+        val generics = parseSequence("<", ",", ">") {
+            parseType().also {
+                require(peek(listOf(",", ">"))) { error(
                     "Expected closing bracket or comma.",
                     "A generic parameter must be followed by a closing bracket `>` or comma `,`, as in `Type<T>` or `Type<X, Y, Z>`",
                 ) }
@@ -1324,6 +1294,39 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseIdentifier(details: () -> String): String {
         require(match(RhovasTokenType.IDENTIFIER)) { error("Expected identifier.", details()) }
         return tokens[-1]!!.literal
+    }
+
+    /**
+     * Helper for parsing a sequence with a separator.
+     *
+     *  - sequence := parser (separator parser)*
+     */
+    private fun <T> parseSequence(separator: String, parser: () -> T): List<T> {
+        val sequence = mutableListOf<T>()
+        do {
+            sequence.add(parser())
+        } while (match(separator))
+        return sequence
+    }
+
+    /**
+     * Helper for parsing a sequence with start/end markers. The caller is
+     * responsible for validating separator logic, as well as any additional
+     * requirements for optional/empty sequences.
+     *
+     *  - sequence := (start (parser separator)* end)?
+     */
+    private fun <T> parseSequence(start: String, separator: String?, end: String, parser: () -> T): List<T>? {
+        return if (match(start)) {
+            context.addLast(tokens[-1]!!.range)
+            val sequence = mutableListOf<T>()
+            while (!match(end)) {
+                sequence.add(parser())
+                require(separator == null || match(separator) || peek(end))
+            }
+            context.removeLast()
+            sequence
+        } else null
     }
 
     /**

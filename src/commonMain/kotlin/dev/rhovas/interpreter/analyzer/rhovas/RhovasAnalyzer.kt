@@ -861,7 +861,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val properties = ast.properties.mapValues { visit(it.value) }
+        //TODO: Validate unique keys
+        val properties = ast.properties.associate { it.first to visit(it.second) }
         val type = Library.TYPES["Object"]!!
         return RhovasIr.Expression.Literal.Object(properties, type).also {
             it.context = ast.context

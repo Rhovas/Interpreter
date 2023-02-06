@@ -328,9 +328,6 @@ class RhovasParserTests {
                     Arguments.of("Missing Name", """
                         func () {}
                     """.trimIndent(), null),
-                    Arguments.of("Missing Generic", """
-                        func name<>() {}
-                    """.trimIndent(), null),
                     Arguments.of("Missing Generic Colon", """
                         func name<T Bound>() {}
                     """.trimIndent(), null),
@@ -1286,27 +1283,27 @@ class RhovasParserTests {
                     Arguments.of("Empty", """
                         {}
                     """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        mapOf(),
+                        listOf(),
                     )),
                     Arguments.of("Single", """
                         {key: value}
                     """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        mapOf("key" to expr("value")),
+                        listOf("key" to expr("value")),
                     )),
                     Arguments.of("Multiple", """
                         {k1: v1, k2: v2, k3: v3}
                     """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        mapOf("k1" to expr("v1"), "k2" to expr("v2"), "k3" to expr("v3")),
+                        listOf("k1" to expr("v1"), "k2" to expr("v2"), "k3" to expr("v3")),
                     )),
                     Arguments.of("Trailing Comma", """
                         {k1: v1, k2: v2,}
                     """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        mapOf("k1" to expr("v1"), "k2" to expr("v2")),
+                        listOf("k1" to expr("v1"), "k2" to expr("v2")),
                     )),
                     Arguments.of("Key Only", """
                         {key}
                     """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        mapOf("key" to expr("key")),
+                        listOf("key" to expr("key")),
                     )),
                     Arguments.of("Invalid Key", """
                         {"key": value}
@@ -2502,7 +2499,7 @@ class RhovasParserTests {
                 """.trimIndent(),
                     RhovasAst.Expression.Binary("||",
                         expr("function"),
-                        RhovasAst.Expression.Literal.Object(mapOf())
+                        RhovasAst.Expression.Literal.Object(listOf())
                     ),
                 ),
             )

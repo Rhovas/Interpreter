@@ -208,7 +208,7 @@ sealed class RhovasAst {
             ) : Literal()
 
             data class Object(
-                val properties: Map<kotlin.String, Expression>,
+                val properties: kotlin.collections.List<Pair<kotlin.String, Expression>>,
             ) : Literal()
 
             data class Type(
