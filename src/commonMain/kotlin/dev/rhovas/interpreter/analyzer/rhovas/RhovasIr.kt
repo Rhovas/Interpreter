@@ -326,7 +326,7 @@ sealed class RhovasIr {
 
         data class Variable(
             val variable: dev.rhovas.interpreter.environment.Variable.Declaration?,
-        ) : Pattern(variable?.type ?: Library.TYPES["Void"]!!)
+        ) : Pattern(variable?.type ?: dev.rhovas.interpreter.environment.Type.VOID)
 
         data class Value(
             val value: Expression,

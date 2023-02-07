@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
@@ -10,11 +11,11 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
         //TODO: Argument Generics
         //generics.add(generic("T"))
         generics.add(generic("R"))
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         method("invoke",
             generics = listOf(generic("R")),
-            parameters = listOf("arguments" to type("List", "Dynamic")),
+            parameters = listOf("arguments" to Type.LIST[Type.DYNAMIC]),
             returns = generic("R")
         ) { (instance, arguments) ->
             val instance = instance.value as Evaluator.Lambda
@@ -30,16 +31,16 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
                 val parameter = instance.ast.parameters.getOrNull(it)
                 Triple(
                     parameter?.name ?: "val_${it}",
-                    parameter?.type ?: Library.TYPES["Any"]!!,
+                    parameter?.type ?: Type.ANY,
                     arguments[it])
-            }, Library.TYPES["Any"]!!)
+            }, Type.ANY)
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
             val instance = instance.value as Evaluator.Lambda
-            Object(type("String"), "Lambda/${instance.ast.parameters.size}#${instance.hashCode()}")
+            Object(Type.STRING, "Lambda/${instance.ast.parameters.size}#${instance.hashCode()}")
         }
     }
 

@@ -7,35 +7,35 @@ object AnyInitializer: Library.TypeInitializer("Any") {
 
     override fun initialize() {
         method("is",
-            parameters = listOf("type" to type("Type")),
-            returns = type("Boolean"),
+            parameters = listOf("type" to Type.TYPE[generic("T")]),
+            returns = Type.BOOLEAN,
         ) { (instance, type) ->
             val type = type.value as Type
-            Object(type("Boolean"), instance.type.isSubtypeOf(type))
+            Object(Type.BOOLEAN, instance.type.isSubtypeOf(type))
         }
 
         method("as",
-            parameters = listOf("type" to type("Type", generic("T"))),
-            returns = type("Nullable", generic("T")),
+            parameters = listOf("type" to Type.TYPE[generic("T")]),
+            returns = Type.NULLABLE[generic("T")],
         ) { (instance, type) ->
             val type = type.value as Type
             when {
                 instance.type.isSubtypeOf(type) -> instance
-                else -> Object(type("Null"), null)
+                else -> Object(Type.NULL, null)
             }
         }
 
         method("to",
-            parameters = listOf("type" to type("Type", type("String"))),
-            returns = type("String"),
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
+            returns = Type.STRING,
         ) { (instance, _) ->
             instance.methods["toString", listOf()]!!.invoke(listOf())
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
-            Object(type("String"), "${instance.value}")
+            Object(Type.STRING, "${instance.value}")
         }
     }
 

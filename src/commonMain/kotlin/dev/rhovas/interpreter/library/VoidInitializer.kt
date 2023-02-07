@@ -1,23 +1,24 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 
 object VoidInitializer : Library.TypeInitializer("Void") {
 
     override fun initialize() {
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         method("equals", operator = "==",
-            parameters = listOf("other" to type("Void")),
-            returns = type("Boolean"),
+            parameters = listOf("other" to Type.VOID),
+            returns = Type.BOOLEAN,
         ) { (instance, other) ->
-            Object(type("Boolean"), true)
+            Object(Type.BOOLEAN, true)
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
-            Object(type("String"), "void")
+            Object(Type.STRING, "void")
         }
     }
 

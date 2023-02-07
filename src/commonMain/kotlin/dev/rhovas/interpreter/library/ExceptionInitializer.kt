@@ -1,31 +1,32 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 
 object ExceptionInitializer : Library.TypeInitializer("Exception") {
 
     override fun initialize() {
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         function("",
-            parameters = listOf("message" to type("String")),
-            returns = type("Exception"),
+            parameters = listOf("message" to Type.STRING),
+            returns = Type.EXCEPTION,
         ) { (message) ->
             val message = message.value as String
-            Object(type("Exception"), message)
+            Object(Type.EXCEPTION, message)
         }
 
         method("message",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
-            Object(type("String"), "${instance.value}")
+            Object(Type.STRING, "${instance.value}")
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
             //TODO: Stacktrace
-            Object(type("String"), "${instance.value}")
+            Object(Type.STRING, "${instance.value}")
         }
     }
 

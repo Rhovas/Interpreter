@@ -6,6 +6,30 @@ sealed class Type(
     open val base: Base,
 ) {
 
+    companion object {
+        val DYNAMIC get() = Library.type("Dynamic")
+        val ANY get() = Library.type("Any")
+        val TYPE get() = GenericDelegate("Type")
+        val VOID get() = Library.type("Void")
+        val NULL get() = Library.type("Null")
+        val NULLABLE get() = GenericDelegate("Nullable")
+        val BOOLEAN get() = Library.type("Boolean")
+        val INTEGER get() = Library.type("Integer")
+        val DECIMAL get() = Library.type("Decimal")
+        val STRING get() = Library.type("String")
+        val ATOM get() = Library.type("Atom")
+        val LIST get() = GenericDelegate("List")
+        val OBJECT get() = Library.type("Object")
+        val LAMBDA get() = GenericDelegate("Lambda")
+        val EXCEPTION get() = Library.type("Exception")
+
+        class GenericDelegate(val name: String) {
+            //TODO: Resolve subtyping checks for unbound generics
+            val ANY get() = Library.type(name).let { Reference(it.base, it.base.generics.map { DYNAMIC }) }
+            operator fun get(vararg generics: Type) = Library.type(name, *generics)
+        }
+    }
+
     val functions = FunctionsDelegate()
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
@@ -178,14 +202,14 @@ sealed class Type(
     data class Variant(
         val lower: Type?,
         val upper: Type?,
-    ) : Type((upper ?: Library.TYPES["Any"]!!).base) {
+    ) : Type((upper ?: ANY).base) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            return (upper ?: Library.TYPES["Any"]!!).getFunction(name, arity)
+            return (upper ?: ANY).getFunction(name, arity)
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            return (upper ?: Library.TYPES["Any"]!!).getFunction(name, arguments)
+            return (upper ?: ANY).getFunction(name, arguments)
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
@@ -193,7 +217,7 @@ sealed class Type(
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return (upper ?: Library.TYPES["Any"]!!).isSubtypeOf(other, bindings)
+            return (upper ?: ANY).isSubtypeOf(other, bindings)
         }
 
         override fun toString(): String {

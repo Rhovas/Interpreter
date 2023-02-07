@@ -55,7 +55,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                         .all { zip -> zip.first.isSubtypeOf(zip.second.type, generics) }
                 }?.bind(generics.mapValues {
                     when (val type = it.value) {
-                        is Type.Variant -> type.upper ?: type.lower ?: Library.TYPES["Any"]!!
+                        is Type.Variant -> type.upper ?: type.lower ?: Type.ANY
                         else -> type
                     }
                 }) as F?

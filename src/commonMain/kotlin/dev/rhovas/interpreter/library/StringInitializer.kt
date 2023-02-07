@@ -3,22 +3,23 @@ package dev.rhovas.interpreter.library
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 
 object StringInitializer : Library.TypeInitializer("String") {
 
     override fun initialize() {
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         method("size",
-            returns = type("Integer"),
+            returns = Type.INTEGER,
         ) { (instance) ->
             val instance = instance.value as String
-            Object(type("Integer"), BigInteger.fromInt(instance.length))
+            Object(Type.INTEGER, BigInteger.fromInt(instance.length))
         }
 
         method("slice",
-            parameters = listOf("start" to type("Integer")),
-            returns = type("List", generic("T")),
+            parameters = listOf("start" to Type.INTEGER),
+            returns = Type.LIST[generic("T")],
         ) { (instance, start) ->
             val instance = instance.value as String
             val start = start.value as BigInteger
@@ -27,12 +28,12 @@ object StringInitializer : Library.TypeInitializer("String") {
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
             ) }
-            Object(type("String"), instance.substring(start.intValue()))
+            Object(Type.STRING, instance.substring(start.intValue()))
         }
 
         method("slice",
-            parameters = listOf("start" to type("Integer"), "end" to type("Integer")),
-            returns = type("List", generic("T")),
+            parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
+            returns = Type.LIST[generic("T")],
         ) { (instance, start, end) ->
             val instance = instance.value as String
             val start = start.value as BigInteger
@@ -47,64 +48,64 @@ object StringInitializer : Library.TypeInitializer("String") {
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.length}), but received ${end}.",
             ) }
-            Object(type("String"), instance.substring(start.intValue(), end.intValue()))
+            Object(Type.STRING, instance.substring(start.intValue(), end.intValue()))
         }
 
         method("contains",
-            parameters = listOf("other" to type("String")),
-            returns = type("Boolean"),
+            parameters = listOf("other" to Type.STRING),
+            returns = Type.BOOLEAN,
         ) { (instance, other) ->
             val instance = instance.value as String
             val other = other.value as String
-            Object(type("Boolean"), instance.contains(other))
+            Object(Type.BOOLEAN, instance.contains(other))
         }
 
         method("replace",
-            parameters = listOf("original" to type("String"), "value" to type("String")),
-            returns = type("String"),
+            parameters = listOf("original" to Type.STRING, "value" to Type.STRING),
+            returns = Type.STRING,
         ) { (instance, original, value) ->
             val instance = instance.value as String
             val original = original.value as String
             val value = value.value as String
-            Object(type("String"), instance.replace(original, value))
+            Object(Type.STRING, instance.replace(original, value))
         }
 
         method("concat", operator = "+",
-            parameters = listOf("other" to type("String")),
-            returns = type("String"),
+            parameters = listOf("other" to Type.STRING),
+            returns = Type.STRING,
         ) { (instance, other) ->
             val instance = instance.value as String
             val other = other.value as String
-            Object(type("String"), instance + other)
+            Object(Type.STRING, instance + other)
         }
 
         method("equals", operator = "==",
-            parameters = listOf("other" to type("String")),
-            returns = type("Boolean"),
+            parameters = listOf("other" to Type.STRING),
+            returns = Type.BOOLEAN,
         ) { (instance, other) ->
-            Object(type("Boolean"), instance.value == other.value)
+            Object(Type.BOOLEAN, instance.value == other.value)
         }
 
         method("compare", operator = "<=>",
-            parameters = listOf("other" to type("String")),
-            returns = type("Integer"),
+            parameters = listOf("other" to Type.STRING),
+            returns = Type.INTEGER,
         ) { (instance, other) ->
             val instance = instance.value as String
             val other = other.value as String
-            Object(type("Integer"), BigInteger.fromInt(instance.compareTo(other)))
+            Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
-            Object(type("String"), "${instance.value}")
+            Object(Type.STRING, "${instance.value}")
         }
 
         method("toAtom",
-            returns = type("Atom"),
+            returns = Type.ATOM,
         ) { (instance) ->
             val instance = instance.value as String
-            Object(type("Atom"), instance)
+            Object(Type.ATOM, instance)
         }
     }
 

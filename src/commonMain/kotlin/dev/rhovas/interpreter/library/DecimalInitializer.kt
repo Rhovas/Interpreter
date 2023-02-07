@@ -5,82 +5,83 @@ import com.ionspin.kotlin.bignum.decimal.DecimalMode
 import com.ionspin.kotlin.bignum.decimal.RoundingMode
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 
 object DecimalInitializer : Library.TypeInitializer("Decimal") {
 
     override fun initialize() {
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         method("negate", operator = "-",
-            returns = type("Decimal"),
+            returns = Type.DECIMAL,
         ) { (instance) ->
             val instance = instance.value as BigDecimal
-            Object(type("Decimal"), instance.negate())
+            Object(Type.DECIMAL, instance.negate())
         }
 
         method("add", operator = "+",
-            parameters = listOf("other" to type("Decimal")),
-            returns = type("Decimal"),
+            parameters = listOf("other" to Type.DECIMAL),
+            returns = Type.DECIMAL,
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Decimal"), instance.add(other))
+            Object(Type.DECIMAL, instance.add(other))
         }
 
         method("subtract", operator = "-",
-            parameters = listOf("instance" to type("Decimal")),
-            returns = type("Decimal"),
+            parameters = listOf("instance" to Type.DECIMAL),
+            returns = Type.DECIMAL,
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Decimal"), instance.subtract(other))
+            Object(Type.DECIMAL, instance.subtract(other))
         }
 
         method("multiply", operator = "*",
-            parameters = listOf("other" to type("Decimal")),
-            returns = type("Decimal"),
+            parameters = listOf("other" to Type.DECIMAL),
+            returns = Type.DECIMAL,
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Decimal"), instance.multiply(other))
+            Object(Type.DECIMAL, instance.multiply(other))
         }
 
         method("divide", operator = "/",
-            parameters = listOf("other" to type("Decimal")),
-            returns = type("Decimal"),
+            parameters = listOf("other" to Type.DECIMAL),
+            returns = Type.DECIMAL,
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Decimal"), instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale))) //TODO: Rounding specification
+            Object(Type.DECIMAL, instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale))) //TODO: Rounding specification
         }
 
         method("equals", operator = "==",
-            parameters = listOf("other" to type("Decimal")),
-            returns = type("Boolean"),
+            parameters = listOf("other" to Type.DECIMAL),
+            returns = Type.BOOLEAN,
         ) { (instance, other) ->
-            Object(type("Boolean"), instance.value == other.value)
+            Object(Type.BOOLEAN, instance.value == other.value)
         }
 
         method("compare", operator = "<=>",
-            parameters = listOf("other" to type("Decimal")),
-            returns = type("Integer"),
+            parameters = listOf("other" to Type.DECIMAL),
+            returns = Type.INTEGER,
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(type("Integer"), BigInteger.fromInt(instance.compareTo(other)))
+            Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("toInteger",
-            returns = type("Integer"),
+            returns = Type.INTEGER,
         ) { (instance) ->
             val instance = instance.value as BigDecimal
-            Object(type("Integer"), instance.toBigInteger())
+            Object(Type.INTEGER, instance.toBigInteger())
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
-            Object(type("String"), "${instance.value}")
+            Object(Type.STRING, "${instance.value}")
         }
     }
 

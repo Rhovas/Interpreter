@@ -243,8 +243,8 @@ class EvaluatorTests {
             @MethodSource
             fun testVariable(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
-                    it.variables.define(Variable.Definition(Variable.Declaration("variable", type("String"), true)).also {
-                        it.value = Object(type("String"), "initial")
+                    it.variables.define(Variable.Definition(Variable.Declaration("variable", Type.STRING, true)).also {
+                        it.value = Object(Type.STRING, "initial")
                     })
                 })
             }
@@ -263,15 +263,15 @@ class EvaluatorTests {
             fun testProperty(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
                     val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false)), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", Type.ANY, false)), Type.ANY, listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"]!!
                             }
                         })
-                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false), Variable.Declaration("value", type("Any"), false)), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", Type.ANY, false), Variable.Declaration("value", Type.ANY, false)), Type.ANY, listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"] = arguments[1]
-                                Object(type("Void"), Unit)
+                                Object(Type.VOID, Unit)
                             }
                         })
                     }).reference
@@ -294,11 +294,11 @@ class EvaluatorTests {
             @MethodSource
             fun testIndex(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
-                    it.variables.define(variable("variable", type("String"), "initial"))
-                    it.variables.define(variable("list", type("List", "String"), mutableListOf(
+                    it.variables.define(variable("variable", Type.STRING, "initial"))
+                    it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                         literal("initial"),
                     )))
-                    it.variables.define(variable("object", type("Object"), mutableMapOf(
+                    it.variables.define(variable("object", Type.OBJECT, mutableMapOf(
                         "key" to literal("initial"),
                     )))
                 })
@@ -524,7 +524,7 @@ class EvaluatorTests {
             @MethodSource
             fun testWhile(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
-                    it.variables.define(Variable.Definition(Variable.Declaration("number", type("Integer"), true)).also {
+                    it.variables.define(Variable.Definition(Variable.Declaration("number", Type.INTEGER, true)).also {
                         it.value = literal(BigInteger.ZERO)
                     })
                 })
@@ -601,8 +601,8 @@ class EvaluatorTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also { scope ->
-                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(type("Exception")), Scope.Definition(null)).reference.also { type ->
-                        type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", type("String"), false)), type, listOf())).also {
+                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(Type.EXCEPTION), Scope.Definition(null)).reference.also { type ->
+                        type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())).also {
                             it.implementation = { arguments -> Object(type, arguments[0].value as String) }
                         })
                     })
@@ -805,19 +805,19 @@ class EvaluatorTests {
                     Arguments.of("Empty", """
                         []
                     """.trimIndent(),
-                        Object(type("List", "Dynamic"), mutableListOf<Object>()),
+                        Object(Type.LIST[Type.DYNAMIC], mutableListOf<Object>()),
                     ),
                     Arguments.of("Single", """
                         [1]
                     """.trimIndent(),
-                        Object(type("List", "Dynamic"), mutableListOf(
+                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
                             literal(BigInteger.parseString("1")),
                         )),
                     ),
                     Arguments.of("Multiple", """
                         [1, 2, 3]
                     """.trimIndent(),
-                        Object(type("List", "Dynamic"), mutableListOf(
+                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                             literal(BigInteger.parseString("3")),
@@ -837,19 +837,19 @@ class EvaluatorTests {
                     Arguments.of("Empty", """
                         {}
                     """.trimIndent(),
-                        Object(type("Object"), mapOf<String, Object>()),
+                        Object(Type.OBJECT, mapOf<String, Object>()),
                     ),
                     Arguments.of("Single", """
                         {key: "value"}
                     """.trimIndent(),
-                        Object(type("Object"), mapOf(
+                        Object(Type.OBJECT, mapOf(
                             "key" to literal("value"),
                         )),
                     ),
                     Arguments.of("Multiple", """
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent(),
-                        Object(type("Object"), mapOf(
+                        Object(Type.OBJECT, mapOf(
                             "k1" to literal("v1"),
                             "k2" to literal("v2"),
                             "k3" to literal("v3"),
@@ -870,7 +870,7 @@ class EvaluatorTests {
                     Arguments.of("Type", """
                         Any
                     """.trimIndent(),
-                        Object(type("Type", "Any"), type("Any")),
+                        Object(Type.TYPE[Type.ANY], Type.ANY),
                     ),
                 )
             }
@@ -1106,7 +1106,7 @@ class EvaluatorTests {
                     Arguments.of("List Concat", """
                         [1] + [2]
                     """.trimIndent(),
-                        Object(type("List", "Dynamic"), listOf(
+                        Object(Type.LIST[Type.DYNAMIC], listOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                         )),
@@ -1126,7 +1126,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testVariable(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        it.variables.define(variable("variable", type("String"), "variable"))
+                        it.variables.define(variable("variable", Type.STRING, "variable"))
                     }
                 }
 
@@ -1150,7 +1150,7 @@ class EvaluatorTests {
                 fun testProperty(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", type("Any"), false)), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     (arguments[0].value as Map<String, Object>)["property"]!!
                                 }
@@ -1159,8 +1159,8 @@ class EvaluatorTests {
                         it.variables.define(variable("object", type, mapOf(
                             "property" to literal("property"),
                         )))
-                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false)).also {
-                            it.value = Object(type("Null"), null)
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.NULLABLE[type], false)).also {
+                            it.value = Object(Type.NULL, null)
                         })
                     }
                 }
@@ -1189,11 +1189,11 @@ class EvaluatorTests {
                 @MethodSource
                 fun testIndex(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        it.variables.define(variable("variable", type("String"), "variable"))
-                        it.variables.define(variable("list", type("List", "String"), mutableListOf(
+                        it.variables.define(variable("variable", Type.STRING, "variable"))
+                        it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                             literal("element"),
                         )))
-                        it.variables.define(variable("object", type("Object"), mutableMapOf(
+                        it.variables.define(variable("object", Type.OBJECT, mutableMapOf(
                             "key" to literal("value"),
                         )))
                     }
@@ -1235,8 +1235,7 @@ class EvaluatorTests {
                         Arguments.of("Constructor", """
                             Nullable("argument")
                         """.trimIndent(),
-                            //TODO: Runtime generics
-                            Object(type("Nullable", "String"), literal("argument"))
+                            Object(Type.NULLABLE[Type.STRING], literal("argument"))
                         ),
                     )
                 }
@@ -1250,7 +1249,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testFunction(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
+                        it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
                             it.implementation = { arguments ->
                                 arguments[0]
                             }
@@ -1278,7 +1277,7 @@ class EvaluatorTests {
                 fun testMethod(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", type("Any"), false), Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", Type.ANY, false), Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[1]
                                 }
@@ -1287,8 +1286,8 @@ class EvaluatorTests {
                         it.variables.define(variable("object", type, mapOf(
                             "property" to literal("property"),
                         )))
-                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.Reference(type("Nullable").base, listOf(type)), false)).also {
-                            it.value = Object(type("Null"), null)
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.NULLABLE[type], false)).also {
+                            it.value = Object(Type.NULL, null)
                         })
                     }
                 }
@@ -1323,15 +1322,15 @@ class EvaluatorTests {
                 fun testPipeline(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
                         val qualified = Type.Base("Qualified", listOf(), listOf(), Scope.Definition(null).also {
-                            it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
+                            it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[0]
                                 }
                             })
                         }).reference
                         it.types.define(qualified)
-                        it.variables.define(Variable.Definition(Variable.Declaration("nullInteger", type("Nullable", "Integer"), false)).also {
-                            it.value = Object(type("Null"), null)
+                        it.variables.define(Variable.Definition(Variable.Declaration("nullInteger", Type.NULLABLE[Type.INTEGER], false)).also {
+                            it.value = Object(Type.NULL, null)
                         })
                     }
                 }
@@ -1341,7 +1340,7 @@ class EvaluatorTests {
                         Arguments.of("Pipeline", """
                             1.|range(2, :incl)
                         """.trimIndent(),
-                            Object(type("List", "Integer"), mutableListOf(
+                            Object(Type.LIST[Type.INTEGER], mutableListOf(
                                 literal(BigInteger.parseString("1")),
                                 literal(BigInteger.parseString("2")),
                             )),
@@ -1656,12 +1655,12 @@ class EvaluatorTests {
 
     private fun literal(value: Any?): Object {
         return when (value) {
-            null -> Object(type("Null"), null)
-            is Boolean -> Object(type("Boolean"), value)
-            is BigInteger -> Object(type("Integer"), value)
-            is BigDecimal -> Object(type("Decimal"), value)
-            is RhovasAst.Atom -> Object(type("Atom"), value)
-            is String -> Object(type("String"), value)
+            null -> Object(Type.NULL, null)
+            is Boolean -> Object(Type.BOOLEAN, value)
+            is BigInteger -> Object(Type.INTEGER, value)
+            is BigDecimal -> Object(Type.DECIMAL, value)
+            is RhovasAst.Atom -> Object(Type.ATOM, value)
+            is String -> Object(Type.STRING, value)
             else -> throw AssertionError()
         }
     }
@@ -1672,13 +1671,9 @@ class EvaluatorTests {
         }
     }
 
-    private fun type(name: String, vararg generics: String): Type {
-        return Type.Reference(Library.TYPES[name]!!.base, generics.map { Library.TYPES[it]!! })
-    }
-
     private fun test(rule: String, input: String, expected: String?, scope: Scope.Definition = Scope.Definition(Library.SCOPE)) {
         val log = StringBuilder()
-        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", type("Any"), false)), type("Any"), listOf())).also {
+        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
             it.implementation = { arguments ->
                 log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
                 arguments[0]

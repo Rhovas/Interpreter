@@ -2,39 +2,40 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object ObjectInitializer : Library.TypeInitializer("Object") {
 
     override fun initialize() {
-        inherits.add(type("Any"))
+        inherits.add(Type.ANY)
 
         method("get", operator = "[]",
-            parameters = listOf("key" to type("Atom")),
-            returns = type("Dynamic"),
+            parameters = listOf("key" to Type.ATOM),
+            returns = Type.DYNAMIC,
         ) { (instance, key) ->
             val instance = instance.value as Map<String, Object>
             val key = key.value as RhovasAst.Atom
-            instance[key.name] ?: Object(Library.TYPES["Null"]!!, null)
+            instance[key.name] ?: Object(Type.NULL, null)
         }
 
         method("set", operator = "[]=",
-            parameters = listOf("key" to type("Atom"), "value" to type("Dynamic")),
-            returns = type("Dynamic"),
+            parameters = listOf("key" to Type.ATOM, "value" to Type.DYNAMIC),
+            returns = Type.DYNAMIC,
         ) { (instance, key, value) ->
             val instance = instance.value as MutableMap<String, Object>
             val key = key.value as RhovasAst.Atom
             instance[key.name] = value
-            Object(type("Void"), null)
+            Object(Type.VOID, null)
         }
 
         method("equals", operator = "==",
-            parameters = listOf("other" to type("Object")),
-            returns = type("Boolean"),
+            parameters = listOf("other" to Type.OBJECT),
+            returns = Type.BOOLEAN,
         ) { (instance, other) ->
             val instance = instance.value as Map<String, Object>
             val other = other.value as Map<String, Object>
-            Object(type("Boolean"), instance.keys == other.keys && instance.keys.all {
+            Object(Type.BOOLEAN, instance.keys == other.keys && instance.keys.all {
                 val method = instance[it]!!.methods["==", listOf(instance[it]!!.type)] ?: throw EVALUATOR.error(
                     null,
                     "Undefined method.",
@@ -45,10 +46,10 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
         }
 
         method("toString",
-            returns = type("String"),
+            returns = Type.STRING,
         ) { (instance) ->
             val instance = instance.value as Map<String, Object>
-            Object(type("String"), instance.mapValues {
+            Object(Type.STRING, instance.mapValues {
                 it.value.methods["toString", listOf()]!!.invoke(listOf()).value as String
             }.toString())
         }

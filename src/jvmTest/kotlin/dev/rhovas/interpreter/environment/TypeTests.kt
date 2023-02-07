@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.environment
 
-import dev.rhovas.interpreter.library.Library
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.params.ParameterizedTest
@@ -54,10 +53,10 @@ class TypeTests {
 
     fun testGetMethod(): Stream<Arguments> {
         NUMBER.base.scope.functions.define(Function.Definition(Function.Declaration("<=>", listOf(), listOf(Variable.Declaration("this", NUMBER, false), Variable.Declaration("other", NUMBER, false)), INTEGER, listOf())).also {
-            it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
+            it.implementation = { Object(Type.VOID, Unit) }
         })
         LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("this", LIST, false), Variable.Declaration("index", INTEGER, false)), Type.Generic("T", ANY), listOf())).also {
-            it.implementation = { Object(Library.TYPES["Void"]!!, Unit) }
+            it.implementation = { Object(Type.VOID, Unit) }
         })
         return Stream.of(
             Arguments.of("Equal", NUMBER, "<=>", listOf(NUMBER), INTEGER),

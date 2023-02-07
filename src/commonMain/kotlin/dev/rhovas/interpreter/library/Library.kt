@@ -48,6 +48,10 @@ object Library {
         }
     }
 
+    fun type(name: String, vararg generics: Type = arrayOf()): Type {
+        return Type.Reference(TYPES[name]!!.base, generics.toList())
+    }
+
     abstract class TypeInitializer(val name: String) {
 
         val generics = mutableListOf<Type.Generic>()
@@ -62,7 +66,7 @@ object Library {
             operator: String? = null,
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>> = listOf(),
-            returns: Type = type("Void"),
+            returns: Type = Type.VOID,
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
@@ -88,28 +92,14 @@ object Library {
             operator: String? = null,
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>> = listOf(),
-            returns: Type = type("Void"),
+            returns: Type = Type.VOID,
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
             function(name, operator, this.generics + generics, listOf("instance" to type.reference) + parameters, returns, throws, implementation)
         }
 
-        fun type(name: String): Type {
-            return TYPES[name]!!
-        }
-
-        fun type(name: String, vararg generics: String): Type {
-            return Type.Reference(TYPES[name]!!.base, generics.map { TYPES[it]!! })
-        }
-
-        fun type(name: String, vararg generics: Type): Type {
-            return Type.Reference(TYPES[name]!!.base, generics.toList())
-        }
-
-        fun generic(name: String, bound: Type = type("Any")): Type.Generic {
-            return Type.Generic(name, bound)
-        }
+        fun generic(name: String, bound: Type = Type.ANY) = Type.Generic(name, bound)
 
     }
 

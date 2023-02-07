@@ -11,10 +11,10 @@ fun main() {
         "js",
         listOf(),
         listOf(
-            Variable.Declaration("literals", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["String"]!!)), false),
-            Variable.Declaration("arguments", Type.Reference(Library.TYPES["List"]!!.base, listOf(Library.TYPES["Dynamic"]!!)), false),
+            Variable.Declaration("literals", Type.LIST[Type.STRING], false),
+            Variable.Declaration("arguments", Type.LIST[Type.DYNAMIC], false),
         ),
-        Library.TYPES["Void"]!!,
+        Type.VOID,
         listOf(),
     )).also {
         it.implementation = {
@@ -32,7 +32,7 @@ fun main() {
                     "Failed to eval JavaScript source: ${error.message ?: error}",
                 )
             }
-            Object(Library.TYPES["Void"]!!, null)
+            Object(Type.VOID, null)
         }
     }
     Library.SCOPE.functions.define(js)
