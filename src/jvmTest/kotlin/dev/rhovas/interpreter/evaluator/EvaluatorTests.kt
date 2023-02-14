@@ -188,13 +188,13 @@ class EvaluatorTests {
                         name();
                     """.trimIndent(), "1"),
                     Arguments.of("Single Parameter", """
-                        func name(x) {
+                        func name(x: Integer) {
                             log(x);
                         }
                         name(1);
                     """.trimIndent(), "1"),
                     Arguments.of("Multiple Parameters", """
-                        func name(x, y, z) {
+                        func name(x: Integer, y: Integer, z: Integer) {
                             log(x);
                             log(y);
                             log(z);

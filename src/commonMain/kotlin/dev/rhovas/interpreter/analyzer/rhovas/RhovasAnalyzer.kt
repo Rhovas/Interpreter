@@ -1535,7 +1535,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         fun visit(ast: RhovasAst.Member.Initializer, component: Type): RhovasIr.DefinitionPhase.Member.Initializer {
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val parameters = ast.parameters.mapIndexed { index, parameter ->
-                val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: Type.DYNAMIC
+                val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: throw error(ast,
+                    "Undefined parameter type.",
+                    "The initializer init/${ast.parameters.size} requires parameter ${index} to have an defined type.",
+                )
                 Variable.Declaration(parameter.first, type, false)
             }
             val returns = ast.returns?.let { visit(it).type } ?: component
@@ -1564,10 +1567,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY) }
                 generics.forEach { context.scope.types.define(it, it.name) }
                 val parameters = ast.parameters.mapIndexed { index, parameter ->
-                    val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: Type.DYNAMIC
+                    val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: throw error(ast,
+                        "Undefined parameter type.",
+                        "The function ${ast.name}/${ast.parameters.size} requires parameter ${index} to have an explicit type.",
+                    )
                     Variable.Declaration(parameter.first, type, false)
                 }
-                val returns = ast.returns?.let { visit(it).type } ?: Type.VOID //TODO or Dynamic?
+                val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
                 val throws = ast.throws.map { visit(it).type }
                 val declaration = Function.Declaration(ast.name, generics, parameters, returns, throws)
                 require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(
