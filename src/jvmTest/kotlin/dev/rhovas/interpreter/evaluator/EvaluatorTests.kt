@@ -16,6 +16,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -688,9 +689,20 @@ class EvaluatorTests {
                     Arguments.of("False", """
                         assert false;
                     """.trimIndent(), null),
-                    //TODO: Test invalid condition
-                    //TODO: Test message
                 )
+            }
+
+            @Test
+            fun testMessage() {
+                val input = Input("Test", """
+                    assert false: "Message";
+                """.trimIndent())
+                try {
+                    eval("statement", input, Scope.Definition(Library.SCOPE))
+                    Assertions.fail("Expected EvaluateException")
+                } catch (e: EvaluateException) {
+                    Assertions.assertTrue(e.details.contains("Message"))
+                }
             }
 
         }
@@ -712,9 +724,20 @@ class EvaluatorTests {
                     Arguments.of("False", """
                         require false;
                     """.trimIndent(), null),
-                    //TODO: Test invalid condition
-                    //TODO: Test message
                 )
+            }
+
+            @Test
+            fun testMessage() {
+                val input = Input("Test", """
+                    require false: "Message";
+                """.trimIndent())
+                try {
+                    eval("statement", input, Scope.Definition(Library.SCOPE))
+                    Assertions.fail("Expected EvaluateException")
+                } catch (e: EvaluateException) {
+                    Assertions.assertTrue(e.details.contains("Message"))
+                }
             }
 
         }
@@ -736,9 +759,20 @@ class EvaluatorTests {
                     Arguments.of("False", """
                         ensure false;
                     """.trimIndent(), null),
-                    //TODO: Test invalid condition
-                    //TODO: Test message
                 )
+            }
+
+            @Test
+            fun testMessage() {
+                val input = Input("Test", """
+                    ensure false: "Message";
+                """.trimIndent())
+                try {
+                    eval("statement", input, Scope.Definition(Library.SCOPE))
+                    Assertions.fail("Expected EvaluateException")
+                } catch (e: EvaluateException) {
+                    Assertions.assertTrue(e.details.contains("Message"))
+                }
             }
 
         }
@@ -1699,27 +1733,36 @@ class EvaluatorTests {
         }
     }
 
-    private fun test(rule: String, input: String, expected: Object?, scope: (Scope.Definition) -> Unit = {}) {
+    private fun test(rule: String, input: String, expected: Any?, scope: (Scope.Definition) -> Unit = {}) {
         val input = Input("Test", input)
-        val scope = Scope.Definition(Library.SCOPE).also {
-            scope.invoke(it)
+        val scope = Scope.Definition(Library.SCOPE).also { scope.invoke(it) }
+        try {
+            Assertions.assertEquals(expected, eval(rule, input, scope))
+        } catch (e: EvaluateException) {
+            if (expected != null) {
+                println(input.diagnostic(e.summary, e.details, e.range, e.context))
+                return Assertions.fail(e)
+            }
         }
+    }
+
+    private fun eval(rule: String, input: Input, scope: Scope.Definition): Object {
         try {
             val ast = RhovasParser(input).parse(rule)
             val ir = RhovasAnalyzer(scope).visit(ast)
-            val obj = Evaluator(scope).visit(ir)
-            Assertions.assertEquals(expected, obj)
+            return Evaluator(scope).visit(ir)
         } catch (e: ParseException) {
             println(input.diagnostic(e.summary, e.details, e.range, e.context))
-            Assertions.fail(e)
+            return Assertions.fail(e)
         } catch (e: AnalyzeException) {
             println(input.diagnostic(e.summary, e.details, e.range, e.context))
-            Assertions.fail(e)
+            return Assertions.fail(e)
         } catch (e: EvaluateException) {
-            if (expected != null || e.summary == "Broken evaluator invariant.") {
+            if (e.summary == "Broken evaluator invariant.") {
                 println(input.diagnostic(e.summary, e.details, e.range, e.context))
-                Assertions.fail<Unit>(e)
+                return Assertions.fail(e)
             }
+            throw e
         }
     }
 
