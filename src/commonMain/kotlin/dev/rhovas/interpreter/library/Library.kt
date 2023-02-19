@@ -48,8 +48,9 @@ object Library {
         }
     }
 
-    fun type(name: String, vararg generics: Type = arrayOf()): Type {
-        return Type.Reference(TYPES[name]!!.base, generics.toList())
+    fun type(name: String, vararg generics: Type = arrayOf()): Type.Reference {
+        val type = TYPES[name]!! as Type.Reference
+        return if (generics.isEmpty()) type else Type.Reference(type.base, generics.toList())
     }
 
     abstract class TypeInitializer(val name: String) {

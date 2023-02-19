@@ -24,7 +24,6 @@ sealed class Type(
         val EXCEPTION get() = Library.type("Exception")
 
         class GenericDelegate(val name: String) {
-            //TODO: Resolve subtyping checks for unbound generics
             val ANY get() = Library.type(name).let { Reference(it.base, it.base.generics.map { DYNAMIC }) }
             operator fun get(vararg generics: Type) = Library.type(name, *generics)
         }
@@ -85,7 +84,6 @@ sealed class Type(
         val scope: Scope.Definition,
     ) {
 
-        //TODO: Audit inclusion of generics here (Nullable != Nullable<T: Any>)
         val reference = Reference(this, generics)
 
         override fun toString(): String {

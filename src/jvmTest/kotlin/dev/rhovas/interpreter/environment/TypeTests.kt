@@ -13,7 +13,7 @@ class TypeTests {
     val NUMBER = Type.Base("Number", listOf(), listOf(ANY), Scope.Definition(null)).reference
     val INTEGER = Type.Base("Integer", listOf(), listOf(NUMBER), Scope.Definition(null)).reference
     val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
-    val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(COLLECTION), Scope.Definition(null)).reference
+    val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(Type.Reference(COLLECTION.base, listOf(Type.Generic("T", ANY)))), Scope.Definition(null)).reference
     val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference
 
     @ParameterizedTest(name = "{0}")
@@ -55,7 +55,7 @@ class TypeTests {
         NUMBER.base.scope.functions.define(Function.Definition(Function.Declaration("<=>", listOf(), listOf(Variable.Declaration("this", NUMBER, false), Variable.Declaration("other", NUMBER, false)), INTEGER, listOf())).also {
             it.implementation = { Object(Type.VOID, Unit) }
         })
-        LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("this", LIST, false), Variable.Declaration("index", INTEGER, false)), Type.Generic("T", ANY), listOf())).also {
+        LIST.base.scope.functions.define(Function.Definition(Function.Declaration("get", listOf(Type.Generic("T", ANY)), listOf(Variable.Declaration("this", Type.Reference(LIST.base, listOf(Type.Generic("T", ANY))), false), Variable.Declaration("index", INTEGER, false)), Type.Generic("T", ANY), listOf())).also {
             it.implementation = { Object(Type.VOID, Unit) }
         })
         return Stream.of(
@@ -64,7 +64,7 @@ class TypeTests {
             Arguments.of("Supertype", NUMBER, "<=>", listOf(ANY), null),
             Arguments.of("Dynamic", DYNAMIC, "undefined", listOf(ANY), DYNAMIC),
             Arguments.of("Generic Unbound", LIST, "get", listOf(INTEGER), Type.Generic("T", ANY)),
-            Arguments.of("Generic Bound", LIST.bind(mapOf("T" to INTEGER)), "get", listOf(INTEGER), INTEGER),
+            Arguments.of("Generic Bound", Type.Reference(LIST.base, listOf(INTEGER)), "get", listOf(INTEGER), INTEGER),
         )
     }
 
