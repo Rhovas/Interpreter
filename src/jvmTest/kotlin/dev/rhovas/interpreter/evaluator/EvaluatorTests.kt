@@ -889,7 +889,6 @@ class EvaluatorTests {
                             "k3" to literal("v3"),
                         )),
                     ),
-                    //TODO: Arguments.of("Key Only", "{key}", null),
                 )
             }
 
@@ -953,7 +952,6 @@ class EvaluatorTests {
 
             fun testUnary(): Stream<Arguments> {
                 return Stream.of(
-                    //TODO: Depends on unsigned number literals
                     Arguments.of("Numerical Negation", """
                         -1
                     """.trimIndent(),
@@ -1058,7 +1056,6 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(true),
                     ),
-                    //Arguments.of("Different Types") TODO: Requires types with identical values (void?)
                     //TODO: Identity equality for implementation non-primitives (Integer/Decimal/String/Atom)
                 )
             }
@@ -1418,7 +1415,6 @@ class EvaluatorTests {
                     Arguments.of("Return", """
                         log([1, 2, 3].map { return val * val; })
                     """.trimIndent(), "[1, 4, 9]")
-                    //TODO: Lambda scoping
                 )
             }
 
@@ -1658,7 +1654,6 @@ class EvaluatorTests {
 
             fun testVarargDestructure(): Stream<Arguments> {
                 return Stream.of(
-                    //TODO: Move into sequence/named destructuring
                     Arguments.of("Zero Or More", """
                         match ([]) {
                             [list*]: log(1);

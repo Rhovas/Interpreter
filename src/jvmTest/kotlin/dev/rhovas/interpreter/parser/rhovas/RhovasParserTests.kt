@@ -681,10 +681,9 @@ class RhovasParserTests {
                     Arguments.of("Missing Val", """
                         for (name in iterable) {}
                     """.trimIndent(), null),
-                    //TODO: Requires special handling for `in`
-                    /*Arguments.of("Missing Name", """
+                    Arguments.of("Missing Name", """
                         for (val in iterable) {}
-                    """.trimIndent(), null),*/
+                    """.trimIndent(), null),
                     Arguments.of("Invalid Name", """
                         for (val :atom in iterable) {}
                     """.trimIndent(), null),

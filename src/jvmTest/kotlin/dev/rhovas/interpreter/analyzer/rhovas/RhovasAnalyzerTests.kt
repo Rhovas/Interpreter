@@ -516,7 +516,6 @@ class RhovasAnalyzerTests {
 
             fun testDeclaration(): Stream<Arguments> {
                 return Stream.of(
-                    //TODO: Test declarations & late initialization
                     Arguments.of("Val", """
                         val name: Integer = 1;
                         stmt(name);
@@ -645,7 +644,6 @@ class RhovasAnalyzerTests {
 
             fun testProperty(): Stream<Arguments> {
                 return Stream.of(
-                    //TODO: Property mutability
                     Arguments.of("Assignment", """
                         object.property = 1;
                     """.trimIndent(), {
@@ -690,7 +688,6 @@ class RhovasAnalyzerTests {
 
             fun testIndex(): Stream<Arguments> {
                 return Stream.of(
-                    //TODO: Property mutability
                     Arguments.of("Assignment", """
                         list[0] = 1;
                     """.trimIndent(), {
@@ -870,7 +867,6 @@ class RhovasAnalyzerTests {
                             null,
                         )
                     }),
-                    //TODO: Catch unknown
                     Arguments.of("Finally", """
                         try {
                             stmt(1);
@@ -1269,16 +1265,31 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Expression.Literal.Scalar(BigDecimal.parseString("123.456"), Type.DECIMAL)
                     }),
+                    Arguments.of("Atom", """
+                        :atom
+                    """.trimIndent(), {
+                        RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("atom"), Type.ATOM)
+                    }),
+                )
+            }
+
+            @ParameterizedTest(name = "{0}")
+            @MethodSource
+            fun testString(name: String, input: String, expected: (() -> RhovasIr.Expression.Literal.String?)?) {
+                test("expression", input, expected?.invoke())
+            }
+
+            fun testString(): Stream<Arguments> {
+                return Stream.of(
                     Arguments.of("String", """
                         "string"
                     """.trimIndent(), {
                         RhovasIr.Expression.Literal.String(listOf("string"), listOf(), Type.STRING)
                     }),
-                    //TODO: Interpolation
-                    Arguments.of("Atom", """
-                        :atom
+                    Arguments.of("Interpolation", """
+                        "first${'$'}{1}second"
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Scalar(RhovasAst.Atom("atom"), Type.ATOM)
+                        RhovasIr.Expression.Literal.String(listOf("first", "second"), listOf(literal(BigInteger.parseString("1"))), Type.STRING)
                     }),
                 )
             }
@@ -1426,7 +1437,6 @@ class RhovasAnalyzerTests {
                     Arguments.of("Integer Negation", """
                         -1
                     """.trimIndent(), {
-                        //TODO: Depends on unsigned number literals
                         RhovasIr.Expression.Unary("-",
                             literal(BigInteger.parseString("1")),
                             Type.INTEGER.methods["-", listOf()]!!,
@@ -1518,7 +1528,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testEquality(name: String, input: String, expected: (() -> RhovasIr.Expression.Binary?)?) {
-                test("expression", input, expected?.invoke())
+                test("expression", input, expected?.invoke()) {
+                    it.variables.define(variable("any", Type.ANY).variable)
+                }
             }
 
             fun testEquality(): Stream<Arguments> {
@@ -1533,7 +1545,16 @@ class RhovasAnalyzerTests {
                             Type.BOOLEAN,
                         )
                     }),
-                    //TODO: Maybe Equatable
+                    Arguments.of("Maybe Equatable", """
+                        1 == any
+                    """.trimIndent(), {
+                        RhovasIr.Expression.Binary("==",
+                            literal(BigInteger.parseString("1")),
+                            variable("any", Type.ANY),
+                            Type.INTEGER.methods["==", listOf(Type.INTEGER)],
+                            Type.BOOLEAN,
+                        )
+                    }),
                     Arguments.of("Not Equatable", """
                         1 != 2.0
                     """.trimIndent(), {
@@ -1550,7 +1571,9 @@ class RhovasAnalyzerTests {
             @ParameterizedTest(name = "{0}")
             @MethodSource
             fun testIdentity(name: String, input: String, expected: (() -> RhovasIr.Expression.Binary?)?) {
-                test("expression", input, expected?.invoke())
+                test("expression", input, expected?.invoke()) {
+                    it.variables.define(variable("any", Type.ANY).variable)
+                }
             }
 
             fun testIdentity(): Stream<Arguments> {
@@ -1565,7 +1588,16 @@ class RhovasAnalyzerTests {
                             Type.BOOLEAN,
                         )
                     }),
-                    //TODO: Maybe Equatable
+                    Arguments.of("Maybe Equatable", """
+                        1 === any
+                    """.trimIndent(), {
+                        RhovasIr.Expression.Binary("===",
+                            literal(BigInteger.parseString("1")),
+                            variable("any", Type.ANY),
+                            null,
+                            Type.BOOLEAN,
+                        )
+                    }),
                     Arguments.of("Not Equatable", """
                         1 !== 2.0
                     """.trimIndent(), {
@@ -1728,7 +1760,20 @@ class RhovasAnalyzerTests {
                                 Type.INTEGER,
                             )
                         }),
-                        //TODO: Coalesce (requires nullable type)
+                        Arguments.of("Coalesce", """
+                            Nullable("string")?.size
+                        """.trimIndent(), {
+                            RhovasIr.Expression.Access.Property(
+                                RhovasIr.Expression.Invoke.Constructor(
+                                    Type.NULLABLE.ANY.base.reference,
+                                    Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!!,
+                                    listOf(literal("string")),
+                                ),
+                                Type.STRING.properties["size"]!!,
+                                true,
+                                Type.NULLABLE[Type.INTEGER],
+                            )
+                        }),
                         Arguments.of("Undefined", """
                             string.undefined
                         """.trimIndent(), null)
@@ -1799,7 +1844,6 @@ class RhovasAnalyzerTests {
                                 listOf(literal("argument")),
                             )
                         }),
-                        //TODO: Generics
                         Arguments.of("Invalid Arity", """
                             Nullable()
                         """.trimIndent(), null),
@@ -1831,7 +1875,6 @@ class RhovasAnalyzerTests {
                         """.trimIndent(), {
                             RhovasIr.Expression.Invoke.Function(null, FUNCTION, listOf(literal("argument")))
                         }),
-                        //TODO: Generics
                         Arguments.of("Invalid Arity", """
                             function()
                         """.trimIndent(), null),
@@ -2029,8 +2072,15 @@ class RhovasAnalyzerTests {
                             Type.LAMBDA[Type.DYNAMIC],
                         )
                     }),
-                    //TODO: Parameters
-                    //TODO: Validation
+                    Arguments.of("Parameter", """
+                        lambda |x| { x }
+                    """.trimIndent(), {
+                        RhovasIr.Expression.Lambda(
+                            listOf(Variable.Declaration("x", Type.DYNAMIC, false)),
+                            RhovasIr.Expression.Block(listOf(), variable("x", Type.DYNAMIC), Type.DYNAMIC),
+                            Type.LAMBDA[Type.DYNAMIC],
+                        )
+                    }),
                 )
             }
 
