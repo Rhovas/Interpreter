@@ -1056,7 +1056,11 @@ class EvaluatorTests {
                     """.trimIndent(),
                         literal(true),
                     ),
-                    //TODO: Identity equality for implementation non-primitives (Integer/Decimal/String/Atom)
+                    Arguments.of("Implementation Non-Primitive", """
+                        1 === 1
+                    """.trimIndent(),
+                        literal(true),
+                    ),
                 )
             }
 

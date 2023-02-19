@@ -484,8 +484,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             }
             "===", "!==" -> {
                 val right = visit(ir.right)
-                //TODO: Implementation non-primitives (Integer/Decimal/String/Atom)
-                val result = if (left.type == right.type) left.value === right.value else false
+                val result = left.type == right.type && when (left.type.base.name) {
+                    in listOf("Integer", "Decimal", "Atom") -> left.value == right.value
+                    else -> left.value === right.value
+                }
                 val value = if (ir.operator == "===") result else !result
                 Object(Type.BOOLEAN, value)
             }
