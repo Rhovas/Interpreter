@@ -145,6 +145,37 @@ class RhovasLexerTests {
     }
 
     @Nested
+    inner class AtomTests {
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testAtom(name: String, input: String, success: Boolean) {
+            test(input, listOf(
+                Token(RhovasTokenType.ATOM, input, RhovasAst.Atom(input.substring(1)), Input.Range(0, 1, 0, input.length))
+            ), success)
+        }
+
+        fun testAtom(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", ":", false),
+                Arguments.of("Single Letter", ":c", true),
+                Arguments.of("Single Digit", ":1", false),
+                Arguments.of("Single Underscore", ":_", true),
+                Arguments.of("Lowercase Letters", ":abc", true),
+                Arguments.of("Uppercase Letters", ":ABC", true),
+                Arguments.of("Digits", ":abc123def", true),
+                Arguments.of("Leading Digits", ":123abc", false),
+                Arguments.of("Trailing Digits", ":abc123", true),
+                Arguments.of("Underscore", ":abc_def", true),
+                Arguments.of("Leading Underscore", ":_abc", true),
+                Arguments.of("Trailing Underscore", ":abc_", true),
+                Arguments.of("Keyword", ":class", true),
+            )
+        }
+
+    }
+
+    @Nested
     inner class OperatorTests {
 
         @ParameterizedTest(name = "{0}")
@@ -263,11 +294,6 @@ class RhovasLexerTests {
                     Token(RhovasTokenType.OPERATOR, "<", null, Input.Range(0, 1, 0, 1)),
                     Token(RhovasTokenType.OPERATOR, "=", null, Input.Range(1, 1, 1, 1)),
                 )),
-                //atom
-                Arguments.of("Atom", ":atom", listOf(
-                    Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(0, 1, 0, 1)),
-                    Token(RhovasTokenType.IDENTIFIER, "atom", null, Input.Range(1, 1, 1, 4)),
-                )),
             )
         }
 
@@ -333,8 +359,7 @@ class RhovasLexerTests {
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(41, 2, 11, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "num", null, Input.Range(43, 2, 13, 3)),
                 Token(RhovasTokenType.OPERATOR, ",", null, Input.Range(46, 2, 16, 1)),
-                Token(RhovasTokenType.OPERATOR, ":", null, Input.Range(48, 2, 18, 1)),
-                Token(RhovasTokenType.IDENTIFIER, "incl", null, Input.Range(49, 2, 19, 4)),
+                Token(RhovasTokenType.ATOM, ":incl", RhovasAst.Atom("incl"), Input.Range(48, 2, 18, 5)),
                 Token(RhovasTokenType.OPERATOR, ")", null, Input.Range(53, 2, 23, 1)),
                 Token(RhovasTokenType.OPERATOR, ".", null, Input.Range(54, 2, 24, 1)),
                 Token(RhovasTokenType.IDENTIFIER, "for", null, Input.Range(55, 2, 25, 3)),

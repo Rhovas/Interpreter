@@ -32,18 +32,29 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
         return when {
             chars[0] == null -> null
             peek("[A-Za-z_]") -> lexIdentifier()
+            peek(":", "[A-Za-z_]") -> lexAtom()
             peek("[0-9]") -> lexNumber()
             else -> lexOperator()
         }
     }
 
     /**
-     *  - `identifier = [A-Za-z_][A-Za-z0-9_]*`
+     *  - `identifier = [A-Za-z_] [A-Za-z0-9_]*`
      */
     private fun lexIdentifier(): Token<RhovasTokenType> {
         require(match("[A-Za-z_]"))
         while (match("[A-Za-z0-9_]")) {}
         return chars.emit(RhovasTokenType.IDENTIFIER)
+    }
+
+
+    /**
+     *  - `atom = ":" identifier`
+     */
+    private fun lexAtom(): Token<RhovasTokenType> {
+        require(match(":"))
+        val identifier = lexIdentifier()
+        return identifier.copy(type = RhovasTokenType.ATOM, value = RhovasAst.Atom(identifier.literal.substring(1)))
     }
 
     /**

@@ -2246,8 +2246,7 @@ class RhovasAnalyzerTests {
                             Pair(RhovasIr.Pattern.Value(literal("string")), stmt())
                         )
                     }),
-                    //TODO: Atom/Label parsing ambiguity
-                    /*Arguments.of("Atom", """
+                    Arguments.of("Atom", """
                         match (:atom) {
                             else :atom: stmt();
                         }
@@ -2257,7 +2256,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(RhovasIr.Pattern.Value(literal(RhovasAst.Atom("atom"))), stmt())
                         )
-                    }),*/
+                    }),
                     Arguments.of("Supertype Argument", """
                         match (any) {
                             else 1: stmt();

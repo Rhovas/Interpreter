@@ -941,9 +941,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                     it.context = listOf(context.removeLast(), tokens[-1]!!.range)
                 }
             }
-            match(":", RhovasTokenType.IDENTIFIER) -> {
-                RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom(tokens[-1]!!.literal)).also {
-                    it.context = listOf(tokens[-2]!!.range, tokens[-1]!!.range)
+            match(RhovasTokenType.ATOM) -> {
+                RhovasAst.Expression.Literal.Scalar(tokens[-1]!!.value).also {
+                    it.context = listOf(tokens[-1]!!.range)
                 }
             }
             peek("[") -> {
@@ -1150,9 +1150,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      */
     private fun parsePattern(): RhovasAst.Pattern {
         var pattern = when {
-            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL)) ||
-            peek("\"") ||
-            peek(":", RhovasTokenType.IDENTIFIER) -> {
+            peek(listOf("null", "true", "false", RhovasTokenType.INTEGER, RhovasTokenType.DECIMAL, "\"", RhovasTokenType.ATOM)) -> {
                 RhovasAst.Pattern.Value(parsePrimaryExpression()).also {
                     it.context = it.value.context.toMutableList()
                 }
