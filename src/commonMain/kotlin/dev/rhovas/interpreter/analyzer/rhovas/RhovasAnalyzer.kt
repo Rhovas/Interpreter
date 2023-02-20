@@ -126,8 +126,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      * Context for tracking the potential jump targets.
      *
      *  - The `null` target represents an unlabeled loop that can be used by
-     *    break/continue, as with `LabelContext`.
-     *  - The `""` target represents a function return.
+     *    `break`/`continue`, as with `LabelContext`.
+     *  - The `""` target represents a top-level `return`/`throw`.
      */
     data class JumpContext(
         val jumps: MutableSet<String?>,
@@ -388,6 +388,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Missing return value.",
                 "The function ${ir.ast.name}/${ir.ast.parameters.size} requires a return value.",
             ) }
+            context.jumps.clear()
             RhovasIr.Statement.Declaration.Function(ir.function, block).also {
                 it.context = ir.ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -584,7 +585,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             (context.scope as Scope.Declaration).variables.define(variable)
             context.labels.add(null)
             val block = visit(ast.block)
-            //TODO: Validate jump context
             context.jumps.clear()
             RhovasIr.Statement.For(variable, argument, block).also {
                 it.context = ast.context
@@ -605,7 +605,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             context.labels.add(null)
             val block = visit(ast.block)
             context.jumps.clear()
-            //TODO: Validate jump context
             RhovasIr.Statement.While(condition, block).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -687,7 +686,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return analyze {
             context.labels.add(ast.label)
             val statement = visit(ast.statement)
-            //TODO: Validate jump locations (constant conditions / dependent types)
+            context.jumps.remove(ast.label)
             RhovasIr.Statement.Label(ast.label, statement).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -726,6 +725,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Undefined label.",
             "The label ${ast.label} is not defined in this scope.",
         ) }
+        context.jumps.add(ast.label)
         return RhovasIr.Statement.Continue(ast.label).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -765,6 +765,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Uncaught exception.",
             "An exception is thrown of type ${exception.type}, but this exception is never caught or declared.",
         ) }
+        context.jumps.add("")
         return RhovasIr.Statement.Throw(exception).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -838,9 +839,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val statements = ast.statements.withIndex().map {
-            //TODO: This index check is wrong, also seems like continue isn't working right
-            require(it.index == ast.statements.lastIndex || context.jumps.isEmpty()) { error(
-                ast,
+            require(context.jumps.isEmpty()) { error(
+                it.value,
                 "Unreachable statement.",
                 "The previous statement changes control flow to always jump past this statement.",
             ) }
@@ -848,7 +848,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
         val expression = ast.expression?.let {
             require(context.jumps.isEmpty()) { error(
-                ast,
+                it,
                 "Unreachable statement.",
                 "The previous statement changes control flow to always jump past this statement.",
             ) }

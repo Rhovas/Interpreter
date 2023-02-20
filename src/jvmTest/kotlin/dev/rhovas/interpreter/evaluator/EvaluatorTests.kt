@@ -480,7 +480,7 @@ class EvaluatorTests {
                     Arguments.of("Break", """
                         for (val element in [1, 2, 3]) {
                             log(1);
-                            break;
+                            if (true) { break; }
                             log(2);
                         }
                     """.trimIndent(), "1"),
@@ -489,7 +489,7 @@ class EvaluatorTests {
                             log(1);
                             for (val second in [4, 5, 6]) {
                                 log(2);
-                                break outer;
+                                if (true) { break outer; }
                                 log(3);
                             }
                             log(4);
@@ -498,7 +498,7 @@ class EvaluatorTests {
                     Arguments.of("Continue", """
                         for (val element in [1, 2, 3]) {
                             log(1);
-                            continue;
+                            if (true) { continue; }
                             log(2);
                         }
                     """.trimIndent(), "111"),
@@ -507,7 +507,7 @@ class EvaluatorTests {
                             log(1);
                             for (val second in [4, 5, 6]) {
                                 log(2);
-                                continue outer;
+                                if (true) { continue outer; }
                                 log(3);
                             }
                             log(4);
@@ -554,7 +554,7 @@ class EvaluatorTests {
                         while (number < 5) {
                             log(1);
                             number = number + 1;
-                            break;
+                            if (true) { break; }
                             log(2);
                         }
                     """.trimIndent(), "1"),
@@ -564,7 +564,7 @@ class EvaluatorTests {
                             number = number + 1;
                             while (number < 5) {
                                 log(2);
-                                break outer;
+                                if (true) { break outer; }
                                 log(3);
                             }
                             log(4);
@@ -574,7 +574,7 @@ class EvaluatorTests {
                         while (number < 5) {
                             log(1);
                             number = number + 1;
-                            continue;
+                            if (true) { continue; }
                             log(2);
                         }
                     """.trimIndent(), "11111"),
@@ -584,7 +584,7 @@ class EvaluatorTests {
                             number = number + 1;
                             while (number < 5) {
                                 log(2);
-                                continue outer;
+                                if (true) { continue outer; }
                                 log(3);
                             }
                             log(4);
