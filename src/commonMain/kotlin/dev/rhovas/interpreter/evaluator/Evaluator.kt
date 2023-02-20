@@ -25,13 +25,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Component.Struct): Object {
-        //TODO: Componet declaration/definition handling
+        //TODO(#11): Component declaration/definition handling
         if (!scope.types.isDefined(ir.type.base.name, true)) {
             scope.types.define(ir.type, ir.type.base.name)
         }
         ir.members.forEach { visit(it) }
         val current = scope
-        //TODO: Hack to access unwrapped function definition
         val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Type.OBJECT) }
         initializer.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
@@ -155,12 +154,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Assignment.Variable): Object {
         val variable = scope.variables[ir.variable.name]!!
-        //TODO: What degree of enforcement should the evaluator have above semantic analysis?
-        //require(variable.mutable) { error(
-        //    ir,
-        //    "Unassignable variable.",
-        //    "The variable ${variable.name} is immutable and does not support assignment.",
-        //) }
         variable.value = visit(ir.value)
         return Object(Type.VOID, Unit)
     }
@@ -267,7 +260,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         for (element in iterable.value as List<Object>) {
             try {
                 scoped(Scope.Definition(scope)) {
-                    //TODO: Generic types
                     val variable = Variable.Definition(ir.variable)
                     variable.value = element
                     scope.variables.define(variable)
@@ -321,13 +313,17 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             visit(ir.tryBlock)
         } catch (e: Throw) {
             val catch = ir.catchBlocks.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
-            //TODO: Nested exceptions
             if (catch != null) {
                 scoped(Scope.Definition(scope)) {
                     val variable = Variable.Definition(catch.variable)
                     variable.value = e.exception
                     scope.variables.define(variable)
-                    visit(catch.block)
+                    try {
+                        visit(catch.block)
+                    } catch (e: Throw) {
+                        ir.finallyBlock?.let { visit(it) }
+                        throw e
+                    }
                 }
             } else {
                 ir.finallyBlock?.let { visit(it) }
@@ -442,7 +438,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Type): Object {
-        //TODO: Lookup the runtime type to account for anonymous types
+        //TODO(#11): Lookup the runtime type to account for anonymous types
         return Object(ir.type, ir.literal)
     }
 
@@ -587,7 +583,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Function): Object {
-        //TODO: Ensure accuracy with qualifiers
         val function = ir.function as? Function.Definition ?: scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
@@ -638,11 +633,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         } else {
             val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
             for (i in arguments.indices) {
-                //TODO: Include qualifier for error message
                 require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
                     ir.arguments[i],
                     "Invalid function argument type.",
-                    "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
+                    "The function ${ir.qualifier?.let { "$it." } ?: ""}${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
                 ) }
             }
             val result = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
@@ -653,7 +647,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Lambda): Object {
-        //TODO: Limit access to variables defined in the scope after this lambda at runtime?
         return Object(
             Type.LAMBDA[Type.DYNAMIC],
             Lambda(ir, scope, this)
@@ -671,7 +664,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Pattern.Value): Object {
         val value = visit(ir.value)
-        //TODO: Equatable<T> interface
+        //TODO(#2): Equatable<T> interface
         val method = value.methods["==", listOf(value.type)] ?: throw error(
             ir,
             "Undefined method.",
@@ -688,7 +681,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Pattern.Predicate): Object {
         var result = visit(ir.pattern)
         if (result.value as Boolean) {
-            //TODO: Variable bindings
+            //TODO(#15): Variable bindings
             result = visit(ir.predicate)
         }
         return result
@@ -735,7 +728,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             } else {
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
-            //TODO: Better solution for avoiding duplicate definitions?
             if (key != null && (pattern as? RhovasIr.Pattern.Variable)?.variable?.name != key) {
                 val variable = Variable.Definition(Variable.Declaration(key, value.type, false))
                 variable.value = value
@@ -773,7 +765,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
                 Object(Type.BOOLEAN, true)
             } else {
-                //TODO: Handle variable bindings
+                //TODO(#15): Handle variable bindings
                 Object(Type.BOOLEAN, list.all {
                     patternState = patternState.copy(value = it)
                     ir.pattern?.let { visit(it).value as Boolean } ?: true
@@ -792,9 +784,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
                 Object(Type.BOOLEAN, true)
             } else {
-                //TODO: Handle variable bindings
+                //TODO(#15): Handle variable bindings
                 Object(Type.BOOLEAN, map.all {
-                    //TODO: Consider allowing matching on key
                     patternState = patternState.copy(value = it.value)
                     ir.pattern?.let { visit(it).value as Boolean } ?: true
                 })
@@ -819,7 +810,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     private fun <T> trace(source: String, range: Input.Range?, block: () -> T): T {
-        //TODO: RhovasIr context
+        //TODO(#3): RhovasIr context
         stacktrace.addLast(stacktrace.removeLast().copy(range = range ?: Input.Range(0, 1, 0, 0)))
         stacktrace.addLast(StackFrame(source, Input.Range(0, 1, 0, 0)))
         try {
@@ -853,7 +844,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             summary,
             details + "\n\n" + stacktrace.reversed().joinToString("\n") { " - ${it.source}, ${it.range.line}:${it.range.column}-${it.range.column + it.range.length}" },
             range,
-            listOf(), //TODO context
+            listOf(), //TODO(#3): Include context
         )
     }
 
@@ -872,9 +863,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     ) {
 
         fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
-            //TODO: Use returns parameter
-            //TODO: Lambda identification information for errors
-            //TODO: Expected count depends on lambda invocation context (direct vs indirect)
             return evaluator.scoped(Scope.Definition(scope)) {
                 if (ast.parameters.isNotEmpty()) {
                     for (i in ast.parameters.indices) {

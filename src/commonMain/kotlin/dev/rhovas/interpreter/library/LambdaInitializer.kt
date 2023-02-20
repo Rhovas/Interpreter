@@ -8,7 +8,7 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
 
     override fun initialize() {
-        //TODO: Argument Generics
+        //TODO(#2): Argument/Exception Generics
         //generics.add(generic("T"))
         generics.add(generic("R"))
         inherits.add(Type.ANY)

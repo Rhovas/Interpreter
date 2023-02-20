@@ -25,7 +25,6 @@ object ExceptionInitializer : Library.TypeInitializer("Exception") {
         method("toString",
             returns = Type.STRING,
         ) { (instance) ->
-            //TODO: Stacktrace
             Object(Type.STRING, "${instance.value}")
         }
     }

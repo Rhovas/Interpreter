@@ -15,7 +15,7 @@ var INTERPRETER = Interpreter()
 val EVALUATOR: Evaluator get() = INTERPRETER.evaluator
 
 class Interpreter(
-    //TODO: Library stdin functions
+    //TODO(#2): Library stdin functions
     //val stdin: (() -> String)? = null,
     val stdout: (String) -> Unit = ::println,
 ) {

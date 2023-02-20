@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 
@@ -73,14 +74,13 @@ object Library {
         ) {
             val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)).also {
                 it.implementation = { arguments ->
-                    //TODO: Address subtyping issues with variant generics
-                    /*arguments.indices.forEach {
+                    arguments.indices.forEach {
                         EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(
                             null,
                             "Invalid argument.",
                             "The native function ${type.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                         ) }
-                    }*/
+                    }
                     implementation.invoke(arguments)
                 }
             }

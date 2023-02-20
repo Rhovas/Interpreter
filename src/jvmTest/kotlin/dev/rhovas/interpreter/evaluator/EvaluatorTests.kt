@@ -777,8 +777,6 @@ class EvaluatorTests {
 
         }
 
-        //TODO: Scope tests
-
     }
 
     @Nested

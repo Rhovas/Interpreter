@@ -1,7 +1,5 @@
 package dev.rhovas.interpreter.environment
 
-import dev.rhovas.interpreter.library.Library
-
 sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, out F>?) {
 
     val variables = VariablesDelegate<V>()
@@ -69,7 +67,6 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
         }
 
         internal fun collect(): MutableMap<Pair<String, Int>, List<F>> {
-            //TODO
             val map = (parent as Scope<*, F>?)?.functions?.collect() ?: mutableMapOf()
             map.putAll(functions)
             return map

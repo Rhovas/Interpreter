@@ -154,7 +154,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      */
     data class ExceptionContext(
         val exceptions: MutableSet<Type>,
-        //TODO: Unthrown exceptions
     ) : Context.Item<MutableSet<Type>>(exceptions) {
 
         override fun child(): Context.Item<MutableSet<Type>> {
@@ -313,7 +312,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             )
         }
         val initializer = visit(ast.initializer) as RhovasIr.Expression.Literal.Object
-        //TODO: Validate available fields
+        //TODO(#14): Validate available fields
         return RhovasIr.Statement.Initializer(initializer).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -327,7 +326,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid expression statement.",
             "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression::class.simpleName}.",
         ) }
-        //TODO: Also validate post-macro IR
         val expression = visit(ast.expression)
         return RhovasIr.Statement.Expression(expression).also {
             it.context = ast.context
@@ -539,7 +537,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Statement.Match.Structural): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.add(it) }
         val argument = visit(ast.argument)
-        //TODO: Typecheck patterns
+        //TODO(#10): Pattern coverage/exhaustiveness
         val cases = ast.cases.map {
             analyze(context.child().with(PatternContext(argument.type, mutableMapOf()))) {
                 it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
@@ -642,7 +640,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
         context.merge()
         val finallyBlock = ast.finallyBlock?.let {
-            //TODO: Include finally information in invalid exception error message
             analyze(context.with(ExceptionContext(mutableSetOf()))) {
                 visit(it)
             }
@@ -895,8 +892,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Validate unique keys
-        val properties = ast.properties.associate { it.first to visit(it.second) }
+        val properties = mutableMapOf<String, RhovasIr.Expression>()
+        ast.properties.forEach {
+            require(properties[it.first] == null) { error(ast,
+                "Redefined object property.",
+                "The property ${it.first} has already been defined for this object.",
+            ) }
+            properties[it.first] = visit(it.second)
+        }
         val type = Type.OBJECT
         return RhovasIr.Expression.Literal.Object(properties, type).also {
             it.context = ast.context
@@ -954,7 +957,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 Pair(Type.BOOLEAN, null)
             }
             "==", "!=" -> {
-                //TODO: Equatable<T> interface
+                //TODO(#2): Equatable<T> interface
                 val method = left.type.methods["==", listOf(left.type)] ?: throw error(
                     ast,
                     "Undefined method.",
@@ -1165,7 +1168,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val filtered = candidates.toMutableList()
         val arguments = mutableListOf<Type>()
         for (i in 0 until arity) {
-            //TODO: Context for inferred types
+            //TODO(#13): Context for inferred types
             val (ast, type) = generator(i).also { arguments.add(it.second) }
             filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, it.second) }
             require(filtered.isNotEmpty()) { when (candidates.size) {
@@ -1222,7 +1225,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 source.arguments.map { visit(it as RhovasAst.Expression) },
                 Type.LIST[Type.DYNAMIC],
             )
-            //TODO: Compile-time macro invocation (including argument analysis)
             return RhovasIr.Expression.Invoke.Function(null, function, listOf(literals, arguments)).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1232,9 +1234,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //TODO: Validate using same requirements as function statements
-        //TODO: Type inference/unification for parameter types
-        //TODO: Forward thrown exceptions from context into declaration
+        //TODO(#13): Type inference/unification for parameter types
+        //TODO(#2): Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Variable.Declaration(it.first, it.second?.let { visit(it).type } ?: Type.DYNAMIC, false) }
         val function = Function.Declaration("lambda", listOf(), parameters, Type.DYNAMIC, listOf())
         return analyze(context.child().with(FunctionContext(function))) {
@@ -1378,7 +1379,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val ast = it.value.second as RhovasAst.Pattern.VarargDestructure
                 val pattern = ast.pattern?.let {
                     val existing = context.pattern.bindings.toMutableMap()
-                    //TODO: Struct type validation
+                    //TODO(#14): Struct type validation
                     analyze(context.with(PatternContext(Type.DYNAMIC, context.pattern.bindings))) {
                         val pattern = visit(it)
                         context.pattern.bindings
@@ -1387,7 +1388,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                         pattern
                     }
                 }
-                //TODO: Struct type bindings
+                //TODO(#14): Struct type bindings
                 Pair(null, RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.OBJECT).also {
                     it.context = ast.context
                 })
@@ -1399,11 +1400,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                         "Missing pattern key",
                         "This pattern requires a key to be used within a named destructure.",
                     )
-                //TODO: Struct type validation
+                //TODO(#14): Struct type validation
                 val pattern = analyze(context.with(PatternContext(Type.DYNAMIC, context.pattern.bindings))) {
                     visit(it.value.second)
                 }
-                //TODO: Struct type bindings
+                //TODO(#14): Struct type bindings
                 context.pattern.bindings[key] = pattern.type
                 Pair(key, pattern)
             }
@@ -1523,8 +1524,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
             val struct = context.scope.types[ast.name]!!
             val members = ast.members.map { visit(it, struct) }.toMutableList()
-            //TODO: Sequence constructor?
-            //TODO: Typecheck argument (struct type / named options?)
+            //TODO(#14): Typecheck argument (struct type / named options?)
             struct.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), struct, listOf())))
             struct.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf(Variable.Declaration("this", struct, false)), Type.STRING, listOf())))
             return RhovasIr.DefinitionPhase.Component.Struct(ast, members).also {

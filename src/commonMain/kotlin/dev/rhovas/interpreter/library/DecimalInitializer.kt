@@ -52,7 +52,7 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
         ) { (instance, other) ->
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
-            Object(Type.DECIMAL, instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale))) //TODO: Rounding specification
+            Object(Type.DECIMAL, instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale)))
         }
 
         method("equals", operator = "==",
