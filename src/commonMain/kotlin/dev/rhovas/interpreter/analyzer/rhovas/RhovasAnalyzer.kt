@@ -34,6 +34,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private val Context.exceptions get() = this[ExceptionContext::class]
     private val Context.pattern get() = this[PatternContext::class]
 
+    /**
+     * Context for variable/function/type scope.
+     */
     data class ScopeContext(
         val scope: Scope<out Variable, out Function>,
     ) : Context.Item<Scope<out Variable, out Function>>(scope) {
@@ -46,6 +49,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     }
 
+    /**
+     * Context for tracking initialized/uninitialized variables.
+     */
     data class InitializationContext(
         val variables: MutableMap<String, Data>,
     ) : Context.Item<MutableMap<String, InitializationContext.Data>>(variables) {
@@ -60,25 +66,34 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             return InitializationContext(variables.mapValues { it.value.copy() }.toMutableMap())
         }
 
+        /**
+         * Merges by updating any uninitialized variables that have become
+         * initialized. If only some child contexts have initialized the
+         * variable, the initialization is invalid and an error is thrown.
+         */
         override fun merge(children: List<MutableMap<String, Data>>) {
-            for ((variable, data) in variables) {
-                if (!data.initialized) {
-                    when (children.count { it[variable]!!.initialized }) {
-                        0 -> {}
-                        children.size -> variables[variable] = Data(true, data.declaration, children.flatMap { it[variable]!!.context }.toMutableList())
-                        else -> throw AnalyzeException(
-                            "Invalid initialization.",
-                            "The variable ${variable} is being partially initialized across branches.",
-                            data.declaration.context.firstOrNull() ?: Input.Range(0, 1, 0, 0),
-                            (data.context + children.flatMap { it[variable]!!.context }).mapNotNull { it.context.firstOrNull() },
-                        )
+            variables.filter { !it.value.initialized }.forEach { (variable, data) ->
+                when (children.count { it[variable]!!.initialized }) {
+                    0 -> {} //not initialized
+                    children.size -> {
+                        data.initialized = true
+                        data.context.addAll(children.flatMap { it[variable]!!.context })
                     }
+                    else -> throw AnalyzeException(
+                        "Invalid initialization.",
+                        "The variable ${variable} is being partially initialized across branches.",
+                        data.declaration.context.firstOrNull() ?: Input.Range(0, 1, 0, 0),
+                        (data.context + children.flatMap { it[variable]!!.context }).mapNotNull { it.context.firstOrNull() },
+                    )
                 }
             }
         }
 
     }
 
+    /**
+     * Context for storing the surrounding function declaration.
+     */
     data class FunctionContext(
         val function: Function?
     ) : Context.Item<Function?>(function) {
@@ -91,6 +106,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     }
 
+    /**
+     * Context for storing the defined labels. The `null` label represents an
+     * unlabeled loop that can be used by break/continue.
+     */
     data class LabelContext(
         val labels: MutableSet<String?>,
     ) : Context.Item<MutableSet<String?>>(labels) {
@@ -103,6 +122,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     }
 
+    /**
+     * Context for tracking the potential jump targets.
+     *
+     *  - The `null` target represents an unlabeled loop that can be used by
+     *    break/continue, as with `LabelContext`.
+     *  - The `""` target represents a function return.
+     */
     data class JumpContext(
         val jumps: MutableSet<String?>,
     ) : Context.Item<MutableSet<String?>>(jumps) {
@@ -111,16 +137,21 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             return JumpContext(mutableSetOf())
         }
 
+        /**
+         * Merges by adding all potential jump targets to this context if all
+         * branches resulted in a jump (`isNotEmpty`).
+         */
         override fun merge(children: List<MutableSet<String?>>) {
-            if (children.any { it.isEmpty() }) {
-                jumps.clear()
-            } else {
-                children.forEach { jumps.addAll(it) }
+            if (children.all { it.isNotEmpty() }) {
+                jumps.addAll(children.flatten())
             }
         }
 
     }
 
+    /**
+     * Context for storing the caught exception types.
+     */
     data class ExceptionContext(
         val exceptions: MutableSet<Type>,
         //TODO: Unthrown exceptions
@@ -134,6 +165,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     }
 
+    /**
+     * Context for storing the inferred type and variable bindings for patterns.
+     */
     data class PatternContext(
         val type: Type,
         val bindings: MutableMap<String, Type>,
@@ -233,7 +267,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         return analyze(context.with(
             ScopeContext(Scope.Declaration(context.scope)),
-            FunctionContext(ir.function.declaration.copy(returns = Type.VOID)), //TODO: Hack to prevent manual returning
+            FunctionContext(ir.function.declaration),
             ExceptionContext(ir.function.throws.toMutableSet()),
         )) {
             (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns, false))
