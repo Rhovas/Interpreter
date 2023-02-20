@@ -87,7 +87,6 @@ sealed class Type(
         val reference = Reference(this, generics)
 
         override fun toString(): String {
-            //TODO: Descriptor printing
             return "Base(" +
                     "name='$name', " +
                     "generics=$generics, " +
@@ -134,13 +133,14 @@ sealed class Type(
                         true
                     } else if (base.name == other.base.name) {
                         return generics.zip(other.generics).all { (type, other) ->
-                            when {
-                                other is Generic -> when (val binding = bindings[other.name]) {
+                            when (other) {
+                                is Generic -> when (val binding = bindings[other.name]) {
                                     null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
-                                    is Variant -> ((binding.lower?.let { it.isSubtypeOf(type) } ?: true) && (binding.upper?.let { type.isSubtypeOf(it) } ?: true)).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                                    is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
                                     else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                                 }
-                                else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings) //TODO: ???
+                                is Variant -> type.isSubtypeOf(other, bindings)
+                                else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                             }
                         }
                     } else {
@@ -154,7 +154,7 @@ sealed class Type(
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
                     else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
-                is Variant ->  (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.let { this.isSubtypeOf(it) } ?: true)
+                is Variant -> (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.isSupertypeOf(this) ?: true)
             }
         }
 
@@ -178,7 +178,7 @@ sealed class Type(
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
-            return parameters[name] ?: bound //TODO ???
+            return parameters[name] ?: this
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
@@ -215,7 +215,11 @@ sealed class Type(
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return (upper ?: ANY).isSubtypeOf(other, bindings)
+            return when {
+                lower == null && upper == null -> false
+                other is Variant -> (lower?.let { other.lower?.isSubtypeOf(it) } ?: true) && (upper?.let { other.upper?.isSupertypeOf(it) } ?: true)
+                else -> (upper ?: ANY).isSubtypeOf(other, bindings)
+            }
         }
 
         override fun toString(): String {

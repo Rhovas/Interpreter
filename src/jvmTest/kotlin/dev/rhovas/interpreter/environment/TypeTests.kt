@@ -147,14 +147,23 @@ class TypeTests {
         @MethodSource
         fun testVariantGeneric(name: String, first: Type, second: Type, expected: Boolean) {
             Assertions.assertEquals(expected, first.isSubtypeOf(second))
+            Assertions.assertEquals(expected, Type.Reference(LIST.base, listOf(first)).isSubtypeOf(Type.Reference(LIST.base, listOf(second))))
         }
 
         fun testVariantGeneric(): Stream<Arguments> {
             return Stream.of(
                 Arguments.of("Covariant Subtype", INTEGER, Type.Variant(null, NUMBER), true),
                 Arguments.of("Covariant Supertype", ANY, Type.Variant(null, NUMBER), false),
-                Arguments.of("Contravariant Subtype", INTEGER, Type.Variant(NUMBER, ANY), false),
-                Arguments.of("Contravariant Supertype", ANY, Type.Variant(NUMBER, ANY), true),
+                Arguments.of("Contravariant Subtype", INTEGER, Type.Variant(NUMBER, null), false),
+                Arguments.of("Contravariant Supertype", ANY, Type.Variant(NUMBER, null), true),
+                Arguments.of("Covariant Upper Variant", Type.Variant(null, NUMBER), Type.Variant(null, ANY), true),
+                Arguments.of("Contravariant Upper Variant", Type.Variant(null, NUMBER), Type.Variant(null, INTEGER), false),
+                Arguments.of("Covariant Lower Variant", Type.Variant(NUMBER, null), Type.Variant(ANY, null), false),
+                Arguments.of("Contravariant Lower Variant", Type.Variant(NUMBER, null), Type.Variant(INTEGER, null), true),
+                Arguments.of("Equivalent Variant", Type.Variant(NUMBER, NUMBER), Type.Variant(NUMBER, NUMBER), true),
+                Arguments.of("Inequivalent Variant", Type.Variant(NUMBER, NUMBER), Type.Variant(ANY, INTEGER), false),
+                Arguments.of("Unbound Variant Subtype", Type.Variant(null, null), Type.Variant(INTEGER, ANY), false),
+                Arguments.of("Unbound Variant Supertype", Type.Variant(INTEGER, ANY), Type.Variant(null, null), true),
             )
         }
 
