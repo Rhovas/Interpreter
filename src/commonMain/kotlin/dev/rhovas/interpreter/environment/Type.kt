@@ -7,22 +7,22 @@ sealed class Type(
 ) {
 
     companion object {
-        val DYNAMIC get() = Library.type("Dynamic")
         val ANY get() = Library.type("Any")
-        val TYPE get() = GenericDelegate("Type")
-        val VOID get() = Library.type("Void")
+        val ATOM get() = Library.type("Atom")
+        val BOOLEAN get() = Library.type("Boolean")
+        val DECIMAL get() = Library.type("Decimal")
+        val DYNAMIC get() = Library.type("Dynamic")
+        val EXCEPTION get() = Library.type("Exception")
+        val INTEGER get() = Library.type("Integer")
+        val LAMBDA get() = GenericDelegate("Lambda")
+        val LIST get() = GenericDelegate("List")
         val NULL get() = Library.type("Null")
         val NULLABLE get() = GenericDelegate("Nullable")
-        val BOOLEAN get() = Library.type("Boolean")
-        val INTEGER get() = Library.type("Integer")
-        val DECIMAL get() = Library.type("Decimal")
-        val STRING get() = Library.type("String")
-        val ATOM get() = Library.type("Atom")
-        val LIST get() = GenericDelegate("List")
         val OBJECT get() = Library.type("Object")
+        val STRING get() = Library.type("String")
         val STRUCT get() = GenericDelegate("Struct")
-        val LAMBDA get() = GenericDelegate("Lambda")
-        val EXCEPTION get() = Library.type("Exception")
+        val TYPE get() = GenericDelegate("Type")
+        val VOID get() = Library.type("Void")
 
         class GenericDelegate(val name: String) {
             val ANY get() = Library.type(name).let { Reference(it.base, it.base.generics.map { DYNAMIC }) }

@@ -12,6 +12,13 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
     override fun initialize() {
         inherits.add(Type.ANY)
 
+        method("abs",
+            returns = Type.DECIMAL,
+        ) { (instance) ->
+            val instance = instance.value as BigDecimal
+            Object(Type.DECIMAL, instance.abs())
+        }
+
         method("negate", operator = "-",
             returns = Type.DECIMAL,
         ) { (instance) ->
@@ -53,6 +60,26 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
             val instance = instance.value as BigDecimal
             val other = other.value as BigDecimal
             Object(Type.DECIMAL, instance.divide(other, DecimalMode(other.precision, RoundingMode.TOWARDS_ZERO, other.scale)))
+        }
+
+        method("rem",
+            parameters = listOf("other" to Type.INTEGER),
+            returns = Type.INTEGER,
+        ) { (instance, other) ->
+            val instance = instance.value as BigDecimal
+            val other = other.value as BigDecimal
+            Object(Type.INTEGER, instance.rem(other))
+        }
+
+        method("mod",
+            parameters = listOf("other" to Type.INTEGER),
+            returns = Type.INTEGER,
+        ) { (instance, other) ->
+            val instance = instance.value as BigDecimal
+            val other = other.value as BigDecimal
+            val rem = instance.rem(other)
+            val mod = if (rem.isNegative) rem + other else rem
+            Object(Type.INTEGER, mod)
         }
 
         method("equals", operator = "==",

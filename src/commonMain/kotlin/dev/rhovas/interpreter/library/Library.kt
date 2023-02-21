@@ -14,20 +14,21 @@ object Library {
         TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference)
         val initializers = listOf(
             AnyInitializer,
-            KernelInitializer,
-            VoidInitializer,
-            NullInitializer,
-            BooleanInitializer,
-            IntegerInitializer,
-            DecimalInitializer,
-            StringInitializer,
             AtomInitializer,
-            ListInitializer,
-            ObjectInitializer,
-            StructInitializer,
-            LambdaInitializer,
+            BooleanInitializer,
+            DecimalInitializer,
             ExceptionInitializer,
+            IntegerInitializer,
+            KernelInitializer,
+            LambdaInitializer,
+            ListInitializer,
+            MathInitializer,
+            NullInitializer,
             NullableInitializer,
+            ObjectInitializer,
+            StringInitializer,
+            StructInitializer,
+            VoidInitializer,
         )
         initializers.forEach {
             TYPES.define(it.type.reference)
@@ -63,6 +64,17 @@ object Library {
         val type = Type.Base(name, generics, inherits, scope)
 
         abstract fun initialize()
+
+        fun variable(
+            name: String,
+            type: Type,
+            value: Any?
+        ) {
+            val variable = Variable.Definition(Variable.Declaration(name, type, false)).also {
+                it.value = Object(type, value)
+            }
+            scope.variables.define(variable)
+        }
 
         fun function(
             name: String,

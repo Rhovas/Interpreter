@@ -10,6 +10,13 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
     override fun initialize() {
         inherits.add(Type.ANY)
 
+        method("abs",
+            returns = Type.INTEGER,
+        ) { (instance) ->
+            val instance = instance.value as BigInteger
+            Object(Type.INTEGER, instance.abs())
+        }
+
         method("negate", operator = "-",
             returns = Type.INTEGER,
         ) { (instance) ->
@@ -51,6 +58,15 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
             val instance = instance.value as BigInteger
             val other = other.value as BigInteger
             Object(Type.INTEGER, instance.divide(other))
+        }
+
+        method("rem",
+            parameters = listOf("other" to Type.INTEGER),
+            returns = Type.INTEGER,
+        ) { (instance, other) ->
+            val instance = instance.value as BigInteger
+            val other = other.value as BigInteger
+            Object(Type.INTEGER, instance.rem(other))
         }
 
         method("mod",

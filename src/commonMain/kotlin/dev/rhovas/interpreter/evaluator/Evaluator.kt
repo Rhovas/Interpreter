@@ -527,7 +527,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Variable): Object {
-        val variable = scope.variables[ir.variable.name]!!
+        val variable = ir.variable as? Variable.Definition ?: scope.variables[ir.variable.name]!!
         return variable.value
     }
 
