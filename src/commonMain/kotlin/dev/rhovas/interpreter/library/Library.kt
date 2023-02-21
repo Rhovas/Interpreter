@@ -24,6 +24,7 @@ object Library {
             AtomInitializer,
             ListInitializer,
             ObjectInitializer,
+            StructInitializer,
             LambdaInitializer,
             ExceptionInitializer,
             NullableInitializer,

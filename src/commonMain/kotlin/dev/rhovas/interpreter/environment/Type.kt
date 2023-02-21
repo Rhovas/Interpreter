@@ -20,6 +20,7 @@ sealed class Type(
         val ATOM get() = Library.type("Atom")
         val LIST get() = GenericDelegate("List")
         val OBJECT get() = Library.type("Object")
+        val STRUCT get() = GenericDelegate("Struct")
         val LAMBDA get() = GenericDelegate("Lambda")
         val EXCEPTION get() = Library.type("Exception")
 
@@ -134,13 +135,13 @@ sealed class Type(
                     } else if (base.name == other.base.name) {
                         return generics.zip(other.generics).all { (type, other) ->
                             when (other) {
+                                is Reference -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                                 is Generic -> when (val binding = bindings[other.name]) {
                                     null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
                                     is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
                                     else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                                 }
-                                is Variant -> type.isSubtypeOf(other, bindings)
-                                else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                                else -> type.isSubtypeOf(other, bindings)
                             }
                         }
                     } else {
@@ -148,6 +149,7 @@ sealed class Type(
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
                     }
                 }
+                is Struct -> this.isSubtypeOf(STRUCT[other])
                 is Generic -> when {
                     base.name == "Dynamic" -> true.also { bindings[other.name] = this }
                     other.base.name == "Dynamic" -> true.also { bindings[other.name] = other }
@@ -160,6 +162,57 @@ sealed class Type(
 
         override fun toString(): String {
             return "${base.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
+        }
+
+    }
+
+    data class Struct(
+        val fields: Map<String, Variable.Declaration>,
+    ) : Type(STRUCT.ANY.base) {
+
+        val scope = Scope.Declaration(null)
+
+        private fun defineProperty(field: Variable.Declaration) {
+            scope.functions.define(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf()))
+            if (field.mutable) {
+                scope.functions.define(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf()))
+            }
+        }
+
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            fields[name]?.takeIf { scope.functions[name, arity].isEmpty() }?.let { defineProperty(it) }
+            return scope.functions[name, arity] + STRUCT[this].getFunction(name, arity)
+        }
+
+        override fun getFunction(name: String, arguments: List<Type>): Function? {
+            fields[name]?.takeIf { scope.functions[name, arguments.size].isEmpty() }?.let { defineProperty(it) }
+            return scope.functions[name, arguments] ?: STRUCT[this].getFunction(name, arguments)
+        }
+
+        override fun bind(parameters: Map<String, Type>): Type {
+            return Struct(fields.mapValues { Variable.Declaration(it.key, it.value.type.bind(parameters), it.value.mutable) })
+        }
+
+        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
+            return when (other) {
+                is Struct -> other.fields.all {
+                    val type = fields[it.key]?.type ?: return false
+                    when (val other = it.value.type) {
+                        is Generic -> when (val binding = bindings[other.name]) {
+                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
+                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                            else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                        }
+                        is Variant -> type.isSubtypeOf(other, bindings)
+                        else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                    }
+                }
+                else -> STRUCT[this].isSubtypeOf(other, bindings)
+            }
+        }
+
+        override fun toString(): String {
+            return fields.values.joinToString(",", "{", "}") { "${it.name}: ${it.type}" }
         }
 
     }

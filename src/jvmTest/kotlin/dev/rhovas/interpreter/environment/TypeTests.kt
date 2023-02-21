@@ -15,6 +15,7 @@ class TypeTests {
     val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
     val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(Type.Reference(COLLECTION.base, listOf(Type.Generic("T", ANY)))), Scope.Definition(null)).reference
     val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference
+    val STRUCT = Type.Base("Struct", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
@@ -85,6 +86,26 @@ class TypeTests {
                 Arguments.of("Grandchild", INTEGER, ANY, true),
                 Arguments.of("Dynamic Subtype", DYNAMIC, NUMBER, true),
                 Arguments.of("Dynamic Supertype", NUMBER, DYNAMIC, true),
+            )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
+        fun testStruct(name: String, first: Type, second: Type, expected: Boolean) {
+            Assertions.assertEquals(expected, first.isSubtypeOf(second))
+            Assertions.assertEquals(expected, Type.Reference(STRUCT.base, listOf(first)).isSubtypeOf(Type.Reference(STRUCT.base, listOf(second))))
+        }
+
+        fun testStruct(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", Type.Struct(mapOf()), Type.Struct(mapOf()), true),
+                Arguments.of("Equal", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), true),
+                Arguments.of("Extra Field", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false), "y" to Variable.Declaration("y", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), true),
+                Arguments.of("Missing Field", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false), "y" to Variable.Declaration("y", INTEGER, false))), false),
+                Arguments.of("Field Subtype", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", NUMBER, false))), false),
+                Arguments.of("Field Supertype", Type.Struct(mapOf("x" to Variable.Declaration("x", NUMBER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), false),
+                Arguments.of("Field Generic", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.Generic("T", NUMBER), false))), true),
+                Arguments.of("Field Variant", Type.Struct(mapOf("x" to Variable.Declaration("x", INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.Variant(null, NUMBER), false))), true),
             )
         }
 
