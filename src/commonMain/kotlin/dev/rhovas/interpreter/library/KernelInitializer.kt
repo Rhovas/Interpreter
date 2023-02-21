@@ -9,6 +9,20 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 object KernelInitializer: Library.TypeInitializer("Kernel") {
 
     override fun initialize() {
+        function("input",
+            returns = Type.STRING,
+        ) {
+            Object(Type.STRING, INTERPRETER.stdin())
+        }
+
+        function("input",
+            parameters = listOf("prompt" to Type.STRING),
+            returns = Type.STRING,
+        ) { (prompt) ->
+            INTERPRETER.stdout(prompt.value as String)
+            Object(Type.STRING, INTERPRETER.stdin())
+        }
+
         function("print",
             parameters = listOf("object" to Type.ANY),
         ) { (obj) ->
