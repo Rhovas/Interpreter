@@ -95,13 +95,15 @@ object StringInitializer : Library.TypeInitializer("String") {
             Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             Object(Type.STRING, "${instance.value}")
         }
 
-        method("toAtom",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.ATOM]),
             returns = Type.ATOM,
         ) { (instance) ->
             val instance = instance.value as String

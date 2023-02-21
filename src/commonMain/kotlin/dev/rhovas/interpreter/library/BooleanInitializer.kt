@@ -22,7 +22,8 @@ object BooleanInitializer : Library.TypeInitializer("Boolean") {
             Object(Type.BOOLEAN, instance.value == other.value)
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             Object(Type.STRING, "${instance.value}")

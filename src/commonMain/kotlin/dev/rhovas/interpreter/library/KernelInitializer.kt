@@ -26,7 +26,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         function("print",
             parameters = listOf("object" to Type.ANY),
         ) { (obj) ->
-            INTERPRETER.stdout(obj.methods["toString", listOf()]!!.invoke(listOf()).value as String)
+            INTERPRETER.stdout(obj.methods.toString())
             Object(Type.VOID, null)
         }
 

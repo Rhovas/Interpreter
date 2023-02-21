@@ -239,13 +239,12 @@ object ListInitializer : Library.TypeInitializer("List") {
             })
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             val instance = instance.value as List<Object>
-            Object(Type.STRING, instance.map {
-                it.methods["toString", listOf()]!!.invoke(listOf()).value as String
-            }.toString())
+            Object(Type.STRING, instance.map { it.methods.toString() }.toString())
         }
     }
 

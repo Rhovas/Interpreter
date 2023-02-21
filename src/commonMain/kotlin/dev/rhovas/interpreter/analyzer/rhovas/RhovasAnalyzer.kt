@@ -1526,7 +1526,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val members = ast.members.map { visit(it, struct) }.toMutableList()
             //TODO(#14): Typecheck argument (struct type / named options?)
             struct.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), struct, listOf())))
-            struct.base.scope.functions.define(Function.Definition(Function.Declaration("toString", listOf(), listOf(Variable.Declaration("this", struct, false)), Type.STRING, listOf())))
+            //TODO(#14): Should inherit Struct.to(String)
+            struct.base.scope.functions.define(Function.Definition(Function.Declaration("to", listOf(), listOf(Variable.Declaration("this", struct, false), Variable.Declaration("type", Type.TYPE[Type.STRING], false)), Type.STRING, listOf())))
             return RhovasIr.DefinitionPhase.Component.Struct(ast, members).also {
                 ast.context.firstOrNull()?.let { context.inputs.removeLast() }
             }

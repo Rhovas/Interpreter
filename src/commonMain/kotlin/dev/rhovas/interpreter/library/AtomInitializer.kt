@@ -33,7 +33,8 @@ object AtomInitializer : Library.TypeInitializer("Atom") {
             Object(Type.INTEGER, BigInteger.fromInt(instance.name.compareTo(other.name)))
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             Object(Type.STRING, ":${instance.value}")

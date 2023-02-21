@@ -40,10 +40,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 })
             }
         }
-        val toString = ir.type.base.scope.functions["toString", 1].first { it.parameters.first().type.isSubtypeOf(ir.type) }
+        //TODO(#14): Should inherit Struct.to(String)
+        val toString = ir.type.base.scope.functions["to", 2].first { it.parameters.first().type.isSubtypeOf(ir.type) && it.parameters.last().type.isSubtypeOf(Type.TYPE[Type.STRING]) }
         toString.implementation = { arguments ->
             val instance = arguments[0].value as Map<String, Object>
-            val fields = Object(Type.OBJECT, instance).methods["toString", listOf()]!!.invoke(listOf()).value as String
+            val fields = Object(Type.OBJECT, instance).methods.toString()
             Object(Type.STRING, "${ir.type.base.name} ${fields}")
         }
         return Object(Type.VOID, Unit)
@@ -86,7 +87,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(
                         ir,
                         "Uncaught exception.",
-                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods["toString", listOf()]!!.invoke(listOf()).value as String}"
+                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods.toString()}"
                     ) }
                     throw e
                 } catch (ignored: Return) {}
@@ -141,7 +142,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(
                         ir,
                         "Uncaught exception.",
-                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods["toString", listOf()]!!.invoke(listOf()).value as String}"
+                        "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods.toString()}"
                     ) }
                     throw e
                 } catch (e: Return) {
@@ -245,7 +246,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ?: throw error(
                 ir,
                 "Non-exhaustive structural match patterns.",
-                "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods["toString", listOf()]!!.invoke(listOf()).value as String}.",
+                "A structural match statements requires the patterns to be exhaustive, but no pattern matched argument ${argument.methods.toString()}.",
             )
         scoped(patternState.scope) {
             visit(case.second)
@@ -421,7 +422,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val builder = StringBuilder()
         ir.arguments.indices.forEach {
             builder.append(ir.literals[it])
-            builder.append(visit(ir.arguments[it]).methods["toString", listOf()]!!.invoke(listOf()).value as String)
+            builder.append(visit(ir.arguments[it]).methods.toString())
         }
         builder.append(ir.literals.last())
         return Object(Type.STRING, builder.toString())

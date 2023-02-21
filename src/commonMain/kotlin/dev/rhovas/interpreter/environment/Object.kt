@@ -34,6 +34,16 @@ data class Object(
             }
         }
 
+        /**
+         * Invokes `to(String)` on the object. This is placed here as a bit of a
+         * hack to avoid overriding the default data class toString, but also
+         * helps make it clear this invokes a user method.
+         */
+        override fun toString(): String {
+            val type = Type.TYPE[Type.STRING]
+            return get("to", listOf(type))!!.invoke(listOf(Object(type, type))).value as String
+        }
+
     }
 
 }

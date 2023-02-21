@@ -15,7 +15,8 @@ object NullInitializer : Library.TypeInitializer("Null") {
             Object(Type.BOOLEAN, true)
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             Object(Type.STRING, "null")

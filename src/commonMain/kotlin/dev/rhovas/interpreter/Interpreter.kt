@@ -47,7 +47,7 @@ class Interpreter(
             }
             val obj = evaluator.visit(analyzer.visit(ast))
             when (ast) {
-                is RhovasAst.Expression -> obj.methods["toString", listOf()]!!.invoke(listOf()).value as String
+                is RhovasAst.Expression -> obj.methods.toString()
                 else -> null
             }
         } catch (e: ParseException) {

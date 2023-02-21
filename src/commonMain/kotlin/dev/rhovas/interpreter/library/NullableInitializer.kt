@@ -49,14 +49,12 @@ object NullableInitializer : Library.TypeInitializer("Nullable") {
             }
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             val instance = instance.value as Object?
-            when (instance) {
-                null -> Object(Type.STRING, "null")
-                else -> instance.methods["toString", listOf()]!!.invoke(listOf())
-            }
+            Object(Type.STRING, instance?.methods?.toString() ?: "null")
         }
     }
 

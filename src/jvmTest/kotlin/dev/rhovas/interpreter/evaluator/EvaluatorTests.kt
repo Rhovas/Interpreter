@@ -1706,7 +1706,7 @@ class EvaluatorTests {
         val log = StringBuilder()
         scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
             it.implementation = { arguments ->
-                log.append(arguments[0].methods["toString", listOf()]!!.invoke(listOf()).value as String)
+                log.append(arguments[0].methods.toString())
                 arguments[0]
             }
         })

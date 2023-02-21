@@ -29,12 +29,6 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance, _) ->
-            instance.methods["toString", listOf()]!!.invoke(listOf())
-        }
-
-        method("toString",
-            returns = Type.STRING,
-        ) { (instance) ->
             Object(Type.STRING, "${instance.value}")
         }
     }

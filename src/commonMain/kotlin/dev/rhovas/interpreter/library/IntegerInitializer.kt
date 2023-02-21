@@ -94,14 +94,16 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
             Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
-        method("toDecimal",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.DECIMAL]),
             returns = Type.DECIMAL,
         ) { (instance) ->
             val instance = instance.value as BigInteger
             Object(Type.DECIMAL, BigDecimal.fromBigInteger(instance))
         }
 
-        method("toString",
+        method("to",
+            parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
             Object(Type.STRING, "${instance.value}")
