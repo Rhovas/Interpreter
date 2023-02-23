@@ -14,21 +14,21 @@ object Library {
         TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference)
         val initializers = listOf(
             AnyInitializer,
-            AtomInitializer,
-            BooleanInitializer,
-            DecimalInitializer,
-            ExceptionInitializer,
-            IntegerInitializer,
-            KernelInitializer,
-            LambdaInitializer,
-            ListInitializer,
-            MathInitializer,
-            NullInitializer,
-            NullableInitializer,
-            ObjectInitializer,
-            StringInitializer,
-            StructInitializer,
             VoidInitializer,
+            BooleanInitializer,
+            IntegerInitializer,
+            DecimalInitializer,
+            StringInitializer,
+            AtomInitializer,
+            ListInitializer,
+            ObjectInitializer,
+            StructInitializer,
+            LambdaInitializer,
+            ExceptionInitializer,
+            ResultInitializer,
+            NullableInitializer,
+            KernelInitializer,
+            MathInitializer,
         )
         initializers.forEach {
             TYPES.define(it.type.reference)
@@ -38,12 +38,16 @@ object Library {
             //Hacky approach to add methods from inherited types (only disjoint overloads)
             type.inherits.forEach { supertype ->
                 supertype.base.scope.functions.collect()
-                    .flatMap { it.value }
-                    .filter { function -> (
-                        (function.parameters.firstOrNull()?.type?.isSubtypeOf(supertype) ?: false) &&
-                        type.scope.functions[function.name, function.parameters.size].all { it.isDisjointWith(function) }
+                    .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
+                    .filter { (name, function) -> (
+                        (function.parameters.firstOrNull()?.type?.isSupertypeOf(supertype) ?: false) &&
+                        type.scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) }
                     ) }
-                    .forEach { type.scope.functions.define(it) }
+                    .forEach { (name, function) ->
+                        val function = function.takeIf { supertype.base.generics.isEmpty() }
+                            ?: function.bind(supertype.base.generics.zip((supertype as Type.Reference).generics).associate { it.first.name to it.second })
+                        type.scope.functions.define(function, name)
+                    }
             }
         }
         KernelInitializer.scope.functions.collect().values.flatten().forEach {

@@ -23,14 +23,14 @@ object ListInitializer : Library.TypeInitializer("List") {
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
             val instance = instance.value as List<Object>
-            instance.firstOrNull() ?: Object(Type.NULL, null)
+            instance.firstOrNull() ?: Object(Type.NULLABLE.ANY, null)
         }
 
         method("last",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
             val instance = instance.value as List<Object>
-            instance.lastOrNull() ?: Object(Type.NULL, null)
+            instance.lastOrNull() ?: Object(Type.NULLABLE.ANY, null)
         }
 
         method("get", operator = "[]",
@@ -198,7 +198,7 @@ object ListInitializer : Library.TypeInitializer("List") {
                     Triple("result", resultType, result),
                     Triple("element", elementType, element),
                 ), resultType)
-            } ?: Object(Type.NULL, null)
+            } ?: Object(Type.NULLABLE.ANY, null)
         }
 
         method("reduce",

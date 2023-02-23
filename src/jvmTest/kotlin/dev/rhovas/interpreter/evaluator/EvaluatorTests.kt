@@ -1193,7 +1193,7 @@ class EvaluatorTests {
                             "property" to literal("property"),
                         )))
                         it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.NULLABLE[type], false)).also {
-                            it.value = Object(Type.NULL, null)
+                            it.value = Object(Type.NULLABLE.ANY, null)
                         })
                     }
                 }
@@ -1320,7 +1320,7 @@ class EvaluatorTests {
                             "property" to literal("property"),
                         )))
                         it.variables.define(Variable.Definition(Variable.Declaration("nullObject", Type.NULLABLE[type], false)).also {
-                            it.value = Object(Type.NULL, null)
+                            it.value = Object(Type.NULLABLE.ANY, null)
                         })
                     }
                 }
@@ -1363,7 +1363,7 @@ class EvaluatorTests {
                         }).reference
                         it.types.define(qualified)
                         it.variables.define(Variable.Definition(Variable.Declaration("nullInteger", Type.NULLABLE[Type.INTEGER], false)).also {
-                            it.value = Object(Type.NULL, null)
+                            it.value = Object(Type.NULLABLE.ANY, null)
                         })
                     }
                 }
@@ -1686,7 +1686,7 @@ class EvaluatorTests {
 
     private fun literal(value: Any?): Object {
         return when (value) {
-            null -> Object(Type.NULL, null)
+            null -> Object(Type.NULLABLE.ANY, null)
             is Boolean -> Object(Type.BOOLEAN, value)
             is BigInteger -> Object(Type.INTEGER, value)
             is BigDecimal -> Object(Type.DECIMAL, value)

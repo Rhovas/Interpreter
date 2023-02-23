@@ -1248,7 +1248,7 @@ class RhovasAnalyzerTests {
                     Arguments.of("Null", """
                         null
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Scalar(null, Type.NULL)
+                        RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE.ANY)
                     }),
                     Arguments.of("Boolean", """
                         true
@@ -2769,7 +2769,7 @@ class RhovasAnalyzerTests {
 
     private fun literal(value: Any?): RhovasIr.Expression.Literal {
         return when (value) {
-            null -> RhovasIr.Expression.Literal.Scalar(null, Type.NULL)
+            null -> RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE.ANY)
             is Boolean -> RhovasIr.Expression.Literal.Scalar(value, Type.BOOLEAN)
             is BigInteger -> RhovasIr.Expression.Literal.Scalar(value, Type.INTEGER)
             is BigDecimal -> RhovasIr.Expression.Literal.Scalar(value, Type.DECIMAL)

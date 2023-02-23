@@ -4,7 +4,6 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 
 class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> {
@@ -36,7 +35,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             scoped(Scope.Definition(current)) {
                 val fields = arguments[0].value as Map<String, Object>
                 Object(ir.type, ir.members.filterIsInstance<RhovasIr.Member.Property>().associate {
-                    Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Type.NULL, null))
+                    Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null))
                 })
             }
         }
@@ -121,7 +120,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Variable): Object {
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
-        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULL, null)
+        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null)
         return Object(Type.VOID, Unit)
     }
 
@@ -533,19 +532,17 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Property): Object {
-        val receiver = visit(ir.receiver)
-        return if (ir.coalesce && receiver.type.isSubtypeOf(Type.NULL)) {
-            receiver
-        } else {
-            val method = receiver[ir.property]?.getter ?: throw error(
-                ir,
-                "Undefined property.",
-                "The property ${ir.property.name} is not defined in ${receiver.type.base.name}.",
-            )
-            trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-                method.invoke(listOf())
-            }
+        val original = visit(ir.receiver)
+        val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
+        val method = receiver[ir.property]?.getter ?: throw error(
+            ir,
+            "Undefined property.",
+            "The property ${ir.property.name} is not defined in ${receiver.type.base.name}.",
+        )
+        val returns = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+            method.invoke(listOf())
         }
+        return computeCoalesceCascadeReturn(returns, original, ir.coalesce, false)
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Index): Object {
@@ -599,51 +596,57 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Method): Object {
-        val receiver = visit(ir.receiver)
-        return if (ir.coalesce && receiver.type.isSubtypeOf(Type.NULL)) {
-            Object(Type.NULL, null)
-        } else {
-            val arguments = ir.arguments.map { visit(it) }
-            val method = receiver[ir.method]  ?: throw error(
-                ir,
-                "Undefined method.",
-                "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
-            )
-            for (i in arguments.indices) {
-                require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(
-                    ir.arguments[i],
-                    "Invalid method argument type.",
-                    "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
-                ) }
-            }
-            val result = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-                method.invoke(arguments)
-            }
-            return if (ir.cascade) receiver else result
+        val original = visit(ir.receiver)
+        val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
+        val arguments = ir.arguments.map { visit(it) }
+        val method = receiver[ir.method]  ?: throw error(
+            ir,
+            "Undefined method.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.base.name}.",
+        )
+        for (i in arguments.indices) {
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(
+                ir.arguments[i],
+                "Invalid method argument type.",
+                "The method ${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
+            ) }
         }
+        val returns = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+            method.invoke(arguments)
+        }
+        return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Pipeline): Object {
-        val function = when (ir.function) {
-            is Function.Definition -> ir.function
-            is Function.Declaration -> scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
+        val function = ir.function as? Function.Definition ?: scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
+        val original = visit(ir.receiver)
+        val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
+        val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
+        for (i in arguments.indices) {
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
+                ir.arguments[i],
+                "Invalid function argument type.",
+                "The function ${ir.qualifier?.let { "$it." } ?: ""}${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
+            ) }
         }
-        val receiver = visit(ir.receiver)
-        return if (ir.coalesce && receiver.type.isSubtypeOf(Type.NULL)) {
-            Object(Type.NULL, null)
-        } else {
-            val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
-            for (i in arguments.indices) {
-                require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(
-                    ir.arguments[i],
-                    "Invalid function argument type.",
-                    "The function ${ir.qualifier?.let { "$it." } ?: ""}${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
-                ) }
-            }
-            val result = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-                function.invoke(arguments)
-            }
-            return if (ir.cascade) receiver else result
+        val returns = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+            function.invoke(arguments)
+        }
+        return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
+    }
+
+    private fun computeCoalesceReceiver(receiver: Object, coalesce: Boolean): Object? {
+        return when {
+            coalesce -> (receiver.value as Pair<Object?, Object?>?)?.first
+            else -> receiver
+        }
+    }
+
+    private fun computeCoalesceCascadeReturn(returns: Object, receiver: Object, coalesce: Boolean, cascade: Boolean): Object {
+        return when {
+            cascade -> receiver
+            coalesce -> Object(receiver.type, Pair(returns, null))
+            else -> returns
         }
     }
 

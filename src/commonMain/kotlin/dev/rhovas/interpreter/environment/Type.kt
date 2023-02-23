@@ -16,8 +16,8 @@ sealed class Type(
         val INTEGER get() = Library.type("Integer")
         val LAMBDA get() = GenericDelegate("Lambda")
         val LIST get() = GenericDelegate("List")
-        val NULL get() = Library.type("Null")
         val NULLABLE get() = GenericDelegate("Nullable")
+        val RESULT get() = GenericDelegate("Result")
         val OBJECT get() = Library.type("Object")
         val STRING get() = Library.type("String")
         val STRUCT get() = GenericDelegate("Struct")
@@ -235,12 +235,9 @@ sealed class Type(
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when (other) {
-                is Generic -> when {
-                    name != other.name -> false
-                    bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other)
-                    else -> bound.isSubtypeOf(other.bound).takeIf { it }?.also { bindings[name] = other } ?: false
-                }
+            return when {
+                bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other)
+                other is Generic && name != other.name -> false
                 else -> bound.isSubtypeOf(other).takeIf { it }?.also { bindings[name] = other } ?: false
             }
         }

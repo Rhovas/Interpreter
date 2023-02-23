@@ -16,7 +16,7 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
         ) { (instance, key) ->
             val instance = instance.value as Map<String, Object>
             val key = key.value as RhovasAst.Atom
-            instance[key.name] ?: Object(Type.NULL, null)
+            instance[key.name] ?: Object(Type.NULLABLE.ANY, null)
         }
 
         method("set", operator = "[]=",

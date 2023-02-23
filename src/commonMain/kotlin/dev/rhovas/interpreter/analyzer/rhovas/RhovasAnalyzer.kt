@@ -860,7 +860,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr {
         val type = when (ast.value) {
-            null -> Type.NULL
+            null -> Type.NULLABLE.ANY
             is Boolean -> Type.BOOLEAN
             is BigInteger -> Type.INTEGER
             is BigDecimal -> Type.DECIMAL
@@ -1017,16 +1017,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Access.Property): RhovasIr.Expression.Access.Property {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val receiverType = if (ast.coalesce) {
-            require(receiver.type.isSupertypeOf(Type.NULLABLE.ANY)) { error(
-                ast,
-                "Invalid null coalesce.",
-                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
-            ) }
-            receiver.type.methods["get", listOf()]!!.returns
-        } else {
-            receiver.type
-        }
+        val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val property = receiverType.properties[ast.name] ?: throw error(
             ast,
             "Undefined property.",
@@ -1128,9 +1119,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     private fun computeCoalesceReceiver(receiver: RhovasIr.Expression, coalesce: Boolean): Type {
         return if (coalesce) {
-            require(receiver.type.isSubtypeOf(Type.NULLABLE.ANY)) { error(
-                "Invalid null coalesce.",
-                "Null coalescing requires the receiver to be type Nullable, but received ${receiver.type}.",
+            require(receiver.type.isSubtypeOf(Type.RESULT.ANY)) { error(
+                "Invalid coalesce.",
+                "Coalescing requires the receiver to be type Result, but received ${receiver.type}.",
                 receiver.context.firstOrNull(),
             ) }
             receiver.type.methods["get", listOf()]!!.returns
@@ -1143,8 +1134,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return when {
             cascade -> receiver
             coalesce -> when {
-                returns.isSubtypeOf(Type.NULLABLE.ANY) -> returns
-                else -> Type.NULLABLE[returns]
+                returns.isSubtypeOf(Type.RESULT.ANY) -> returns
+                receiver.isSubtypeOf(Type.NULLABLE.ANY) -> Type.NULLABLE[returns]
+                else -> Type.RESULT[returns, mutableMapOf<String, Type>().also { receiver.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.Generic("E", Type.ANY)], it) }["E"]!!]
             }
             else -> returns
         }

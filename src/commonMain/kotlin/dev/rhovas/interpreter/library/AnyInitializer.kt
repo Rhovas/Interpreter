@@ -21,7 +21,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             val type = type.value as Type
             when {
                 instance.type.isSubtypeOf(type) -> instance
-                else -> Object(Type.NULL, null)
+                else -> Object(Type.NULLABLE.ANY, null)
             }
         }
 
