@@ -20,6 +20,7 @@ object Library {
             DecimalInitializer,
             StringInitializer,
             AtomInitializer,
+            TupleInitializer,
             ListInitializer,
             ObjectInitializer,
             StructInitializer,

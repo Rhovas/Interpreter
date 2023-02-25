@@ -21,6 +21,7 @@ sealed class Type(
         val OBJECT get() = Library.type("Object")
         val STRING get() = Library.type("String")
         val STRUCT get() = GenericDelegate("Struct")
+        val TUPLE get() = GenericDelegate("Tuple")
         val TYPE get() = GenericDelegate("Type")
         val VOID get() = Library.type("Void")
 
@@ -149,6 +150,7 @@ sealed class Type(
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
                     }
                 }
+                is Tuple -> this.isSubtypeOf(TUPLE[other])
                 is Struct -> this.isSubtypeOf(STRUCT[other])
                 is Generic -> when {
                     base.name == "Dynamic" -> true.also { bindings[other.name] = this }
@@ -162,6 +164,42 @@ sealed class Type(
 
         override fun toString(): String {
             return "${base.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
+        }
+
+    }
+
+    data class Tuple(
+        val elements: List<Variable.Declaration>,
+    ) : Type(TUPLE.ANY.base) {
+
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            TODO("Not yet implemented")
+        }
+
+        override fun getFunction(name: String, arguments: List<Type>): Function? {
+            TODO("Not yet implemented")
+        }
+
+        override fun bind(parameters: Map<String, Type>): Type {
+            return Tuple(elements.map { Variable.Declaration(it.name, it.type.bind(parameters), it.mutable) })
+        }
+
+        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
+            return when (other) {
+                is Tuple -> other.elements.withIndex().all {
+                    val type = elements.getOrNull(it.index)?.type ?: return false
+                    when (val other = it.value.type) {
+                        is Generic -> when (val binding = bindings[other.name]) {
+                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
+                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                            else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                        }
+                        is Variant -> type.isSubtypeOf(other, bindings)
+                        else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                    }
+                }
+                else -> TUPLE[this].isSubtypeOf(other)
+            }
         }
 
     }

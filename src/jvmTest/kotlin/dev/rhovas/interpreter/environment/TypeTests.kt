@@ -91,6 +91,26 @@ class TypeTests {
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
+        fun testTuple(name: String, first: Type, second: Type, expected: Boolean) {
+            Assertions.assertEquals(expected, first.isSubtypeOf(second))
+            Assertions.assertEquals(expected, Type.Reference(STRUCT.base, listOf(first)).isSubtypeOf(Type.Reference(STRUCT.base, listOf(second))))
+        }
+
+        fun testTuple(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("Empty", Type.Tuple(listOf()), Type.Tuple(listOf()), true),
+                Arguments.of("Equal", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), true),
+                Arguments.of("Extra Field", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false), Variable.Declaration("1", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), true),
+                Arguments.of("Missing Field", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false), Variable.Declaration("1", INTEGER, false))), false),
+                Arguments.of("Field Subtype", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", NUMBER, false))), false),
+                Arguments.of("Field Supertype", Type.Tuple(listOf(Variable.Declaration("0", NUMBER, false))), Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), false),
+                Arguments.of("Field Generic", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.Generic("T", NUMBER), false))), true),
+                Arguments.of("Field Variant", Type.Tuple(listOf(Variable.Declaration("0", INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.Variant(null, NUMBER), false))), true),
+            )
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @MethodSource
         fun testStruct(name: String, first: Type, second: Type, expected: Boolean) {
             Assertions.assertEquals(expected, first.isSubtypeOf(second))
             Assertions.assertEquals(expected, Type.Reference(STRUCT.base, listOf(first)).isSubtypeOf(Type.Reference(STRUCT.base, listOf(second))))
