@@ -1268,7 +1268,7 @@ class EvaluatorTests {
                         Arguments.of("Constructor", """
                             Nullable("argument")
                         """.trimIndent(),
-                            Object(Type.NULLABLE[Type.STRING], literal("argument"))
+                            Object(Type.NULLABLE[Type.STRING], Pair(literal("argument"), null))
                         ),
                     )
                 }

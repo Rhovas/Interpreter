@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object ResultInitializer : Library.TypeInitializer("Result") {
@@ -39,7 +40,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
 
         method("map",
             generics = listOf(generic("R")),
-            parameters = listOf("lambda" to Type.LAMBDA[generic("R")]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("value", generic("T"), false)))], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda) ->
             val valueType = instance.type.methods["get", listOf()]!!.returns
@@ -57,8 +58,8 @@ object ResultInitializer : Library.TypeInitializer("Result") {
         }
 
         method("or",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.RESULT[generic("T"), generic("E")]]),
-            returns = Type.RESULT[generic("T"), generic("E")],
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], Type.RESULT[generic("T"), generic("E")], Type.DYNAMIC]),
+            returns = Type.RESULT[generic("T"), generic("E"), Type.DYNAMIC],
         ) { (instance, lambda) ->
             val returnsType = lambda.type.methods["invoke", listOf(Type.LIST.ANY)]!!.returns
             val instance = instance.value as Pair<Object?, Object?>?
@@ -74,7 +75,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
         }
 
         method("else",
-            parameters = listOf("lambda" to Type.LAMBDA[generic("T")]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], generic("T"), Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
             val lambdaType = lambda.type.methods["invoke", listOf(Type.LIST.ANY)]!!.returns

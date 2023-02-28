@@ -2045,7 +2045,7 @@ class RhovasAnalyzerTests {
                 val expected = expected?.invoke()?.let {
                     RhovasIr.Expression.Invoke.Function(
                         null,
-                        Library.SCOPE.functions["lambda", listOf(Type.LAMBDA.ANY)]!!,
+                        Library.SCOPE.functions["lambda", listOf(it.type)]!!,
                         listOf(it)
                     )
                 }
@@ -2060,7 +2060,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Lambda(
                             listOf(),
                             RhovasIr.Expression.Block(listOf(stmt()), null, Type.VOID),
-                            Type.LAMBDA[Type.DYNAMIC],
+                            Type.LAMBDA[Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC],
                         )
                     }),
                     Arguments.of("Expression", """
@@ -2069,7 +2069,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Lambda(
                             listOf(),
                             RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), Type.INTEGER),
-                            Type.LAMBDA[Type.DYNAMIC],
+                            Type.LAMBDA[Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC],
                         )
                     }),
                     Arguments.of("Parameter", """
@@ -2078,7 +2078,7 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Lambda(
                             listOf(Variable.Declaration("x", Type.DYNAMIC, false)),
                             RhovasIr.Expression.Block(listOf(), variable("x", Type.DYNAMIC), Type.DYNAMIC),
-                            Type.LAMBDA[Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC],
                         )
                     }),
                 )

@@ -173,11 +173,11 @@ sealed class Type(
     ) : Type(TUPLE.ANY.base) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            TODO("Not yet implemented")
+            return TUPLE[this].getFunction(name, arity)
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            TODO("Not yet implemented")
+            return TUPLE[this].getFunction(name, arguments)
         }
 
         override fun bind(parameters: Map<String, Type>): Type {

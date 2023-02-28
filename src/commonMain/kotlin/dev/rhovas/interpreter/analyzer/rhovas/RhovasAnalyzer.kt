@@ -1229,8 +1229,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         //TODO(#13): Type inference/unification for parameter types
         //TODO(#2): Forward thrown exceptions from context into declaration
         val parameters = ast.parameters.map { Variable.Declaration(it.first, it.second?.let { visit(it).type } ?: Type.DYNAMIC, false) }
-        val function = Function.Declaration("lambda", listOf(), parameters, Type.DYNAMIC, listOf())
-        return analyze(context.child().with(FunctionContext(function))) {
+        val function = Function.Declaration("lambda", listOf(), parameters, Type.DYNAMIC, listOf(Type.EXCEPTION))
+        return analyze(context.with(
+            ScopeContext(Scope.Declaration(context.scope)),
+            FunctionContext(function),
+            ExceptionContext(function.throws.toMutableSet())
+        )) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             } else {
@@ -1242,7 +1246,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Invalid return value type.",
                 "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${body.type}.",
             ) }
-            val type = Type.LAMBDA[Type.DYNAMIC]
+            //TODO(#2): Infer actual return type / exceptions
+            val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it)] } ?: Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC]
             RhovasIr.Expression.Lambda(parameters, body, type).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
