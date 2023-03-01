@@ -15,6 +15,7 @@ class TypeTests {
     val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
     val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(Type.Reference(COLLECTION.base, listOf(Type.Generic("T", ANY)))), Scope.Definition(null)).reference
     val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference
+    val TUPLE = Type.Base("Tuple", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
     val STRUCT = Type.Base("Struct", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
 
     @ParameterizedTest(name = "{0}")
@@ -93,7 +94,7 @@ class TypeTests {
         @MethodSource
         fun testTuple(name: String, first: Type, second: Type, expected: Boolean) {
             Assertions.assertEquals(expected, first.isSubtypeOf(second))
-            Assertions.assertEquals(expected, Type.Reference(STRUCT.base, listOf(first)).isSubtypeOf(Type.Reference(STRUCT.base, listOf(second))))
+            Assertions.assertEquals(expected, Type.Reference(TUPLE.base, listOf(first)).isSubtypeOf(Type.Reference(TUPLE.base, listOf(second))))
         }
 
         fun testTuple(): Stream<Arguments> {
