@@ -842,14 +842,14 @@ class EvaluatorTests {
                     Arguments.of("Single", """
                         [1]
                     """.trimIndent(),
-                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
+                        Object(Type.LIST[Type.INTEGER], mutableListOf(
                             literal(BigInteger.parseString("1")),
                         )),
                     ),
                     Arguments.of("Multiple", """
                         [1, 2, 3]
                     """.trimIndent(),
-                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
+                        Object(Type.LIST[Type.INTEGER], mutableListOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                             literal(BigInteger.parseString("3")),
@@ -1139,7 +1139,7 @@ class EvaluatorTests {
                     Arguments.of("List Concat", """
                         [1] + [2]
                     """.trimIndent(),
-                        Object(Type.LIST[Type.DYNAMIC], listOf(
+                        Object(Type.LIST[Type.INTEGER], listOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                         )),

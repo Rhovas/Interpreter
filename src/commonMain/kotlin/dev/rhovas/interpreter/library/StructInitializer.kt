@@ -8,6 +8,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 object StructInitializer : Library.TypeInitializer("Struct") {
 
     override fun initialize() {
+        generics.add(generic("T", Type.STRUCT.ANY))
         inherits.add(Type.ANY)
 
         method("equals", operator = "==",

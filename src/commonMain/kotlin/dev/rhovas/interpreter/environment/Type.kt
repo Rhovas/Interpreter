@@ -138,9 +138,9 @@ sealed class Type(
                             when (other) {
                                 is Reference -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                                 is Generic -> when (val binding = bindings[other.name]) {
-                                    null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
-                                    is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
-                                    else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                                    null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = type }
+                                    is Variant -> type.isSubtypeOf(binding, bindings).takeIf { it }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                                    else -> type.isSubtypeOf(binding, bindings) && binding.isSubtypeOf(type, bindings)
                                 }
                                 else -> type.isSubtypeOf(other, bindings)
                             }
@@ -150,15 +150,15 @@ sealed class Type(
                         base.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
                     }
                 }
-                is Tuple -> this.isSubtypeOf(TUPLE[other])
-                is Struct -> this.isSubtypeOf(STRUCT[other])
+                is Tuple -> this.isSubtypeOf(TUPLE[other], bindings)
+                is Struct -> this.isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
                     base.name == "Dynamic" -> true.also { bindings[other.name] = this }
                     other.base.name == "Dynamic" -> true.also { bindings[other.name] = other }
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
                     else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
-                is Variant -> (other.lower?.isSubtypeOf(this) ?: true) && (other.upper?.isSupertypeOf(this) ?: true)
+                is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
             }
         }
 
@@ -190,16 +190,20 @@ sealed class Type(
                     val type = elements.getOrNull(it.index)?.type ?: return false
                     when (val other = it.value.type) {
                         is Generic -> when (val binding = bindings[other.name]) {
-                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
-                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
-                            else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = type }
+                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { it }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                            else -> type.isSubtypeOf(binding, bindings) && binding.isSubtypeOf(type, bindings)
                         }
                         is Variant -> type.isSubtypeOf(other, bindings)
                         else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
                     }
                 }
-                else -> TUPLE[this].isSubtypeOf(other)
+                else -> TUPLE[this].isSubtypeOf(other, bindings)
             }
+        }
+
+        override fun toString(): String {
+            return elements.joinToString(",", "[", "]") { it.type.toString() }
         }
 
     }
@@ -237,9 +241,9 @@ sealed class Type(
                     val type = fields[it.key]?.type ?: return false
                     when (val other = it.value.type) {
                         is Generic -> when (val binding = bindings[other.name]) {
-                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = Variant(null, type) }
-                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { true }?.also { bindings[other.name] = Variant(type, type) } ?: false
-                            else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
+                            null -> type.isSubtypeOf(other, bindings).also { if (bindings[other.name] is Variant) bindings[other.name] = type }
+                            is Variant -> type.isSubtypeOf(binding, bindings).takeIf { it }?.also { bindings[other.name] = Variant(type, type) } ?: false
+                            else -> type.isSubtypeOf(binding, bindings) && binding.isSubtypeOf(type, bindings)
                         }
                         is Variant -> type.isSubtypeOf(other, bindings)
                         else -> type.isSubtypeOf(other, bindings) && other.isSubtypeOf(type, bindings)
@@ -305,7 +309,7 @@ sealed class Type(
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when {
                 lower == null && upper == null -> false
-                other is Variant -> (lower?.let { other.lower?.isSubtypeOf(it) } ?: true) && (upper?.let { other.upper?.isSupertypeOf(it) } ?: true)
+                other is Variant -> (lower?.let { other.lower?.isSubtypeOf(it, bindings) } ?: true) && (upper?.let { other.upper?.isSupertypeOf(it, bindings) } ?: true)
                 else -> (upper ?: ANY).isSubtypeOf(other, bindings)
             }
         }

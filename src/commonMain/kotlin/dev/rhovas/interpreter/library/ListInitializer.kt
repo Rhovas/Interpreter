@@ -124,7 +124,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("for",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false))), Type.VOID, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.VOID, Type.DYNAMIC]),
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
             val instance = instance.value as List<Object>
@@ -141,7 +141,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("map",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false))), generic("R"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], generic("R"), Type.DYNAMIC]),
             returns = Type.LIST[generic("R")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -159,7 +159,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("filter",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false))), Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.LIST[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -182,7 +182,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("reduce",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false))), generic("T"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)))], generic("T"), Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -204,7 +204,7 @@ object ListInitializer : Library.TypeInitializer("List") {
 
         method("reduce",
             generics = listOf(generic("R")),
-            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false))), generic("T"), Type.DYNAMIC]),
+            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)))], generic("T"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns

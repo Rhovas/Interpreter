@@ -792,11 +792,11 @@ class RhovasAnalyzerTests {
                         for (val element in [1]) { stmt(element); }
                     """.trimIndent(), {
                         RhovasIr.Statement.For(
-                            Variable.Declaration("element", Type.DYNAMIC, false),
+                            Variable.Declaration("element", Type.INTEGER, false),
                             RhovasIr.Expression.Literal.List(listOf(
                                 literal(BigInteger.parseString("1")),
-                            ), Type.LIST[Type.DYNAMIC]),
-                            block(stmt(variable("element", Type.DYNAMIC))),
+                            ), Type.LIST[Type.INTEGER]),
+                            block(stmt(variable("element", Type.INTEGER))),
                         )
                     }),
                     Arguments.of("Invalid Iterable", """
@@ -1312,7 +1312,7 @@ class RhovasAnalyzerTests {
                     """.trimIndent(), {
                         RhovasIr.Expression.Literal.List(listOf(
                             literal(BigInteger.parseString("1")),
-                        ), Type.LIST[Type.DYNAMIC])
+                        ), Type.LIST[Type.INTEGER])
                     }),
                     Arguments.of("Multiple", """
                         [1, 2, 3]
@@ -1321,7 +1321,7 @@ class RhovasAnalyzerTests {
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                             literal(BigInteger.parseString("3")),
-                        ), Type.LIST[Type.DYNAMIC])
+                        ), Type.LIST[Type.INTEGER])
                     }),
                 )
             }
