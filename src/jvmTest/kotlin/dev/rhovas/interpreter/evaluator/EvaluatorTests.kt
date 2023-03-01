@@ -263,7 +263,7 @@ class EvaluatorTests {
             @MethodSource
             fun testProperty(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also {
-                    val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                    val type = Type.Base("TestObject", Scope.Definition(null).also {
                         it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", Type.ANY, false)), Type.ANY, listOf())).also {
                             it.implementation = { arguments ->
                                 (arguments[0].value as MutableMap<String, Object>)["property"]!!
@@ -602,7 +602,8 @@ class EvaluatorTests {
             @MethodSource
             fun testTry(name: String, input: String, expected: String?) {
                 test("source", input, expected, Scope.Definition(Library.SCOPE).also { scope ->
-                    scope.types.define(Type.Base("SubtypeException", listOf(), listOf(Type.EXCEPTION), Scope.Definition(null)).reference.also { type ->
+                    scope.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { type ->
+                        type.base.inherit(Type.EXCEPTION)
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())).also {
                             it.implementation = { arguments -> Object(type, arguments[0].value as String) }
                         })
@@ -1182,7 +1183,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testProperty(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                        val type = Type.Base("TestObject", Scope.Definition(null).also {
                             it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("this", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     (arguments[0].value as Map<String, Object>)["property"]!!
@@ -1309,7 +1310,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testMethod(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        val type = Type.Base("TestObject", listOf(), listOf(), Scope.Definition(null).also {
+                        val type = Type.Base("TestObject", Scope.Definition(null).also {
                             it.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", Type.ANY, false), Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[1]
@@ -1354,7 +1355,7 @@ class EvaluatorTests {
                 @MethodSource
                 fun testPipeline(name: String, input: String, expected: Object?) {
                     test("expression", input, expected) {
-                        val qualified = Type.Base("Qualified", listOf(), listOf(), Scope.Definition(null).also {
+                        val qualified = Type.Base("Qualified", Scope.Definition(null).also {
                             it.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())).also {
                                 it.implementation = { arguments ->
                                     arguments[0]

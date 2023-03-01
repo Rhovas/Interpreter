@@ -34,9 +34,9 @@ class RhovasAnalyzerTests {
     @Nested
     inner class SourceTests {
 
-        val MODULE = Type.Base("Module", listOf(), listOf(), Scope.Definition(null).also {
-            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope.Definition(null)).reference, "Type")
-        }).reference
+        val MODULE = Type.Base("Module", Scope.Definition(null)).reference.also {
+            it.base.scope.types.define(Type.Base("Module.Type", Scope.Definition(null)).reference, "Type")
+        }
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
@@ -71,9 +71,9 @@ class RhovasAnalyzerTests {
     @Nested
     inner class ImportTests {
 
-        val MODULE = Type.Base("Module", listOf(), listOf(), Scope.Definition(null).also {
-            it.types.define(Type.Base("Module.Type", listOf(), listOf(), Scope.Definition(null)).reference, "Type")
-        }).reference
+        val MODULE = Type.Base("Module", Scope.Definition(null)).reference.also {
+            it.base.scope.types.define(Type.Base("Module.Type", Scope.Definition(null)).reference, "Type")
+        }
 
         @ParameterizedTest(name = "{0}")
         @MethodSource
@@ -142,24 +142,26 @@ class RhovasAnalyzerTests {
                         struct Name {}
                         val instance = Name({});
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Type.ANY), Scope.Definition(null)).reference
+                        val type = Type.Base("Name", Scope.Definition(null)).reference
+                        type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
                             RhovasIr.Statement.Declaration.Variable(
                                 Variable.Declaration("instance", type, false),
                                 RhovasIr.Expression.Invoke.Constructor(
                                     type,
-                                    Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), type, listOf())),
-                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), Type.OBJECT)),
+                                    Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
+                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), type.base.inherits[0])),
                                 ),
                             ),
                         ))
                     }),
                     Arguments.of("Field", """
                         struct Name { val field: Integer; }
-                        val field = Name({}).field;
+                        val field = Name({field: 1}).field;
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Type.ANY), Scope.Definition(null)).reference
+                        val type = Type.Base("Name", Scope.Definition(null)).reference
+                        type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type,
@@ -170,8 +172,8 @@ class RhovasAnalyzerTests {
                                 RhovasIr.Expression.Access.Property(
                                     RhovasIr.Expression.Invoke.Constructor(
                                         type,
-                                        Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), type, listOf())),
-                                        listOf(RhovasIr.Expression.Literal.Object(mapOf(), Type.OBJECT)),
+                                        Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
+                                        listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
                                     ),
                                     type.properties["field"]!!,
                                     false,
@@ -184,7 +186,8 @@ class RhovasAnalyzerTests {
                         struct Name { func function(): Integer { return 1; } }
                         Name.function();
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Type.ANY), Scope.Definition(null)).reference
+                        val type = Type.Base("Name", Scope.Definition(null)).reference
+                        type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(), Type.INTEGER, listOf())))
                         RhovasIr.Source(listOf(), listOf(
                             RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
@@ -201,9 +204,10 @@ class RhovasAnalyzerTests {
                             val field: Integer;
                             func method(this): Integer { return this.field; }
                         }
-                        Name({}).method();
+                        Name({field: 1}).method();
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Type.ANY), Scope.Definition(null)).reference
+                        val type = Type.Base("Name", Scope.Definition(null)).reference
+                        type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
                         type.base.scope.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
                         RhovasIr.Source(listOf(), listOf(
@@ -217,8 +221,8 @@ class RhovasAnalyzerTests {
                             RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Method(
                                 RhovasIr.Expression.Invoke.Constructor(
                                     type,
-                                    Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), type, listOf())),
-                                    listOf(RhovasIr.Expression.Literal.Object(mapOf(), Type.OBJECT)),
+                                    Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
+                                    listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
                                 ),
                                 type.methods["method", listOf()]!!,
                                 false, false, listOf(), Type.INTEGER)),
@@ -282,7 +286,8 @@ class RhovasAnalyzerTests {
                     Arguments.of("Struct", """
                         struct Name {}
                     """.trimIndent(), {
-                        val type = Type.Base("Name", listOf(), listOf(Type.ANY), Scope.Definition(null)).reference
+                        val type = Type.Base("Name", Scope.Definition(null)).reference
+                        type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf()))
                     }),
                 )
@@ -323,7 +328,7 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testFunction(name: String, input: String, expected: (() -> RhovasIr.Statement.Declaration.Function?)?) {
                 test("statement", input, expected?.invoke()) {
-                    it.types.define(Type.Base("SubtypeException", listOf(), listOf(Type.EXCEPTION), Scope.Definition(Library.SCOPE)).reference)
+                    it.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { it.base.inherit(Type.EXCEPTION) })
                     it.functions.define(Function.Declaration("fail", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), Type.VOID, listOf(Type.EXCEPTION)))
                 }
             }
@@ -626,13 +631,13 @@ class RhovasAnalyzerTests {
                 )
             }
 
-            private val ObjectType = Type.Base("ObjectType", listOf(), listOf(Type.ANY), Scope.Definition(Library.SCOPE).also {
-                it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("instance", Type.DYNAMIC, false)), Type.INTEGER, listOf())))
-                it.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("instance", Type.DYNAMIC, false), Variable.Declaration("value", Type.INTEGER, false)), Type.VOID, listOf())))
-                it.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf(Variable.Declaration("instance", Type.DYNAMIC, false)), Type.DYNAMIC, listOf())))
-                it.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf(Variable.Declaration("instance", Type.DYNAMIC, false), Variable.Declaration("value", Type.DYNAMIC, false)), Type.VOID, listOf())))
-                it.functions.define(Function.Definition(Function.Declaration("unassignable", listOf(), listOf(Variable.Declaration("unassignable", Type.DYNAMIC, false)), Type.INTEGER, listOf())))
-            }).reference
+            private val ObjectType = Type.Base("ObjectType", Scope.Definition(null)).reference.also {
+                it.base.scope.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("instance", it, false)), Type.INTEGER, listOf())))
+                it.base.scope.functions.define(Function.Definition(Function.Declaration("property", listOf(), listOf(Variable.Declaration("instance", it, false), Variable.Declaration("value", Type.INTEGER, false)), Type.VOID, listOf())))
+                it.base.scope.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf(Variable.Declaration("instance", it, false)), Type.DYNAMIC, listOf())))
+                it.base.scope.functions.define(Function.Definition(Function.Declaration("dynamic", listOf(), listOf(Variable.Declaration("instance", it, false), Variable.Declaration("value", Type.DYNAMIC, false)), Type.VOID, listOf())))
+                it.base.scope.functions.define(Function.Definition(Function.Declaration("unassignable", listOf(), listOf(Variable.Declaration("instance", it, false)), Type.INTEGER, listOf())))
+            }
 
             @ParameterizedTest(name = "{0}")
             @MethodSource

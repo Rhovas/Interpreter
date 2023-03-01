@@ -10,9 +10,8 @@ object Library {
     val TYPES get() = SCOPE.types
 
     init {
-        TYPES.define(Type.Base("Type", listOf(Type.Generic("T", AnyInitializer.type.reference)), listOf(), Scope.Definition(null)).reference)
-        TYPES.define(Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference)
         val initializers = listOf(
+            DynamicInitializer,
             AnyInitializer,
             VoidInitializer,
             BooleanInitializer,
@@ -25,33 +24,22 @@ object Library {
             ObjectInitializer,
             StructInitializer,
             LambdaInitializer,
+            TypeInitializer,
             ExceptionInitializer,
             ResultInitializer,
             NullableInitializer,
             KernelInitializer,
             MathInitializer,
         )
-        initializers.forEach {
-            TYPES.define(it.type.reference)
+        initializers.forEach { type ->
+            TYPES.define(type.base.reference)
         }
         initializers.forEach { type ->
             type.initialize()
-            //Hacky approach to add methods from inherited types (only disjoint overloads)
-            type.inherits.forEach { supertype ->
-                supertype.base.scope.functions.collect()
-                    .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
-                    .filter { (name, function) -> (
-                        (function.parameters.firstOrNull()?.type?.isSupertypeOf(supertype) ?: false) &&
-                        type.scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) }
-                    ) }
-                    .forEach { (name, function) ->
-                        val function = function.takeIf { supertype.base.generics.isEmpty() }
-                            ?: function.bind(supertype.base.generics.zip((supertype as Type.Reference).generics).associate { it.first.name to it.second })
-                        type.scope.functions.define(function, name)
-                    }
-            }
+            type.base.generics.addAll(type.generics)
+            type.inherits.forEach { type.base.inherit(it) }
         }
-        KernelInitializer.scope.functions.collect().values.flatten().forEach {
+        KernelInitializer.base.scope.functions.collect().values.flatten().forEach {
             SCOPE.functions.define(it)
         }
     }
@@ -61,12 +49,11 @@ object Library {
         return if (generics.isEmpty()) type else Type.Reference(type.base, generics.toList())
     }
 
-    abstract class TypeInitializer(val name: String) {
+    abstract class TypeInitializer(name: String) {
 
         val generics = mutableListOf<Type.Generic>()
-        val inherits = mutableListOf<Type>()
-        val scope = Scope.Definition(null)
-        val type = Type.Base(name, generics, inherits, scope)
+        val inherits = mutableListOf<Type.Reference>()
+        val base = Type.Base(name, Scope.Definition(null))
 
         abstract fun initialize()
 
@@ -78,7 +65,7 @@ object Library {
             val variable = Variable.Definition(Variable.Declaration(name, type, false)).also {
                 it.value = Object(type, value)
             }
-            scope.variables.define(variable)
+            base.scope.variables.define(variable)
         }
 
         fun function(
@@ -96,14 +83,14 @@ object Library {
                         EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(
                             null,
                             "Invalid argument.",
-                            "The native function ${type.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
+                            "The native function ${base.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                         ) }
                     }
                     implementation.invoke(arguments)
                 }
             }
-            scope.functions.define(function)
-            operator?.let { scope.functions.define(function, it) }
+            base.scope.functions.define(function)
+            operator?.let { base.scope.functions.define(function, it) }
         }
 
         fun method(
@@ -115,7 +102,7 @@ object Library {
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            function(name, operator, this.generics + generics, listOf("instance" to type.reference) + parameters, returns, throws, implementation)
+            function(name, operator, this.generics + generics, listOf("instance" to base.reference) + parameters, returns, throws, implementation)
         }
 
         fun generic(name: String, bound: Type = Type.ANY) = Type.Generic(name, bound)

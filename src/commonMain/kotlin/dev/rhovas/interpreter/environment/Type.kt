@@ -79,26 +79,36 @@ sealed class Type(
 
     }
 
-    data class Base(
+    class Base(
         val name: String,
-        val generics: List<Generic>,
-        val inherits: List<Type>,
         val scope: Scope.Definition,
     ) {
 
+        val generics: MutableList<Generic> = mutableListOf()
+        val inherits: MutableList<Type> = mutableListOf()
         val reference = Reference(this, generics)
 
-        override fun toString(): String {
-            return "Base(" +
-                    "name='$name', " +
-                    "generics=$generics, " +
-                    "inherits=$inherits, " +
-                    "scope=$scope, " +
-                    ")"
+        fun inherit(type: Reference) {
+            inherits.add(type)
+            type.base.scope.functions.collect()
+                .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
+                .filter { (name, function) -> (
+                        (function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false) &&
+                        scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) }
+                ) }
+                .forEach { (name, function) ->
+                    val function = function.takeIf { type.base.generics.isEmpty() }
+                        ?: function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })
+                    scope.functions.define(function, name)
+                }
         }
 
         override fun equals(other: Any?): Boolean {
             return other is Base && name == other.name && generics == other.generics && inherits == other.inherits
+        }
+
+        override fun toString(): String {
+            return "Type.Base(name='$name', generics=$generics, inherits=$inherits, scope=$scope)"
         }
 
     }

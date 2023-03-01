@@ -31,8 +31,9 @@ object StructInitializer : Library.TypeInitializer("Struct") {
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
+            val type = instance.type
             val instance = instance.value as Map<String, Object>
-            Object(Type.STRING, instance.mapValues { it.value.methods.toString() }.toString())
+            Object(Type.STRING, type.base.name + " " + instance.mapValues { it.value.methods.toString() }.toString())
         }
     }
 

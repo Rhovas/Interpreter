@@ -30,7 +30,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         ir.members.forEach { visit(it) }
         val current = scope
-        val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Type.OBJECT) }
+        val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Type.STRUCT.ANY) }
         initializer.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val fields = arguments[0].value as Map<String, Object>
@@ -38,13 +38,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null))
                 })
             }
-        }
-        //TODO(#14): Should inherit Struct.to(String)
-        val toString = ir.type.base.scope.functions["to", 2].first { it.parameters.first().type.isSubtypeOf(ir.type) && it.parameters.last().type.isSubtypeOf(Type.TYPE[Type.STRING]) }
-        toString.implementation = { arguments ->
-            val instance = arguments[0].value as Map<String, Object>
-            val fields = Object(Type.OBJECT, instance).methods.toString()
-            Object(Type.STRING, "${ir.type.base.name} ${fields}")
         }
         return Object(Type.VOID, Unit)
     }

@@ -1555,7 +1555,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Type.ANY), Scope.Definition(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
             ast.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
 
@@ -1566,7 +1566,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, listOf(), listOf(Type.ANY), Scope.Definition(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
             ast.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
 
@@ -1580,12 +1580,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
         fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct {
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-            val struct = context.scope.types[ast.name]!!
-            val members = ast.members.map { visit(it, struct) }.toMutableList()
-            //TODO(#14): Typecheck argument (struct type / named options?)
-            struct.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.OBJECT, false)), struct, listOf())))
-            //TODO(#14): Should inherit Struct.to(String)
-            struct.base.scope.functions.define(Function.Definition(Function.Declaration("to", listOf(), listOf(Variable.Declaration("this", struct, false), Variable.Declaration("type", Type.TYPE[Type.STRING], false)), Type.STRING, listOf())))
+            val type = context.scope.types[ast.name]!!
+            val members = ast.members.map { visit(it, type) }.toMutableList()
+            val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
+            type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
+            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
             return RhovasIr.DefinitionPhase.Component.Struct(ast, members).also {
                 ast.context.firstOrNull()?.let { context.inputs.removeLast() }
             }

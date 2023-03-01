@@ -9,14 +9,14 @@ import java.util.stream.Stream
 
 class TypeTests {
 
-    val ANY = Type.Base("Any", listOf(), listOf(), Scope.Definition(null)).reference
-    val NUMBER = Type.Base("Number", listOf(), listOf(ANY), Scope.Definition(null)).reference
-    val INTEGER = Type.Base("Integer", listOf(), listOf(NUMBER), Scope.Definition(null)).reference
-    val COLLECTION = Type.Base("Collection", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
-    val LIST = Type.Base("List", listOf(Type.Generic("T", ANY)), listOf(Type.Reference(COLLECTION.base, listOf(Type.Generic("T", ANY)))), Scope.Definition(null)).reference
-    val DYNAMIC = Type.Base("Dynamic", listOf(), listOf(), Scope.Definition(null)).reference
-    val TUPLE = Type.Base("Tuple", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
-    val STRUCT = Type.Base("Struct", listOf(Type.Generic("T", ANY)), listOf(ANY), Scope.Definition(null)).reference
+    val ANY = Type.ANY
+    val NUMBER = Type.Base("Number", Scope.Definition(null)).reference.also { it.base.inherit(ANY) }
+    val INTEGER = Type.Base("Integer", Scope.Definition(null)).reference.also { it.base.inherit(NUMBER) }
+    val COLLECTION = Type.Base("Collection", Scope.Definition(null)).reference.also { it.base.generics.add(Type.Generic("T", ANY)); it.base.inherit(ANY) }
+    val LIST = Type.Base("List", Scope.Definition(null)).reference.also { it.base.generics.add(Type.Generic("T", ANY)); it.base.inherit(Type.Reference(COLLECTION.base, listOf(Type.Generic("T", ANY)))) }
+    val DYNAMIC = Type.DYNAMIC
+    val TUPLE = Type.TUPLE.ANY
+    val STRUCT = Type.STRUCT.ANY
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
