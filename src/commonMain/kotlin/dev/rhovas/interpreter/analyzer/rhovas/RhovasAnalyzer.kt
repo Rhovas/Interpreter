@@ -478,14 +478,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
-                val arguments = ast.receiver.arguments.map { visit(it) }
-                val value = visit(ast.value, receiver.type.methods["[]", arguments.map { it.type }]?.returns)
-                val method = receiver.type.methods["[]=", arguments.map { it.type } + listOf(value.type)] ?: throw error(
-                    ast,
-                    "Unresolved method.",
-                    "The signature []=(${(arguments.map { it.type } + listOf(value.type)).joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
-                )
-                RhovasIr.Statement.Assignment.Index(receiver, method, arguments, value).also {
+                val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", ast.receiver.arguments + listOf(ast.value))
+                RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last()).also {
                     it.context = ast.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
                 }
@@ -976,11 +970,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Unary): RhovasIr.Expression.Unary {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val expression = visit(ast.expression)
-        val method = expression.type.methods[ast.operator, listOf()] ?: throw error(
-            ast,
-            "Undefined method.",
-            "The method op${ast.operator}() is not defined in ${expression.type.base.name}.",
-        )
+        val (method, _) = resolveMethod(ast, ast.expression, expression.type, ast.operator, listOf())
         return RhovasIr.Expression.Unary(ast.operator, expression, method).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -988,53 +978,49 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Expression.Binary): RhovasIr.Expression.Binary {
-        val left = visit(ast.left)
-        val right = visit(ast.right)
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val (type, method) = when (ast.operator) {
+        return when (ast.operator) {
             "&&", "||" -> {
+                val left = visit(ast.left, Type.BOOLEAN)
                 require(left.type.isSubtypeOf(Type.BOOLEAN)) { error(
                     ast.left,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
+                val right = visit(ast.right, Type.BOOLEAN)
                 require(right.type.isSubtypeOf(Type.BOOLEAN)) { error(
                     ast.right,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
-                Pair(Type.BOOLEAN, null)
+                RhovasIr.Expression.Binary(ast.operator, left, right, null, Type.BOOLEAN)
             }
             "==", "!=" -> {
-                //TODO(#2): Equatable<T> interface
+                val left = visit(ast.left)
                 require(left.type.methods["==", listOf(left.type)] != null) { error(ast.left,
                     "Unequatable type.",
                     "The type ${left.type} is not equatable as the method op==(${left.type}) is not defined.",
                 ) }
-                Pair(Type.BOOLEAN, null)
+                val right = visit(ast.right, left.type)
+                RhovasIr.Expression.Binary(ast.operator, left, right, null, Type.BOOLEAN)
             }
             "===", "!==" -> {
-                Pair(Type.BOOLEAN, null)
+                val left = visit(ast.left)
+                val right = visit(ast.right, left.type)
+                RhovasIr.Expression.Binary(ast.operator, left, right, null, Type.BOOLEAN)
             }
             "<", ">", "<=", ">=" -> {
-                val method = left.type.methods["<=>", listOf(right.type)] ?: throw error(
-                    ast,
-                    "Unresolved method.",
-                    "The signature op<=>(${right.type}) could not be resolved to a method in ${left.type.base.name}.",
-                )
-                Pair(Type.BOOLEAN, method)
+                val left = visit(ast.left)
+                val (method, arguments) = resolveMethod(ast, ast.left, left.type, "<=>", listOf(ast.right))
+                RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, Type.BOOLEAN)
             }
             "+", "-", "*", "/" -> {
-                val method = left.type.methods[ast.operator, listOf(right.type)] ?: throw error(
-                    ast,
-                    "Unresolved method.",
-                    "The signature op${ast.operator}(${right.type}) could not be resolved to a method in ${left.type.base.name}.",
-                )
-                Pair(method.returns, method)
+                val left = visit(ast.left)
+                val (method, arguments) = resolveMethod(ast, ast.left, left.type, ast.operator, listOf(ast.right))
+                RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, method.returns)
             }
             else -> throw AssertionError()
-        }
-        return RhovasIr.Expression.Binary(ast.operator, left, right, method, type).also {
+        }.also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1071,10 +1057,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Undefined property.",
             "The property getter ${ast.name}() is not defined in ${receiverType.base.name}.",
         )
-        val type = when {
-            ast.coalesce -> Type.NULLABLE[property.type]
-            else -> property.type
-        }
+        val type = computeCoalesceCascadeReturn(property.type, receiver.type, ast.coalesce, false)
         return RhovasIr.Expression.Access.Property(receiver, property, ast.coalesce, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1084,12 +1067,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val arguments = ast.arguments.map { visit(it) }
-        val method = receiver.type.methods["[]", arguments.map { it.type }] ?: throw error(
-            ast,
-            "Unresolved method.",
-            "The signature [](${arguments.map { it.type }.joinToString(", ")}) could not be resolved to a method in ${receiver.type.base.name}.",
-        )
+        val (method, arguments) = resolveMethod(ast, ast.receiver, receiver.type, "[]", ast.arguments)
         return RhovasIr.Expression.Access.Index(receiver, method, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1131,14 +1109,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
-        val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("method", ast, receiverType, ast.name, ast.arguments.size + 1) {
-            when (it.first) {
-                0 -> Pair(ast.receiver, receiverType)
-                else -> Pair(ast.arguments[it.first - 1], visit(ast.arguments[it.first - 1], it.second).also { arguments.add(it) }.type)
-            }
-        }
-        val method = receiverType.methods[function.name, function.parameters.drop(1).map { it.type }]!!
+        val (method, arguments) = resolveMethod(ast, ast.receiver, receiverType, ast.name, ast.arguments)
         val type = computeCoalesceCascadeReturn(method.returns, receiver.type, ast.coalesce, ast.cascade)
         return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
@@ -1192,7 +1163,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     private fun resolveFunction(
         term: String,
-        ast: RhovasAst.Expression.Invoke,
+        ast: RhovasAst,
         qualifier: Type?,
         name: String,
         arity: Int,
@@ -1230,6 +1201,24 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             ) }
         }
         return function
+    }
+
+    private fun resolveMethod(
+        ast: RhovasAst,
+        receiverAst: RhovasAst.Expression,
+        receiverType: Type,
+        name: String,
+        argumentAsts: List<RhovasAst.Expression>
+    ): Pair<Method, List<RhovasIr.Expression>> {
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        val function = resolveFunction("method", ast, receiverType, name, argumentAsts.size + 1) {
+            when (it.first) {
+                0 -> Pair(receiverAst, receiverType)
+                else -> Pair(argumentAsts[it.first - 1], visit(argumentAsts[it.first - 1], it.second).also { arguments.add(it) }.type)
+            }
+        }
+        val method = receiverType.methods[function.name, function.parameters.drop(1).map { it.type }]!!
+        return Pair(method, arguments)
     }
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression {
