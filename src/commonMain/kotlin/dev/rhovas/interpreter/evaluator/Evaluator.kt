@@ -457,18 +457,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "||" -> Object(Type.BOOLEAN, left.value as Boolean || visit(ir.right).value as Boolean)
             "&&" -> Object(Type.BOOLEAN, left.value as Boolean && visit(ir.right).value as Boolean)
             "==", "!=" -> {
-                val method = left[ir.method!!] ?: throw error(
-                    ir,
-                    "Undefined method.",
-                    "The method op==(${ir.method.parameters.map { it.type }}) is not defined in ${left.type.base.name}.",
-                )
-                val right = visit(ir.right)
-                val result = if (right.type.isSubtypeOf(method.parameters[0].type)) {
-                    trace("${left.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-                        method.invoke(listOf(right)).value as Boolean
-                    }
-                } else false
-                val value = if (ir.operator == "==") result else !result
+                val equals = left.methods.equals(visit(ir.right))
+                val value = if (ir.operator == "==") equals else !equals
                 Object(Type.BOOLEAN, value)
             }
             "===", "!==" -> {

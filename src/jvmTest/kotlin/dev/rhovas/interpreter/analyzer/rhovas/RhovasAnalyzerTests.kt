@@ -1546,30 +1546,13 @@ class RhovasAnalyzerTests {
                         RhovasIr.Expression.Binary("==",
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
-                            Type.INTEGER.methods["==", listOf(Type.INTEGER)],
-                            Type.BOOLEAN,
-                        )
-                    }),
-                    Arguments.of("Maybe Equatable", """
-                        1 == any
-                    """.trimIndent(), {
-                        RhovasIr.Expression.Binary("==",
-                            literal(BigInteger.parseString("1")),
-                            variable("any", Type.ANY),
-                            Type.INTEGER.methods["==", listOf(Type.INTEGER)],
+                            null,
                             Type.BOOLEAN,
                         )
                     }),
                     Arguments.of("Not Equatable", """
-                        1 != 2.0
-                    """.trimIndent(), {
-                        RhovasIr.Expression.Binary("!=",
-                            literal(BigInteger.parseString("1")),
-                            literal(BigDecimal.parseString("2.0")),
-                            Type.INTEGER.methods["==", listOf(Type.INTEGER)],
-                            Type.BOOLEAN,
-                        )
-                    }),
+                        any != 2
+                    """.trimIndent(), null),
                 )
             }
 

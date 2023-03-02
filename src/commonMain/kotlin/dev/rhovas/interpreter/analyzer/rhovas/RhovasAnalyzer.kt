@@ -1007,12 +1007,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "==", "!=" -> {
                 //TODO(#2): Equatable<T> interface
-                val method = left.type.methods["==", listOf(left.type)] ?: throw error(
-                    ast,
-                    "Undefined method.",
-                    "The method op==(${left.type}) is not defined in ${left.type.base.name}.",
-                )
-                Pair(Type.BOOLEAN, method)
+                require(left.type.methods["==", listOf(left.type)] != null) { error(ast.left,
+                    "Unequatable type.",
+                    "The type ${left.type} is not equatable as the method op==(${left.type}) is not defined.",
+                ) }
+                Pair(Type.BOOLEAN, null)
             }
             "===", "!==" -> {
                 Pair(Type.BOOLEAN, null)

@@ -95,14 +95,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             val instance = instance.value as Pair<Object?, Object?>?
             val other = other.value as Pair<Object?, Object?>?
             val result = listOf(instance?.first to other?.first, instance?.second to other?.second).all { (instance, other) ->
-                if (instance == null || other == null) instance == other else {
-                    val method = instance.methods["==", listOf(instance.type)] ?: throw EVALUATOR.error(
-                        null,
-                        "Undefined method.",
-                        "The method ${instance.type.base.name}.==(${instance.type}) is undefined.",
-                    )
-                    if (other.type.isSubtypeOf(method.parameters[0].type)) method.invoke(listOf(other)).value as Boolean else false
-                }
+                if (instance == null || other == null) instance == other else instance.methods.equals(other)
             }
             Object(Type.BOOLEAN, result)
         }

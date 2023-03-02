@@ -35,14 +35,7 @@ object ObjectInitializer : Library.TypeInitializer("Object") {
         ) { (instance, other) ->
             val instance = instance.value as Map<String, Object>
             val other = other.value as Map<String, Object>
-            Object(Type.BOOLEAN, instance.keys == other.keys && instance.keys.all {
-                val method = instance[it]!!.methods["==", listOf(instance[it]!!.type)] ?: throw EVALUATOR.error(
-                    null,
-                    "Undefined method.",
-                    "The method ${instance[it]!!.type.base.name}.==(${instance[it]!!.type}) is undefined.",
-                )
-                if (other[it]!!.type.isSubtypeOf(method.parameters[0].type)) method.invoke(listOf(other[it]!!)).value as Boolean else false
-            })
+            Object(Type.BOOLEAN, instance.keys == other.keys && instance.all { it.value.methods.equals(other[it.key]!!) })
         }
 
         method("to",

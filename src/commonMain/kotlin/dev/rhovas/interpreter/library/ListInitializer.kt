@@ -103,14 +103,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             returns = Type.BOOLEAN,
         ) { (instance, value) ->
             val instance = instance.value as List<Object>
-            val method = value.methods["==", listOf(value.type)] ?: throw EVALUATOR.error(
-                null,
-                "Undefined method.",
-                "The method ${value.type.base.name}.==(${value.type}) is undefined.",
-            )
-            Object(Type.BOOLEAN, instance.any {
-                it.type.isSubtypeOf(method.parameters[0].type) && method.invoke(listOf(it)).value as Boolean
-            })
+            Object(Type.BOOLEAN, instance.any { it.methods.equals(value) })
         }
 
         method("concat", operator = "+",
@@ -230,14 +223,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         ) { (instance, other) ->
             val instance = instance.value as List<Object>
             val other = other.value as List<Object>
-            Object(Type.BOOLEAN, instance.size == other.size && instance.zip(other).all {
-                val method = it.first.methods["==", listOf(it.first.type)] ?: throw EVALUATOR.error(
-                    null,
-                    "Undefined method.",
-                    "The method ${it.first.type.base.name}.==(${it.first.type}) is undefined.",
-                )
-                if (it.second.type.isSubtypeOf(method.parameters[0].type)) method.invoke(listOf(it.second)).value as Boolean else false
-            })
+            Object(Type.BOOLEAN, instance.size == other.size && instance.zip(other).all { it.first.methods.equals(it.second) })
         }
 
         method("to",

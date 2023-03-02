@@ -35,9 +35,18 @@ data class Object(
         }
 
         /**
-         * Invokes `to(String)` on the object. This is placed here as a bit of a
-         * hack to avoid overriding the default data class toString, but also
-         * helps make it clear this invokes a user method.
+         * Invokes `==(other)` on the object if defined or returns false. This
+         * is placed here to avoid overriding the default data class `equals`,
+         * but also makes it clearer this invokes a user method.
+         */
+        fun equals(other: Object): Boolean {
+            return get("==", listOf(other.type))?.invoke(listOf(other))?.value as Boolean? ?: false
+        }
+
+        /**
+         * Invokes `to(String)` on the object. This is placed here to avoid
+         * overriding the default data class `toString`, but also makes it
+         * clearer this invokes a user method.
          */
         override fun toString(): String {
             val type = Type.TYPE[Type.STRING]
