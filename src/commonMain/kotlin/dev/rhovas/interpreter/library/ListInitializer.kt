@@ -20,6 +20,13 @@ object ListInitializer : Library.TypeInitializer("List") {
             Object(Type.INTEGER, BigInteger.fromInt(instance.size))
         }
 
+        method("empty",
+            returns = Type.BOOLEAN,
+        ) { (instance) ->
+            val instance = instance.value as List<Object>
+            Object(Type.BOOLEAN, instance.isEmpty())
+        }
+
         method("first",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
@@ -77,7 +84,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             Object(Type.LIST[elementType], instance.subList(start.intValue(), instance.size))
         }
 
-        method("slice",
+        method("slice", "[]",
             parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, start, end) ->
@@ -106,6 +113,38 @@ object ListInitializer : Library.TypeInitializer("List") {
             Object(Type.BOOLEAN, instance.any { it.methods.equals(value) })
         }
 
+        method("indexOf",
+            parameters = listOf("value" to generic("T")),
+            returns = Type.NULLABLE[Type.INTEGER],
+        ) { (instance, other) ->
+            val instance = instance.value as List<Object>
+            val result = instance.indexOfFirst { other.methods.equals(it) }.takeIf { it != -1 }?.let { BigInteger.fromInt(it) }
+            Object(Type.NULLABLE[Type.INTEGER], result?.let { Pair(Object(Type.INTEGER, it), null) })
+        }
+
+        method("find",
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.BOOLEAN, Type.DYNAMIC]),
+            returns = generic("T"),
+        ) { (instance, lambda) ->
+            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val instance = instance.value as List<Object>
+            val lambda = lambda.value as Evaluator.Lambda
+            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
+                lambda.ast,
+                "Invalid lambda parameter count.",
+                "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
+            ) }
+            Object(Type.LIST[elementType], instance.find {
+                val result = lambda.invoke(listOf(Triple("element", elementType, it)), elementType)
+                EVALUATOR.require(result.type.isSubtypeOf(Type.BOOLEAN)) { EVALUATOR.error(
+                    lambda.ast,
+                    "Invalid lambda result.",
+                    "Function List.filter requires the lambda result to be type Boolean, but received ${result.type}.",
+                ) }
+                result.value as Boolean
+            })
+        }
+
         method("concat", operator = "+",
             parameters = listOf("other" to Type.LIST[generic("T")]),
             returns = Type.LIST[generic("T")],
@@ -114,6 +153,24 @@ object ListInitializer : Library.TypeInitializer("List") {
             val instance = instance.value as List<Object>
             val other = other.value as List<Object>
             Object(type, instance + other)
+        }
+
+        method("repeat", operator = "*",
+            parameters = listOf("times" to Type.INTEGER),
+            returns = Type.LIST[generic("T")],
+        ) { (instance, times) ->
+            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val instance = instance.value as List<Object>
+            val times = times.value as BigInteger
+            Object(Type.LIST[elementType], (0 until times.intValue()).flatMap { instance })
+        }
+
+        method("reverse",
+            returns = Type.LIST[generic("T")],
+        ) { (instance) ->
+            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val instance = instance.value as List<Object>
+            Object(Type.LIST[elementType], instance.reversed())
         }
 
         method("for",
@@ -127,10 +184,8 @@ object ListInitializer : Library.TypeInitializer("List") {
                 "Invalid lambda parameter count.",
                 "Function List.for requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
             ) }
-            instance.forEach {
-                lambda.invoke(listOf(Triple("val", elementType, it)), Type.VOID)
-            }
-            Object(Type.VOID, null)
+            instance.forEach { lambda.invoke(listOf(Triple("element", elementType, it)), Type.VOID) }
+            Object(Type.VOID, Unit)
         }
 
         method("map",
