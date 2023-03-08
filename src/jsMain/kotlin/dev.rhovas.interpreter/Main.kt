@@ -16,24 +16,22 @@ fun main() {
         ),
         Type.VOID,
         listOf(),
-    )).also {
-        it.implementation = {
-            val literals = (it[0].value as List<Object>).map { it.value as String }
-            val arguments = (it[1].value as List<Object>)
-            val source = literals.withIndex().joinToString("") {
-                it.value + (arguments.getOrNull(it.index)?.let { JSON.stringify(it.value) } ?: "")
-            }
-            try {
-                kotlin.js.eval("eval?.(" + JSON.stringify(source) + ")")
-            } catch (error: Exception) {
-                throw EVALUATOR.error(
-                    null,
-                    "DSL Evaluation Error",
-                    "Failed to eval JavaScript source: ${error.message ?: error}",
-                )
-            }
-            Object(Type.VOID, null)
+    )) {
+        val literals = (it[0].value as List<Object>).map { it.value as String }
+        val arguments = (it[1].value as List<Object>)
+        val source = literals.withIndex().joinToString("") {
+            it.value + (arguments.getOrNull(it.index)?.let { JSON.stringify(it) } ?: "")
         }
+        try {
+            kotlin.js.eval("eval?.(" + JSON.stringify(source) + ")")
+        } catch (error: Exception) {
+            throw EVALUATOR.error(
+                null,
+                "DSL Evaluation Error",
+                "Failed to eval JavaScript source: ${error.message ?: error}",
+            )
+        }
+        Object(Type.VOID, null)
     }
     Library.SCOPE.functions.define(js)
 }

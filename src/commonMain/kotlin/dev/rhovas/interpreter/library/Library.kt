@@ -62,9 +62,7 @@ object Library {
             type: Type,
             value: Any?
         ) {
-            val variable = Variable.Definition(Variable.Declaration(name, type, false)).also {
-                it.value = Object(type, value)
-            }
+            val variable = Variable.Definition(Variable.Declaration(name, type, false), Object(type, value))
             base.scope.variables.define(variable)
         }
 
@@ -77,17 +75,15 @@ object Library {
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)).also {
-                it.implementation = { arguments ->
-                    arguments.indices.forEach {
-                        EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(
-                            null,
-                            "Invalid argument.",
-                            "The native function ${base.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
-                        ) }
-                    }
-                    implementation.invoke(arguments)
+            val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)) { arguments ->
+                arguments.indices.forEach {
+                    EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(
+                        null,
+                        "Invalid argument.",
+                        "The native function ${base.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
+                    ) }
                 }
+                implementation.invoke(arguments)
             }
             base.scope.functions.define(function)
             operator?.let { base.scope.functions.define(function, it) }

@@ -13,10 +13,14 @@ sealed interface Variable {
     ) : Variable
 
     data class Definition(
-        val declaration: Declaration
+        val declaration: Declaration,
     ) : Variable by declaration {
 
         lateinit var value: Object
+
+        constructor(declaration: Declaration, value: Object) : this(declaration) {
+            this.value = value
+        }
 
     }
 

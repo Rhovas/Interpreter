@@ -1,7 +1,5 @@
 package dev.rhovas.interpreter.environment
 
-import dev.rhovas.interpreter.library.Library
-
 sealed interface Function {
 
     val name: String
@@ -52,14 +50,16 @@ sealed interface Function {
 
         lateinit var implementation: (List<Object>) -> Object
 
+        constructor(declaration: Declaration, implementation: (List<Object>) -> Object): this(declaration) {
+            this.implementation = implementation
+        }
+
         fun invoke(arguments: List<Object>): Object {
             return implementation.invoke(arguments)
         }
 
         override fun bind(generics: Map<String, Type>): Definition {
-            return Definition(declaration.bind(generics)).also {
-                it.implementation = { implementation.invoke(it) }
-            }
+            return Definition(declaration.bind(generics)) { implementation.invoke(it) }
         }
 
     }

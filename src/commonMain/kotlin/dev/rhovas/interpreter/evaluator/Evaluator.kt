@@ -65,13 +65,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         ir.function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val instance = Variable.Definition(Variable.Declaration("this", ir.function.returns, false))
-                instance.value = Object(instance.type, mutableMapOf<String, Object>())
-                scope.variables.define(instance)
+                val instance = Object(ir.function.returns, mutableMapOf<String, Object>())
+                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns, false), instance))
                 for (i in ir.function.parameters.indices) {
-                    val parameter = Variable.Definition(ir.function.parameters[i])
-                    parameter.value = arguments[i]
-                    scope.variables.define(parameter)
+                    scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
                 }
                 try {
                     visit(ir.block)
@@ -83,7 +80,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ) }
                     throw e
                 } catch (ignored: Return) {}
-                instance.value
+                instance
             }
         }
         return Object(Type.VOID, Unit)
@@ -123,9 +120,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 for (i in ir.function.parameters.indices) {
-                    val parameter = Variable.Definition(ir.function.parameters[i])
-                    parameter.value = arguments[i]
-                    scope.variables.define(parameter)
+                    scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
                 }
                 try {
                     visit(ir.block)
@@ -253,9 +248,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         for (element in iterable.value as List<Object>) {
             try {
                 scoped(Scope.Definition(scope)) {
-                    val variable = Variable.Definition(ir.variable)
-                    variable.value = element
-                    scope.variables.define(variable)
+                    scope.variables.define(Variable.Definition(ir.variable, element))
                     visit(ir.block)
                 }
             } catch (e: Break) {
@@ -308,9 +301,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             val catch = ir.catchBlocks.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
             if (catch != null) {
                 scoped(Scope.Definition(scope)) {
-                    val variable = Variable.Definition(catch.variable)
-                    variable.value = e.exception
-                    scope.variables.define(variable)
+                    scope.variables.define(Variable.Definition(catch.variable, e.exception))
                     try {
                         visit(catch.block)
                     } catch (e: Throw) {
@@ -334,11 +325,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Statement.With): Object {
         val argument = visit(ir.argument)
         return scoped(Scope.Definition(scope)) {
-            ir.variable?.let {
-                val variable = Variable.Definition(ir.variable)
-                variable.value = argument
-                scope.variables.define(variable)
-            }
+            ir.variable?.let { scope.variables.define(Variable.Definition(ir.variable, argument)) }
             visit(ir.block)
         }
     }
@@ -641,11 +628,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
-        ir.variable?.let {
-            val variable = Variable.Definition(it)
-            variable.value = patternState.value
-            patternState.scope.variables.define(variable)
-        }
+        ir.variable?.let { patternState.scope.variables.define(Variable.Definition(it, patternState.value)) }
         return Object(Type.BOOLEAN, true)
     }
 
@@ -716,9 +699,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
             if (key != null && (pattern as? RhovasIr.Pattern.Variable)?.variable?.name != key) {
-                val variable = Variable.Definition(Variable.Declaration(key, value.type, false))
-                variable.value = value
-                patternState.scope.variables.define(variable)
+                patternState.scope.variables.define(Variable.Definition(Variable.Declaration(key, value.type, false), value))
             }
             patternState = patternState.copy(value = value)
             if (!(visit(pattern).value as Boolean)) {
@@ -745,11 +726,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let {
-                    val variable = Variable.Definition(it)
-                    variable.value = patternState.value
-                    scope.variables.define(variable)
-                }
+                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, patternState.value)) }
                 Object(Type.BOOLEAN, true)
             } else {
                 //TODO(#15): Handle variable bindings
@@ -764,11 +741,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let {
-                    val variable = Variable.Definition(it)
-                    variable.value = Object(Type.OBJECT, map)
-                    scope.variables.define(variable)
-                }
+                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, Object(Type.OBJECT, map))) }
                 Object(Type.BOOLEAN, true)
             } else {
                 //TODO(#15): Handle variable bindings
@@ -853,18 +826,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             return evaluator.scoped(Scope.Definition(scope)) {
                 if (ast.parameters.isNotEmpty()) {
                     for (i in ast.parameters.indices) {
-                        val variable = Variable.Definition(ast.parameters[i])
-                        variable.value = arguments[i].third
-                        evaluator.scope.variables.define(variable)
+                        evaluator.scope.variables.define(Variable.Definition(ast.parameters[i], arguments[i].third))
                     }
                 } else if (arguments.size == 1) {
-                    val variable = Variable.Definition(Variable.Declaration("val", arguments[0].second, false))
-                    variable.value = arguments[0].third
-                    evaluator.scope.variables.define(variable)
+                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].second, false), arguments[0].third))
                 } else {
-                    val variable = Variable.Definition(Variable.Declaration("val", Type.OBJECT, false) )
-                    variable.value = Object(Type.OBJECT, arguments.associate { it.first to it.third })
-                    evaluator.scope.variables.define(variable)
+                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.OBJECT, false), Object(Type.OBJECT, arguments.associate { it.first to it.third })))
                 }
                 try {
                     evaluator.visit(ast.body)
