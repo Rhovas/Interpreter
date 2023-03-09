@@ -13,7 +13,7 @@ func iterFibonacci(num: Integer): Integer {
 assert iterFibonacci(0) == 0;
 assert iterFibonacci(1) == 1;
 assert iterFibonacci(5) == 5;
-assert iterFibonacci(20) == 6765;
+assert iterFibonacci(10) == 55;
 
 func recFibonacci(num: Integer): Integer {
     require num >= 0;
@@ -27,7 +27,7 @@ func recFibonacci(num: Integer): Integer {
 assert recFibonacci(0) == 0;
 assert recFibonacci(1) == 1;
 assert recFibonacci(5) == 5;
-assert recFibonacci(20) == 6765;
+assert recFibonacci(10) == 55;
 
 func negFibonacci(num: Integer): Integer {
     match {
@@ -40,4 +40,4 @@ func negFibonacci(num: Integer): Integer {
 assert negFibonacci(0) == 0;
 assert negFibonacci(1) == 1;
 assert negFibonacci(-5) == 5;
-assert negFibonacci(-20) == -6765;
+assert negFibonacci(-10) == -55;

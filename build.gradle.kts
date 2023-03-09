@@ -4,8 +4,8 @@ import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest
 
 plugins {
-    kotlin("multiplatform") version "1.8.0"
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    kotlin("multiplatform") version "1.8.20-RC"
+    id("com.github.johnrengelman.shadow") version "8.1.0"
 }
 
 group = "dev.rhovas.interpreter"
