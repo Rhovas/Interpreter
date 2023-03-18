@@ -857,7 +857,6 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 }
                 try {
                     evaluator.visit(ast.body)
-                    Object(Type.VOID, Unit)
                 } catch (e: Return) {
                     e.value ?: Object(Type.VOID, Unit)
                 }

@@ -1308,11 +1308,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         //TODO(#2): Forward thrown exceptions from context into declaration
         val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
             val generics = (context.inference as Type.Reference).generics
-            val arguments = when(generics[0]) {
-                is Type.Generic -> (generics[0] as Type.Generic).bound
-                is Type.Variant -> (generics[0] as Type.Variant).upper
-                else -> generics[0]
-            }?.let { (it as? Type.Reference)?.generics?.firstOrNull() as? Type.Tuple? }
+            val arguments = ((generics[0] as? Type.Reference)?.generics?.firstOrNull() as? Type.Tuple?)?.let {
+                Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
+                    is Type.Generic -> it.type.bound
+                    is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
+                    else -> generics[0]
+                }) })
+            }
             Triple(arguments, generics[1], generics[2])
         } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
