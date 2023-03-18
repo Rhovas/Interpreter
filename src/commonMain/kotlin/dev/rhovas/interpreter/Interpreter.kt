@@ -56,8 +56,10 @@ class Interpreter(
             input.diagnostic(e.summary, e.details, e.range, e.context)
         } catch (e: EvaluateException) {
             input.diagnostic(e.summary, e.details, e.range, e.context)
+        } catch (e: Evaluator.Throw) {
+            "Uncaught exception: ${e.exception.value}"
         } catch (e: Exception) {
-            "Unexpected exception: " + e.message + "\n\n${e.stackTraceToString()}"
+            "Unexpected exception: ${e.message}\n\n${e.stackTraceToString()}"
         } finally {
             INTERPRETER = original
         }

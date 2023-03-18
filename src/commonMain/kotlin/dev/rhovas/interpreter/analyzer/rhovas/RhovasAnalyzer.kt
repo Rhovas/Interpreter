@@ -20,7 +20,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         FunctionContext(null),
         LabelContext(mutableSetOf()),
         JumpContext(mutableSetOf()),
-        ExceptionContext(mutableSetOf()),
+        ExceptionContext(mutableSetOf(Type.EXCEPTION)),
     ).associateBy { it::class.simpleName!! })),
     RhovasIr.DefinitionPhase.Visitor<RhovasIr> {
 
@@ -478,7 +478,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
-                val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", ast.receiver.arguments + listOf(ast.value))
+                val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", false, ast.receiver.arguments + listOf(ast.value))
                 RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last()).also {
                     it.context = ast.context
                     it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -970,7 +970,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Unary): RhovasIr.Expression.Unary {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val expression = visit(ast.expression)
-        val (method, _) = resolveMethod(ast, ast.expression, expression.type, ast.operator, listOf())
+        val (method, _) = resolveMethod(ast, ast.expression, expression.type, ast.operator, false, listOf())
         return RhovasIr.Expression.Unary(ast.operator, expression, method).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1011,12 +1011,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "<", ">", "<=", ">=" -> {
                 val left = visit(ast.left)
-                val (method, arguments) = resolveMethod(ast, ast.left, left.type, "<=>", listOf(ast.right))
+                val (method, arguments) = resolveMethod(ast, ast.left, left.type, "<=>", false, listOf(ast.right))
                 RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, Type.BOOLEAN)
             }
             "+", "-", "*", "/" -> {
                 val left = visit(ast.left)
-                val (method, arguments) = resolveMethod(ast, ast.left, left.type, ast.operator, listOf(ast.right))
+                val (method, arguments) = resolveMethod(ast, ast.left, left.type, ast.operator, false, listOf(ast.right))
                 RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, method.returns)
             }
             else -> throw AssertionError()
@@ -1052,13 +1052,21 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
-        val property = receiverType.properties[ast.name] ?: throw error(
+        val bang = ast.name.endsWith('!')
+        val property = receiverType.properties[ast.name.removeSuffix("!")] ?: throw error(
             ast,
             "Undefined property.",
-            "The property getter ${ast.name}() is not defined in ${receiverType.base.name}.",
+            "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType.base.name}.",
         )
-        val type = computeCoalesceCascadeReturn(property.type, receiver.type, ast.coalesce, false)
-        return RhovasIr.Expression.Access.Property(receiver, property, ast.coalesce, type).also {
+        val returnsType = if (bang) {
+            require(property.type.isSubtypeOf(Type.RESULT.ANY)) { error(ast,
+                "Invalid bang attribute.",
+                "A bang attribute requires the property getter ${ast.name.removeSuffix("!")}() to return type Result, but received ${property.type}"
+            ) }
+            property.type.methods["value!", listOf()]!!.returns
+        } else property.type
+        val type = computeCoalesceCascadeReturn(returnsType, receiver.type, ast.coalesce, false)
+        return RhovasIr.Expression.Access.Property(receiver, property, bang, ast.coalesce, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1067,7 +1075,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
-        val (method, arguments) = resolveMethod(ast, ast.receiver, receiver.type, "[]", ast.arguments)
+        val (method, arguments) = resolveMethod(ast, ast.receiver, receiver.type, "[]", false, ast.arguments)
         return RhovasIr.Expression.Access.Index(receiver, method, arguments).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1083,10 +1091,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "The type ${type} cannot be constructed (only reference types)."
         ) }
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("constructor", ast, type, "", ast.arguments.size) {
+        val function = resolveFunction("constructor", ast, type, "", false, ast.arguments.size) {
             ast.arguments[it.first] to visit(ast.arguments[it.first], it.second).also { arguments.add(it) }.type
         }
-        return RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments).also {
+        return RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments, function.returns).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1096,10 +1104,15 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val qualifier = ast.qualifier?.let { visit(it).type }
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("function", ast, qualifier, ast.name, ast.arguments.size) {
+        val function = resolveFunction("function", ast, qualifier, ast.name, true, ast.arguments.size) {
             Pair(ast.arguments[it.first], visit(ast.arguments[it.first], it.second).also { arguments.add(it) }.type)
         }
-        return RhovasIr.Expression.Invoke.Function(qualifier, function, arguments).also {
+        val bang = ast.name.endsWith('!')
+        val returns = computeBangReturn(function, bang) { error(ast,
+            "Invalid bang attribute.",
+            "A bang attribute requires the function ${ast.name} to return type Result, but received ${function.returns}."
+        ) }
+        return RhovasIr.Expression.Invoke.Function(qualifier, function, bang, arguments, returns).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1109,9 +1122,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
-        val (method, arguments) = resolveMethod(ast, ast.receiver, receiverType, ast.name, ast.arguments)
-        val type = computeCoalesceCascadeReturn(method.returns, receiver.type, ast.coalesce, ast.cascade)
-        return RhovasIr.Expression.Invoke.Method(receiver, method, ast.coalesce, ast.cascade, arguments, type).also {
+        val (method, arguments) = resolveMethod(ast, ast.receiver, receiverType, ast.name, true, ast.arguments)
+        val bang = ast.name.endsWith('!')
+        val returns = computeBangReturn(method.function, bang) { error(ast,
+            "Invalid bang attribute.",
+            "A bang attribute requires the method ${ast.name} to return type Result, but received ${method.returns}."
+        ) }
+        val type = computeCoalesceCascadeReturn(returns, receiver.type, ast.coalesce, ast.cascade)
+        return RhovasIr.Expression.Invoke.Method(receiver, method, bang, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1123,14 +1141,19 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val qualifier = ast.qualifier?.let { visit(it).type }
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("function", ast, qualifier, ast.name, ast.arguments.size + 1) {
+        val function = resolveFunction("function", ast, qualifier, ast.name, true, ast.arguments.size + 1) {
             when (it.first) {
                 0 -> Pair(ast.receiver, receiverType)
                 else -> Pair(ast.arguments[it.first - 1], visit(ast.arguments[it.first - 1], it.second).also { arguments.add(it) }.type)
             }
         }
-        val type = computeCoalesceCascadeReturn(function.returns, receiver.type, ast.coalesce, ast.cascade)
-        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, ast.coalesce, ast.cascade, arguments, type).also {
+        val bang = ast.name.endsWith('!')
+        val returns = computeBangReturn(function, bang) { error(ast,
+            "Invalid bang attribute.",
+            "A bang attribute requires the function ${ast.name} to return type Result, but received ${function.returns}."
+        ) }
+        val type = computeCoalesceCascadeReturn(returns, receiver.type, ast.coalesce, ast.cascade)
+        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, bang, ast.coalesce, ast.cascade, arguments, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1143,9 +1166,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Coalescing requires the receiver to be type Result, but received ${receiver.type}.",
                 receiver.context.firstOrNull(),
             ) }
-            receiver.type.methods["get", listOf()]!!.returns
+            receiver.type.methods["value!", listOf()]!!.returns
         } else {
             receiver.type
+        }
+    }
+
+    private fun computeBangReturn(function: Function, bang: Boolean, error: () -> AnalyzeException): Type {
+        return when {
+            bang && function.throws.isEmpty() -> {
+                require(function.returns.isSubtypeOf(Type.RESULT.ANY), error)
+                function.returns.methods["value!", listOf()]!!.returns
+            }
+            !bang && function.throws.isNotEmpty() -> Type.RESULT[function.returns, function.throws.singleOrNull() ?: Type.EXCEPTION]
+            else -> function.returns
         }
     }
 
@@ -1166,11 +1200,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ast: RhovasAst,
         qualifier: Type?,
         name: String,
+        bang: Boolean,
         arity: Int,
         generator: (Pair<Int, Type?>) -> Pair<RhovasAst.Expression, Type>,
     ): Function {
         val descriptor = listOfNotNull(qualifier ?: "", name.takeIf { it.isNotEmpty() }).joinToString(".") + "/" + (if (term == "method") arity - 1 else arity)
         val candidates = (qualifier?.functions?.get(name, arity) ?: context.scope.functions[name, arity])
+            .ifEmpty {
+                if (bang) {
+                    val variant = if (name.endsWith("!")) name.removeSuffix("!") else "${name}!"
+                    qualifier?.functions?.get(variant, arity) ?: context.scope.functions[variant, arity]
+                } else listOf()
+            }
             .map { Pair(it, mutableMapOf<String, Type>()) }
             .ifEmpty { throw error(ast,
                 "Undefined ${term}.",
@@ -1193,7 +1234,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 )
             } }
         }
-        val function = (qualifier?.functions?.get(name, arguments) ?: context.scope.functions[name, arguments])!!
+        val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
         function.throws.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
@@ -1208,10 +1249,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         receiverAst: RhovasAst.Expression,
         receiverType: Type,
         name: String,
+        bang: Boolean,
         argumentAsts: List<RhovasAst.Expression>
     ): Pair<Method, List<RhovasIr.Expression>> {
         val arguments = mutableListOf<RhovasIr.Expression>()
-        val function = resolveFunction("method", ast, receiverType, name, argumentAsts.size + 1) {
+        val function = resolveFunction("method", ast, receiverType, name, bang, argumentAsts.size + 1) {
             when (it.first) {
                 0 -> Pair(receiverAst, receiverType)
                 else -> Pair(argumentAsts[it.first - 1], visit(argumentAsts[it.first - 1], it.second).also { arguments.add(it) }.type)
@@ -1254,7 +1296,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 source.arguments.map { visit(it as RhovasAst.Expression) },
                 Type.LIST[Type.DYNAMIC],
             )
-            return RhovasIr.Expression.Invoke.Function(null, function, listOf(literals, arguments)).also {
+            return RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns).also {
                 it.context = ast.context
                 it.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
@@ -1264,15 +1306,15 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
             val generics = (context.inference as Type.Reference).generics
             val arguments = when(generics[0]) {
                 is Type.Generic -> (generics[0] as Type.Generic).bound
                 is Type.Variant -> (generics[0] as Type.Variant).upper
                 else -> generics[0]
             }?.let { (it as? Type.Reference)?.generics?.firstOrNull() as? Type.Tuple? }
-            Pair(arguments, generics[1])
-        } else Pair(null, null)
+            Triple(arguments, generics[1], generics[2])
+        } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
             val type = it.value.second?.let { visit(it).type }
                 ?: inferenceParameters?.elements?.getOrNull(it.index)?.type
@@ -1280,8 +1322,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             Variable.Declaration(it.value.first, type, false)
         }
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
-        val function = Function.Declaration("lambda", listOf(), parameters, returns, listOf())
-        return analyze(context.child().with(FunctionContext(function))) {
+        val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
+        val function = Function.Declaration("lambda", listOf(), parameters, returns, throws)
+        return analyze(context.child().with(
+            FunctionContext(function),
+            ExceptionContext(function.throws.toMutableSet())
+        )) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             } else {

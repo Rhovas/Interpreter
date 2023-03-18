@@ -20,6 +20,13 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             Object(Type.NULLABLE[instance?.first?.type ?: Type.DYNAMIC], instance?.first?.let { Pair(it, null) })
         }
 
+        method("value!",
+            returns = generic("T"),
+        ) { (instance) ->
+            val instance = instance.value as Pair<Object?, Object?>?
+            instance?.first ?: throw Evaluator.Throw(instance?.second ?: Object(Type.EXCEPTION, "Invalid null access."))
+        }
+
         method("error",
             returns = Type.NULLABLE[generic("E")],
         ) { (instance) ->
@@ -27,23 +34,12 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             Object(Type.NULLABLE[instance?.first?.type ?: Type.DYNAMIC], instance?.second?.let { Pair(it, null) })
         }
 
-        method("get",
-            returns = generic("T"),
-        ) { (instance) ->
-            val instance = instance.value as Pair<Object?, Object?>?
-            instance?.first ?: throw EVALUATOR.error(
-                null,
-                "Invalid null access",
-                "The Result value is null${instance?.second?.let { "(${it.methods.toString()})" } ?: ""}.",
-            )
-        }
-
         method("map",
             generics = listOf(generic("R")),
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("value", generic("T"), false)))], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda) ->
-            val valueType = instance.type.methods["get", listOf()]!!.returns
+            val valueType = instance.type.methods["value!", listOf()]!!.returns
             val returnsType = lambda.type.methods["invoke", listOf(Type.LIST.ANY)]!!.returns
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda

@@ -263,6 +263,7 @@ sealed class RhovasIr {
             data class Property(
                 val receiver: Expression,
                 val property: dev.rhovas.interpreter.environment.Property,
+                val bang: Boolean,
                 val coalesce: Boolean,
                 override val type: dev.rhovas.interpreter.environment.Type,
             ) : Access(type)
@@ -283,17 +284,21 @@ sealed class RhovasIr {
                 val qualifier: dev.rhovas.interpreter.environment.Type.Reference,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
-            ) : Invoke(function.returns)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Invoke(type)
 
             data class Function(
                 val qualifier: dev.rhovas.interpreter.environment.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
+                val bang: Boolean,
                 val arguments: List<Expression>,
-            ) : Invoke(function.returns)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Invoke(type)
 
             data class Method(
                 val receiver: Expression,
                 val method: dev.rhovas.interpreter.environment.Method,
+                val bang: Boolean,
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
@@ -304,6 +309,7 @@ sealed class RhovasIr {
                 val receiver: Expression,
                 val qualifier: dev.rhovas.interpreter.environment.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
+                val bang: Boolean,
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,

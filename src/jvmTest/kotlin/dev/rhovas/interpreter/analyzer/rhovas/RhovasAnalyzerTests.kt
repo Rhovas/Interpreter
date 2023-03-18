@@ -152,6 +152,7 @@ class RhovasAnalyzerTests {
                                     type,
                                     Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
                                     listOf(RhovasIr.Expression.Literal.Object(mapOf(), type.base.inherits[0])),
+                                    type,
                                 ),
                             ),
                         ))
@@ -174,8 +175,10 @@ class RhovasAnalyzerTests {
                                         type,
                                         Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
                                         listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
+                                        type,
                                     ),
                                     type.properties["field"]!!,
+                                    false,
                                     false,
                                     Type.INTEGER,
                                 ),
@@ -196,7 +199,7 @@ class RhovasAnalyzerTests {
                                     block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
                                 )),
                             ))),
-                            RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(type, type.functions["function", listOf()]!!, listOf())),
+                            RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(type, type.functions["function", listOf()]!!, false, listOf(), Type.INTEGER)),
                         ))
                     }),
                     Arguments.of("Method", """
@@ -215,7 +218,7 @@ class RhovasAnalyzerTests {
                                 RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null),
                                 RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(
                                     type.methods["method", listOf()]!!.function,
-                                    block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, Type.INTEGER))),
+                                    block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, false, Type.INTEGER))),
                                 )),
                             ))),
                             RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Method(
@@ -223,9 +226,10 @@ class RhovasAnalyzerTests {
                                     type,
                                     Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
                                     listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
+                                    type,
                                 ),
                                 type.methods["method", listOf()]!!,
-                                false, false, listOf(), Type.INTEGER)),
+                                false, false, false, listOf(), Type.INTEGER)),
                         ))
                     }),
                 )
@@ -310,7 +314,7 @@ class RhovasAnalyzerTests {
                         stmt();
                     """.trimIndent(), {
                         RhovasIr.Statement.Expression(
-                            RhovasIr.Expression.Invoke.Function(null, STMT_0, listOf())
+                            RhovasIr.Expression.Invoke.Function(null, STMT_0, false, listOf(), Type.VOID)
                         )
                     }),
                     Arguments.of("Invalid", """
@@ -343,7 +347,7 @@ class RhovasAnalyzerTests {
                         val func = Function.Declaration("name", listOf(), listOf(), Type.VOID, listOf())
                         RhovasIr.Statement.Declaration.Function(
                             func,
-                            block(RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(null, func, listOf()))),
+                            block(RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(null, func, false, listOf(), Type.VOID))),
                         )
                     }),
                     Arguments.of("Parameter", """
@@ -424,9 +428,10 @@ class RhovasAnalyzerTests {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name", listOf(), listOf(), Type.VOID, listOf(Type.EXCEPTION)),
                             block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Constructor(
-                                Type.EXCEPTION.base.reference,
+                                Type.EXCEPTION,
                                 Type.EXCEPTION.functions["", listOf(Type.STRING)]!! as Function.Definition,
                                 listOf(literal("message")),
+                                Type.EXCEPTION,
                             ))),
                         )
                     }),
@@ -1745,6 +1750,7 @@ class RhovasAnalyzerTests {
                                 literal("string"),
                                 Type.STRING.properties["size"]!!,
                                 false,
+                                false,
                                 Type.INTEGER,
                             )
                         }),
@@ -1756,8 +1762,10 @@ class RhovasAnalyzerTests {
                                     Type.NULLABLE.ANY.base.reference,
                                     Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!!,
                                     listOf(literal("string")),
+                                    Type.NULLABLE[Type.STRING]
                                 ),
                                 Type.STRING.properties["size"]!!,
+                                false,
                                 true,
                                 Type.NULLABLE[Type.INTEGER],
                             )
@@ -1830,6 +1838,7 @@ class RhovasAnalyzerTests {
                                 Type.NULLABLE.ANY.base.reference,
                                 Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!!,
                                 listOf(literal("argument")),
+                                Type.NULLABLE[Type.STRING],
                             )
                         }),
                         Arguments.of("Invalid Arity", """
@@ -1861,7 +1870,7 @@ class RhovasAnalyzerTests {
                         Arguments.of("Function", """
                             function("argument")
                         """.trimIndent(), {
-                            RhovasIr.Expression.Invoke.Function(null, FUNCTION, listOf(literal("argument")))
+                            RhovasIr.Expression.Invoke.Function(null, FUNCTION, false, listOf(literal("argument")), Type.VOID)
                         }),
                         Arguments.of("Invalid Arity", """
                             function()
@@ -1893,6 +1902,7 @@ class RhovasAnalyzerTests {
                                 Type.STRING.methods["contains", listOf(Type.STRING)]!!,
                                 false,
                                 false,
+                                false,
                                 listOf(literal("")),
                                 Type.BOOLEAN,
                             )
@@ -1905,8 +1915,10 @@ class RhovasAnalyzerTests {
                                     Type.NULLABLE.ANY.base.reference,
                                     Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!! as Function.Definition,
                                     listOf(literal("string")),
+                                    Type.NULLABLE[Type.STRING],
                                 ),
                                 Type.STRING.methods["contains", listOf(Type.STRING)]!!,
+                                false,
                                 true,
                                 false,
                                 listOf(literal("")),
@@ -1919,6 +1931,7 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Method(
                                 literal("string"),
                                 Type.STRING.methods["contains", listOf(Type.STRING)]!!,
+                                false,
                                 false,
                                 true,
                                 listOf(literal("")),
@@ -1961,6 +1974,7 @@ class RhovasAnalyzerTests {
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
                                 false,
                                 false,
+                                false,
                                 listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
                                 Type.LIST[Type.INTEGER],
                             )
@@ -1972,6 +1986,7 @@ class RhovasAnalyzerTests {
                                 literal(BigInteger.parseString("1")),
                                 Library.type("Kernel"),
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 false,
                                 false,
                                 listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
@@ -1986,9 +2001,11 @@ class RhovasAnalyzerTests {
                                     Type.NULLABLE.ANY.base.reference,
                                     Type.NULLABLE.ANY.functions["", listOf(Type.INTEGER)]!! as Function.Definition,
                                     listOf(literal(BigInteger.parseString("1"))),
+                                    Type.NULLABLE[Type.INTEGER],
                                 ),
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 true,
                                 false,
                                 listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
@@ -2002,6 +2019,7 @@ class RhovasAnalyzerTests {
                                 literal(BigInteger.parseString("1")),
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 false,
                                 true,
                                 listOf(literal(BigInteger.parseString("2")), literal(RhovasAst.Atom("incl"))),
@@ -2034,7 +2052,9 @@ class RhovasAnalyzerTests {
                     RhovasIr.Expression.Invoke.Function(
                         null,
                         Library.SCOPE.functions["lambda", listOf(it.type)]!!,
-                        listOf(it)
+                        false,
+                        listOf(it),
+                        it.type,
                     )
                 }
                 test("expression", input, expected)
@@ -2102,20 +2122,20 @@ class RhovasAnalyzerTests {
                             literal
                         }
                     """.trimIndent(), {
-                        RhovasIr.Expression.Invoke.Function(null, DSL, listOf(
+                        RhovasIr.Expression.Invoke.Function(null, DSL, false, listOf(
                             RhovasIr.Expression.Literal.List(listOf(literal("literal")), Type.LIST[Type.STRING]),
                             RhovasIr.Expression.Literal.List(listOf(), Type.LIST[Type.DYNAMIC]),
-                        ))
+                        ), Type.DYNAMIC)
                     }),
                     Arguments.of("Argument", """
                         #dsl {
                             argument = ${'$'}{"argument"}
                         }
                     """.trimIndent(), {
-                        RhovasIr.Expression.Invoke.Function(null, DSL, listOf(
+                        RhovasIr.Expression.Invoke.Function(null, DSL, false, listOf(
                             RhovasIr.Expression.Literal.List(listOf(literal("argument = "), literal("")), Type.LIST[Type.STRING]),
                             RhovasIr.Expression.Literal.List(listOf(literal("argument")), Type.LIST[Type.DYNAMIC]),
-                        ))
+                        ), Type.DYNAMIC)
                     }),
                     Arguments.of("Undefined DSL", """
                         #undefined {}
@@ -2380,7 +2400,9 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("1")), literal(RhovasAst.Atom("incl"))),
+                                Type.LIST[Type.INTEGER],
                             ),
                             listOf(),
                             Pair(
@@ -2401,7 +2423,9 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
+                                Type.LIST[Type.INTEGER],
                             ),
                             listOf(),
                             Pair(
@@ -2426,7 +2450,9 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
+                                Type.LIST[Type.INTEGER],
                             ),
                             listOf(),
                             Pair(
@@ -2447,7 +2473,9 @@ class RhovasAnalyzerTests {
                             RhovasIr.Expression.Invoke.Function(
                                 null,
                                 Library.SCOPE.functions["range", listOf(Type.INTEGER, Type.INTEGER, Type.ATOM)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("1")), literal(BigInteger.parseString("3")), literal(RhovasAst.Atom("incl"))),
+                                Type.LIST[Type.INTEGER],
                             ),
                             listOf(),
                             Pair(
@@ -2750,8 +2778,8 @@ class RhovasAnalyzerTests {
 
     private fun stmt(argument: RhovasIr.Expression? = null): RhovasIr.Statement {
         return RhovasIr.Statement.Expression(when (argument) {
-            null -> RhovasIr.Expression.Invoke.Function(null, STMT_0, listOf())
-            else -> RhovasIr.Expression.Invoke.Function(null, STMT_1, listOf(argument))
+            null -> RhovasIr.Expression.Invoke.Function(null, STMT_0, false, listOf(), Type.VOID)
+            else -> RhovasIr.Expression.Invoke.Function(null, STMT_1, false, listOf(argument), Type.VOID)
         })
     }
 

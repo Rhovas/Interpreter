@@ -15,7 +15,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Source): Object {
-        ir.statements.forEach { visit(it) }
+        try {
+            ir.statements.forEach { visit(it) }
+        } catch (e: Throw) {
+            throw error(ir,
+                "Uncaught exception.",
+                "An exception of type ${e.exception.type} was thrown: ${e.exception.methods.toString()}"
+            )
+        }
         return Object(Type.VOID, Unit)
     }
 
@@ -510,7 +517,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "The property ${ir.property.name} is not defined in ${receiver.type.base.name}.",
         )
         val returns = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            method.invoke(listOf())
+            invokeBang(ir.bang, method.throws) { method.invoke(listOf()) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, false)
     }
@@ -561,7 +568,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         return trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            function.invoke(arguments)
+            invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
         }
     }
 
@@ -582,7 +589,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         val returns = trace("${receiver.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            method.invoke(arguments)
+            invokeBang(ir.bang, method.throws) { method.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
     }
@@ -600,7 +607,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         val returns = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            function.invoke(arguments)
+            invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
     }
@@ -621,10 +628,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Lambda): Object {
-        return Object(
-            Type.LAMBDA[Type.DYNAMIC],
-            Lambda(ir, scope, this)
-        )
+        return Object(ir.type, Lambda(ir, scope, this))
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
@@ -766,6 +770,24 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             return block()
         } finally {
             this.scope = original
+        }
+    }
+
+    private fun invokeBang(bang: Boolean, throws: List<Type>, invoke: () -> Object): Object {
+        return when {
+            bang && throws.isEmpty() -> invoke().methods["value!", listOf()]!!.invoke(listOf())
+            !bang && throws.isNotEmpty() -> {
+                try {
+                    val result = invoke()
+                    Object(Type.RESULT[result.type, Type.DYNAMIC], Pair(result, null))
+                } catch (e: Throw) {
+                    when {
+                        throws.any { it.isSupertypeOf(e.exception.type) } -> Object(Type.RESULT[Type.DYNAMIC, e.exception.type], Pair(null, e.exception))
+                        else -> throw e
+                    }
+                }
+            }
+            else -> invoke()
         }
     }
 

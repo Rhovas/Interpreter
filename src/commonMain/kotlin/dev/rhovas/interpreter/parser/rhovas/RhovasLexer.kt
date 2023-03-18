@@ -39,11 +39,12 @@ class RhovasLexer(input: Input) : Lexer<RhovasTokenType>(input) {
     }
 
     /**
-     *  - `identifier = [A-Za-z_] [A-Za-z0-9_]*`
+     *  - `identifier = [A-Za-z_] [A-Za-z0-9_]* [!]?`
      */
     private fun lexIdentifier(): Token<RhovasTokenType> {
         require(match("[A-Za-z_]"))
         while (match("[A-Za-z0-9_]")) {}
+        match("!")
         return chars.emit(RhovasTokenType.IDENTIFIER)
     }
 

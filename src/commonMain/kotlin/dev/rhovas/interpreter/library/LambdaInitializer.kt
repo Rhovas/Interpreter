@@ -14,8 +14,8 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
         inherits.add(Type.ANY)
 
         method("invoke",
-            generics = listOf(generic("R")),
             parameters = listOf("arguments" to generic("T")),
+            throws = listOf(generic("E")),
             returns = generic("R")
         ) { (instance, arguments) ->
             val argumentsType = ((instance.type as Type.Reference).generics[0] as? Type.Reference)?.generics?.first() as? Type.Tuple
