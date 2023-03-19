@@ -689,7 +689,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.NamedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.OBJECT)) {
+        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.ANY)) {
             return Object(Type.BOOLEAN, false)
         }
         val map = patternState.value.value as Map<String, Object>
@@ -698,7 +698,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         for ((key, pattern) in ir.patterns) {
             val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 vararg = true
-                Object(Type.OBJECT, map.filterKeys { !named.contains(it) })
+                Object(Type.STRUCT.ANY, map.filterKeys { !named.contains(it) })
             } else {
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
@@ -739,13 +739,13 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ir.pattern?.let { visit(it).value as Boolean } ?: true
                 })
             }
-        } else if (patternState.value.type.isSubtypeOf(Type.OBJECT)) {
+        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.ANY)) {
             val map = patternState.value.value as Map<String, Object>
             if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, Object(Type.OBJECT, map))) }
+                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.ANY, map))) }
                 Object(Type.BOOLEAN, true)
             } else {
                 //TODO(#15): Handle variable bindings
@@ -853,7 +853,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 } else if (arguments.size == 1) {
                     evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].second, false), arguments[0].third))
                 } else {
-                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.OBJECT, false), Object(Type.OBJECT, arguments.associate { it.first to it.third })))
+                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.STRUCT.ANY, false), Object(Type.STRUCT.ANY, arguments.associate { it.first to it.third })))
                 }
                 try {
                     evaluator.visit(ast.body)

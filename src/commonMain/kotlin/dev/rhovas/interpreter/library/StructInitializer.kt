@@ -1,9 +1,7 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object StructInitializer : Library.TypeInitializer("Struct") {
 
@@ -12,7 +10,7 @@ object StructInitializer : Library.TypeInitializer("Struct") {
         inherits.add(Type.ANY)
 
         method("equals", operator = "==",
-            parameters = listOf("other" to Type.OBJECT),
+            parameters = listOf("other" to Type.STRUCT.ANY),
             returns = Type.BOOLEAN,
         ) { (instance, other) ->
             val instance = instance.value as Map<String, Object>
@@ -26,7 +24,9 @@ object StructInitializer : Library.TypeInitializer("Struct") {
         ) { (instance) ->
             val type = instance.type
             val instance = instance.value as Map<String, Object>
-            Object(Type.STRING, type.base.name + " " + instance.mapValues { it.value.methods.toString() }.toString())
+            val name = type.base.name.takeIf { it != "Struct" } ?: ""
+            val fields = instance.mapValues { it.value.methods.toString() }
+            Object(Type.STRING, "${name}${fields}")
         }
     }
 

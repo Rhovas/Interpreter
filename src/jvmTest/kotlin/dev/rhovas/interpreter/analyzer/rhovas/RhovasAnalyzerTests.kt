@@ -1347,23 +1347,26 @@ class RhovasAnalyzerTests {
                     Arguments.of("Empty", """
                         {}
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Object(mapOf(), Type.OBJECT)
+                        RhovasIr.Expression.Literal.Object(
+                            mapOf(),
+                            Type.STRUCT[Type.Struct(mapOf())],
+                        )
                     }),
                     Arguments.of("Single", """
                         {key: "value"}
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Object(mapOf(
-                            "key" to literal("value"),
-                        ), Type.OBJECT)
+                        RhovasIr.Expression.Literal.Object(
+                            mapOf("key" to literal("value")),
+                            Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.STRING, true)))],
+                        )
                     }),
                     Arguments.of("Multiple", """
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent(), {
-                        RhovasIr.Expression.Literal.Object(mapOf(
-                            "k1" to literal("v1"),
-                            "k2" to literal("v2"),
-                            "k3" to literal("v3"),
-                        ), Type.OBJECT)
+                        RhovasIr.Expression.Literal.Object(
+                            mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")),
+                            Type.STRUCT[Type.Struct(mapOf("k1" to Variable.Declaration("k1", Type.STRING, true), "k2" to Variable.Declaration("k2", Type.STRING, true), "k3" to Variable.Declaration("k3", Type.STRING, true)))],
+                        )
                     }),
                 )
             }
@@ -2538,14 +2541,15 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger.parseString("1")),
-                            ), Type.OBJECT),
+                            RhovasIr.Expression.Literal.Object(
+                                mapOf("key" to literal(BigInteger.parseString("1"))),
+                                Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, true)))],
+                            ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf("key" to RhovasIr.Pattern.Variable(Variable.Declaration("key", Type.DYNAMIC, false))),
-                                    Type.OBJECT,
+                                    Type.STRUCT.ANY,
                                 ),
                                 stmt(variable("key", Type.DYNAMIC)),
                             ),
@@ -2557,14 +2561,15 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger.parseString("1")),
-                            ), Type.OBJECT),
+                            RhovasIr.Expression.Literal.Object(
+                                mapOf("key" to literal(BigInteger.parseString("1"))),
+                                Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, true)))],
+                            ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf("key" to RhovasIr.Pattern.Value(literal(BigInteger.parseString("1")))),
-                                    Type.OBJECT,
+                                    Type.STRUCT.ANY,
                                 ),
                                 stmt(variable("key", Type.INTEGER)),
                             ),
@@ -2576,18 +2581,17 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            RhovasIr.Expression.Literal.Object(mapOf(
-                                "x" to literal(BigInteger.parseString("1")),
-                                "y" to literal(BigInteger.parseString("2")),
-                                "z" to literal(BigInteger.parseString("3")),
-                            ), Type.OBJECT),
+                            RhovasIr.Expression.Literal.Object(
+                                mapOf("x" to literal(BigInteger.parseString("1")), "y" to literal(BigInteger.parseString("2")), "z" to literal(BigInteger.parseString("3"))),
+                                Type.STRUCT[Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, true), "y" to Variable.Declaration("y", Type.INTEGER, true), "z" to Variable.Declaration("z", Type.INTEGER, true)))],
+                            ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(listOf(
                                     "x" to RhovasIr.Pattern.Variable(Variable.Declaration("x", Type.DYNAMIC, false)),
                                     "y" to RhovasIr.Pattern.Variable(Variable.Declaration("y", Type.DYNAMIC, false)),
                                     "z" to RhovasIr.Pattern.Variable(Variable.Declaration("z", Type.DYNAMIC, false)),
-                                ), Type.OBJECT),
+                                ), Type.STRUCT.ANY),
                                 stmt(),
                             ),
                         )
@@ -2598,14 +2602,15 @@ class RhovasAnalyzerTests {
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger.parseString("1")),
-                            ), Type.OBJECT),
+                            RhovasIr.Expression.Literal.Object(
+                                mapOf("key" to literal(BigInteger.parseString("1"))),
+                                Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, true)))],
+                            ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf(null to RhovasIr.Pattern.VarargDestructure(null, "*", Type.OBJECT)),
-                                    Type.OBJECT,
+                                    listOf(null to RhovasIr.Pattern.VarargDestructure(null, "*", Type.STRUCT.ANY)),
+                                    Type.STRUCT.ANY,
                                 ),
                                 stmt(),
                             ),
@@ -2613,27 +2618,30 @@ class RhovasAnalyzerTests {
                     }),
                     Arguments.of("Varargs Pattern", """
                         match ({key: 1}) {
-                            else {object*}: stmt(object[:key]);
+                            else {object*}: stmt(object.key);
                         }
                     """.trimIndent(), {
                         RhovasIr.Statement.Match.Structural(
-                            RhovasIr.Expression.Literal.Object(mapOf(
-                                "key" to literal(BigInteger.parseString("1")),
-                            ), Type.OBJECT),
+                            RhovasIr.Expression.Literal.Object(
+                                mapOf("key" to literal(BigInteger.parseString("1"))),
+                                Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, true)))],
+                            ),
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf(null to RhovasIr.Pattern.VarargDestructure(
                                         RhovasIr.Pattern.Variable(Variable.Declaration("object", Type.DYNAMIC, false)),
                                         "*",
-                                        Type.OBJECT,
+                                        Type.STRUCT.ANY,
                                     )),
-                                    Type.OBJECT,
+                                    Type.STRUCT.ANY,
                                 ),
-                                stmt(RhovasIr.Expression.Access.Index(
-                                    variable("object", Type.OBJECT),
-                                    Type.OBJECT.methods["[]", listOf(Type.ATOM)]!!,
-                                    listOf(literal(RhovasAst.Atom("key"))),
+                                stmt(RhovasIr.Expression.Access.Property(
+                                    variable("object", Type.STRUCT.ANY),
+                                    Type.STRUCT.ANY.properties["key"]!!,
+                                    false,
+                                    false,
+                                    Type.DYNAMIC,
                                 )),
                             ),
                         )
@@ -2647,7 +2655,7 @@ class RhovasAnalyzerTests {
                             variable("any", Type.ANY),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.NamedDestructure(listOf(), Type.OBJECT),
+                                RhovasIr.Pattern.NamedDestructure(listOf(), Type.STRUCT.ANY),
                                 stmt(),
                             ),
                         )

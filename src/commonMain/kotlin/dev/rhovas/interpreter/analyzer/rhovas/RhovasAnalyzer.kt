@@ -920,30 +920,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        //check base type to avoid subtype issues with Dynamic
-        val (properties, type) = if (context.inference?.base == Type.STRUCT.ANY.base) {
-            val generics = ((context.inference as Type.Reference).generics[0] as? Type.Struct)?.fields
-            val properties = mutableMapOf<String, RhovasIr.Expression>()
-            ast.properties.forEach {
-                require(properties[it.first] == null) { error(ast,
-                    "Redefined object property.",
-                    "The property ${it.first} has already been defined for this object.",
-                ) }
-                properties[it.first] = visit(it.second, generics?.get(it.first)?.type)
-            }
-            val type = Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, false) })
-            Pair(properties, Type.STRUCT[type])
-        } else {
-            val properties = mutableMapOf<String, RhovasIr.Expression>()
-            ast.properties.forEach {
-                require(properties[it.first] == null) { error(ast,
-                    "Redefined object property.",
-                    "The property ${it.first} has already been defined for this object.",
-                ) }
-                properties[it.first] = visit(it.second)
-            }
-            Pair(properties, Type.OBJECT)
+        val inference = ((context.inference as? Type.Reference)?.generics?.firstOrNull() as? Type.Struct)?.fields
+        val properties = mutableMapOf<String, RhovasIr.Expression>()
+        ast.properties.forEach {
+            require(properties[it.first] == null) { error(ast,
+                "Redefined object property.",
+                "The property ${it.first} has already been defined for this object.",
+            ) }
+            properties[it.first] = visit(it.second, inference?.get(it.first)?.type)
         }
+        val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, inference?.get(it.key)?.mutable ?: inference == null) })]
         return RhovasIr.Expression.Literal.Object(properties, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1312,7 +1298,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
                     is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
-                    else -> generics[0]
+                    else -> it.type
                 }) })
             }
             Triple(arguments, generics[1], generics[2])
@@ -1456,7 +1442,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.pattern.type.isSupertypeOf(Type.OBJECT)) { error(
+        require(context.pattern.type.isSupertypeOf(Type.STRUCT.ANY)) { error(
             ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.pattern.type}, but received List.",
@@ -1478,12 +1464,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                         val pattern = visit(it)
                         context.pattern.bindings
                             .filterKeys { !existing.containsKey(it) }
-                            .forEach { context.pattern.bindings[it.key] = Type.OBJECT }
+                            .forEach { context.pattern.bindings[it.key] = Type.STRUCT.ANY }
                         pattern
                     }
                 }
                 //TODO(#14): Struct type bindings
-                Pair(null, RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.OBJECT).also {
+                Pair(null, RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.STRUCT.ANY).also {
                     it.context = ast.context
                 })
             } else {
@@ -1503,7 +1489,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 Pair(key, pattern)
             }
         }
-        return RhovasIr.Pattern.NamedDestructure(patterns, Type.OBJECT).also {
+        return RhovasIr.Pattern.NamedDestructure(patterns, Type.STRUCT.ANY).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }

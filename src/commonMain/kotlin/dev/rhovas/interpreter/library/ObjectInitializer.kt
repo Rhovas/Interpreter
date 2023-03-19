@@ -8,7 +8,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 object ObjectInitializer : Library.TypeInitializer("Object") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.STRUCT[Type.DYNAMIC])
 
         method("get", operator = "[]",
             parameters = listOf("key" to Type.ATOM),

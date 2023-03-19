@@ -68,7 +68,7 @@ class EvaluatorTests {
                     Arguments.of("Struct", """
                         struct Name {}
                         log(Name({}));
-                    """.trimIndent(), "Name {}"),
+                    """.trimIndent(), "Name{}"),
                     Arguments.of("Default Initializer", """
                         struct Name { val field: Integer = 1; }
                         log(Name({}).field);
@@ -146,7 +146,7 @@ class EvaluatorTests {
                     Arguments.of("Struct", """
                         struct Name {}
                         log(Name({}));
-                    """.trimIndent(), "Name {}"),
+                    """.trimIndent(), "Name{}"),
                 )
             }
 
@@ -862,23 +862,26 @@ class EvaluatorTests {
                     Arguments.of("Empty", """
                         {}
                     """.trimIndent(),
-                        Object(Type.OBJECT, mapOf<String, Object>()),
+                        Object(
+                            Type.STRUCT[Type.Struct(mapOf())],
+                            mapOf<String, Object>(),
+                        ),
                     ),
                     Arguments.of("Single", """
                         {key: "value"}
                     """.trimIndent(),
-                        Object(Type.OBJECT, mapOf(
-                            "key" to literal("value"),
-                        )),
+                        Object(
+                            Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.STRING, true)))],
+                            mapOf("key" to literal("value"))
+                        ),
                     ),
                     Arguments.of("Multiple", """
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent(),
-                        Object(Type.OBJECT, mapOf(
-                            "k1" to literal("v1"),
-                            "k2" to literal("v2"),
-                            "k3" to literal("v3"),
-                        )),
+                        Object(
+                            Type.STRUCT[Type.Struct(mapOf("k1" to Variable.Declaration("k1", Type.STRING, true), "k2" to Variable.Declaration("k2", Type.STRING, true), "k3" to Variable.Declaration("k3", Type.STRING, true)))],
+                            mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")),
+                        ),
                     ),
                 )
             }
@@ -1682,6 +1685,7 @@ class EvaluatorTests {
     private fun test(rule: String, input: String, expected: String?, scope: Scope.Definition = Scope.Definition(Library.SCOPE)) {
         val log = StringBuilder()
         scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())) { arguments ->
+            println(arguments[0])
             log.append(arguments[0].methods.toString())
             arguments[0]
         })

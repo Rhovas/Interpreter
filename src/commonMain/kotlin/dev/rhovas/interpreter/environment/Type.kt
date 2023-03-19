@@ -119,18 +119,18 @@ sealed class Type(
     ) : Type(base) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            return if (base.name == "Dynamic") {
-                listOf(Function.Declaration(name, listOf(), (1..arity).map { Variable.Declaration("val_${it}", this, false) }, this, listOf()))
-            } else {
-                base.scope.functions[name, arity]
-            }
+            return base.scope.functions[name, arity].takeIf { it.isNotEmpty() } ?: listOfNotNull(getFunctionDynamic(name, (1..arity).map { DYNAMIC }))
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            return if (base.name == "Dynamic") {
-                Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", this, false) }, this, listOf())
-            } else {
-                base.scope.functions[name, arguments]
+            return base.scope.functions[name, arguments] ?: getFunctionDynamic(name, arguments)
+        }
+
+        private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
+            return when {
+                base.name == "Dynamic" -> Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
+                base.name == "Struct" && generics[0].base.name == "Dynamic"-> Struct(mapOf(name to Variable.Declaration(name, Type.DYNAMIC, true))).getFunction(name, arguments)
+                else -> null
             }
         }
 
@@ -213,9 +213,16 @@ sealed class Type(
         val scope = Scope.Declaration(null)
 
         private fun defineProperty(field: Variable.Declaration) {
-            scope.functions.define(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf()))
+            scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf())) { (instance) ->
+                val instance = instance.value as Map<String, Object>
+                instance[field.name]!!
+            })
             if (field.mutable) {
-                scope.functions.define(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf()))
+                scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf())) { (instance, value) ->
+                    val instance = instance.value as MutableMap<String, Object>
+                    instance[field.name] = value
+                    Object(VOID, Unit)
+                })
             }
         }
 
