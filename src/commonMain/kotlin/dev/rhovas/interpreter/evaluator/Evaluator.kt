@@ -638,25 +638,17 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Pattern.Value): Object {
         val value = visit(ir.value)
-        //TODO(#2): Equatable<T> interface
-        val method = value.methods["==", listOf(value.type)] ?: throw error(
-            ir,
-            "Undefined method.",
-            "The method op==(${value.type}) is not defined in ${value.type.base.name}.",
-        )
-        val result = if (patternState.value.type.isSubtypeOf(method.parameters[0].type)) {
-            trace("${value.type.base.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-                method.invoke(listOf(patternState.value)).value as Boolean
-            }
-        } else false
+        val result = value.methods.equals(patternState.value)
         return Object(Type.BOOLEAN, result)
     }
 
     override fun visit(ir: RhovasIr.Pattern.Predicate): Object {
         var result = visit(ir.pattern)
         if (result.value as Boolean) {
-            //TODO(#15): Variable bindings
-            result = visit(ir.predicate)
+            result = scoped(Scope.Definition(scope)) {
+                ir.pattern.bindings.forEach { scope.variables.define(Variable.Definition(it.value, patternState.scope.variables[it.key]!!.value)) }
+                visit(ir.predicate)
+            }
         }
         return result
     }
@@ -730,14 +722,20 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, patternState.value)) }
+                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, patternState.value)) }
                 Object(Type.BOOLEAN, true)
             } else {
-                //TODO(#15): Handle variable bindings
-                Object(Type.BOOLEAN, list.all {
-                    patternState = patternState.copy(value = it)
-                    ir.pattern?.let { visit(it).value as Boolean } ?: true
-                })
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(it.value.type, mutableListOf<Object>())) }
+                val parent = patternState
+                val result = list.all {
+                    patternState = PatternState(Scope.Definition(parent.scope), it)
+                    ir.pattern?.let { visit(it).value as Boolean }?.also {
+                        bindings.forEach { (it.value.value.value as MutableList<Object>).add(patternState.scope.variables[it.key]!!.value) }
+                    } ?: true
+                }
+                patternState = parent
+                bindings.forEach { patternState.scope.variables.define(it.value) }
+                Object(Type.BOOLEAN, result)
             }
         } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.ANY)) {
             val map = patternState.value.value as Map<String, Object>
@@ -745,14 +743,20 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.ANY, map))) }
+                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.ANY, map))) }
                 Object(Type.BOOLEAN, true)
             } else {
-                //TODO(#15): Handle variable bindings
-                Object(Type.BOOLEAN, map.all {
-                    patternState = patternState.copy(value = it.value)
-                    ir.pattern?.let { visit(it).value as Boolean } ?: true
-                })
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(it.value.type, mutableMapOf<String, Object>())) }
+                val parent = patternState
+                val result = map.all { entry ->
+                    patternState = PatternState(Scope.Definition(parent.scope), entry.value)
+                    ir.pattern?.let { visit(it).value as Boolean }?.also {
+                        bindings.forEach { (it.value.value.value as MutableMap<String, Object>)[entry.key] = (patternState.scope.variables[it.key]!!.value) }
+                    } ?: true
+                }
+                patternState = parent
+                bindings.forEach { patternState.scope.variables.define(it.value) }
+                Object(Type.BOOLEAN, result)
             }
         } else {
             return Object(Type.BOOLEAN, false)

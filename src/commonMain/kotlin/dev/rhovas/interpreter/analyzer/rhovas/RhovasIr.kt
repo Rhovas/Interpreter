@@ -327,42 +327,40 @@ sealed class RhovasIr {
     }
 
     sealed class Pattern(
-        open val type: dev.rhovas.interpreter.environment.Type,
+        open val bindings: Map<String, dev.rhovas.interpreter.environment.Variable.Declaration>,
     ) : RhovasIr() {
 
         data class Variable(
             val variable: dev.rhovas.interpreter.environment.Variable.Declaration?,
-        ) : Pattern(variable?.type ?: dev.rhovas.interpreter.environment.Type.VOID)
+        ) : Pattern(variable?.let { mapOf(it.name to it) } ?: mapOf())
 
         data class Value(
             val value: Expression,
-        ) : Pattern(value.type)
+        ) : Pattern(mapOf())
 
         data class Predicate(
             val pattern: Pattern,
             val predicate: Expression,
-        ) : Pattern(pattern.type)
+        ) : Pattern(pattern.bindings)
 
         data class OrderedDestructure(
             val patterns: List<Pattern>,
-            override val type: dev.rhovas.interpreter.environment.Type,
-        ) : Pattern(type)
+        ) : Pattern(patterns.flatMap { it.bindings.entries }.associate { it.key to it.value })
 
         data class NamedDestructure(
             val patterns: List<Pair<String?, Pattern>>,
-            override val type: dev.rhovas.interpreter.environment.Type,
-        ) : Pattern(type)
+        ) : Pattern(patterns.flatMap { it.second.bindings.entries }.associate { it.key to it.value })
 
         data class TypedDestructure(
-            override val type: dev.rhovas.interpreter.environment.Type,
+            val type: dev.rhovas.interpreter.environment.Type,
             val pattern: Pattern?,
-        ) : Pattern(type)
+        ) : Pattern(pattern?.bindings ?: mapOf())
 
         data class VarargDestructure(
             val pattern: Pattern?,
             val operator: String,
-            override val type: dev.rhovas.interpreter.environment.Type,
-        ) : Pattern(type)
+            override val bindings: Map<String, dev.rhovas.interpreter.environment.Variable.Declaration>,
+        ) : Pattern(bindings)
 
     }
 

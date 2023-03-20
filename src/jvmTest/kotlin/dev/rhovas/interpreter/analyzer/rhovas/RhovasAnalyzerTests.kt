@@ -2411,7 +2411,6 @@ class RhovasAnalyzerTests {
                             Pair(
                                 RhovasIr.Pattern.OrderedDestructure(
                                     listOf(RhovasIr.Pattern.Variable(Variable.Declaration("elem", Type.INTEGER, false))),
-                                    Type.LIST[Type.INTEGER],
                                 ),
                                 stmt(variable("elem", Type.INTEGER)),
                             ),
@@ -2438,7 +2437,6 @@ class RhovasAnalyzerTests {
                                         RhovasIr.Pattern.Value(literal(BigInteger.parseString("2"))),
                                         RhovasIr.Pattern.Value(literal(BigInteger.parseString("3"))),
                                     ),
-                                    Type.LIST[Type.INTEGER],
                                 ),
                                 stmt(),
                             ),
@@ -2460,8 +2458,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.OrderedDestructure(
-                                    listOf(RhovasIr.Pattern.VarargDestructure(null, "*", Type.LIST[Type.INTEGER])),
-                                    Type.LIST[Type.INTEGER],
+                                    listOf(RhovasIr.Pattern.VarargDestructure(null, "*", mapOf())),
                                 ),
                                 stmt(),
                             ),
@@ -2486,9 +2483,8 @@ class RhovasAnalyzerTests {
                                     listOf(RhovasIr.Pattern.VarargDestructure(
                                         RhovasIr.Pattern.Variable(Variable.Declaration("elements", Type.INTEGER, false)),
                                         "*",
-                                        Type.LIST[Type.INTEGER],
+                                        mapOf("elements" to Variable.Declaration("elements", Type.LIST[Type.INTEGER], false)),
                                     )),
-                                    Type.LIST[Type.INTEGER],
                                 ),
                                 stmt(RhovasIr.Expression.Access.Index(
                                     variable("elements", Type.LIST[Type.INTEGER]),
@@ -2507,7 +2503,7 @@ class RhovasAnalyzerTests {
                             variable("any", Type.ANY),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.OrderedDestructure(listOf(), Type.LIST[Type.DYNAMIC]),
+                                RhovasIr.Pattern.OrderedDestructure(listOf()),
                                 stmt(),
                             ),
                         )
@@ -2548,10 +2544,9 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf("key" to RhovasIr.Pattern.Variable(Variable.Declaration("key", Type.DYNAMIC, false))),
-                                    Type.STRUCT.ANY,
+                                    listOf("key" to RhovasIr.Pattern.Variable(Variable.Declaration("key", Type.INTEGER, false))),
                                 ),
-                                stmt(variable("key", Type.DYNAMIC)),
+                                stmt(variable("key", Type.INTEGER)),
                             ),
                         )
                     }),
@@ -2569,7 +2564,6 @@ class RhovasAnalyzerTests {
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf("key" to RhovasIr.Pattern.Value(literal(BigInteger.parseString("1")))),
-                                    Type.STRUCT.ANY,
                                 ),
                                 stmt(variable("key", Type.INTEGER)),
                             ),
@@ -2588,10 +2582,10 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(listOf(
-                                    "x" to RhovasIr.Pattern.Variable(Variable.Declaration("x", Type.DYNAMIC, false)),
-                                    "y" to RhovasIr.Pattern.Variable(Variable.Declaration("y", Type.DYNAMIC, false)),
-                                    "z" to RhovasIr.Pattern.Variable(Variable.Declaration("z", Type.DYNAMIC, false)),
-                                ), Type.STRUCT.ANY),
+                                    "x" to RhovasIr.Pattern.Variable(Variable.Declaration("x", Type.INTEGER, false)),
+                                    "y" to RhovasIr.Pattern.Variable(Variable.Declaration("y", Type.INTEGER, false)),
+                                    "z" to RhovasIr.Pattern.Variable(Variable.Declaration("z", Type.INTEGER, false)),
+                                )),
                                 stmt(),
                             ),
                         )
@@ -2609,8 +2603,7 @@ class RhovasAnalyzerTests {
                             listOf(),
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
-                                    listOf(null to RhovasIr.Pattern.VarargDestructure(null, "*", Type.STRUCT.ANY)),
-                                    Type.STRUCT.ANY,
+                                    listOf(null to RhovasIr.Pattern.VarargDestructure(null, "*", mapOf())),
                                 ),
                                 stmt(),
                             ),
@@ -2630,18 +2623,17 @@ class RhovasAnalyzerTests {
                             Pair(
                                 RhovasIr.Pattern.NamedDestructure(
                                     listOf(null to RhovasIr.Pattern.VarargDestructure(
-                                        RhovasIr.Pattern.Variable(Variable.Declaration("object", Type.DYNAMIC, false)),
+                                        RhovasIr.Pattern.Variable(Variable.Declaration("object", Type.INTEGER, false)),
                                         "*",
-                                        Type.STRUCT.ANY,
+                                        mapOf("object" to Variable.Declaration("object", Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, false)))], false)),
                                     )),
-                                    Type.STRUCT.ANY,
                                 ),
                                 stmt(RhovasIr.Expression.Access.Property(
-                                    variable("object", Type.STRUCT.ANY),
-                                    Type.STRUCT.ANY.properties["key"]!!,
+                                    variable("object", Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, false)))]),
+                                    Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.INTEGER, false)))].properties["key"]!!,
                                     false,
                                     false,
-                                    Type.DYNAMIC,
+                                    Type.INTEGER,
                                 )),
                             ),
                         )
@@ -2655,7 +2647,7 @@ class RhovasAnalyzerTests {
                             variable("any", Type.ANY),
                             listOf(),
                             Pair(
-                                RhovasIr.Pattern.NamedDestructure(listOf(), Type.STRUCT.ANY),
+                                RhovasIr.Pattern.NamedDestructure(listOf()),
                                 stmt(),
                             ),
                         )

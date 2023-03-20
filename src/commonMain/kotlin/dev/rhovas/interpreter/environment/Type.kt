@@ -127,9 +127,12 @@ sealed class Type(
         }
 
         private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
-            return when {
-                base.name == "Dynamic" -> Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
-                base.name == "Struct" && generics[0].base.name == "Dynamic"-> Struct(mapOf(name to Variable.Declaration(name, Type.DYNAMIC, true))).getFunction(name, arguments)
+            return when (base.name) {
+                "Dynamic" -> Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
+                "Struct" -> when (generics[0].base.name) {
+                    "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
+                    else -> generics[0].getFunction(name, arguments)
+                }
                 else -> null
             }
         }
@@ -227,13 +230,14 @@ sealed class Type(
         }
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            fields[name]?.takeIf { scope.functions[name, arity].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + STRUCT[this].getFunction(name, arity)
+            fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
+            return scope.functions[name, arity] + STRUCT.ANY.base.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            fields[name]?.takeIf { scope.functions[name, arguments.size].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: STRUCT[this].getFunction(name, arguments)
+            fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
+            println("Struct getFunction ${name}, ${arguments}")
+            return scope.functions[name, arguments] ?: STRUCT.ANY.base.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {

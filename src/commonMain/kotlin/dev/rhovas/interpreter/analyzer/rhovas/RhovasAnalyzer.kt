@@ -34,7 +34,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private val Context.labels get() = this[LabelContext::class]
     private val Context.jumps get() = this[JumpContext::class]
     private val Context.exceptions get() = this[ExceptionContext::class]
-    private val Context.pattern get() = this[PatternContext::class]
+    private val Context.bindings get() = this[BindingContext::class]
 
     /**
      * Context for variable/function/type scope.
@@ -182,23 +182,17 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     /**
-     * Context for storing the inferred type and variable bindings for patterns.
+     * Context for storing the variable bindings for patterns.
      */
-    data class PatternContext(
-        val type: Type,
-        val bindings: MutableMap<String, Type>,
-    ) : Context.Item<PatternContext.Data>(Data(type, bindings)) {
+    data class BindingContext(
+        val bindings: MutableMap<String, Variable.Declaration>,
+    ) : Context.Item<MutableMap<String, Variable.Declaration>>(bindings) {
 
-        data class Data(
-            val type: Type,
-            val bindings: MutableMap<String, Type>,
-        )
-
-        override fun child(): Context.Item<Data> {
+        override fun child(): BindingContext {
             return this
         }
 
-        override fun merge(children: List<Data>) {}
+        override fun merge(children: List<MutableMap<String, Variable.Declaration>>) {}
 
     }
 
@@ -550,24 +544,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val argument = visit(ast.argument)
         //TODO(#10): Pattern coverage/exhaustiveness
         val cases = ast.cases.map {
-            analyze(context.child().with(PatternContext(argument.type, mutableMapOf()))) {
+            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) {
                 it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = visit(it.first)
-                context.pattern.bindings.forEach {
-                    (context.scope as Scope.Declaration).variables.define(Variable.Declaration(it.key, it.value, false))
-                }
+                context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
                 it.first.context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
             }
         }
         val elseCase = ast.elseCase?.let {
-            analyze(context.child().with(PatternContext(argument.type, mutableMapOf()))) {
+            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) {
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.addLast(it) }
                 val pattern = it.first?.let { visit(it) }
-                context.pattern.bindings.forEach {
-                    (context.scope as Scope.Declaration).variables.define(Variable.Declaration(it.key, it.value, false))
-                }
+                context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
                 (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
@@ -1344,15 +1334,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(!context.pattern.bindings.containsKey(ast.name)) { error(
+        require(!context.bindings.containsKey(ast.name)) { error(
             ast,
             "Redefined pattern binding",
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
-        val variable = if (ast.name != "_") {
-            context.pattern.bindings[ast.name] = context.pattern.type
-            Variable.Declaration(ast.name, context.pattern.type, false)
-        } else null
+        val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference!!, false) else null
+        variable?.let { context.bindings[it.name] = it }
         return RhovasIr.Pattern.Variable(variable).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
@@ -1360,11 +1348,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value {
-        val value = visit(ast.value, context.pattern.type)
-        require(value.type.isSubtypeOf(context.pattern.type)) { error(
+        val value = visit(ast.value, context.inference!!)
+        require(value.type.isSubtypeOf(context.inference!!)) { error(
             ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.pattern.type}, but received ${value.type}.",
+            "This pattern is within a context that requires type ${context.inference}, but received ${value.type}.",
         ) }
         return RhovasIr.Pattern.Value(value).also {
             it.context = ast.context
@@ -1373,15 +1361,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val existing = context.pattern.bindings.toMutableMap()
-        val (pattern, predicate) = analyze(context.with(PatternContext(context.pattern.type, mutableMapOf()))) {
-            val pattern = visit(ast.pattern)
-            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.pattern.type, false))
-            context.pattern.bindings
-                .filterKeys { !existing.containsKey(it) }
-                .forEach { (context.scope as Scope.Declaration).variables.define(Variable.Declaration(it.key, it.value, false)) }
-            val predicate = visit(ast.predicate, Type.BOOLEAN)
-            Pair(pattern, predicate)
+        val pattern = visit(ast.pattern)
+        val predicate = analyze {
+            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference!!, false))
+            pattern.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
+            visit(ast.predicate, Type.BOOLEAN)
         }
         require(predicate.type.isSubtypeOf(Type.BOOLEAN)) { error(
             ast.predicate,
@@ -1396,45 +1380,40 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.pattern.type.isSupertypeOf(Type.LIST.ANY)) { error(
+        require(context.inference!!.isSupertypeOf(Type.LIST.ANY)) { error(
             ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.pattern.type}, but received List.",
+            "This pattern is within a context that requires type ${context.inference!!}, but received List.",
         ) }
         val type = when {
-            context.pattern.type.isSubtypeOf(Type.LIST.ANY) -> context.pattern.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            else -> Type.DYNAMIC
+            context.inference!!.isSubtypeOf(Type.LIST.ANY) -> context.inference!!.methods["get", listOf(Type.INTEGER)]!!.returns
+            else -> null
         }
         var vararg = false
-        val patterns = ast.patterns.withIndex().map {
-            if (it.value is RhovasAst.Pattern.VarargDestructure) {
-                require(!vararg) { error(
-                    it.value,
+        val patterns = ast.patterns.map { pattern ->
+            if (pattern is RhovasAst.Pattern.VarargDestructure) {
+                require(!vararg) { error(pattern,
                     "Invalid multiple varargs.",
                     "An ordered destructure requires no more than one vararg pattern.",
                 ) }
                 vararg = true
-                val ast = it.value as RhovasAst.Pattern.VarargDestructure
-                val pattern = ast.pattern?.let {
-                    val existing = context.pattern.bindings.toMutableMap()
-                    analyze(context.with(PatternContext(type, context.pattern.bindings))) {
-                        val pattern = visit(it)
-                        context.pattern.bindings
-                            .filterKeys { !existing.containsKey(it) }
-                            .forEach { context.pattern.bindings[it.key] = Type.LIST[it.value] }
-                        pattern
+                val p = pattern.pattern?.let {
+                    analyze(context.with(InferenceContext(type))) {
+                        visit(it)
                     }
                 }
-                RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.LIST[type]).also {
-                    it.context = ast.context
+                val bindings = p?.bindings?.mapValues { it.value.copy(type = Type.LIST[it.value.type]) } ?: mapOf()
+                context.bindings.putAll(bindings)
+                RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings).also {
+                    it.context = pattern.context
                 }
             } else {
-                analyze(context.with(PatternContext(type, context.pattern.bindings))) {
-                    visit(it.value)
+                analyze(context.with(InferenceContext(type))) {
+                    visit(pattern)
                 }
             }
         }
-        return RhovasIr.Pattern.OrderedDestructure(patterns, Type.LIST[type]).also {
+        return RhovasIr.Pattern.OrderedDestructure(patterns).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
@@ -1442,72 +1421,76 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.pattern.type.isSupertypeOf(Type.STRUCT.ANY)) { error(
+        require(context.inference!!.isSupertypeOf(Type.STRUCT.ANY)) { error(
             ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.pattern.type}, but received List.",
+            "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }
+        val type = when {
+            context.inference!!.isSubtypeOf(Type.STRUCT.ANY) -> ((context.inference as? Type.Reference?)?.generics?.firstOrNull() as? Type.Struct)?.fields
+            else -> null
+        }
         var vararg = false
-        val patterns = ast.patterns.withIndex().map {
-            if (it.value.second is RhovasAst.Pattern.VarargDestructure) {
-                require(!vararg) { error(
-                    it.value.second,
+        val patterns = ast.patterns.map { (key, pattern) ->
+            if (pattern is RhovasAst.Pattern.VarargDestructure) {
+                require(!vararg) { error(pattern,
                     "Invalid multiple varargs.",
                     "A named destructure requires no more than one vararg pattern.",
                 ) }
                 vararg = true
-                val ast = it.value.second as RhovasAst.Pattern.VarargDestructure
-                val pattern = ast.pattern?.let {
-                    val existing = context.pattern.bindings.toMutableMap()
-                    //TODO(#14): Struct type validation
-                    analyze(context.with(PatternContext(Type.DYNAMIC, context.pattern.bindings))) {
-                        val pattern = visit(it)
-                        context.pattern.bindings
-                            .filterKeys { !existing.containsKey(it) }
-                            .forEach { context.pattern.bindings[it.key] = Type.STRUCT.ANY }
-                        pattern
+                val matched = ast.patterns.mapNotNull { it.first ?: (it.second as? RhovasAst.Pattern.Variable)?.name }
+                val remaining = type?.filter { !matched.contains(it.key) }
+                val p = pattern.pattern?.let {
+                    //rough implementation of unification
+                    val type = remaining?.map { it.value.type }?.fold(remaining.entries.firstOrNull()?.value?.type ?: Type.DYNAMIC) { acc, type ->
+                        when {
+                            acc.isSubtypeOf(type) -> type
+                            acc.isSupertypeOf(type) -> acc
+                            else -> Type.ANY
+                        }
+                    }
+                    analyze(context.with(InferenceContext(type))) {
+                        visit(it)
                     }
                 }
-                //TODO(#14): Struct type bindings
-                Pair(null, RhovasIr.Pattern.VarargDestructure(pattern, ast.operator, Type.STRUCT.ANY).also {
-                    it.context = ast.context
+                val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.ANY) } ?: mapOf()
+                context.bindings.putAll(bindings)
+                Pair(null, RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings).also {
+                    it.context = pattern.context
                 })
             } else {
-                val key = it.value.first
-                    ?: (it.value.second as? RhovasAst.Pattern.Variable)?.name
-                    ?: throw error(
-                        it.value.second,
+                val key = key
+                    ?: (pattern as? RhovasAst.Pattern.Variable)?.name
+                    ?: throw error(pattern,
                         "Missing pattern key",
                         "This pattern requires a key to be used within a named destructure.",
                     )
-                //TODO(#14): Struct type validation
-                val pattern = analyze(context.with(PatternContext(Type.DYNAMIC, context.pattern.bindings))) {
-                    visit(it.value.second)
+                val pattern = analyze(context.with(InferenceContext(type?.get(key)?.type))) {
+                    visit(pattern)
                 }
-                //TODO(#14): Struct type bindings
-                context.pattern.bindings[key] = pattern.type
+                context.bindings[key] = Variable.Declaration(key, type?.get(key)?.type ?: Type.DYNAMIC, false)
                 Pair(key, pattern)
             }
         }
-        return RhovasIr.Pattern.NamedDestructure(patterns, Type.STRUCT.ANY).also {
+        return RhovasIr.Pattern.NamedDestructure(patterns).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
 
     override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure {
-        val type = visit(ast.type)
-        require(type.type.isSubtypeOf(context.pattern.type)) { error(
+        val type = visit(ast.type).type
+        require(context.inference!!.isSupertypeOf(type)) { error(
             ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.pattern.type}, but received ${type.type}.",
+            "This pattern is within a context that requires type ${context.inference}, but received ${type}.",
         ) }
         val pattern = ast.pattern?.let {
-            analyze(context.with(PatternContext(type.type, context.pattern.bindings))) {
+            analyze(context.with(InferenceContext(type))) {
                 visit(it)
             }
         }
-        return RhovasIr.Pattern.TypedDestructure(type.type, pattern).also {
+        return RhovasIr.Pattern.TypedDestructure(type, pattern).also {
             it.context = ast.context
         }
     }
