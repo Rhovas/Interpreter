@@ -18,7 +18,7 @@ sealed class Type(
         val LIST get() = GenericDelegate("List")
         val NULLABLE get() = GenericDelegate("Nullable")
         val RESULT get() = GenericDelegate("Result")
-        val OBJECT get() = Library.type("Object")
+        val MAP get() = GenericDelegate("Map")
         val STRING get() = Library.type("String")
         val STRUCT get() = GenericDelegate("Struct")
         val TUPLE get() = GenericDelegate("Tuple")
@@ -151,7 +151,7 @@ sealed class Type(
                                 type.base.name == "Dynamic" || other.base.name == "Dynamic" -> true
                                 else -> type.base == other.base && type.isSubtypeOf(other, bindings)
                             }
-                            type is Generic -> type.isSubtypeOf(other, bindings).takeIf { it }.also { bindings[type.name] = other } ?: false
+                            type is Generic -> type.isSubtypeOf(other, bindings)
                             other is Generic -> type.isSubtypeOf(other, bindings).takeIf { it }.also { bindings[other.name] = type } ?: false
                             else -> type.isSubtypeOf(other, bindings)
                         }
@@ -236,7 +236,6 @@ sealed class Type(
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            println("Struct getFunction ${name}, ${arguments}")
             return scope.functions[name, arguments] ?: STRUCT.ANY.base.scope.functions[name, arguments]
         }
 
@@ -279,7 +278,7 @@ sealed class Type(
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when {
                 bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other, bindings)
-                other is Generic && name != other.name -> false
+                other is Generic -> name == other.name
                 else -> bound.isSubtypeOf(other, bindings).takeIf { it }?.also { bindings[name] = other } ?: false
             }
         }

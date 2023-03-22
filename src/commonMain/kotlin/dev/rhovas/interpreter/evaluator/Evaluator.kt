@@ -4,7 +4,9 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.library.MapInitializer
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> {
 
@@ -420,7 +422,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
-        val value = ir.properties.mapValues { visit(it.value) }
+        val value = if (ir.type.isSupertypeOf(Type.MAP.ANY)) {
+            ir.properties.entries.associate { MapInitializer.Key(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
+        } else {
+            ir.properties.mapValues { visit(it.value) }
+        }
         return Object(ir.type, value)
     }
 

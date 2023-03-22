@@ -910,16 +910,38 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        val inference = ((context.inference as? Type.Reference)?.generics?.firstOrNull() as? Type.Struct)?.fields
-        val properties = mutableMapOf<String, RhovasIr.Expression>()
-        ast.properties.forEach {
-            require(properties[it.first] == null) { error(ast,
-                "Redefined object property.",
-                "The property ${it.first} has already been defined for this object.",
-            ) }
-            properties[it.first] = visit(it.second, inference?.get(it.first)?.type)
+        val (properties, type) = if (context.inference?.base == Type.MAP.ANY.base) {
+            val generics = (context.inference as Type.Reference).generics
+            val properties = mutableMapOf<String, RhovasIr.Expression>()
+            ast.properties.forEach {
+                require(properties[it.first] == null) { error(ast,
+                    "Redefined object property.",
+                    "The property ${it.first} has already been defined for this object.",
+                ) }
+                properties[it.first] = visit(it.second, generics[1])
+            }
+            val keyType = generics[0].bind(mapOf("K" to Type.ANY)).takeIf { properties.isEmpty() || generics[0].isSupertypeOf(Type.ATOM) } ?: Type.ATOM
+            val valueType = properties.values.fold(generics[1].bind(mapOf("V" to Type.ANY))) { acc, expr ->
+                when {
+                    acc.isSubtypeOf(expr.type) -> expr.type
+                    acc.isSupertypeOf(expr.type) -> acc
+                    else -> Type.ANY
+                }
+            }
+            Pair(properties, Type.MAP[keyType, valueType])
+        } else {
+            val inference = ((context.inference as? Type.Reference)?.generics?.firstOrNull() as? Type.Struct)?.fields
+            val properties = mutableMapOf<String, RhovasIr.Expression>()
+            ast.properties.forEach {
+                require(properties[it.first] == null) { error(ast,
+                    "Redefined object property.",
+                    "The property ${it.first} has already been defined for this object.",
+                ) }
+                properties[it.first] = visit(it.second, inference?.get(it.first)?.type)
+            }
+            val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, inference?.get(it.key)?.mutable ?: inference == null) })]
+            Pair(properties, type)
         }
-        val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, inference?.get(it.key)?.mutable ?: inference == null) })]
         return RhovasIr.Expression.Literal.Object(properties, type).also {
             it.context = ast.context
             it.context.firstOrNull()?.let { context.inputs.removeLast() }

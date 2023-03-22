@@ -21,7 +21,7 @@ object Library {
             AtomInitializer,
             TupleInitializer,
             ListInitializer,
-            ObjectInitializer,
+            MapInitializer,
             StructInitializer,
             LambdaInitializer,
             TypeInitializer,

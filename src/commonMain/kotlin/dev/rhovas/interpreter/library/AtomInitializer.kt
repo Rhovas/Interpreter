@@ -37,7 +37,8 @@ object AtomInitializer : Library.TypeInitializer("Atom") {
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance) ->
-            Object(Type.STRING, ":${instance.value}")
+            val instance = instance.value as RhovasAst.Atom
+            Object(Type.STRING, ":${instance.name}")
         }
     }
 

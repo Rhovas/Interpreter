@@ -293,7 +293,7 @@ class EvaluatorTests {
                     it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                         literal("initial"),
                     )))
-                    it.variables.define(variable("object", Type.OBJECT, mutableMapOf(
+                    it.variables.define(variable("object", Type.MAP, mutableMapOf(
                         "key" to literal("initial"),
                     )))
                 })
@@ -1218,7 +1218,7 @@ class EvaluatorTests {
                         it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                             literal("element"),
                         )))
-                        it.variables.define(variable("object", Type.OBJECT, mutableMapOf(
+                        it.variables.define(variable("object", Type.MAP, mutableMapOf(
                             "key" to literal("value"),
                         )))
                     }
