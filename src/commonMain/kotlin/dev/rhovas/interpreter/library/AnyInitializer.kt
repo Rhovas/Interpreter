@@ -51,7 +51,15 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance, _) ->
-            Object(Type.STRING, "${instance.value}")
+            fun toString(value: Any?): String {
+                return when (value) {
+                    is Object -> value.methods.toString()
+                    is Map<*, *> -> value.mapValues { toString(it.value) }.toString()
+                    is Collection<*> -> value.map { toString(it) }.toString()
+                    else -> value.toString()
+                }
+            }
+            Object(Type.STRING, toString(instance.value))
         }
     }
 

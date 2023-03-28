@@ -52,7 +52,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Component.Class): Object {
-        scope.types.define(ir.type, ir.type.base.name)
+        //TODO(#11): Component declaration/definition handling
+        if (!scope.types.isDefined(ir.type.base.name, true)) {
+            scope.types.define(ir.type, ir.type.base.name)
+        }
         ir.members.forEach { visit(it) }
         return Object(Type.VOID, Unit)
     }

@@ -1619,8 +1619,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
         fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class {
             ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-            val clazz = context.scope.types[ast.name]!!
-            val members = ast.members.map { visit(it, clazz) }.toMutableList()
+            val type = context.scope.types[ast.name]!!
+            val members = ast.members.map { visit(it, type) }.toMutableList()
+            type.base.inherit(Type.ANY)
             return RhovasIr.DefinitionPhase.Component.Class(ast, members).also {
                 ast.context.firstOrNull()?.let { context.inputs.removeLast() }
             }
