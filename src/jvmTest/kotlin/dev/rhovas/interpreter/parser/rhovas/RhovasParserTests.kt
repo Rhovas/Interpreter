@@ -391,9 +391,6 @@ class RhovasParserTests {
                     """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
                         true, "name", null, expr("value")
                     )),
-                    Arguments.of("Missing Name", """
-                        val;
-                    """.trimIndent(), null),
                     Arguments.of("Missing Value", """
                         val name = ;
                     """.trimIndent(), null),
