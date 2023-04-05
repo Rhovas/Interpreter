@@ -10,6 +10,7 @@ import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
+import dev.rhovas.interpreter.library.MapInitializer
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
@@ -293,8 +294,8 @@ class EvaluatorTests {
                     it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                         literal("initial"),
                     )))
-                    it.variables.define(variable("object", Type.MAP, mutableMapOf(
-                        "key" to literal("initial"),
+                    it.variables.define(variable("object", Type.MAP[Type.ATOM, Type.STRING], mutableMapOf(
+                        MapInitializer.Key(literal(RhovasAst.Atom("key"))) to literal("value"),
                     )))
                 })
             }
@@ -1218,8 +1219,8 @@ class EvaluatorTests {
                         it.variables.define(variable("list", Type.LIST[Type.STRING], mutableListOf(
                             literal("element"),
                         )))
-                        it.variables.define(variable("object", Type.MAP, mutableMapOf(
-                            "key" to literal("value"),
+                        it.variables.define(variable("object", Type.MAP[Type.ATOM, Type.STRING], mutableMapOf(
+                            MapInitializer.Key(literal(RhovasAst.Atom("key"))) to literal("value"),
                         )))
                     }
                 }
@@ -1234,7 +1235,7 @@ class EvaluatorTests {
                         Arguments.of("Object", """
                             object[:key]
                         """.trimIndent(),
-                            literal("value"),
+                            Object(Type.NULLABLE[Type.STRING], Pair(literal("value"), null)),
                         ),
                     )
                 }
