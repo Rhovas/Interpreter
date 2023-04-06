@@ -21,13 +21,6 @@ object ExceptionInitializer : Library.TypeInitializer("Exception") {
         ) { (instance) ->
             Object(Type.STRING, "${instance.value}")
         }
-
-        method("to",
-            parameters = listOf("type" to Type.TYPE[Type.STRING]),
-            returns = Type.STRING,
-        ) { (instance) ->
-            Object(Type.STRING, "${instance.value}")
-        }
     }
 
 }

@@ -99,14 +99,6 @@ object MapInitializer : Library.TypeInitializer("Map") {
             val instance = instance.value as MutableMap<Any?, Object>
             Object(Type.BOOLEAN, instance.containsKey(Key(key)))
         }
-
-        method("to",
-            parameters = listOf("type" to Type.TYPE[Type.STRING]),
-            returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as Map<Key, Object>
-            Object(Type.STRING, instance.mapValues { it.value.methods.toString() }.toString())
-        }
     }
 
 }

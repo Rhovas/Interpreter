@@ -85,13 +85,6 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
             val instance = instance.value as BigInteger
             Object(Type.DECIMAL, BigDecimal.fromBigInteger(instance))
         }
-
-        method("to",
-            parameters = listOf("type" to Type.TYPE[Type.STRING]),
-            returns = Type.STRING,
-        ) { (instance) ->
-            Object(Type.STRING, "${instance.value}")
-        }
     }
 
 }

@@ -271,14 +271,6 @@ object ListInitializer : Library.TypeInitializer("List") {
                 ), resultType)
             }
         }
-
-        method("to",
-            parameters = listOf("type" to Type.TYPE[Type.STRING]),
-            returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as List<Object>
-            Object(Type.STRING, instance.map { it.methods.toString() }.toString())
-        }
     }
 
 }

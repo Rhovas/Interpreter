@@ -91,9 +91,6 @@ sealed class Type(
         val reference = Reference(this, generics)
 
         fun inherit(type: Reference) {
-            println("inherit ${reference} < ${type}")
-            println("scope = ${this.scope.functions.collect()}")
-            println("inherit scope = ${type.base.scope.functions.collect()}")
             inherits.add(type)
             type.base.scope.functions.collect()
                 .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
@@ -104,7 +101,6 @@ sealed class Type(
                 .forEach { (name, function) ->
                     val function = function.takeIf { type.base.generics.isEmpty() }
                         ?: function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })
-                    println(function)
                     scope.functions.define(function, name)
                 }
         }
