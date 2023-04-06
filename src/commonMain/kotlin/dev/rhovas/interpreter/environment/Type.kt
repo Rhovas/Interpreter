@@ -10,8 +10,10 @@ sealed class Type(
         val ANY get() = Library.type("Any")
         val ATOM get() = Library.type("Atom")
         val BOOLEAN get() = Library.type("Boolean")
+        val COMPARABLE get() = GenericDelegate("Comparable")
         val DECIMAL get() = Library.type("Decimal")
         val DYNAMIC get() = Library.type("Dynamic")
+        val EQUATABLE get() = GenericDelegate("Equatable")
         val EXCEPTION get() = Library.type("Exception")
         val INTEGER get() = Library.type("Integer")
         val LAMBDA get() = GenericDelegate("Lambda")
@@ -89,6 +91,9 @@ sealed class Type(
         val reference = Reference(this, generics)
 
         fun inherit(type: Reference) {
+            println("inherit ${reference} < ${type}")
+            println("scope = ${this.scope.functions.collect()}")
+            println("inherit scope = ${type.base.scope.functions.collect()}")
             inherits.add(type)
             type.base.scope.functions.collect()
                 .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
@@ -99,6 +104,7 @@ sealed class Type(
                 .forEach { (name, function) ->
                     val function = function.takeIf { type.base.generics.isEmpty() }
                         ?: function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })
+                    println(function)
                     scope.functions.define(function, name)
                 }
         }

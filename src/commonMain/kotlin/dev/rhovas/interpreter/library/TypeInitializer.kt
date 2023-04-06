@@ -6,7 +6,7 @@ object TypeInitializer : Library.TypeInitializer("Type") {
 
     override fun initialize() {
         generics.add(generic("T"))
-        inherits.add(Type.ANY)
+        inherits.add(Type.EQUATABLE[Type.TYPE.ANY])
     }
 
 }

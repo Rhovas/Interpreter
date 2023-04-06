@@ -11,7 +11,7 @@ object ListInitializer : Library.TypeInitializer("List") {
 
     override fun initialize() {
         generics.add(generic("T"))
-        inherits.add(Type.ANY)
+        inherits.add(Type.EQUATABLE[Type.LIST.ANY])
 
         method("size",
             returns = Type.INTEGER,
@@ -270,15 +270,6 @@ object ListInitializer : Library.TypeInitializer("List") {
                     Triple("element", elementType, element),
                 ), resultType)
             }
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.LIST[generic("T")]),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            val instance = instance.value as List<Object>
-            val other = other.value as List<Object>
-            Object(Type.BOOLEAN, instance.size == other.size && instance.zip(other).all { it.first.methods.equals(it.second) })
         }
 
         method("to",

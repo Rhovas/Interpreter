@@ -14,7 +14,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasTokenType
 object StringInitializer : Library.TypeInitializer("String") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.COMPARABLE[Type.STRING])
 
         method("size",
             returns = Type.INTEGER,
@@ -160,22 +160,6 @@ object StringInitializer : Library.TypeInitializer("String") {
             val instance = instance.value as String
             val other = other.value as String
             Object(Type.LIST[Type.STRING], instance.split(other).map { Object(Type.STRING, it) })
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.STRING),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            Object(Type.BOOLEAN, instance.value == other.value)
-        }
-
-        method("compare", operator = "<=>",
-            parameters = listOf("other" to Type.STRING),
-            returns = Type.INTEGER,
-        ) { (instance, other) ->
-            val instance = instance.value as String
-            val other = other.value as String
-            Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("to",

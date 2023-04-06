@@ -10,7 +10,7 @@ import dev.rhovas.interpreter.environment.Type
 object DecimalInitializer : Library.TypeInitializer("Decimal") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.COMPARABLE[Type.DECIMAL])
 
         method("abs",
             returns = Type.DECIMAL,
@@ -80,22 +80,6 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
             val rem = instance.rem(other)
             val mod = if (rem.isNegative) rem + other else rem
             Object(Type.INTEGER, mod)
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.DECIMAL),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            Object(Type.BOOLEAN, instance.value == other.value)
-        }
-
-        method("compare", operator = "<=>",
-            parameters = listOf("other" to Type.DECIMAL),
-            returns = Type.INTEGER,
-        ) { (instance, other) ->
-            val instance = instance.value as BigDecimal
-            val other = other.value as BigDecimal
-            Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("to",

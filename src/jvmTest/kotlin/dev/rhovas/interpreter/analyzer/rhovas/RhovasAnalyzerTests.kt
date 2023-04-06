@@ -1542,7 +1542,7 @@ class RhovasAnalyzerTests {
             @MethodSource
             fun testEquality(name: String, input: String, expected: (() -> RhovasIr.Expression.Binary?)?) {
                 test("expression", input, expected?.invoke()) {
-                    it.variables.define(variable("any", Type.ANY).variable)
+                    it.variables.define(variable("lambda", Type.LAMBDA.ANY).variable)
                 }
             }
 
@@ -1559,7 +1559,7 @@ class RhovasAnalyzerTests {
                         )
                     }),
                     Arguments.of("Not Equatable", """
-                        any != 2
+                        lambda != 2
                     """.trimIndent(), null),
                 )
             }

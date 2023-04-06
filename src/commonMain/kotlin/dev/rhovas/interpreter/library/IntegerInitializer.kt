@@ -8,7 +8,7 @@ import dev.rhovas.interpreter.environment.Type
 object IntegerInitializer : Library.TypeInitializer("Integer") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.COMPARABLE[Type.INTEGER])
 
         method("abs",
             returns = Type.INTEGER,
@@ -76,22 +76,6 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
             val instance = instance.value as BigInteger
             val other = other.value as BigInteger
             Object(Type.INTEGER, instance.mod(other))
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.INTEGER),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            Object(Type.BOOLEAN, instance.value == other.value)
-        }
-
-        method("compare", operator = "<=>",
-            parameters = listOf("other" to Type.INTEGER),
-            returns = Type.INTEGER,
-        ) { (instance, other) ->
-            val instance = instance.value as BigInteger
-            val other = other.value as BigInteger
-            Object(Type.INTEGER, BigInteger.fromInt(instance.compareTo(other)))
         }
 
         method("to",

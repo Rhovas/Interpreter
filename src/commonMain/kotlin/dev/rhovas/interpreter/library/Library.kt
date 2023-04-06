@@ -13,6 +13,8 @@ object Library {
         val initializers = listOf(
             DynamicInitializer,
             AnyInitializer,
+            EquatableInitializer,
+            ComparableInitializer,
             VoidInitializer,
             BooleanInitializer,
             IntegerInitializer,

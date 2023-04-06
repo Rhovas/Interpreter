@@ -7,16 +7,7 @@ object StructInitializer : Library.TypeInitializer("Struct") {
 
     override fun initialize() {
         generics.add(generic("T", Type.STRUCT.ANY))
-        inherits.add(Type.ANY)
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.STRUCT.ANY),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            val instance = instance.value as Map<String, Object>
-            val other = other.value as Map<String, Object>
-            Object(Type.BOOLEAN, instance.keys == other.keys && instance.all { it.value.methods.equals(other[it.key]!!) })
-        }
+        inherits.add(Type.EQUATABLE[Type.STRUCT.ANY])
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),

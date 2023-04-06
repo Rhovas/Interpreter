@@ -6,7 +6,7 @@ import dev.rhovas.interpreter.environment.Type
 object VoidInitializer : Library.TypeInitializer("Void") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.EQUATABLE[Type.VOID])
 
         method("equals", operator = "==",
             parameters = listOf("other" to Type.VOID),

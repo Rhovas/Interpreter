@@ -995,11 +995,15 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "==", "!=" -> {
                 val left = visit(ast.left)
-                require(left.type.methods["==", listOf(left.type)] != null) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.EQUATABLE.ANY) || left.type.isSupertypeOf(Type.EQUATABLE.ANY)) { error(ast.left,
                     "Unequatable type.",
-                    "The type ${left.type} is not equatable as the method op==(${left.type}) is not defined.",
+                    "A logical binary expression requires the left operand to be unifiable with type Equatable, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, left.type)
+                require(right.type.isSubtypeOf(Type.EQUATABLE.ANY) || right.type.isSupertypeOf(Type.EQUATABLE.ANY)) { error(ast.right,
+                    "Unequatable type.",
+                    "A logical binary expression requires the right operand to be unifiable with type Equatable, but received ${right.type}.",
+                ) }
                 RhovasIr.Expression.Binary(ast.operator, left, right, null, Type.BOOLEAN)
             }
             "===", "!==" -> {
@@ -1009,6 +1013,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "<", ">", "<=", ">=" -> {
                 val left = visit(ast.left)
+                require(left.type.isSubtypeOf(Type.COMPARABLE.ANY)) { error(ast.left,
+                    "Uncomparable type.",
+                    "A logical equality expression requires the left operand to be type Comparable, but received ${left.type}.",
+                ) }
                 val (method, arguments) = resolveMethod(ast, ast.left, left.type, "<=>", false, listOf(ast.right))
                 RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, Type.BOOLEAN)
             }

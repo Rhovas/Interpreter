@@ -11,7 +11,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
     override fun initialize() {
         generics.add(generic("T"))
         generics.add(generic("E"))
-        inherits.add(Type.ANY)
+        inherits.add(Type.EQUATABLE[Type.RESULT[Type.EQUATABLE[generic("T", Type.EQUATABLE[generic("T")])], Type.EQUATABLE[generic("E", Type.EQUATABLE[generic("E")])]]])
 
         method("value",
             returns = Type.NULLABLE[generic("T")],

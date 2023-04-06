@@ -23,9 +23,9 @@ object MapInitializer : Library.TypeInitializer("Map") {
     }
 
     override fun initialize() {
-        generics.add(generic("K"))
+        generics.add(generic("K", Type.EQUATABLE[generic("K")]))
         generics.add(generic("V"))
-        inherits.add(Type.ANY)
+        inherits.add(Type.EQUATABLE[Type.MAP.ANY])
 
         function("",
             generics = listOf(generic("K"), generic("V")),
@@ -98,15 +98,6 @@ object MapInitializer : Library.TypeInitializer("Map") {
         ) { (instance, key) ->
             val instance = instance.value as MutableMap<Any?, Object>
             Object(Type.BOOLEAN, instance.containsKey(Key(key)))
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.MAP[generic("K"), generic("V")]),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            val instance = instance.value as Map<Key, Object>
-            val other = other.value as Map<Key, Object>
-            Object(Type.BOOLEAN, instance.keys == other.keys && instance.all { it.value.methods.equals(other[it.key]!!) })
         }
 
         method("to",

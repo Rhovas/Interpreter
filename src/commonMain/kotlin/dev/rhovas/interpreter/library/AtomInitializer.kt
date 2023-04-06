@@ -8,20 +8,13 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 object AtomInitializer : Library.TypeInitializer("Atom") {
 
     override fun initialize() {
-        inherits.add(Type.ANY)
+        inherits.add(Type.COMPARABLE[Type.ATOM])
 
         method("name",
             returns = Type.STRING
         ) { (instance) ->
             val instance = instance.value as RhovasAst.Atom
             Object(Type.STRING, instance.name)
-        }
-
-        method("equals", operator = "==",
-            parameters = listOf("other" to Type.ATOM),
-            returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            Object(Type.BOOLEAN, instance.value == other.value)
         }
 
         method("compare", operator = "<=>",
