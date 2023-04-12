@@ -573,12 +573,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For {
         ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
         val argument = visit(ast.argument, Type.LIST.ANY)
-        require(argument.type.isSubtypeOf(Type.LIST.ANY)) { error(
+        require(argument.type.isSubtypeOf(Type.ITERABLE.ANY)) { error(
             ast.argument,
             "Invalid for loop argument type.",
-            "A for loop requires the argument to be type List, but received ${argument.type}.",
+            "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
-        val type = argument.type.methods["get", listOf(Type.INTEGER)]!!.returns
+        val type = (argument.type as Type.Reference).generics[0]
         val variable = Variable.Declaration(ast.name, type, false)
         return analyze {
             (context.scope as Scope.Declaration).variables.define(variable)

@@ -255,9 +255,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.For): Object {
         val iterable = visit(ir.argument)
+        val iterator = iterable.methods["iterator", listOf()]!!.invoke(listOf())
+        val next = iterator.methods["next", listOf()]!!
         val label = this.label
         this.label = null
-        for (element in iterable.value as List<Object>) {
+        for (element in generateSequence { (next.invoke(listOf()).value as Pair<Object, Object>?)?.first }) {
             try {
                 scoped(Scope.Definition(scope)) {
                     scope.variables.define(Variable.Definition(ir.variable, element))

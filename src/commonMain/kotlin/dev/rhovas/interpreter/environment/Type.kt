@@ -16,6 +16,8 @@ sealed class Type(
         val EQUATABLE get() = GenericDelegate("Equatable")
         val EXCEPTION get() = Library.type("Exception")
         val INTEGER get() = Library.type("Integer")
+        val ITERABLE get() = GenericDelegate("Iterable")
+        val ITERATOR get() = GenericDelegate("Iterator")
         val LAMBDA get() = GenericDelegate("Lambda")
         val LIST get() = GenericDelegate("List")
         val NULLABLE get() = GenericDelegate("Nullable")
