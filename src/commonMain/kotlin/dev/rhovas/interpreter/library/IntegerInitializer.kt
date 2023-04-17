@@ -9,6 +9,7 @@ object IntegerInitializer : Library.TypeInitializer("Integer") {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.INTEGER])
+        inherits.add(Type.HASHABLE[Type.INTEGER])
 
         method("abs",
             returns = Type.INTEGER,

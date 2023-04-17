@@ -9,6 +9,7 @@ object AtomInitializer : Library.TypeInitializer("Atom") {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.ATOM])
+        inherits.add(Type.HASHABLE[Type.ATOM])
 
         method("name",
             returns = Type.STRING

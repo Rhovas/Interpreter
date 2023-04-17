@@ -15,6 +15,7 @@ sealed class Type(
         val DYNAMIC get() = Library.type("Dynamic")
         val EQUATABLE get() = GenericDelegate("Equatable")
         val EXCEPTION get() = Library.type("Exception")
+        val HASHABLE get() = GenericDelegate("Hashable")
         val INTEGER get() = Library.type("Integer")
         val ITERABLE get() = GenericDelegate("Iterable")
         val ITERATOR get() = GenericDelegate("Iterator")
@@ -96,15 +97,10 @@ sealed class Type(
             inherits.add(type)
             type.base.scope.functions.collect()
                 .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
-                .filter { (name, function) -> (
-                        (function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false) &&
-                        scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) }
-                ) }
-                .forEach { (name, function) ->
-                    val function = function.takeIf { type.base.generics.isEmpty() }
-                        ?: function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })
-                    scope.functions.define(function, name)
-                }
+                .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false }
+                .map { (name, function) -> Pair(name, function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })) }
+                .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
+                .forEach { (name, function) -> scope.functions.define(function, name) }
         }
 
         override fun equals(other: Any?): Boolean {

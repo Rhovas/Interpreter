@@ -6,7 +6,7 @@ import dev.rhovas.interpreter.environment.Type
 object ExceptionInitializer : Library.TypeInitializer("Exception") {
 
     override fun initialize() {
-        inherits.add(Type.EQUATABLE[Type.EXCEPTION])
+        inherits.add(Type.HASHABLE[Type.EXCEPTION])
 
         function("",
             parameters = listOf("message" to Type.STRING),

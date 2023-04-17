@@ -15,6 +15,7 @@ object Library {
             AnyInitializer,
             EquatableInitializer,
             ComparableInitializer,
+            HashableInitializer,
             VoidInitializer,
             BooleanInitializer,
             IntegerInitializer,

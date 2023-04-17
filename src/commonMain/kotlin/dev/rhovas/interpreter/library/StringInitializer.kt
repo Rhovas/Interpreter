@@ -15,6 +15,7 @@ object StringInitializer : Library.TypeInitializer("String") {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.STRING])
+        inherits.add(Type.HASHABLE[Type.STRING])
 
         method("size",
             returns = Type.INTEGER,

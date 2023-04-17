@@ -10,7 +10,6 @@ import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
-import dev.rhovas.interpreter.library.MapInitializer
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
@@ -295,7 +294,7 @@ class EvaluatorTests {
                         literal("initial"),
                     )))
                     it.variables.define(variable("object", Type.MAP[Type.ATOM, Type.STRING], mutableMapOf(
-                        MapInitializer.Key(literal(RhovasAst.Atom("key"))) to literal("value"),
+                        Object.Hashable(literal(RhovasAst.Atom("key"))) to literal("value"),
                     )))
                 })
             }
@@ -1220,7 +1219,7 @@ class EvaluatorTests {
                             literal("element"),
                         )))
                         it.variables.define(variable("object", Type.MAP[Type.ATOM, Type.STRING], mutableMapOf(
-                            MapInitializer.Key(literal(RhovasAst.Atom("key"))) to literal("value"),
+                            Object.Hashable(literal(RhovasAst.Atom("key"))) to literal("value"),
                         )))
                     }
                 }

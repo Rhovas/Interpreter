@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import com.ionspin.kotlin.bignum.integer.BigInteger
+
 data class Object(
     val type: Type,
     val value: Any?,
@@ -44,6 +46,14 @@ data class Object(
         }
 
         /**
+         * Invokes `hash` on the object. This is placed here to match `equals`/
+         * `toString`, but also makes it clearer this invokes a user method.
+         */
+        fun hash(): Int {
+            return (get("hash", listOf())!!.invoke(listOf()).value as BigInteger).intValue()
+        }
+
+        /**
          * Invokes `to(String)` on the object. This is placed here to avoid
          * overriding the default data class `toString`, but also makes it
          * clearer this invokes a user method.
@@ -52,6 +62,14 @@ data class Object(
             val type = Type.TYPE[Type.STRING]
             return get("to", listOf(type))!!.invoke(listOf(Object(type, type))).value as String
         }
+
+    }
+
+    data class Hashable(val instance: Object) {
+
+        override fun equals(other: Any?) = instance.methods.equals((other as Hashable).instance)
+        override fun hashCode() = instance.methods.hash()
+        override fun toString() = instance.methods.toString()
 
     }
 

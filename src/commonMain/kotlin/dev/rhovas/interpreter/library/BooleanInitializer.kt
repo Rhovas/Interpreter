@@ -6,7 +6,7 @@ import dev.rhovas.interpreter.environment.Type
 object BooleanInitializer : Library.TypeInitializer("Boolean") {
 
     override fun initialize() {
-        inherits.add(Type.EQUATABLE[Type.BOOLEAN])
+        inherits.add(Type.HASHABLE[Type.BOOLEAN])
 
         method("negate", operator = "!",
             returns = Type.BOOLEAN,

@@ -11,6 +11,7 @@ object DecimalInitializer : Library.TypeInitializer("Decimal") {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.DECIMAL])
+        inherits.add(Type.HASHABLE[Type.DECIMAL])
 
         method("abs",
             returns = Type.DECIMAL,
