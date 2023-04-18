@@ -34,11 +34,11 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("keys",
-            returns = Type.LIST[generic("K")],
+            returns = Type.SET[generic("K")],
         ) { (instance) ->
             val keyType = (instance.type as Type.Reference).generics[0]
             val instance = instance.value as Map<Object.Hashable, Object>
-            Object(Type.LIST[keyType], instance.keys.map { it.instance })
+            Object(Type.SET[keyType], instance.keys)
         }
 
         method("values",
@@ -74,7 +74,16 @@ object MapInitializer : Library.TypeInitializer("Map") {
         ) { (instance, key, value) ->
             val instance = instance.value as MutableMap<Object.Hashable, Object>
             instance[Object.Hashable(key)] = value
-            Object(Type.VOID, null)
+            Object(Type.VOID, Unit)
+        }
+
+        method("remove",
+            parameters = listOf("key" to generic("K")),
+            returns = Type.VOID,
+        ) { (instance, key, value) ->
+            val instance = instance.value as MutableMap<Object.Hashable, Object>
+            instance.remove(Object.Hashable(key))
+            Object(Type.VOID, Unit)
         }
 
         method("contains",

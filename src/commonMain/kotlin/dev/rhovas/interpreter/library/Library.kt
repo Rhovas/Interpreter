@@ -26,6 +26,7 @@ object Library {
             IterableInitializer,
             IteratorInitializer,
             ListInitializer,
+            SetInitializer,
             MapInitializer,
             StructInitializer,
             LambdaInitializer,

@@ -24,6 +24,7 @@ sealed class Type(
         val NULLABLE get() = GenericDelegate("Nullable")
         val RESULT get() = GenericDelegate("Result")
         val MAP get() = GenericDelegate("Map")
+        val SET get() = GenericDelegate("Set")
         val STRING get() = Library.type("String")
         val STRUCT get() = GenericDelegate("Struct")
         val TUPLE get() = GenericDelegate("Tuple")

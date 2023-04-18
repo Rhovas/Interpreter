@@ -1685,9 +1685,7 @@ class EvaluatorTests {
     private fun test(rule: String, input: String, expected: String?, scope: Scope.Definition = Scope.Definition(Library.SCOPE)) {
         val log = StringBuilder()
         scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())) { arguments ->
-            println(arguments[0])
-            log.append(arguments[0].methods.toString())
-            arguments[0]
+            arguments[0].also { log.append(it.methods.toString()) }
         })
         val input = Input("Test", input)
         try {
