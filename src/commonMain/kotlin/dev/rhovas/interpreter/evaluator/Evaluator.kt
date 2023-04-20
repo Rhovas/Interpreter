@@ -656,6 +656,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         var result = visit(ir.pattern)
         if (result.value as Boolean) {
             result = scoped(Scope.Definition(scope)) {
+                scope.variables.define(Variable.Definition(Variable.Declaration("val", patternState.value.type, false), patternState.value))
                 ir.pattern.bindings.forEach { scope.variables.define(Variable.Definition(it.value, patternState.scope.variables[it.key]!!.value)) }
                 visit(ir.predicate)
             }
