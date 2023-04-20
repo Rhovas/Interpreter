@@ -95,6 +95,15 @@ object StringInitializer : Library.TypeInitializer("String") {
             Object(Type.BOOLEAN, instance.contains(other))
         }
 
+        method("matches",
+            parameters = listOf("regex" to Type.REGEX),
+            returns = Type.BOOLEAN,
+        ) { (instance, regex) ->
+            val instance = instance.value as String
+            val regex = regex.value as Regex
+            Object(Type.BOOLEAN, instance.matches(regex))
+        }
+
         method("indexOf",
             parameters = listOf("other" to Type.STRING),
             returns = Type.NULLABLE[Type.INTEGER],

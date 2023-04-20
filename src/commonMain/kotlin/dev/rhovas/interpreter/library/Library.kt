@@ -34,6 +34,7 @@ object Library {
             ExceptionInitializer,
             ResultInitializer,
             NullableInitializer,
+            RegexInitializer,
             KernelInitializer,
             MathInitializer,
         )

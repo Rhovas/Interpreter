@@ -37,7 +37,7 @@ fun read(): Input {
         if (line.lastOrNull { it != ' ' } in listOf('(', '{', '[')) {
             indent++
         }
-        builder.append(line)
+        builder.append(line).append('\n')
     } while (indent != 0)
     return Input("REPL", builder.toString())
 }

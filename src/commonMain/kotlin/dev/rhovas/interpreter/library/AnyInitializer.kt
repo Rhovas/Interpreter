@@ -41,10 +41,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, type) ->
             val type = type.value as Type
-            when {
-                instance.type.isSubtypeOf(type) -> instance
-                else -> Object(Type.NULLABLE.ANY, null)
-            }
+            Object(Type.NULLABLE[type], instance.takeIf { it.type.isSubtypeOf(type) }?.let { Pair(it, null) })
         }
 
         method("to",

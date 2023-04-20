@@ -66,11 +66,15 @@ class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
                 tokens.advance()
                 builder.append(tokens[-1]!!.literal)
             }
+            require(peek("}")) { error(
+                "Unterminated DSL.",
+                "An inline DSL must end with a closing brace and cannot contain newlines or opening braces (such as for interpolation).",
+            ) }
         }
         literals.add(builder.toString())
         require(match("}")) { error(
             "Expected closing brace.",
-            "A DSL expression requires braces around the source, as in `#dsl \${ source }`.",
+            "A DSL expression requires braces around the source, as in `#dsl { source }`.",
         ) }
         return DslAst.Source(literals, arguments).also {
             it.context = listOf(context.removeLast(), tokens[-1]!!.range)

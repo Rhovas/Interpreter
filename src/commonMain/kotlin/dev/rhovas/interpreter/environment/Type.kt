@@ -22,6 +22,7 @@ sealed class Type(
         val LAMBDA get() = GenericDelegate("Lambda")
         val LIST get() = GenericDelegate("List")
         val NULLABLE get() = GenericDelegate("Nullable")
+        val REGEX get() = Library.type("Regex")
         val RESULT get() = GenericDelegate("Result")
         val MAP get() = GenericDelegate("Map")
         val SET get() = GenericDelegate("Set")

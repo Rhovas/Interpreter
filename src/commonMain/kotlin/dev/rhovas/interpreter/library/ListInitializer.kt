@@ -31,15 +31,17 @@ object ListInitializer : Library.TypeInitializer("List") {
         method("first",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
+            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
             val instance = instance.value as List<Object>
-            instance.firstOrNull() ?: Object(Type.NULLABLE.ANY, null)
+            Object(Type.NULLABLE[elementType], instance.firstOrNull()?.let { Pair(it, null) })
         }
 
         method("last",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
+            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
             val instance = instance.value as List<Object>
-            instance.lastOrNull() ?: Object(Type.NULLABLE.ANY, null)
+            Object(Type.NULLABLE[elementType], instance.lastOrNull()?.let { Pair(it, null) })
         }
 
         method("get", operator = "[]",
@@ -228,12 +230,13 @@ object ListInitializer : Library.TypeInitializer("List") {
                 "Invalid lambda parameter count.",
                 "Function List.reduce requires a lambda with 2 parameters, but received ${lambda.ast.parameters.size}.",
             ) }
-            instance.reduceOrNull { result, element ->
+            val result = instance.reduceOrNull { result, element ->
                 lambda.invoke(listOf(
                     Triple("result", resultType, result),
                     Triple("element", elementType, element),
                 ), resultType)
-            } ?: Object(Type.NULLABLE.ANY, null)
+            }
+            Object(Type.NULLABLE[resultType], result?.let { Pair(it, null) })
         }
 
         method("reduce",

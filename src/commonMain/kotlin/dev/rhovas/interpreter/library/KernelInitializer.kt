@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.INTERPRETER
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
@@ -50,6 +51,27 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
             returns = Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC],
         ) { (lambda) ->
             lambda
+        }
+
+        function("regex",
+            parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST[Type.DYNAMIC]),
+            returns = Type.REGEX,
+        ) { (literals, arguments) ->
+            val literals = literals.value as List<Object>
+            val arguments = arguments.value as List<Object>
+            val pattern = literals.zip(arguments + listOf(null)).mapIndexed { index, (literal, argument) ->
+                //TODO(#16): Union type for String | Regex
+                literal.value as String + when {
+                    argument == null -> ""
+                    argument.type.isSubtypeOf(Type.STRING) -> Regex.escape(argument.value as String)
+                    argument.type.isSubtypeOf(Type.REGEX) -> (argument.value as Regex).pattern
+                    else -> throw EVALUATOR.error(null,
+                        "Invalid argument.",
+                        "The native function #regex requires argument ${index} to be type String | Regex, but received ${argument.type}.",
+                    )
+                }
+            }.joinToString("").trim(' ').removeSurrounding("/")
+            Object(Type.REGEX, Regex(pattern))
         }
     }
 
