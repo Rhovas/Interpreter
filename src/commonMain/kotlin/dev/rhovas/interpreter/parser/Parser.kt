@@ -81,7 +81,7 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
      * is the range of the next token or, if `null`, the previous token.
      */
     protected fun error(summary: String, details: String, range: Input.Range = (tokens[0] ?: tokens[-1])!!.range): ParseException {
-        return ParseException(summary, details, range, context.toList())
+        return ParseException(summary, details, range, context + listOfNotNull(tokens[0]?.range, tokens[-1]?.range))
     }
 
     /**
@@ -103,7 +103,7 @@ abstract class Parser<T : Token.Type>(val lexer: Lexer<T>) {
             while (tokens.size <= index + offset) {
                 tokens.add(lexer.lexToken())
             }
-            return tokens[index + offset]
+            return tokens.getOrNull(index + offset)
         }
 
         /**
