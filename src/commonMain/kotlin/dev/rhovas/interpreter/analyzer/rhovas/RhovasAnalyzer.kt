@@ -196,30 +196,24 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     }
 
-    override fun visit(ast: RhovasAst.Source): RhovasIr.Source {
+    override fun visit(ast: RhovasAst.Source): RhovasIr.Source = analyzeAst(ast) {
         val imports = ast.imports.map { visit(it) }
         val statements = ast.statements.map { visit(it) }
-        return RhovasIr.Source(imports, statements).also {
-            it.context = ast.context
-        }
+        RhovasIr.Source(imports, statements)
     }
 
-    override fun visit(ast: RhovasAst.Import): RhovasIr.Import {
-        val type = Library.TYPES[ast.path.joinToString(".")] ?: throw error(
-            ast,
+    override fun visit(ast: RhovasAst.Import): RhovasIr.Import = analyzeAst(ast) {
+        val type = Library.TYPES[ast.path.joinToString(".")] ?: throw error(ast,
             "Undefined type.",
             "The type ${ast.path.joinToString(".")} is not defined."
         )
         val alias = ast.alias ?: ast.path.last()
-        require(!context.scope.types.isDefined(alias, true)) { error(
-            ast,
+        require(!context.scope.types.isDefined(alias, true)) { error(ast,
             "Redefined type.",
             "The type ${ast.path.last()} is already defined in the current scope.",
         ) }
         context.scope.types.define(type, alias)
-        return RhovasIr.Import(type).also {
-            it.context = ast.context
-        }
+        RhovasIr.Import(type)
     }
 
     private fun visit(ast: RhovasAst.Component): RhovasIr.Component {
@@ -230,52 +224,37 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct {
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
         val members = ir.members.map { visit(it) }
-        return RhovasIr.Component.Struct(type, members).also {
-            it.context = ir.ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Component.Struct(type, members)
     }
 
     override fun visit(ast: RhovasAst.Component.Class): RhovasIr.Component.Class {
         return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class {
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
         val members = ir.members.map { visit(it) }
-        return RhovasIr.Component.Class(type, members).also {
-            it.context = ir.ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Component.Class(type, members)
     }
 
     private fun visit(ir: RhovasIr.DefinitionPhase.Member): RhovasIr.Member {
         return super.visit(ir) as RhovasIr.Member
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Property): RhovasIr.Member.Property {
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Property): RhovasIr.Member.Property = analyzeAst(ir.ast) {
         val value = ir.ast.value?.let { visit(it, ir.getter.returns) }
-        require(value == null || value.type.isSubtypeOf(ir.getter.returns)) { error(
-            ir.ast,
+        require(value == null || value.type.isSubtypeOf(ir.getter.returns)) { error(ir.ast,
             "Invalid value type.",
             "The property ${ir.ast.name} requires a value of type ${ir.getter.returns}, but received ${value!!.type}."
         ) }
-        return RhovasIr.Member.Property(ir.getter, ir.setter, value).also {
-            it.context = ir.ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Member.Property(ir.getter, ir.setter, value)
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Initializer): RhovasIr.Member.Initializer {
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        return analyze(context.with(
+    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Initializer): RhovasIr.Member.Initializer = analyzeAst(ir.ast) {
+        analyze(context.with(
             ScopeContext(Scope.Declaration(context.scope)),
             FunctionContext(ir.function.declaration),
             ExceptionContext(ir.function.throws.toMutableSet()),
@@ -284,82 +263,58 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             context.initialization["this"] = InitializationContext.Data(false, RhovasAst.Statement.Declaration.Variable(false, "this", null, null).also { it.context = ir.ast.context }, mutableListOf())
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
-            RhovasIr.Member.Initializer(ir.function, block).also {
-                it.context = ir.ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Member.Initializer(ir.function, block)
         }
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Method): RhovasIr {
-        val function = visit(ir.function)
-        return RhovasIr.Member.Method(function).also {
-            it.context = ir.ast.context
-        }
+    override fun visit(ir: RhovasIr.DefinitionPhase.Member.Method): RhovasIr.Member.Method = analyzeAst(ir.ast) {
+        RhovasIr.Member.Method(visit(ir.function))
     }
 
     private fun visit(ast: RhovasAst.Statement): RhovasIr.Statement {
         return super.visit(ast) as RhovasIr.Statement
     }
 
-    override fun visit(ast: RhovasAst.Statement.Component): RhovasIr {
-        return RhovasIr.Statement.Component(visit(ast.component)).also {
-            it.context = ast.context
-        }
+    override fun visit(ast: RhovasAst.Statement.Component): RhovasIr.Statement.Component = analyzeAst(ast) {
+        RhovasIr.Statement.Component(visit(ast.component))
     }
 
-    override fun visit(ast: RhovasAst.Statement.Initializer): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Initializer): RhovasIr.Statement.Initializer = analyzeAst(ast) {
         require(context.function?.name == "") { error(ast,
             "Invalid initializer.",
             "An instance initializer can only be called within an initializer function.",
         ) }
         val initialization = context.initialization["this"]!!
-        require(!initialization.initialized) {
-            initialization.declaration.context.firstOrNull()?.let { context.inputs.add(it) }
-            error(ast,
-                "Reinitialized instance.",
-                "An instance initializer can only be called once.",
-            )
-        }
+        require(!initialization.initialized) { analyze(initialization.declaration.context) { error(ast,
+            "Reinitialized instance.",
+            "An instance initializer can only be called once.",
+        ) } }
         val initializer = visit(ast.initializer, Type.STRUCT.ANY) as RhovasIr.Expression.Literal.Object
         //TODO(#14): Validate available fields
-        return RhovasIr.Statement.Initializer(initializer).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Initializer(initializer)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Expression): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(ast.expression is RhovasAst.Expression.Block || ast.expression is RhovasAst.Expression.Invoke) { error(
-            ast.expression,
+    override fun visit(ast: RhovasAst.Statement.Expression): RhovasIr.Statement.Expression = analyzeAst(ast) {
+        require(ast.expression is RhovasAst.Expression.Block || ast.expression is RhovasAst.Expression.Invoke) { error(ast.expression,
             "Invalid expression statement.",
             "An expression statement requires an invoke expression in order to perform a useful side-effect, but received ${ast.expression::class.simpleName}.",
         ) }
         val expression = visit(ast.expression)
-        return RhovasIr.Statement.Expression(expression).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Expression(expression)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Declaration.Variable): RhovasIr.Statement.Declaration.Variable {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.scope.variables[ast.name, true] == null) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Statement.Declaration.Variable): RhovasIr.Statement.Declaration.Variable = analyzeAst(ast) {
+        require(context.scope.variables[ast.name, true] == null) { error(ast,
             "Redefined variable.",
             "The variable ${ast.name} is already defined in this scope.",
         ) }
-        require(ast.type != null || ast.value != null) { error(
-            ast,
+        require(ast.type != null || ast.value != null) { error(ast,
             "Undefined variable type.",
             "A variable declaration requires either a type or an initial value.",
         ) }
         val type = ast.type?.let { visit(it).type }
         val value = ast.value?.let { visit(it, type) }
-        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(
-            ast,
+        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(ast,
             "Invalid value type.",
             "The variable ${ast.name} requires a value of type ${type}, but received ${value!!.type}."
         ) }
@@ -372,19 +327,15 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         if (value == null) {
             context.initialization[variable.name] = InitializationContext.Data(false, ast, mutableListOf())
         }
-        return RhovasIr.Statement.Declaration.Variable(variable, value).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Declaration.Variable(variable, value)
     }
 
     override fun visit(ast: RhovasAst.Statement.Declaration.Function): RhovasIr.Statement.Declaration.Function {
         return define.visit(ast).let { visit(it) }
     }
 
-    override fun visit(ir: RhovasIr.DefinitionPhase.Function): RhovasIr.Statement.Declaration.Function {
-        ir.ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        return analyze(context.with(
+    override fun visit(ir: RhovasIr.DefinitionPhase.Function): RhovasIr.Statement.Declaration.Function = analyzeAst(ir.ast) {
+        analyze(context.with(
             ScopeContext(Scope.Declaration(context.scope)),
             FunctionContext(ir.function),
             ExceptionContext(ir.function.throws.toMutableSet()),
@@ -392,40 +343,32 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             ir.function.generics.forEach { context.scope.types.define(it) }
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
-            require(ir.function.returns.isSubtypeOf(Type.VOID) || context.jumps.contains("")) { error(
-                ir.ast,
+            require(ir.function.returns.isSubtypeOf(Type.VOID) || context.jumps.contains("")) { error(ir.ast,
                 "Missing return value.",
                 "The function ${ir.ast.name}/${ir.ast.parameters.size} requires a return value.",
             ) }
             context.jumps.clear()
-            RhovasIr.Statement.Declaration.Function(ir.function, block).also {
-                it.context = ir.ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Statement.Declaration.Function(ir.function, block)
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assignment): RhovasIr.Statement.Assignment {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(ast.receiver is RhovasAst.Expression.Access) { error(
-            ast.receiver,
+    override fun visit(ast: RhovasAst.Statement.Assignment): RhovasIr.Statement.Assignment = analyzeAst(ast) {
+        require(ast.receiver is RhovasAst.Expression.Access) { error(ast.receiver,
             "Invalid assignment receiver.",
             "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver::class.simpleName}.",
         ) }
-        return when (ast.receiver) {
+        when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
                 val initialization = context.initialization[ast.receiver.name]
                 val receiver = when {
                     initialization == null -> visit(ast.receiver).also {
-                        require(it.variable.mutable) { error(
-                            ast.receiver,
+                        require(it.variable.mutable) { error(ast.receiver,
                             "Unassignable variable.",
                             "The variable ${it.variable.name} is not assignable.",
                         ) }
                     }
                     initialization.initialized -> visit(ast.receiver).also {
-                        require(it.variable.mutable) { error(
-                            ast.receiver,
+                        require(it.variable.mutable) { error(ast.receiver,
                             "Reinitialized variable.",
                             "The variable ${it.variable.name} is already initialized.",
                         ) }
@@ -437,56 +380,41 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     }
                 }
                 val value = visit(ast.value, receiver.variable.type)
-                require(value.type.isSubtypeOf(receiver.variable.type)) { error(
-                    ast.value,
+                require(value.type.isSubtypeOf(receiver.variable.type)) { error(ast.value,
                     "Invalid assignment value type.",
                     "The variable ${receiver.variable.name} requires the value to be type ${receiver.variable.type}, but received ${value.type}.",
                 ) }
-                RhovasIr.Statement.Assignment.Variable(receiver.variable, value).also {
-                    it.context = ast.context
-                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+                RhovasIr.Statement.Assignment.Variable(receiver.variable, value)
             }
             is RhovasAst.Expression.Access.Property -> {
-                require(!ast.receiver.coalesce) { error(
-                    ast.receiver,
+                require(!ast.receiver.coalesce) { error(ast.receiver,
                     "Invalid assignment receiver.",
                     "An assignment statement requires the receiver property access to be non-coalescing.",
                 ) }
                 val receiver = visit(ast.receiver)
-                require(receiver.property.mutable) { error(
-                    ast.receiver,
+                require(receiver.property.mutable) { error(ast.receiver,
                     "Unassignable property.",
                     "The property ${receiver.property.type.base.name}.${receiver.property.name} is not assignable.",
                 ) }
                 val value = visit(ast.value, receiver.property.type)
-                require(value.type.isSubtypeOf(receiver.property.type)) { error(
-                    ast.value,
+                require(value.type.isSubtypeOf(receiver.property.type)) { error(ast.value,
                     "Invalid assignment value type.",
                     "The property ${receiver.property.type.base.name}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
-                RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value).also {
-                    it.context = ast.context
-                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+                RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value)
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
                 val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", false, ast.receiver.arguments + listOf(ast.value))
-                RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last()).also {
-                    it.context = ast.context
-                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+                RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last())
             }
             else -> throw AssertionError()
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.If): RhovasIr.Statement.If {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.If): RhovasIr.Statement.If = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
             "Invalid if condition type.",
             "An if statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
@@ -497,369 +425,270 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             ast.elseBlock?.let { visit(it) }
         }
         context.merge()
-        return RhovasIr.Statement.If(condition, thenBlock, elseBlock).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.If(condition, thenBlock, elseBlock)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Match.Conditional): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Match.Conditional): RhovasIr.Statement.Match.Conditional = analyzeAst(ast) {
         fun visitCondition(ast: RhovasAst.Expression): RhovasIr.Expression {
             val condition = visit(ast, Type.BOOLEAN)
-            require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-                ast,
+            require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast,
                 "Invalid match condition type.",
                 "A conditional match statement requires the condition to be type Boolean, but received ${condition.type}.",
             ) }
             return condition
         }
         val cases = ast.cases.map {
-            analyze(context.child()) {
-                it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            analyze(context.child()) { analyze(it.first.context) {
                 val condition = visitCondition(it.first)
                 val statement = visit(it.second)
-                it.first.context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(condition, statement)
-            }
+            } }
         }
         val elseCase = analyze(context.child()) {
-            ast.elseCase?.let {
-                (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.addLast(it) }
+            ast.elseCase?.let { analyze((it.first ?: it.second).context) {
                 val condition = it.first?.let { visitCondition(it) }
                 val statement = visit(it.second)
-                (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(condition, statement)
-            }
+            } }
         }
         context.merge()
-        return RhovasIr.Statement.Match.Conditional(cases, elseCase).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Match.Conditional(cases, elseCase)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Match.Structural): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.add(it) }
+    override fun visit(ast: RhovasAst.Statement.Match.Structural): RhovasIr.Statement.Match.Structural = analyzeAst(ast) {
         val argument = visit(ast.argument)
         //TODO(#10): Pattern coverage/exhaustiveness
         val cases = ast.cases.map {
-            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) {
-                it.first.context.firstOrNull()?.let { context.inputs.addLast(it) }
+            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) { analyze(it.first.context) {
                 val pattern = visit(it.first)
                 context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
-                it.first.context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
-            }
+            } }
         }
         val elseCase = ast.elseCase?.let {
-            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) {
-                (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.addLast(it) }
+            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) { analyze((it.first ?: it.second).context) {
                 val pattern = it.first?.let { visit(it) }
                 context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
-                (it.first ?: it.second).context.firstOrNull()?.let { context.inputs.removeLast() }
                 Pair(pattern, statement)
-            }
+            } }
         }
         context.merge()
-        return RhovasIr.Statement.Match.Structural(argument, cases, elseCase).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Match.Structural(argument, cases, elseCase)
     }
 
-    override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For = analyzeAst(ast) {
         val argument = visit(ast.argument, Type.LIST.ANY)
-        require(argument.type.isSubtypeOf(Type.ITERABLE.ANY)) { error(
-            ast.argument,
+        require(argument.type.isSubtypeOf(Type.ITERABLE.ANY)) { error(ast.argument,
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
         val type = (argument.type as Type.Reference).generics[0]
         val variable = Variable.Declaration(ast.name, type, false)
-        return analyze {
+        analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
             context.labels.add(null)
             val block = visit(ast.block)
             context.jumps.clear()
-            RhovasIr.Statement.For(variable, argument, block).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Statement.For(variable, argument, block)
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.While): RhovasIr.Statement.While {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.While): RhovasIr.Statement.While = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
             "Invalid while condition type.",
             "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
-        return analyze {
+        analyze {
             context.labels.add(null)
             val block = visit(ast.block)
             context.jumps.clear()
-            RhovasIr.Statement.While(condition, block).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Statement.While(condition, block)
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try = analyzeAst(ast) {
         val child = context.child()
-        ast.catchBlocks.forEach {
-            it.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        ast.catchBlocks.forEach { analyze(it.context) {
             val type = visit(it.type).type
-            require(type.isSubtypeOf(Type.EXCEPTION)) { error(
-                it.type,
+            require(type.isSubtypeOf(Type.EXCEPTION)) { error(it.type,
                 "Invalid catch type",
                 "An catch block requires the type to be a subtype of Exception, but received ${type}."
             ) }
             child.exceptions.add(type)
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        } }
         val tryBlock = analyze(child) { visit(ast.tryBlock) }
-        val catchBlocks = ast.catchBlocks.map {
-            it.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        val catchBlocks = ast.catchBlocks.map { analyzeAst(it) {
             val type = visit(it.type).type //validated as subtype of Exception above
             val variable = Variable.Declaration(it.name, type, false)
             analyze(context.child()) {
                 (context.scope as Scope.Declaration).variables.define(variable)
                 val block = visit(it.block)
-                RhovasIr.Statement.Try.Catch(variable, block).also {
-                    it.context = it.context
-                    it.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+                RhovasIr.Statement.Try.Catch(variable, block)
             }
-        }
+        } }
         context.merge()
         val finallyBlock = ast.finallyBlock?.let {
             analyze(context.with(ExceptionContext(mutableSetOf()))) {
                 visit(it)
             }
         }
-        return RhovasIr.Statement.Try(tryBlock, catchBlocks, finallyBlock).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Try(tryBlock, catchBlocks, finallyBlock)
     }
 
     override fun visit(ast: RhovasAst.Statement.Try.Catch): RhovasIr.Statement.Try.Catch {
         throw AssertionError()
     }
 
-    override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With = analyzeAst(ast) {
         val argument = visit(ast.argument)
         val variable = ast.name?.let { Variable.Declaration(ast.name, argument.type, false) }
-        return analyze {
+        analyze {
             variable?.let { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ast.block)
-            RhovasIr.Statement.With(variable, argument, block).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Statement.With(variable, argument, block)
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Label): RhovasIr.Statement.Label {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(ast.statement is RhovasAst.Statement.For || ast.statement is RhovasAst.Statement.While) { error(
-            ast.statement,
+    override fun visit(ast: RhovasAst.Statement.Label): RhovasIr.Statement.Label = analyzeAst(ast) {
+        require(ast.statement is RhovasAst.Statement.For || ast.statement is RhovasAst.Statement.While) { error(ast.statement,
             "Invalid label statement.",
             "A label statement requires the statement to be a for/while loop.",
         ) }
-        require(!context.labels.contains(ast.label)) { error(
-            ast,
+        require(!context.labels.contains(ast.label)) { error(ast,
             "Redefined label.",
             "The label ${ast.label} is already defined in this scope.",
         ) }
-        return analyze {
+        analyze {
             context.labels.add(ast.label)
             val statement = visit(ast.statement)
             context.jumps.remove(ast.label)
-            RhovasIr.Statement.Label(ast.label, statement).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Statement.Label(ast.label, statement)
         }
     }
 
-    override fun visit(ast: RhovasAst.Statement.Break): RhovasIr.Statement.Break {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.labels.contains(null)) { error(
-            ast,
-            "Invalid continue statement.",
-            "A continue statement requires an enclosing for/while loop.",
+    override fun visit(ast: RhovasAst.Statement.Break): RhovasIr.Statement.Break = analyzeAst(ast) {
+        require(context.labels.contains(null)) { error(ast,
+            "Invalid break statement.",
+            "A break statement requires an enclosing for/while loop.",
         ) }
-        require(context.labels.contains(ast.label)) { error(
-            ast,
+        require(context.labels.contains(ast.label)) { error(ast,
             "Undefined label.",
             "The label ${ast.label} is not defined in this scope.",
         ) }
         context.jumps.add(ast.label)
-        return RhovasIr.Statement.Break(ast.label).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Break(ast.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Continue): RhovasIr.Statement.Continue {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.labels.contains(null)) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Statement.Continue): RhovasIr.Statement.Continue = analyzeAst(ast) {
+        require(context.labels.contains(null)) { error(ast,
             "Invalid continue statement.",
             "A continue statement requires an enclosing for/while loop.",
         ) }
-        require(context.labels.contains(ast.label)) { error(
-            ast,
+        require(context.labels.contains(ast.label)) { error(ast,
             "Undefined label.",
             "The label ${ast.label} is not defined in this scope.",
         ) }
         context.jumps.add(ast.label)
-        return RhovasIr.Statement.Continue(ast.label).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Continue(ast.label)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Return): RhovasIr.Statement.Return {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.function != null) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Statement.Return): RhovasIr.Statement.Return = analyzeAst(ast) {
+        require(context.function != null) { error(ast,
             "Invalid return statement.",
             "A return statement requires an enclosing function definition.",
         ) }
         val value = ast.value?.let { visit(it, context.function!!.returns) }
-        require((value?.type ?: Type.VOID).isSubtypeOf(context.function!!.returns)) { error(
-            ast,
+        require((value?.type ?: Type.VOID).isSubtypeOf(context.function!!.returns)) { error(ast,
             "Invalid return value type.",
             "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${value?.type ?: Type.VOID}.",
         ) }
         context.jumps.add("")
-        return RhovasIr.Statement.Return(value).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Return(value)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw = analyzeAst(ast) {
         val exception = visit(ast.exception, Type.EXCEPTION)
-        require(exception.type.isSubtypeOf(Type.EXCEPTION)) { error(
-            ast.exception,
+        require(exception.type.isSubtypeOf(Type.EXCEPTION)) { error(ast.exception,
             "Invalid throw expression type.",
             "An throw statement requires the expression to be type Exception, but received ${exception.type}.",
         ) }
-        require(context.exceptions.any { exception.type.isSubtypeOf(it) }) { error(
-            ast.exception,
+        require(context.exceptions.any { exception.type.isSubtypeOf(it) }) { error(ast.exception,
             "Uncaught exception.",
             "An exception is thrown of type ${exception.type}, but this exception is never caught or declared.",
         ) }
         context.jumps.add("")
-        return RhovasIr.Statement.Throw(exception).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Throw(exception)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Assert): RhovasIr.Statement.Assert {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Assert): RhovasIr.Statement.Assert = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
             "Invalid assert condition type.",
             "An assert statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(
-            ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
             "Invalid assert message type.",
             "An assert statement requires the message to be type String, but received ${message!!.type}.",
         ) }
-        return RhovasIr.Statement.Assert(condition, message).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Assert(condition, message)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Require): RhovasIr.Statement.Require {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Require): RhovasIr.Statement.Require = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
             "Invalid require condition type.",
             "A require statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(
-            ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
             "Invalid require message type.",
             "A require statement requires the message to be type String, but received ${message!!.type}.",
         ) }
-        return RhovasIr.Statement.Require(condition, message).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Require(condition, message)
     }
 
-    override fun visit(ast: RhovasAst.Statement.Ensure): RhovasIr.Statement.Ensure {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Statement.Ensure): RhovasIr.Statement.Ensure = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
             "Invalid ensure condition type.",
             "An ensure statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(
-            ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
             "Invalid ensure message type.",
             "An ensure statement requires the message to be type String, but received ${message!!.type}.",
         ) }
-        return RhovasIr.Statement.Ensure(condition, message).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Statement.Ensure(condition, message)
     }
 
     private fun visit(ast: RhovasAst.Expression, type: Type? = null): RhovasIr.Expression {
         return analyze(context.with(InferenceContext(type))) { super.visit(ast) as RhovasIr.Expression }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block = analyzeAst(ast) {
         val statements = ast.statements.withIndex().map {
-            require(context.jumps.isEmpty()) { error(
-                it.value,
+            require(context.jumps.isEmpty()) { error(it.value,
                 "Unreachable statement.",
                 "The previous statement changes control flow to always jump past this statement.",
             ) }
             visit(it.value)
         }
         val expression = ast.expression?.let {
-            require(context.jumps.isEmpty()) { error(
-                it,
+            require(context.jumps.isEmpty()) { error(it,
                 "Unreachable statement.",
                 "The previous statement changes control flow to always jump past this statement.",
             ) }
             visit(it, context.inference)
         }
         val type = expression?.type ?: Type.VOID
-        return RhovasIr.Expression.Block(statements, expression, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Block(statements, expression, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr {
+    override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr.Expression.Literal.Scalar = analyzeAst(ast) {
         val type = when (ast.value) {
             null -> Type.NULLABLE.ANY
             is Boolean -> Type.BOOLEAN
@@ -868,21 +697,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             is RhovasAst.Atom -> Type.ATOM
             else -> throw AssertionError()
         }
-        return RhovasIr.Expression.Literal.Scalar(ast.value, type).also {
-            it.context = ast.context
-        }
+        RhovasIr.Expression.Literal.Scalar(ast.value, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal.String): RhovasIr {
+    override fun visit(ast: RhovasAst.Expression.Literal.String): RhovasIr.Expression.Literal.String = analyzeAst(ast) {
         val arguments = ast.arguments.map { visit(it, Type.STRING) }
         val type = Type.STRING
-        return RhovasIr.Expression.Literal.String(ast.literals, arguments, type).also {
-            it.context = ast.context
-        }
+        RhovasIr.Expression.Literal.String(ast.literals, arguments, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
         //check base type to avoid subtype issues with Dynamic
         val (elements, type) = if (context.inference?.base == Type.TUPLE.ANY.base) {
             val generics = ((context.inference as Type.Reference).generics[0] as? Type.Tuple)?.elements
@@ -902,14 +726,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             Pair(elements, Type.LIST[type])
         }
-        return RhovasIr.Expression.Literal.List(elements, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Literal.List(elements, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
         val (properties, type) = if (context.inference?.base == Type.MAP.ANY.base) {
             val generics = (context.inference as Type.Reference).generics
             val properties = mutableMapOf<String, RhovasIr.Expression>()
@@ -942,52 +762,36 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, inference?.get(it.key)?.mutable ?: inference == null) })]
             Pair(properties, type)
         }
-        return RhovasIr.Expression.Literal.Object(properties, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Literal.Object(properties, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Literal.Type): RhovasIr.Expression.Literal.Type {
+    override fun visit(ast: RhovasAst.Expression.Literal.Type): RhovasIr.Expression.Literal.Type = analyzeAst(ast) {
         val type = visit(ast.type).type
         val expressionType = Type.TYPE[type]
-        return RhovasIr.Expression.Literal.Type(type, expressionType).also {
-            it.context = ast.context
-        }
+        RhovasIr.Expression.Literal.Type(type, expressionType)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Group): RhovasIr.Expression.Group {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Group): RhovasIr.Expression.Group = analyzeAst(ast) {
         val expression = visit(ast.expression, context.inference)
-        return RhovasIr.Expression.Group(expression).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Group(expression)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Unary): RhovasIr.Expression.Unary {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Unary): RhovasIr.Expression.Unary = analyzeAst(ast) {
         val expression = visit(ast.expression)
         val (method, _) = resolveMethod(ast, ast.expression, expression.type, ast.operator, false, listOf())
-        return RhovasIr.Expression.Unary(ast.operator, expression, method).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Unary(ast.operator, expression, method)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Binary): RhovasIr.Expression.Binary {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        return when (ast.operator) {
+    override fun visit(ast: RhovasAst.Expression.Binary): RhovasIr.Expression.Binary = analyzeAst(ast) {
+        when (ast.operator) {
             "&&", "||" -> {
                 val left = visit(ast.left, Type.BOOLEAN)
-                require(left.type.isSubtypeOf(Type.BOOLEAN)) { error(
-                    ast.left,
+                require(left.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.left,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, Type.BOOLEAN)
-                require(right.type.isSubtypeOf(Type.BOOLEAN)) { error(
-                    ast.right,
+                require(right.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.right,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
@@ -1026,41 +830,28 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 RhovasIr.Expression.Binary(ast.operator, left, arguments[0], method, method.returns)
             }
             else -> throw AssertionError()
-        }.also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable = analyzeAst(ast) {
         val qualifier = ast.qualifier?.let { visit(it) }
-        val variable = (qualifier?.type?.base?.scope ?: context.scope).variables[ast.name] ?: throw error(
-            ast,
+        val variable = (qualifier?.type?.base?.scope ?: context.scope).variables[ast.name] ?: throw error(ast,
             "Undefined variable.",
             "The variable ${ast.name} is not defined in ${qualifier?.type ?: "the current scope"}."
         )
         val initialization = context.initialization[ast.name]
-        require(initialization == null || initialization.initialized) {
-            initialization!!.declaration.context.firstOrNull()?.let { context.inputs.add(it) }
-            error(ast,
-                "Uninitialized variable.",
-                "The variable ${ast.name} is not initialized.",
-            )
-        }
-        return RhovasIr.Expression.Access.Variable(qualifier, variable).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        require(initialization == null || initialization.initialized) { analyze(initialization!!.declaration.context) { error(ast,
+            "Uninitialized variable.",
+            "The variable ${ast.name} is not initialized.",
+        ) } }
+        RhovasIr.Expression.Access.Variable(qualifier, variable)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Property): RhovasIr.Expression.Access.Property {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Access.Property): RhovasIr.Expression.Access.Property = analyzeAst(ast) {
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val bang = ast.name.endsWith('!')
-        val property = receiverType.properties[ast.name.removeSuffix("!")] ?: throw error(
-            ast,
+        val property = receiverType.properties[ast.name.removeSuffix("!")] ?: throw error(ast,
             "Undefined property.",
             "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType.base.name}.",
         )
@@ -1072,27 +863,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             property.type.methods["value!", listOf()]!!.returns
         } else property.type
         val type = computeCoalesceCascadeReturn(returnsType, receiver.type, ast.coalesce, false)
-        return RhovasIr.Expression.Access.Property(receiver, property, bang, ast.coalesce, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Access.Property(receiver, property, bang, ast.coalesce, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index = analyzeAst(ast) {
         val receiver = visit(ast.receiver)
         val (method, arguments) = resolveMethod(ast, ast.receiver, receiver.type, "[]", false, ast.arguments)
-        return RhovasIr.Expression.Access.Index(receiver, method, arguments).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Access.Index(receiver, method, arguments)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Constructor): RhovasIr {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Invoke.Constructor): RhovasIr.Expression.Invoke.Constructor = analyzeAst(ast) {
         val type = visit(ast.type).type
-        require(type is Type.Reference) { error(
-            ast,
+        require(type is Type.Reference) { error(ast,
             "Unconstructable type.",
             "The type ${type} cannot be constructed (only reference types)."
         ) }
@@ -1100,14 +882,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val function = resolveFunction("constructor", ast, type, "", false, ast.arguments.size) {
             ast.arguments[it.first] to visit(ast.arguments[it.first], it.second).also { arguments.add(it) }.type
         }
-        return RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments, function.returns).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Invoke.Constructor(type as Type.Reference, function, arguments, function.returns)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Invoke.Function): RhovasIr.Expression.Invoke.Function = analyzeAst(ast) {
         val qualifier = ast.qualifier?.let { visit(it).type }
         val arguments = mutableListOf<RhovasIr.Expression>()
         val function = resolveFunction("function", ast, qualifier, ast.name, true, ast.arguments.size) {
@@ -1118,14 +896,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid bang attribute.",
             "A bang attribute requires the function ${ast.name} to return type Result, but received ${function.returns}."
         ) }
-        return RhovasIr.Expression.Invoke.Function(qualifier, function, bang, arguments, returns).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Invoke.Function(qualifier, function, bang, arguments, returns)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Method): RhovasIr.Expression.Invoke.Method {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Invoke.Method): RhovasIr.Expression.Invoke.Method = analyzeAst(ast) {
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val (method, arguments) = resolveMethod(ast, ast.receiver, receiverType, ast.name, true, ast.arguments)
@@ -1135,14 +909,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "A bang attribute requires the method ${ast.name} to return type Result, but received ${method.returns}."
         ) }
         val type = computeCoalesceCascadeReturn(returns, receiver.type, ast.coalesce, ast.cascade)
-        return RhovasIr.Expression.Invoke.Method(receiver, method, bang, ast.coalesce, ast.cascade, arguments, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Invoke.Method(receiver, method, bang, ast.coalesce, ast.cascade, arguments, type)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): RhovasIr.Expression.Invoke.Pipeline {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Invoke.Pipeline): RhovasIr.Expression.Invoke.Pipeline = analyzeAst(ast) {
         val receiver = visit(ast.receiver)
         val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
         val qualifier = ast.qualifier?.let { visit(it).type }
@@ -1159,10 +929,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "A bang attribute requires the function ${ast.name} to return type Result, but received ${function.returns}."
         ) }
         val type = computeCoalesceCascadeReturn(returns, receiver.type, ast.coalesce, ast.cascade)
-        return RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, bang, ast.coalesce, ast.cascade, arguments, type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Expression.Invoke.Pipeline(receiver, qualifier, function, bang, ast.coalesce, ast.cascade, arguments, type)
     }
 
     private fun computeCoalesceReceiver(receiver: RhovasIr.Expression, coalesce: Boolean): Type {
@@ -1269,28 +1036,23 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return Pair(method, arguments)
     }
 
-    override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression = analyzeAst(ast) {
         if (ast.dsl == null) {
             //val arguments = ast.arguments.map { visit(it) }
-            throw error(
-                ast,
+            throw error(ast,
                 "Unsupported Macro",
                 "Macros without DSLs are not currently supported.",
             )
         } else {
-            require(ast.arguments.isEmpty()) { error(
-                ast,
+            require(ast.arguments.isEmpty()) { error(ast,
                 "Invalid DSL arguments.",
                 "DSLs with arguments are not currently supported.",
             ) }
-            val source = ast.dsl as? DslAst.Source ?: throw error(
-                ast,
+            val source = ast.dsl as? DslAst.Source ?: throw error(ast,
                 "Invalid DSL AST.",
                 "The AST of type " + ast.dsl + " is not currently supported.",
             )
-            val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST[Type.DYNAMIC])] ?: throw error(
-                ast,
+            val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST[Type.DYNAMIC])] ?: throw error(ast,
                 "Undefined DSL transformer.",
                 "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Dynamic>).",
             )
@@ -1302,15 +1064,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 source.arguments.map { visit(it as RhovasAst.Expression) },
                 Type.LIST[Type.DYNAMIC],
             )
-            return RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns)
         }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
         val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
             val generics = (context.inference as Type.Reference).generics
@@ -1332,7 +1090,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
         val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
         val function = Function.Declaration("lambda", listOf(), parameters, returns, throws)
-        return analyze(context.child().with(
+        analyze(context.child().with(
             FunctionContext(function),
             ExceptionContext(function.throws.toMutableSet())
         )) {
@@ -1345,16 +1103,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type, false))
             }
             val body = visit(ast.body)
-            require(body.type.isSubtypeOf(context.function!!.returns) || context.jumps.contains("")) { error(
-                ast,
+            require(body.type.isSubtypeOf(context.function!!.returns) || context.jumps.contains("")) { error(ast,
                 "Invalid return value type.",
                 "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${body.type}.",
             ) }
             val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it)] } ?: Type.DYNAMIC, returns, Type.DYNAMIC]
-            RhovasIr.Expression.Lambda(parameters, body, type).also {
-                it.context = ast.context
-                it.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.Expression.Lambda(parameters, body, type)
         }
     }
 
@@ -1362,56 +1116,41 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return super.visit(ast) as RhovasIr.Pattern
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(!context.bindings.containsKey(ast.name)) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable = analyzeAst(ast) {
+        require(!context.bindings.containsKey(ast.name)) { error(ast,
             "Redefined pattern binding",
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
         val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference!!, false) else null
         variable?.let { context.bindings[it.name] = it }
-        return RhovasIr.Pattern.Variable(variable).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Pattern.Variable(variable)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value {
+    override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value = analyzeAst(ast) {
         val value = visit(ast.value, context.inference!!)
-        require(value.type.isSubtypeOf(context.inference!!)) { error(
-            ast,
+        require(value.type.isSubtypeOf(context.inference!!)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${value.type}.",
         ) }
-        return RhovasIr.Pattern.Value(value).also {
-            it.context = ast.context
-        }
+        RhovasIr.Pattern.Value(value)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+    override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate = analyzeAst(ast) {
         val pattern = visit(ast.pattern)
         val predicate = analyze {
             (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference!!, false))
             pattern.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
             visit(ast.predicate, Type.BOOLEAN)
         }
-        require(predicate.type.isSubtypeOf(Type.BOOLEAN)) { error(
-            ast.predicate,
+        require(predicate.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.predicate,
             "Invalid pattern predicate type.",
             "A predicate pattern requires the predicate to be type Boolean, but received ${predicate.type}.",
         ) }
-        return RhovasIr.Pattern.Predicate(pattern, predicate).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Pattern.Predicate(pattern, predicate)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.inference!!.isSupertypeOf(Type.LIST.ANY)) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure = analyzeAst(ast) {
+        require(context.inference!!.isSupertypeOf(Type.LIST.ANY)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference!!}, but received List.",
         ) }
@@ -1421,7 +1160,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
         var vararg = false
         val patterns = ast.patterns.map { pattern ->
-            if (pattern is RhovasAst.Pattern.VarargDestructure) {
+            if (pattern is RhovasAst.Pattern.VarargDestructure) { analyzeAst(pattern) {
                 require(!vararg) { error(pattern,
                     "Invalid multiple varargs.",
                     "An ordered destructure requires no more than one vararg pattern.",
@@ -1434,25 +1173,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
                 val bindings = p?.bindings?.mapValues { it.value.copy(type = Type.LIST[it.value.type]) } ?: mapOf()
                 context.bindings.putAll(bindings)
-                RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings).also {
-                    it.context = pattern.context
-                }
-            } else {
+                RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
+            } } else {
                 analyze(context.with(InferenceContext(type))) {
                     visit(pattern)
                 }
             }
         }
-        return RhovasIr.Pattern.OrderedDestructure(patterns).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Pattern.OrderedDestructure(patterns)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        require(context.inference!!.isSupertypeOf(Type.STRUCT.ANY)) { error(
-            ast,
+    override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure = analyzeAst(ast) {
+        require(context.inference!!.isSupertypeOf(Type.STRUCT.ANY)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }
@@ -1463,30 +1195,30 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         var vararg = false
         val patterns = ast.patterns.map { (key, pattern) ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) {
-                require(!vararg) { error(pattern,
-                    "Invalid multiple varargs.",
-                    "A named destructure requires no more than one vararg pattern.",
-                ) }
-                vararg = true
-                val matched = ast.patterns.mapNotNull { it.first ?: (it.second as? RhovasAst.Pattern.Variable)?.name }
-                val remaining = type?.filter { !matched.contains(it.key) }
-                val p = pattern.pattern?.let {
-                    //rough implementation of unification
-                    val type = remaining?.map { it.value.type }?.fold(remaining.entries.firstOrNull()?.value?.type ?: Type.DYNAMIC) { acc, type ->
-                        when {
-                            acc.isSubtypeOf(type) -> type
-                            acc.isSupertypeOf(type) -> acc
-                            else -> Type.ANY
+                Pair(null, analyzeAst(pattern) {
+                    require(!vararg) { error(pattern,
+                        "Invalid multiple varargs.",
+                        "A named destructure requires no more than one vararg pattern.",
+                    ) }
+                    vararg = true
+                    val matched = ast.patterns.mapNotNull { it.first ?: (it.second as? RhovasAst.Pattern.Variable)?.name }
+                    val remaining = type?.filter { !matched.contains(it.key) }
+                    val p = pattern.pattern?.let {
+                        //rough implementation of unification
+                        val type = remaining?.map { it.value.type }?.fold(remaining.entries.firstOrNull()?.value?.type ?: Type.DYNAMIC) { acc, type ->
+                            when {
+                                acc.isSubtypeOf(type) -> type
+                                acc.isSupertypeOf(type) -> acc
+                                else -> Type.ANY
+                            }
+                        }
+                        analyze(context.with(InferenceContext(type))) {
+                            visit(it)
                         }
                     }
-                    analyze(context.with(InferenceContext(type))) {
-                        visit(it)
-                    }
-                }
-                val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.ANY) } ?: mapOf()
-                context.bindings.putAll(bindings)
-                Pair(null, RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings).also {
-                    it.context = pattern.context
+                    val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.ANY) } ?: mapOf()
+                    context.bindings.putAll(bindings)
+                    RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
                 })
             } else {
                 val key = key
@@ -1502,16 +1234,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 Pair(key, pattern)
             }
         }
-        return RhovasIr.Pattern.NamedDestructure(patterns).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Pattern.NamedDestructure(patterns)
     }
 
-    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure {
+    override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure = analyzeAst(ast) {
         val type = visit(ast.type).type
-        require(context.inference!!.isSupertypeOf(type)) { error(
-            ast,
+        require(context.inference!!.isSupertypeOf(type)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${type}.",
         ) }
@@ -1520,54 +1248,43 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 visit(it)
             }
         }
-        return RhovasIr.Pattern.TypedDestructure(type, pattern).also {
-            it.context = ast.context
-        }
+        RhovasIr.Pattern.TypedDestructure(type, pattern)
     }
 
     override fun visit(ast: RhovasAst.Pattern.VarargDestructure): RhovasIr.Pattern.VarargDestructure {
         throw AssertionError()
     }
 
-    override fun visit(ast: RhovasAst.Type): RhovasIr.Type {
-        ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-        var type: Type = context.scope.types[ast.path.first()] ?: throw error(
-            ast,
+    override fun visit(ast: RhovasAst.Type): RhovasIr.Type = analyzeAst(ast) {
+        var type: Type = context.scope.types[ast.path.first()] ?: throw error(ast,
             "Undefined type.",
             "The type ${ast.path.first()} is not defined in the current scope."
         )
         ast.path.drop(1).forEach {
-            type = type.base.scope.types[it] ?: throw error(
-                ast,
+            type = type.base.scope.types[it] ?: throw error(ast,
                 "Undefined type.",
                 "The type ${it} is not defined in ${type}."
             )
         }
         if (ast.generics != null) {
-            require(type is Type.Reference) { error(
-                ast,
+            require(type is Type.Reference) { error(ast,
                 "Invalid generic parameters.",
                 "Generic type require a reference type, but received a base type of Type.${type::class.simpleName} (${type}).",
             ) }
             val generics = ast.generics.map { visit(it).type }
-            require(type.base.generics.size == generics.size) { error(
-                ast,
+            require(type.base.generics.size == generics.size) { error(ast,
                 "Invalid generic parameters.",
                 "The type ${type.base.name} requires ${type.base.generics.size} generic parameters, but received ${generics.size}.",
             ) }
             for (i in generics.indices) {
-                require(generics[i].isSubtypeOf(type.base.generics[i].bound)) { error(
-                    ast.generics[i],
+                require(generics[i].isSubtypeOf(type.base.generics[i].bound)) { error(ast.generics[i],
                     "Invalid generic parameter.",
                     "The type ${type.base.name} requires generic parameter ${i} to be type ${type.base.generics[i].bound}, but received ${generics[i]}.",
                 ) }
             }
             type = Type.Reference(type.base, generics)
         }
-        return RhovasIr.Type(type).also {
-            it.context = ast.context
-            it.context.firstOrNull()?.let { context.inputs.removeLast() }
-        }
+        RhovasIr.Type(type)
     }
 
     /**
@@ -1583,26 +1300,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
         }
 
-        fun visit(ast: RhovasAst.Component.Struct) {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-            require(!context.scope.types.isDefined(ast.name, true)) { error(
-                ast,
+        fun visit(ast: RhovasAst.Component.Struct) = analyze(ast.context) {
+            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
             context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
-            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
 
-        fun visit(ast: RhovasAst.Component.Class) {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-            require(!context.scope.types.isDefined(ast.name, true)) { error(
-                ast,
+        fun visit(ast: RhovasAst.Component.Class) = analyze(ast.context) {
+            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
             context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
-            ast.context.firstOrNull()?.let { context.inputs.removeLast() }
         }
 
     }
@@ -1613,26 +1324,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      */
     private inner class DefinePhase {
 
-        fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
             val members = ast.members.map { visit(it, type) }.toMutableList()
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
             type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
-            return RhovasIr.DefinitionPhase.Component.Struct(ast, members).also {
-                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.DefinitionPhase.Component.Struct(ast, members)
         }
 
-        fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
             val members = ast.members.map { visit(it, type) }.toMutableList()
             type.base.inherit(Type.ANY)
-            return RhovasIr.DefinitionPhase.Component.Class(ast, members).also {
-                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.DefinitionPhase.Component.Class(ast, members)
         }
 
         fun visit(ast: RhovasAst.Member, component: Type): RhovasIr.DefinitionPhase.Member {
@@ -1643,10 +1348,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
         }
 
-        fun visit(ast: RhovasAst.Member.Property, component: Type): RhovasIr.DefinitionPhase.Member.Property {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
-            require(component.properties[ast.name] == null) { error(
-                ast,
+        fun visit(ast: RhovasAst.Member.Property, component: Type): RhovasIr.DefinitionPhase.Member.Property = analyze(ast.context) {
+            require(component.properties[ast.name] == null) { error(ast,
                 "Redefined property.",
                 "The property ${ast.name} is already defined in ${component.base.name}.",
             ) }
@@ -1655,13 +1358,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("this", component, false), Variable.Declaration("value", type, false)), Type.VOID, listOf())) else null
             component.base.scope.functions.define(getter)
             setter?.let { component.base.scope.functions.define(it) }
-            return RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter).also {
-                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter)
         }
 
-        fun visit(ast: RhovasAst.Member.Initializer, component: Type): RhovasIr.DefinitionPhase.Member.Initializer {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        fun visit(ast: RhovasAst.Member.Initializer, component: Type): RhovasIr.DefinitionPhase.Member.Initializer = analyze(ast.context) {
             val parameters = ast.parameters.mapIndexed { index, parameter ->
                 val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: throw error(ast,
                     "Undefined parameter type.",
@@ -1672,15 +1372,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val returns = ast.returns?.let { visit(it).type } ?: component
             val throws = ast.throws.map { visit(it).type }
             val initializer = Function.Definition(Function.Declaration("", listOf(), parameters, returns, throws))
-            require(component.base.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(initializer.declaration) }) { error(
-                ast,
+            require(component.base.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(initializer.declaration) }) { error(ast,
                 "Redefined initializer.",
                 "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.base.name}.",
             ) }
             component.base.scope.functions.define(initializer)
-            return RhovasIr.DefinitionPhase.Member.Initializer(ast, initializer).also {
-                ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-            }
+            RhovasIr.DefinitionPhase.Member.Initializer(ast, initializer)
         }
 
         fun visit(ast: RhovasAst.Member.Method, component: Type): RhovasIr.DefinitionPhase.Member.Method {
@@ -1688,10 +1385,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             return RhovasIr.DefinitionPhase.Member.Method(ast, function)
         }
 
-        fun visit(ast: RhovasAst.Statement.Declaration.Function, component: Type? = null): RhovasIr.DefinitionPhase.Function {
-            ast.context.firstOrNull()?.let { context.inputs.addLast(it) }
+        fun visit(ast: RhovasAst.Statement.Declaration.Function, component: Type? = null): RhovasIr.DefinitionPhase.Function = analyze(ast.context) {
             val scope = component?.base?.scope ?: context.scope
-            return analyze {
+            analyze {
                 val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY) }
                 generics.forEach { context.scope.types.define(it, it.name) }
                 val parameters = ast.parameters.mapIndexed { index, parameter ->
@@ -1704,8 +1400,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
                 val throws = ast.throws.map { visit(it).type }
                 val declaration = Function.Declaration(ast.name, generics, parameters, returns, throws)
-                require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(
-                    ast,
+                require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
                     "Redefined function.",
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.base?.name ?: "this scope"}.",
                 ) }
@@ -1713,12 +1408,19 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     is Scope.Declaration -> declaration.also { scope.functions.define(it) }
                     is Scope.Definition -> Function.Definition(declaration).also { scope.functions.define(it) }
                 }
-                RhovasIr.DefinitionPhase.Function(ast, method).also {
-                    ast.context.firstOrNull()?.let { context.inputs.removeLast() }
-                }
+                RhovasIr.DefinitionPhase.Function(ast, method)
             }
         }
 
+    }
+
+    private fun <T> analyze(context: List<Input.Range>, analyzer: () -> T): T {
+        context.firstOrNull()?.let { this.context.inputs.addLast(it) }
+        return analyzer().also { context.firstOrNull()?.let { this.context.inputs.removeLast() } }
+    }
+
+    private fun <T : RhovasIr> analyzeAst(ast: RhovasAst, analyzer: () -> T): T {
+        return analyze(ast.context, analyzer).also { it.context = ast.context }
     }
 
 }
