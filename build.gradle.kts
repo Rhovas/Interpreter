@@ -4,7 +4,8 @@ import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest
 
 plugins {
-    kotlin("multiplatform") version "1.8.20-RC"
+    kotlin("multiplatform") version "1.8.21"
+    id("io.kotest.multiplatform") version "5.6.1"
     id("com.github.johnrengelman.shadow") version "8.1.0"
 }
 
@@ -31,6 +32,7 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation("io.kotest:kotest-framework-engine:5.6.1")
             }
         }
         val jsMain by getting {}
@@ -39,6 +41,7 @@ kotlin {
         val jvmTest by getting {
             dependencies {
                 implementation("org.junit.jupiter:junit-jupiter:5.9.1")
+                implementation("io.kotest:kotest-runner-junit5:5.6.1")
             }
         }
     }
