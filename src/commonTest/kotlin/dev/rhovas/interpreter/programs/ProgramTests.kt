@@ -1,5 +1,6 @@
-package dev.rhovas.interpreter
+package dev.rhovas.interpreter.programs
 
+import dev.rhovas.interpreter.Interpreter
 import dev.rhovas.interpreter.parser.Input
 import kotlin.test.assertEquals
 import kotlin.test.fail
