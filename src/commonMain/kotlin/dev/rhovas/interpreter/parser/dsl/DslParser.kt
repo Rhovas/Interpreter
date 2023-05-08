@@ -6,7 +6,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasParser
 
 class DslParser(input: Input) : Parser<DslTokenType>(DslLexer(input)) {
 
-    override fun parse(rule: String): Any {
+    override fun parse(rule: String): DslAst {
         return when (rule) {
             "source" -> parseSource()
             else -> throw AssertionError()
