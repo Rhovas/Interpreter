@@ -5,25 +5,24 @@ import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 class DslParserTests: RhovasSpec() {
 
-    data class Test(val source: String, val expected: DslAst.Source?)
+    data class Test<T : DslAst>(val source: String, val expected: T?)
 
     init {
-        suite("Inline") { listOf(
+        suite("Inline", listOf(
             "Empty" to Test("{}", DslAst.Source(listOf(""), listOf())),
             "Text" to Test("{text}", DslAst.Source(listOf("text"), listOf())),
             "Surrounding Whitespace" to Test("{    text    }", DslAst.Source(listOf("    text    "), listOf())),
             "Dollar Sign" to Test("{first\$second}", DslAst.Source(listOf("first\$second"), listOf())),
             "Newline" to Test("{first\nsecond}", null),
             "Braces" to Test("{text{}second}", null),
-        ).forEach { (name, test) -> spec(name) {
-            test("source", test.source, test.expected)
-        } } }
+        )) { test("source", it.source, it.expected) }
 
-        suite("Multiline") { listOf(
+        suite("Multiline", listOf(
             "Text" to Test("""
                 {
                     text
@@ -95,9 +94,7 @@ class DslParserTests: RhovasSpec() {
                     second
                 }
             """.trimIndent(), null),
-        ).forEach { (name, test) -> spec(name) {
-            test("source", test.source, test.expected)
-        } } }
+        )) { test("source", it.source, it.expected) }
     }
 
     private fun test(rule: String, source: String, expected: DslAst?) {
@@ -105,6 +102,7 @@ class DslParserTests: RhovasSpec() {
         try {
             val ast = DslParser(input).parse(rule)
             assertEquals(expected, ast)
+            assertTrue(ast.context.isNotEmpty() || source.isBlank())
         } catch (e: ParseException) {
             if (expected != null || e.summary == "Broken parser invariant.") {
                 fail(input.diagnostic(e.summary, e.details, e.range, e.context))

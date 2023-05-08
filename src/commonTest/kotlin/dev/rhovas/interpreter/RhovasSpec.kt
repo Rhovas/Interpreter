@@ -26,6 +26,10 @@ abstract class RhovasSpec : ShouldSpec() {
         Target.JVM -> context(name) { ContainerScope().also(test).registerJvm(this) }
     }
 
+    fun <T> suite(name: String, tests: List<Pair<String, T>>, test: suspend (T) -> Unit) = suite(name) {
+        tests.forEach { (name, test) -> spec(name) { test(test) } }
+    }
+
     class ContainerScope {
 
         private val specs: MutableMap<String, suspend TestScope.() -> Unit> = mutableMapOf()
@@ -33,6 +37,10 @@ abstract class RhovasSpec : ShouldSpec() {
 
         fun spec(name: String, test: suspend TestScope.() -> Unit) = specs.put(name, test)
         fun suite(name: String, test: ContainerScope.() -> Unit) = suites.put(name, ContainerScope().also(test))
+
+        fun <T> suite(name: String, tests: List<Pair<String, T>>, test: suspend (T) -> Unit) = suite(name) {
+            tests.forEach { (name, test) -> spec(name) { test(test) } }
+        }
 
         fun registerJs(scope: ShouldSpecRootScope, prefix: String) {
             specs.forEach { scope.should("${prefix} | ${it.key}", it.value) }
