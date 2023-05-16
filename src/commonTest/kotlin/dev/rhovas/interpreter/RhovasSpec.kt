@@ -43,8 +43,13 @@ abstract class RhovasSpec : ShouldSpec() {
         }
 
         fun registerJs(scope: ShouldSpecRootScope, prefix: String) {
-            specs.forEach { scope.should("${prefix} | ${it.key}", it.value) }
-            suites.forEach { it.value.registerJs(scope, "${prefix} | ${it.key}") }
+            fun format(prefix: String, name: String): String {
+                val skip = "!".takeIf { name.startsWith("!") && !prefix.startsWith("!") } ?: ""
+                val focus = "f:".takeIf { name.startsWith("f:") && !prefix.startsWith("f:") } ?: ""
+                return "${skip}${focus}${prefix} | ${name.removePrefix("!").removePrefix("f:")}"
+            }
+            specs.forEach { scope.should(format(prefix, it.key), it.value) }
+            suites.forEach { it.value.registerJs(scope, format(prefix, it.key)) }
         }
 
         suspend fun registerJvm(scope: ShouldSpecContainerScope) {
