@@ -32,12 +32,10 @@ The project is structured as follows:
  - `commonMain`/`commonTest`: The core implementation of Rhovas shared between
    platforms. This is further subdivided into other packages but should be
    relatively easy to navigate.
-   - `commonTest` contains the integration (full-program) tests.
+    - `commonTest` contains a mix of unit and integration (full-program) tests.
  - `jsMain`/`jsTest`: Defines JavaScript bindings for use in the online editor.
  - `jvmMain`/`jvmTest`: Defines the Java/JVM main function for evaluating files
    and running the REPL.
-   - `jvmTest` contains the unit tests, since they were created as JUnit5
-     parameterized tests prior to Kotlin Multiplatform.
 
 A few notable Gradle tasks are documented below. Gradle (and IntelliJ) will
 likely take some time to configure and index, as well as on the first build

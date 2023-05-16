@@ -1,12 +1,11 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
-import org.jetbrains.kotlin.gradle.targets.jvm.tasks.KotlinJvmTest
 
 plugins {
     kotlin("multiplatform") version "1.8.21"
-    id("io.kotest.multiplatform") version "5.6.1"
-    id("com.github.johnrengelman.shadow") version "8.1.0"
+    id("io.kotest.multiplatform") version "5.6.2"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "dev.rhovas.interpreter"
@@ -26,13 +25,13 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("com.ionspin.kotlin:bignum:0.3.7")
+                implementation("com.ionspin.kotlin:bignum:0.3.8")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("io.kotest:kotest-framework-engine:5.6.1")
+                implementation("io.kotest:kotest-framework-engine:5.6.2")
             }
         }
         val jsMain by getting {}
@@ -40,11 +39,14 @@ kotlin {
         val jvmMain by getting {}
         val jvmTest by getting {
             dependencies {
-                implementation("org.junit.jupiter:junit-jupiter:5.9.1")
-                implementation("io.kotest:kotest-runner-junit5:5.6.1")
+                implementation("io.kotest:kotest-runner-junit5:5.6.2")
             }
         }
     }
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 val copyJsTestResources = task<Copy>("copyJsTestResource") {
@@ -54,10 +56,6 @@ val copyJsTestResources = task<Copy>("copyJsTestResource") {
 
 tasks.withType<KotlinJsTest> {
     dependsOn(copyJsTestResources)
-}
-
-tasks.withType<KotlinJvmTest> {
-    useJUnitPlatform()
 }
 
 val shadowJvmJar = task<ShadowJar>("shadowJvmJar") {
