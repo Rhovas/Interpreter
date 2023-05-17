@@ -13,49 +13,43 @@ import kotlin.test.fail
 
 class RhovasParserTests: RhovasSpec() {
 
-    data class Test<T : RhovasAst>(val source: String, val expected: T?)
+    data class Test<T : RhovasAst>(val source: String, val expected: (() -> T)?)
 
     init {
         suite("Source", listOf(
             "Empty" to Test("""
                 
-            """.trimIndent(), RhovasAst.Source(
-                listOf(),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(), listOf())
+            },
             "Single Import" to Test("""
                 import Type;
-            """.trimIndent(), RhovasAst.Source(
-                listOf(RhovasAst.Import(listOf("Type"), null)),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(RhovasAst.Import(listOf("Type"), null)), listOf())
+            },
             "Multiple Imports" to Test("""
                 import First;
                 import Second;
                 import Third;
-            """.trimIndent(), RhovasAst.Source(
-                listOf(RhovasAst.Import(listOf("First"), null), RhovasAst.Import(listOf("Second"), null), RhovasAst.Import(listOf("Third"), null)),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(RhovasAst.Import(listOf("First"), null), RhovasAst.Import(listOf("Second"), null), RhovasAst.Import(listOf("Third"), null)), listOf())
+            },
             "Single Statement" to Test("""
                 statement;
-            """.trimIndent(), RhovasAst.Source(
-                listOf(),
-                listOf(stmt("statement")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(), listOf(stmt("statement")))
+            },
             "Multiple Statements" to Test("""
                 first; second; third;
-            """.trimIndent(), RhovasAst.Source(
-                listOf(),
-                listOf(stmt("first"), stmt("second"), stmt("third")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(), listOf(stmt("first"), stmt("second"), stmt("third")))
+            },
             "Import Before Statement" to Test("""
                 import Type;
                 statement;
-            """.trimIndent(), RhovasAst.Source(
-                listOf(RhovasAst.Import(listOf("Type"), null)),
-                listOf(stmt("statement")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Source(listOf(RhovasAst.Import(listOf("Type"), null)), listOf(stmt("statement")))
+            },
             "Import After Statement" to Test("""
                 statement;
                 import Type;
@@ -65,19 +59,19 @@ class RhovasParserTests: RhovasSpec() {
         suite("Import", listOf(
             "Import" to Test("""
                 import Module;
-            """.trimIndent(),RhovasAst.Import(
-                listOf("Module"), null,
-            )),
+            """.trimIndent()) {
+                RhovasAst.Import(listOf("Module"), null)
+            },
             "Submodule" to Test("""
                 import Module.Type;
-            """.trimIndent(), RhovasAst.Import(
-                listOf("Module", "Type"), null,
-            )),
+            """.trimIndent()) {
+                RhovasAst.Import(listOf("Module", "Type"), null)
+            },
             "Alias Import" to Test("""
                 import Type as Alias;
-            """.trimIndent(), RhovasAst.Import(
-                listOf("Type"), "Alias",
-            )),
+            """.trimIndent()) {
+                RhovasAst.Import(listOf("Type"), "Alias")
+            },
             "Missing Name" to Test("""
                 import ;
             """.trimIndent(), null),
@@ -93,27 +87,33 @@ class RhovasParserTests: RhovasSpec() {
             "Missing Semicolon" to Test("""
                 import Type
             """.trimIndent(), null),
-        )) { test("source", it.source, it.expected?.let { RhovasAst.Source(listOf(it), listOf()) }) }
+        )) { test("source", it.source, it.expected?.let { { RhovasAst.Source(listOf(it.invoke()), listOf()) } }) }
 
         suite("Component") {
             suite("Struct", listOf(
                 "Empty" to Test("""
                     struct Name {}
-                """.trimIndent(), RhovasAst.Component.Struct("Name", listOf())),
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct("Name", listOf())
+                },
                 "Property" to Test("""
                     struct Name {
                         val name: Type;
                     }
-                """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(
-                    RhovasAst.Member.Property(false, "name", type("Type"), null),
-                ))),
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct("Name", listOf(
+                        RhovasAst.Member.Property(false, "name", type("Type"), null),
+                    ))
+                },
                 "Function" to Test("""
                     struct Name {
                         func name(): Type {}
                     }
-                """.trimIndent(), RhovasAst.Component.Struct("Name", listOf(
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())),
-                ))),
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct("Name", listOf(
+                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())),
+                    ))
+                },
                 "Anonymous" to Test("""
                     struct {}
                 """.trimIndent(), null),
@@ -124,53 +124,53 @@ class RhovasParserTests: RhovasSpec() {
             suite("Block", listOf(
                 "Empty" to Test("""
                     {}
-                """.trimIndent(), RhovasAst.Expression.Block(
-                    listOf(), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(), null)
+                },
                 "Single" to Test("""
                     { statement; }
-                """.trimIndent(), RhovasAst.Expression.Block(
-                    listOf(stmt("statement")), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(stmt("statement")), null)
+                },
                 "Multiple" to Test("""
                     { first; second; third; }
-                """.trimIndent(), RhovasAst.Expression.Block(
-                    listOf(stmt("first"), stmt("second"), stmt("third")), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(stmt("first"), stmt("second"), stmt("third")), null)
+                },
                 "Missing Closing Brace" to Test("""
                     { statement;
                 """.trimIndent(), null),
-            )) { test("statement", it.source, it.expected?.let { RhovasAst.Statement.Expression(it) }) }
+            )) { test("statement", it.source, it.expected?.let { { RhovasAst.Statement.Expression(it.invoke()) } }) }
 
             suite("Component", listOf(
                 "Struct" to Test("""
                     struct Name {}
-                """.trimIndent(), RhovasAst.Statement.Component(
-                    RhovasAst.Component.Struct("Name", listOf())
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Component(RhovasAst.Component.Struct("Name", listOf()))
+                },
             )) { test("statement", it.source, it.expected) }
 
             suite("Expression", listOf(
                 "Function" to Test("""
                     function();
-                """.trimIndent(), RhovasAst.Statement.Expression(
-                    RhovasAst.Expression.Invoke.Function(null, "function", listOf()),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Expression(RhovasAst.Expression.Invoke.Function(null, "function", listOf()))
+                },
                 "Method" to Test("""
                     receiver.method();
-                """.trimIndent(), RhovasAst.Statement.Expression(
-                    RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf()),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Expression(RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf()))
+                },
                 "Macro" to Test("""
                     #macro();
-                """.trimIndent(), RhovasAst.Statement.Expression(
-                    RhovasAst.Expression.Invoke.Macro("macro", listOf(), null),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Expression(RhovasAst.Expression.Invoke.Macro("macro", listOf(), null))
+                },
                 "Other" to Test("""
                     variable;
-                """.trimIndent(), RhovasAst.Statement.Expression(
-                    RhovasAst.Expression.Access.Variable(null, "variable"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Expression(RhovasAst.Expression.Access.Variable(null, "variable"))
+                },
                 "Missing Semicolon" to Test("""
                     expression
                 """.trimIndent(), null),
@@ -180,24 +180,24 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Variable", listOf(
                     "Val" to Test("""
                         val name;
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
-                            false, "name", null, null
-                        )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Variable(false, "name", null, null)
+                    },
                     "Var" to Test("""
                         var name;
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
-                            true, "name", null, null
-                        )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Variable(true, "name", null, null)
+                    },
                     "Type" to Test("""
                         val name: Type;
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
-                            false, "name", type("Type"), null
-                        )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Variable(false, "name", type("Type"), null)
+                    },
                     "Value" to Test("""
                         var name = value;
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Variable(
-                            true, "name", null, expr("value")
-                        )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Variable(true, "name", null, expr("value"))
+                    },
                     "Missing Value" to Test("""
                         val name = ;
                     """.trimIndent(), null),
@@ -209,59 +209,59 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Function", listOf(
                     "Function" to Test("""
                         func name() {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf(), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())
+                    },
                     "Single Generic" to Test("""
                         func name<T>() {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf("T" to null), listOf(), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf("T" to null), listOf(), null, listOf(), block())
+                    },
                     "Multiple Generics" to Test("""
                         func name<T1, T2, T3>() {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block())
+                    },
                     "Bound Generic" to Test("""
                         func name<T: Bound>() {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf("T" to type("Bound")), listOf(), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf("T" to type("Bound")), listOf(), null, listOf(), block())
+                    },
                     "Single Parameter" to Test("""
                         func name(parameter) {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf("parameter" to null), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to null), null, listOf(), block())
+                    },
                     "Multiple Parameters" to Test("""
                         func name(first, second, third) {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
+                    },
                     "Typed Parameter" to Test("""
                         func name(parameter: Type) {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf("parameter" to type("Type")), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to type("Type")), null, listOf(), block())
+                    },
                     "Trailing Comma" to Test("""
                         func name(parameter,) {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf("parameter" to null), null, listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to null), null, listOf(), block())
+                    },
                     "Return Type" to Test("""
                         func name(): Type {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf(), type("Type"), listOf(), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())
+                    },
                     "Single Throws" to Test("""
                         func name() throws Type {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf(), null, listOf(type("Type")), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(type("Type")), block())
+                    },
                     "Multiple Throws" to Test("""
                         func name() throws First, Second, Third {}
-                    """.trimIndent(), RhovasAst.Statement.Declaration.Function(
-                        "name", listOf(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
+                    },
                     "Missing Name" to Test("""
                         func () {}
                     """.trimIndent(), null),
@@ -298,28 +298,24 @@ class RhovasParserTests: RhovasSpec() {
             suite("Assignment", listOf(
                 "Variable" to Test("""
                     variable = value;
-                """.trimIndent(), RhovasAst.Statement.Assignment(
-                    expr("variable"),
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assignment(expr("variable"), expr("value"))
+                },
                 "Property" to Test("""
                     receiver.property = value;
-                """.trimIndent(), RhovasAst.Statement.Assignment(
-                    RhovasAst.Expression.Access.Property(expr("receiver"), false, "property"),
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assignment(RhovasAst.Expression.Access.Property(expr("receiver"), false, "property"), expr("value"))
+                },
                 "Index" to Test("""
                     receiver[] = value;
-                """.trimIndent(), RhovasAst.Statement.Assignment(
-                    RhovasAst.Expression.Access.Index(expr("receiver"), listOf()),
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assignment(RhovasAst.Expression.Access.Index(expr("receiver"), listOf()), expr("value"))
+                },
                 "Other" to Test("""
                     function() = value;
-                """.trimIndent(), RhovasAst.Statement.Assignment(
-                    RhovasAst.Expression.Invoke.Function(null, "function", listOf()),
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assignment(RhovasAst.Expression.Invoke.Function(null, "function", listOf()), expr("value"))
+                },
                 "Missing Equals" to Test("""
                     variable value;
                 """.trimIndent(), null),
@@ -334,18 +330,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("If", listOf(
                 "Then" to Test("""
                     if (condition) { stmt; }
-                """.trimIndent(), RhovasAst.Statement.If(
-                    expr("condition"),
-                    block(stmt("stmt")),
-                    null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.If(expr("condition"), block(stmt("stmt")), null)
+                },
                 "Else" to Test("""
                     if (condition) {} else { stmt; }
-                """.trimIndent(), RhovasAst.Statement.If(
-                    expr("condition"),
-                    block(),
-                    block(stmt("stmt")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.If(expr("condition"), block(), block(stmt("stmt")))
+                },
                 "Missing Opening Parenthesis" to Test("""
                     if condition) {}
                 """.trimIndent(), null),
@@ -364,40 +356,34 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Conditional", listOf(
                     "Empty" to Test("""
                         match {}
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(),
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(), null)
+                    },
                     "Single" to Test("""
                         match { condition: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(expr("condition") to stmt("statement")),
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(expr("condition") to stmt("statement")), null)
+                    },
                     "Multiple " to Test("""
                         match { c1: s1; c2: s2; c3: s3; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(expr("c1") to stmt("s1"), expr("c2") to stmt("s2"), expr("c3") to stmt("s3")),
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(expr("c1") to stmt("s1"), expr("c2") to stmt("s2"), expr("c3") to stmt("s3")), null)
+                    },
                     "Else" to Test("""
                         match { else: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(),
-                        null to stmt("statement"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(), null to stmt("statement"))
+                    },
                     "Else Condition" to Test("""
                         match { else condition: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(),
-                        expr("condition") to stmt("statement"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(), expr("condition") to stmt("statement"))
+                    },
                     "Else With Cases" to Test("""
                         match { c1: s1; c2: s2; else: s3; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Conditional(
-                        listOf(expr("c1") to stmt("s1"), expr("c2") to stmt("s2")),
-                        null to stmt("s3"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Conditional(listOf(expr("c1") to stmt("s1"), expr("c2") to stmt("s2")), null to stmt("s3"))
+                    },
                     "Else Inner" to Test("""
                         match { c1: s2; else: s2; c3: s3; }
                     """.trimIndent(), null),
@@ -427,53 +413,41 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Structural", listOf(
                     "Empty" to Test("""
                         match (argument) {}
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(),
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(), null)
+                    },
                     "Single" to Test("""
                         match (argument) { pattern: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(RhovasAst.Pattern.Variable("pattern") to stmt("statement")),
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(RhovasAst.Pattern.Variable("pattern") to stmt("statement")), null)
+                    },
                     "Multiple " to Test("""
                         match (argument) { p1: s1; p2: s2; p3: s3; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(
                             RhovasAst.Pattern.Variable("p1") to stmt("s1"),
                             RhovasAst.Pattern.Variable("p2") to stmt("s2"),
                             RhovasAst.Pattern.Variable("p3") to stmt("s3"),
-                        ),
-                        null,
-                    )),
+                        ), null)
+                    },
                     "Else" to Test("""
                         match (argument) { else: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(),
-                        null to stmt("statement"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(), null to stmt("statement"))
+                    },
                     "Else Condition" to Test("""
                         match (argument) { else pattern: statement; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(),
-                        RhovasAst.Pattern.Variable("pattern") to stmt("statement")
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(), RhovasAst.Pattern.Variable("pattern") to stmt("statement"))
+                    },
                     "Else With Cases" to Test("""
                         match (argument) { p1: s1; p2: s2; else: s3; }
-                    """.trimIndent(), RhovasAst.Statement.Match.Structural(
-                        expr("argument"),
-                        listOf(
+                    """.trimIndent()) {
+                        RhovasAst.Statement.Match.Structural(expr("argument"), listOf(
                             RhovasAst.Pattern.Variable("p1") to stmt("s1"),
                             RhovasAst.Pattern.Variable("p2") to stmt("s2"),
-                        ),
-                        null to stmt("s3"),
-                    )),
+                        ), null to stmt("s3"))
+                    },
                     "Else Inner" to Test("""
                         match (argument) { p1: s2; else: s2; p3: s3; }
                     """.trimIndent(), null),
@@ -507,9 +481,9 @@ class RhovasParserTests: RhovasSpec() {
             suite("For", listOf(
                 "For" to Test("""
                     for (val name in iterable) { stmt; }
-                """.trimIndent(), RhovasAst.Statement.For(
-                    "name", expr("iterable"), block(stmt("stmt")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.For("name", expr("iterable"), block(stmt("stmt")))
+                },
                 "Missing Opening Parenthesis" to Test("""
                     for val name in iterable) {}
                 """.trimIndent(), null),
@@ -539,9 +513,9 @@ class RhovasParserTests: RhovasSpec() {
             suite("While", listOf(
                 "While" to Test("""
                     while (condition) { stmt; }
-                """.trimIndent(), RhovasAst.Statement.While(
-                    expr("condition"), block(stmt("stmt")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.While(expr("condition"), block(stmt("stmt")))
+                },
                 "Missing Opening Parenthesis" to Test("""
                     while condition) {}
                 """.trimIndent(), null),
@@ -559,42 +533,36 @@ class RhovasParserTests: RhovasSpec() {
             suite("Try", listOf(
                 "Try" to Test("""
                     try { stmt; }
-                """.trimIndent(), RhovasAst.Statement.Try(
-                    block(stmt("stmt")), listOf(), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Try(block(stmt("stmt")), listOf(), null)
+                },
                 "Catch" to Test("""
                     try {} catch (val name: Type) { stmt; }
-                """.trimIndent(), RhovasAst.Statement.Try(
-                    block(),
-                    listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block(stmt("stmt")))),
-                    null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Try(block(), listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block(stmt("stmt")))), null)
+                },
                 "Multiple Catch" to Test("""
                     try {}
                     catch (val first: First) {}
                     catch (val second: Second) {}
                     catch (val third: Third) {}
-                """.trimIndent(), RhovasAst.Statement.Try(
-                    block(),
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Statement.Try(block(), listOf(
                         RhovasAst.Statement.Try.Catch("first", type("First"), block()),
                         RhovasAst.Statement.Try.Catch("second", type("Second"), block()),
                         RhovasAst.Statement.Try.Catch("third", type("Third"), block()),
-                    ),
-                    null,
-                )),
+                    ), null)
+                },
                 "Finally" to Test("""
                     try {} finally { stmt; }
-                """.trimIndent(), RhovasAst.Statement.Try(
-                    block(), listOf(), block(stmt("stmt")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Try(block(), listOf(), block(stmt("stmt")))
+                },
                 "Both Catch & Finally" to Test("""
                     try {} catch (val name: Type) {} finally {}
-                """.trimIndent(), RhovasAst.Statement.Try(
-                    block(),
-                    listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block())),
-                    block(),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Try(block(), listOf(RhovasAst.Statement.Try.Catch("name", type("Type"), block())), block())
+                },
                 "Missing Try Statement" to Test("""
                     try
                 """.trimIndent(), null),
@@ -624,14 +592,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("With", listOf(
                 "With" to Test("""
                     with (argument) {}
-                """.trimIndent(), RhovasAst.Statement.With(
-                    null, expr("argument"), block(),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.With(null, expr("argument"), block())
+                },
                 "Name" to Test("""
                     with (val name = argument) {}
-                """.trimIndent(), RhovasAst.Statement.With(
-                    "name", expr("argument"), block(),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.With("name", expr("argument"), block())
+                },
                 "Missing Opening Parenthesis" to Test("""
                     with argument) {}
                 """.trimIndent(), null),
@@ -658,14 +626,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Label", listOf(
                 "Label" to Test("""
                     label: statement;
-                """.trimIndent(), RhovasAst.Statement.Label(
-                    "label", stmt("statement")
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Label("label", stmt("statement"))
+                },
                 "Loop" to Test("""
                     label: while (condition) {}
-                """.trimIndent(), RhovasAst.Statement.Label(
-                    "label", RhovasAst.Statement.While(expr("condition"), block()),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Label("label", RhovasAst.Statement.While(expr("condition"), block()))
+                },
                 "Missing Statement" to Test("""
                     label:
                 """.trimIndent(), null),
@@ -674,14 +642,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Break", listOf(
                 "Break" to Test("""
                     break;
-                """.trimIndent(), RhovasAst.Statement.Break(
-                    null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Break(null)
+                },
                 "Label" to Test("""
                     break label;
-                """.trimIndent(), RhovasAst.Statement.Break(
-                    "label",
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Break("label")
+                },
                 "Missing Semicolon" to Test("""
                     break
                 """.trimIndent(), null),
@@ -690,14 +658,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Continue", listOf(
                 "Continue" to Test("""
                     continue;
-                """.trimIndent(), RhovasAst.Statement.Continue(
-                    null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Continue(null)
+                },
                 "Label" to Test("""
                     continue label;
-                """.trimIndent(), RhovasAst.Statement.Continue(
-                    "label",
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Continue("label")
+                },
                 "Missing Semicolon" to Test("""
                     continue
                 """.trimIndent(), null),
@@ -706,14 +674,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Return", listOf(
                 "Return" to Test("""
                     return;
-                """.trimIndent(), RhovasAst.Statement.Return(
-                    null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Return(null)
+                },
                 "Return Value" to Test("""
                     return value;
-                """.trimIndent(), RhovasAst.Statement.Return(
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Return(expr("value"))
+                },
                 "Missing Semicolon" to Test("""
                     return
                 """.trimIndent(), null),
@@ -722,9 +690,9 @@ class RhovasParserTests: RhovasSpec() {
             suite("Throw", listOf(
                 "Throw" to Test("""
                     throw exception;
-                """.trimIndent(), RhovasAst.Statement.Throw(
-                    expr("exception"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Throw(expr("exception"))
+                },
                 "Missing Exception" to Test("""
                     throw;
                 """.trimIndent(), null),
@@ -736,14 +704,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Assert", listOf(
                 "Assert" to Test("""
                     assert condition;
-                """.trimIndent(), RhovasAst.Statement.Assert(
-                    expr("condition"), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assert(expr("condition"), null)
+                },
                 "Message" to Test("""
                     assert condition: message;
-                """.trimIndent(), RhovasAst.Statement.Assert(
-                    expr("condition"), expr("message"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Assert(expr("condition"), expr("message"))
+                },
                 "Missing Condition" to Test("""
                     assert;
                 """.trimIndent(), null),
@@ -761,14 +729,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Require", listOf(
                 "Require" to Test("""
                     require condition;
-                """.trimIndent(), RhovasAst.Statement.Require(
-                    expr("condition"), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Require(expr("condition"), null)
+                },
                 "Message" to Test("""
                     require condition: message;
-                """.trimIndent(), RhovasAst.Statement.Require(
-                    expr("condition"), expr("message"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Require(expr("condition"), expr("message"))
+                },
                 "Missing Condition" to Test("""
                     require;
                 """.trimIndent(), null),
@@ -786,14 +754,14 @@ class RhovasParserTests: RhovasSpec() {
             suite("Ensure", listOf(
                 "Ensure" to Test("""
                     ensure condition;
-                """.trimIndent(), RhovasAst.Statement.Ensure(
-                    expr("condition"), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Ensure(expr("condition"), null)
+                },
                 "Message" to Test("""
                     ensure condition: message;
-                """.trimIndent(), RhovasAst.Statement.Ensure(
-                    expr("condition"), expr("message"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Statement.Ensure(expr("condition"), expr("message"))
+                },
                 "Missing Condition" to Test("""
                     ensure;
                 """.trimIndent(), null),
@@ -814,83 +782,77 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Scalar", listOf(
                     "Null" to Test("""
                         null
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        null,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(null)
+                    },
                     "Boolean True" to Test("""
                         true
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        true,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(true)
+                    },
                     "Boolean False" to Test("""
                         false
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        false,
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(false)
+                    },
                     "Integer" to Test("""
                         123
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigInteger.parseString("123"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(BigInteger.parseString("123"))
+                    },
                     "Integer Above Long Max" to Test("""
                         1${"0".repeat(19)}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigInteger.parseString("1" + "0".repeat(19)),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(BigInteger.parseString("1" + "0".repeat(19)))
+                    },
                     "Decimal" to Test("""
                         123.456
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigDecimal.parseString("123.456"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(BigDecimal.parseString("123.456"))
+                    },
                     "Decimal Above Double Max" to Test("""
                         1${"0".repeat(308)}.0
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        BigDecimal.parseString("1${"0".repeat(308)}.0"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(BigDecimal.parseString("1${"0".repeat(308)}.0"))
+                    },
                     "Atom" to Test("""
                         :atom
-                    """.trimIndent(), RhovasAst.Expression.Literal.Scalar(
-                        RhovasAst.Atom("atom"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom"))
+                    },
                 )) { test("expression", it.source, it.expected) }
 
                 suite("String", listOf(
                     "Empty" to Test("""
                         ""
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf(""),
-                        listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf(""), listOf())
+                    },
                     "String" to Test("""
                         "string"
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf("string"),
-                        listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf("string"), listOf())
+                    },
                     "Interpolation" to Test("""
                         "start${'$'}{argument}end"
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf("start", "end"),
-                        listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf("start", "end"), listOf(expr("argument")))
+                    },
                     "Interpolation Multiple" to Test("""
                         "start${'$'}{first}middle${'$'}{second}end"
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf("start", "middle", "end"),
-                        listOf(expr("first"), expr("second")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf("start", "middle", "end"), listOf(expr("first"), expr("second")))
+                    },
                     "Interpolation Only" to Test("""
                         "${'$'}{argument}"
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf("", ""),
-                        listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf("", ""), listOf(expr("argument")))
+                    },
                     "Interpolation Only Multiple" to Test("""
                         "${'$'}{first}${'$'}{second}"
-                    """.trimIndent(), RhovasAst.Expression.Literal.String(
-                        listOf("", "", ""),
-                        listOf(expr("first"), expr("second")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.String(listOf("", "", ""), listOf(expr("first"), expr("second")))
+                    },
                     "Unterminated" to Test("""
                         "unterminated
                     """.trimIndent(), null),
@@ -905,24 +867,24 @@ class RhovasParserTests: RhovasSpec() {
                 suite("List", listOf(
                     "Empty" to Test("""
                         []
-                    """.trimIndent(), RhovasAst.Expression.Literal.List(
-                        listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.List(listOf())
+                    },
                     "Single" to Test("""
                         [element]
-                    """.trimIndent(), RhovasAst.Expression.Literal.List(
-                        listOf(expr("element")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.List(listOf(expr("element")))
+                    },
                     "Multiple" to Test("""
                         [first, second, third]
-                    """.trimIndent(), RhovasAst.Expression.Literal.List(
-                        listOf(expr("first"), expr("second"), expr("third")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.List(listOf(expr("first"), expr("second"), expr("third")))
+                    },
                     "Trailing Comma" to Test("""
                         [first, second,]
-                    """.trimIndent(), RhovasAst.Expression.Literal.List(
-                        listOf(expr("first"), expr("second")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.List(listOf(expr("first"), expr("second")))
+                    },
                     "Missing Comma" to Test("""
                         [first second]
                     """.trimIndent(), null),
@@ -934,29 +896,29 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Object", listOf(
                     "Empty" to Test("""
                         {}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Object(listOf())
+                    },
                     "Single" to Test("""
                         {key: value}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        listOf("key" to expr("value")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Object(listOf("key" to expr("value")))
+                    },
                     "Multiple" to Test("""
                         {k1: v1, k2: v2, k3: v3}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        listOf("k1" to expr("v1"), "k2" to expr("v2"), "k3" to expr("v3")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Object(listOf("k1" to expr("v1"), "k2" to expr("v2"), "k3" to expr("v3")))
+                    },
                     "Trailing Comma" to Test("""
                         {k1: v1, k2: v2,}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        listOf("k1" to expr("v1"), "k2" to expr("v2")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Object(listOf("k1" to expr("v1"), "k2" to expr("v2")))
+                    },
                     "Key Only" to Test("""
                         {key}
-                    """.trimIndent(), RhovasAst.Expression.Literal.Object(
-                        listOf("key" to expr("key")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Object(listOf("key" to expr("key")))
+                    },
                     "Invalid Key" to Test("""
                         {"key": value}
                     """.trimIndent(), null),
@@ -977,62 +939,63 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Type", listOf(
                     "Type" to Test("""
                         Type
-                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
-                        type("Type"),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Type(type("Type"))
+                    },
                     "Nesting" to Test("""
                         First.Second.Third
-                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
-                        RhovasAst.Type(listOf("First", "Second", "Third"), null)
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Type(RhovasAst.Type(listOf("First", "Second", "Third"), null))
+                    },
                     "Generic" to Test("""
                         Type<Generic>
-                    """.trimIndent(), RhovasAst.Expression.Literal.Type(
-                        RhovasAst.Type(listOf("Type"), listOf(type("Generic"))),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Literal.Type(RhovasAst.Type(listOf("Type"), listOf(type("Generic"))))
+                    },
                 )) { test("expression", it.source, it.expected) }
             }
 
             suite("Group", listOf(
                 "Group" to Test("""
                     (expression)
-                """.trimIndent(), RhovasAst.Expression.Group(
-                    expr("expression"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Group(expr("expression"))
+                },
                 "Nested" to Test("""
                     ((expression))
-                """.trimIndent(), RhovasAst.Expression.Group(
-                    RhovasAst.Expression.Group(expr("expression")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Group(RhovasAst.Expression.Group(expr("expression")))
+                },
                 "Binary" to Test("""
                     (first + second)
-                """.trimIndent(), RhovasAst.Expression.Group(
-                    RhovasAst.Expression.Binary("+",
-                        expr("first"),
-                        expr("second"),
-                    ),
-                )),
-                "Empty" to Test("()", null),
-                "Tuple" to Test("(first, second)", null),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Group(RhovasAst.Expression.Binary("+", expr("first"), expr("second")))
+                },
+                "Empty" to Test("""
+                    ()
+                """.trimIndent(), null),
+                "Tuple" to Test("""
+                    (first, second)
+                """.trimIndent(), null),
                 "Missing Closing Parenthesis" to Test("(expression", null),
             )) { test("expression", it.source, it.expected) }
 
             suite("Unary", listOf(
                 "Numerical Negation" to Test("""
                     -expression
-                """.trimIndent(), RhovasAst.Expression.Unary(
-                    "-", expr("expression"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Unary("-", expr("expression"))
+                },
                 "Logical Negation" to Test("""
                     !expression
-                """.trimIndent(), RhovasAst.Expression.Unary(
-                    "!", expr("expression"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Unary("!", expr("expression"))
+                },
                 "Multiple" to Test("""
                     -!expression
-                """.trimIndent(), RhovasAst.Expression.Unary("-",
-                    RhovasAst.Expression.Unary("!", expr("expression")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Unary("-", RhovasAst.Expression.Unary("!", expr("expression")))
+                },
                 "Invalid Operator" to Test("""
                     +expression
                 """.trimIndent(), null),
@@ -1041,49 +1004,37 @@ class RhovasParserTests: RhovasSpec() {
             suite("Binary", listOf(
                 "Multiplicative" to Test("""
                     left * right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "*",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("*", expr("left"), expr("right"))
+                },
                 "Additive" to Test("""
                     left + right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "+",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("+", expr("left"), expr("right"))
+                },
                 "Comparison" to Test("""
                     left < right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "<",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("<", expr("left"), expr("right"))
+                },
                 "Equality" to Test("""
                     left == right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "==",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("==", expr("left"), expr("right"))
+                },
                 "Logical And" to Test("""
                     left && right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "&&",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("&&", expr("left"), expr("right"))
+                },
                 "Logical Or" to Test("""
                     left || right
-                """.trimIndent(), RhovasAst.Expression.Binary(
-                    "||",
-                    expr("left"),
-                    expr("right"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("||", expr("left"), expr("right"))
+                },
                 "Left Precedence" to Test("""
                     first * second + third < fourth == fifth && sixth || seventh
-                """.trimIndent(),
+                """.trimIndent()) {
                     RhovasAst.Expression.Binary("||",
                         RhovasAst.Expression.Binary("&&",
                             RhovasAst.Expression.Binary("==",
@@ -1102,11 +1053,11 @@ class RhovasParserTests: RhovasSpec() {
                             expr("sixth"),
                         ),
                         expr("seventh"),
-                    ),
-                ),
+                    )
+                },
                 "Right Precedence" to Test("""
                     first || second && third == fourth < fifth + sixth * seventh
-                """.trimIndent(),
+                """.trimIndent()) {
                     RhovasAst.Expression.Binary("||",
                         expr("first"),
                         RhovasAst.Expression.Binary("&&",
@@ -1125,19 +1076,19 @@ class RhovasParserTests: RhovasSpec() {
                                 ),
                             ),
                         ),
-                    ),
-                ),
+                    )
+                },
                 "Equal Precedence" to Test("""
                     first < second <= third
-                """.trimIndent(),
+                """.trimIndent()) {
                     RhovasAst.Expression.Binary("<=",
                         RhovasAst.Expression.Binary("<",
                             expr("first"),
                             expr("second"),
                         ),
                         expr("third"),
-                    ),
-                ),
+                    )
+                },
                 "Invalid Operator" to Test("""
                     first % second
                 """.trimIndent(), null),
@@ -1153,38 +1104,38 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Variable", listOf(
                     "Variable" to Test("""
                         variable
-                    """.trimIndent(), RhovasAst.Expression.Access.Variable(
-                        null, "variable"
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Variable(null, "variable")
+                    },
                     "Underscore" to Test("""
                         _
-                    """.trimIndent(), RhovasAst.Expression.Access.Variable(
-                        null, "_"
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Variable(null, "_")
+                    },
                 )) { test("expression", it.source, it.expected) }
 
                 suite("Property", listOf(
                     "Property" to Test("""
                         receiver.property
-                    """.trimIndent(), RhovasAst.Expression.Access.Property(
-                        expr("receiver"),false, "property",
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Property(expr("receiver"),false, "property")
+                    },
                     "Multiple Properties" to Test("""
                         receiver.first.second.third
-                    """.trimIndent(),
+                    """.trimIndent()) {
                         RhovasAst.Expression.Access.Property(
                             RhovasAst.Expression.Access.Property(
                                 RhovasAst.Expression.Access.Property(
                                     expr("receiver"), false, "first"
                                 ), false, "second",
                             ), false, "third",
-                        ),
-                    ),
+                        )
+                    },
                     "Nullable" to Test("""
                         receiver?.property
-                    """.trimIndent(), RhovasAst.Expression.Access.Property(
-                        expr("receiver"), true, "property",
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Property(expr("receiver"), true, "property")
+                    },
                     "Coalesce" to Test("""
                         receiver..property
                     """.trimIndent(), null),
@@ -1196,37 +1147,38 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Index", listOf(
                     "Zero Arguments" to Test("""
                         receiver[]
-                    """.trimIndent(), RhovasAst.Expression.Access.Index(
-                        expr("receiver"), listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf())
+                    },
                     "Single Argument" to Test("""
                         receiver[argument]
-                    """.trimIndent(), RhovasAst.Expression.Access.Index(
-                        expr("receiver"), listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("argument")))
+                    },
                     "Multiple Arguments" to Test("""
                         receiver[first, second, third]
-                    """.trimIndent(), RhovasAst.Expression.Access.Index(
-                        expr("receiver"), listOf(expr("first"), expr("second"), expr("third")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("first"), expr("second"), expr("third")))
+                    },
                     "Multiple Indexes" to Test("""
                         receiver[first][second][third]
-                    """.trimIndent(),
+                    """.trimIndent()) {
                         RhovasAst.Expression.Access.Index(
                             RhovasAst.Expression.Access.Index(
-                                RhovasAst.Expression.Access.Index(expr("receiver"), listOf(
-                                    expr("first"),
-                                )),
+                                RhovasAst.Expression.Access.Index(
+                                    expr("receiver"),
+                                    listOf(expr("first")),
+                                ),
                                 listOf(expr("second")),
                             ),
                             listOf(expr("third")),
-                        ),
-                    ),
+                        )
+                    },
                     "Trailing Comma" to Test("""
                         receiver[argument,]
-                    """.trimIndent(), RhovasAst.Expression.Access.Index(
-                        expr("receiver"), listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("argument")))
+                    },
                     "Missing Comma" to Test("""
                         receiver[first second]
                     """.trimIndent(), null),
@@ -1240,34 +1192,34 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Constructor", listOf(
                     "Qualifier" to Test("""
                         Qualifier.Type()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        RhovasAst.Type(listOf("Qualifier", "Type"), null), listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(RhovasAst.Type(listOf("Qualifier", "Type"), null), listOf())
+                    },
                     "Generics" to Test("""
                         Type<Generic>()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        RhovasAst.Type(listOf("Type"), listOf(type("Generic"))), listOf()
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(RhovasAst.Type(listOf("Type"), listOf(type("Generic"))), listOf())
+                    },
                     "Zero Arguments" to Test("""
                         Type()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        type("Type"), listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(type("Type"), listOf())
+                    },
                     "Single Argument" to Test("""
                         Type(argument)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        type("Type"), listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(type("Type"), listOf(expr("argument")))
+                    },
                     "Multiple Arguments" to Test("""
                         Type(first, second, third)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        type("Type"), listOf(expr("first"), expr("second"), expr("third"))
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(type("Type"), listOf(expr("first"), expr("second"), expr("third")))
+                    },
                     "Trailing Comma" to Test("""
                         Type(argument,)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Constructor(
-                        type("Type"), listOf(expr("argument"))
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Constructor(type("Type"), listOf(expr("argument")))
+                    },
                     "Missing Comma" to Test("""
                         Type(first second)
                     """.trimIndent(), null),
@@ -1279,29 +1231,29 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Function", listOf(
                     "Qualifier" to Test("""
                         Qualifier.function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        type("Qualifier"), "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Function(type("Qualifier"), "function", listOf())
+                    },
                     "Zero Arguments" to Test("""
                         function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        null, "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Function(null, "function", listOf())
+                    },
                     "Single Argument" to Test("""
                         function(argument)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        null, "function", listOf(expr("argument")),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Function(null, "function", listOf(expr("argument")))
+                    },
                     "Multiple Arguments" to Test("""
                         function(first, second, third)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        null, "function", listOf(expr("first"), expr("second"), expr("third"))
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Function(null, "function", listOf(expr("first"), expr("second"), expr("third")))
+                    },
                     "Trailing Comma" to Test("""
                         function(argument,)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                        null, "function", listOf(expr("argument"))
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Function(null, "function", listOf(expr("argument")))
+                    },
                     "Missing Comma" to Test("""
                         function(first second)
                     """.trimIndent(), null),
@@ -1313,54 +1265,50 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Method", listOf(
                     "Zero Arguments" to Test("""
                         receiver.method()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), false, false, "method", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf())
+                    },
                     "Single Argument" to Test("""
                         receiver.method(argument)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), false, false, "method", listOf(expr("argument"),),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf(expr("argument")))
+                    },
                     "Multiple Arguments" to Test("""
                         receiver.method(first, second, third)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), false, false, "method", listOf(
-                            expr("first"),
-                            expr("second"),
-                            expr("third"),
-                        ),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf(expr("first"), expr("second"), expr("third")))
+                    },
                     "Trailing Comma" to Test("""
                         receiver.method(argument,)
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), false, false, "method", listOf(expr("argument"),),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf(expr("argument")))
+                    },
                     "Multiple Methods" to Test("""
                         receiver.first().second().third()
-                    """.trimIndent(),
+                    """.trimIndent()) {
                         RhovasAst.Expression.Invoke.Method(
                             RhovasAst.Expression.Invoke.Method(
                                 RhovasAst.Expression.Invoke.Method(
-                                    expr("receiver"), false, false, "first", listOf()
+                                    expr("receiver"), false, false, "first", listOf(),
                                 ), false, false, "second", listOf(),
                             ), false, false, "third", listOf(),
-                        ),
-                    ),
+                        )
+                    },
                     "Coalesce" to Test("""
                         receiver?.method()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), true, false, "method", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), true, false, "method", listOf())
+                    },
                     "Cascade" to Test("""
                         receiver..method()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), false, true, "method", listOf()
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), false, true, "method", listOf())
+                    },
                     "Coalesce & Cascade" to Test("""
                         receiver?..method()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                        expr("receiver"), true, true, "method", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Method(expr("receiver"), true, true, "method", listOf())
+                    },
                     "Missing Comma" to Test("""
                         receiver.method(first second)
                     """.trimIndent(), null),
@@ -1372,29 +1320,29 @@ class RhovasParserTests: RhovasSpec() {
                 suite("Pipeline", listOf(
                     "Pipeline" to Test("""
                         receiver.|function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                        expr("receiver"), false, false, null, "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), false, false, null, "function", listOf())
+                    },
                     "Coalesce" to Test("""
                         receiver?.|function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                        expr("receiver"), true, false, null, "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), true, false, null, "function", listOf())
+                    },
                     "Cascade" to Test("""
                         receiver..|function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                        expr("receiver"), false, true, null, "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), false, true, null, "function", listOf())
+                    },
                     "Coalesce & Cascade" to Test("""
                         receiver?..|function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                        expr("receiver"), true, true, null, "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), true, true, null, "function", listOf())
+                    },
                     "Qualifier" to Test("""
                         receiver.|Qualifier.function()
-                    """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                        expr("receiver"), false, false, type("Qualifier"), "function", listOf(),
-                    )),
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), false, false, type("Qualifier"), "function", listOf())
+                    },
                     "Missing Name" to Test("""
                         receiver.|()
                     """.trimIndent(), null),
@@ -1410,24 +1358,24 @@ class RhovasParserTests: RhovasSpec() {
                     suite("Function", listOf(
                         "Zero Arguments" to Test("""
                             #macro()
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(), null,
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(), null)
+                        },
                         "Single Argument" to Test("""
                             #macro(argument)
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(expr("argument")), null,
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(expr("argument")), null)
+                        },
                         "Multiple Arguments" to Test("""
                             #macro(first, second, third)
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(expr("first"), expr("second"), expr("third"),), null,
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(expr("first"), expr("second"), expr("third")), null)
+                        },
                         "Trailing Comma" to Test("""
                             #macro(argument,)
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(expr("argument")), null,
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(expr("argument")), null)
+                        },
                         "Missing Opening Parenthesis" to Test("""
                             #macro
                         """.trimIndent(), null),
@@ -1442,28 +1390,28 @@ class RhovasParserTests: RhovasSpec() {
                     suite("DSL", listOf(
                         "Inline" to Test("""
                             #macro { source }
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(), DslAst.Source(listOf(" source "), listOf()),
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(), DslAst.Source(listOf(" source "), listOf()))
+                        },
                         "Multiline" to Test("""
                             #macro {
                                 source
                             }
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(), DslAst.Source(listOf("source"), listOf()),
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(), DslAst.Source(listOf("source"), listOf()))
+                        },
                         "Argument" to Test("""
                             #macro(argument) { source }
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(expr("argument")), DslAst.Source(listOf(" source "), listOf()),
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(expr("argument")), DslAst.Source(listOf(" source "), listOf()))
+                        },
                         "Interpolation" to Test("""
                             #macro {
                                 value = ${'$'}{argument}
                             }
-                        """.trimIndent(), RhovasAst.Expression.Invoke.Macro(
-                            "macro", listOf(), DslAst.Source(listOf("value = ", ""), listOf(expr("argument"))),
-                        )),
+                        """.trimIndent()) {
+                            RhovasAst.Expression.Invoke.Macro("macro", listOf(), DslAst.Source(listOf("value = ", ""), listOf(expr("argument"))))
+                        },
                         "Missing Closing Brace" to Test("""
                             #macro { source()
                         """.trimIndent(), null),
@@ -1478,76 +1426,76 @@ class RhovasParserTests: RhovasSpec() {
             suite("Lambda", listOf(
                 "Lambda" to Test("""
                     function { stmt; }
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(stmt("stmt")), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf(), block(stmt("stmt"))),
+                    ))
+                },
                 "Expression" to Test("""
                     function { expr }
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
                         RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), expr("expr"))),
-                    ),
-                )),
+                    ))
+                },
                 "Argument" to Test("""
                     function(argument) {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
                         expr("argument"),
-                        RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                        RhovasAst.Expression.Lambda(listOf(), block()),
+                    ))
+                },
                 "Single Parameter" to Test("""
                     function |parameter| {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                    ))
+                },
                 "Multiple Parameters" to Test("""
                     function |first, second, third| {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf("first" to null, "second" to null, "third" to null), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf("first" to null, "second" to null, "third" to null), block()),
+                    ))
+                },
                 "Typed Parameter" to Test("""
                     function |parameter: Type| {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf("parameter" to type("Type")), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf("parameter" to type("Type")), block()),
+                    ))
+                },
                 "Trailing Comma" to Test("""
                     function |parameter,| {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                    ))
+                },
                 "Argument & Parameter" to Test("""
                     function(argument) |parameter| {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Function(
-                    null, "function", listOf(
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Function(null, "function", listOf(
                         expr("argument"),
-                        RhovasAst.Expression.Lambda(listOf("parameter" to null), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                        RhovasAst.Expression.Lambda(listOf("parameter" to null), block()),
+                    ))
+                },
                 "Method" to Test("""
                     receiver.method {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Method(
-                    expr("receiver"), false, false, "method", listOf(
-                        RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Method(expr("receiver"), false, false, "method", listOf(
+                        RhovasAst.Expression.Lambda(listOf(), block()),
+                    ))
+                },
                 "Pipeline" to Test("""
                     receiver.|function {}
-                """.trimIndent(), RhovasAst.Expression.Invoke.Pipeline(
-                    expr("receiver"), false, false, null, "function", listOf(
-                        RhovasAst.Expression.Lambda(listOf(), RhovasAst.Expression.Block(listOf(), null)),
-                    ),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Expression.Invoke.Pipeline(expr("receiver"), false, false, null, "function", listOf(
+                        RhovasAst.Expression.Lambda(listOf(), block()),
+                    ))
+                },
                 "Missing Comma" to Test("""
                     function |first second| {}
                 """.trimIndent(), null),
@@ -1567,44 +1515,44 @@ class RhovasParserTests: RhovasSpec() {
             suite("Value", listOf(
                 "Null" to Test("""
                     null
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(null),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(null))
+                },
                 "Boolean True" to Test("""
                     true
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(true),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(true))
+                },
                 "Boolean False" to Test("""
                     false
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(false),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(false))
+                },
                 "Integer" to Test("""
                     0
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(BigInteger.parseString("0")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigInteger.parseString("0")))
+                },
                 "Decimal" to Test("""
                     0.0
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(BigDecimal.parseString("0.0")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(BigDecimal.parseString("0.0")))
+                },
                 "String" to Test("""
                     "string"
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.String(listOf("string"), listOf()),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.String(listOf("string"), listOf()))
+                },
                 "Atom" to Test("""
                     :atom
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom")))
+                },
                 "Interpolation" to Test("""
                     ${'$'}{value}
-                """.trimIndent(), RhovasAst.Pattern.Value(
-                    expr("value"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Value(expr("value"))
+                },
                 "Missing Opening Brace" to Test("""
                     ${'$'}value}
                 """.trimIndent(), null),
@@ -1616,52 +1564,54 @@ class RhovasParserTests: RhovasSpec() {
             suite("Variable", listOf(
                 "Variable" to Test("""
                     variable
-                """.trimIndent(), RhovasAst.Pattern.Variable(
-                    "variable"
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Variable("variable")
+                },
                 "Underscore" to Test("""
                     _
-                """.trimIndent(), RhovasAst.Pattern.Variable(
-                    "_"
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Variable("_")
+                },
             )) { test("pattern", it.source, it.expected) }
 
             suite("OrderedDestructure", listOf(
                 "Empty" to Test("""
                     []
-                """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
-                    listOf(),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.OrderedDestructure(listOf())
+                },
                 "Single" to Test("""
                     [pattern]
-                """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
-                    listOf(RhovasAst.Pattern.Variable("pattern")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.OrderedDestructure(listOf(
+                        RhovasAst.Pattern.Variable("pattern"),
+                    ))
+                },
                 "Multiple" to Test("""
                     [first, second, third]
-                """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.OrderedDestructure(listOf(
                         RhovasAst.Pattern.Variable("first"),
                         RhovasAst.Pattern.Variable("second"),
                         RhovasAst.Pattern.Variable("third"),
-                    ),
-                )),
+                    ))
+                },
                 "Varargs" to Test("""
                     [first, rest*]
-                """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.OrderedDestructure(listOf(
                         RhovasAst.Pattern.Variable("first"),
                         RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*"),
-                    ),
-                )),
+                    ))
+                },
                 "Varargs Only" to Test("""
                     [first, +]
-                """.trimIndent(), RhovasAst.Pattern.OrderedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.OrderedDestructure(listOf(
                         RhovasAst.Pattern.Variable("first"),
                         RhovasAst.Pattern.VarargDestructure(null, "+"),
-                    ),
-                )),
+                    ))
+                },
                 "Missing Comma" to Test("""
                     [first second]
                 """.trimIndent(), null),
@@ -1673,49 +1623,55 @@ class RhovasParserTests: RhovasSpec() {
             suite("NamedDestructure", listOf(
                 "Empty" to Test("""
                     {}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf()
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf())
+                },
                 "Single" to Test("""
                     {key: pattern}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf("key" to RhovasAst.Pattern.Variable("pattern")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
+                        "key" to RhovasAst.Pattern.Variable("pattern"),
+                    ))
+                },
                 "Multiple" to Test("""
                     {k1: p1, k2: p2, k3: p3}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
                         "k1" to RhovasAst.Pattern.Variable("p1"),
                         "k2" to RhovasAst.Pattern.Variable("p2"),
                         "k3" to RhovasAst.Pattern.Variable("p3"),
-                    ),
-                )),
+                    ))
+                },
                 "Key Only" to Test("""
                     {key}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf(null to RhovasAst.Pattern.Variable("key")),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
+                        null to RhovasAst.Pattern.Variable("key"),
+                    ))
+                },
                 "Varargs" to Test("""
                     {key: pattern, rest*}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
                         "key" to RhovasAst.Pattern.Variable("pattern"),
                         null to RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("rest"), "*"),
-                    ),
-                )),
+                    ))
+                },
                 "Varargs Only" to Test("""
                     {key: pattern, +}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf(
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
                         "key" to RhovasAst.Pattern.Variable("pattern"),
                         null to RhovasAst.Pattern.VarargDestructure(null, "+"),
-                    ),
-                )),
+                    ))
+                },
                 "Missing Key" to Test("""
                     {:pattern}
-                """.trimIndent(), RhovasAst.Pattern.NamedDestructure(
-                    listOf(null to RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("pattern")))),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.NamedDestructure(listOf(
+                        null to RhovasAst.Pattern.Value(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("pattern"))),
+                    ))
+                },
                 "Missing Colon" to Test("""
                     {key pattern}
                 """.trimIndent(), null),
@@ -1730,53 +1686,50 @@ class RhovasParserTests: RhovasSpec() {
             suite("TypedDestructure", listOf(
                 "Type" to Test("""
                     Type
-                """.trimIndent(), RhovasAst.Pattern.TypedDestructure(
-                    type("Type"), null,
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.TypedDestructure(type("Type"), null)
+                },
                 "Pattern" to Test("""
                     Type pattern
-                """.trimIndent(), RhovasAst.Pattern.TypedDestructure(
-                    type("Type"), RhovasAst.Pattern.Variable("pattern"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.TypedDestructure(type("Type"), RhovasAst.Pattern.Variable("pattern"))
+                },
             )) { test("pattern", it.source, it.expected) }
 
             suite("VarargDestructure", listOf(
                 "Zero Or More" to Test("""
                     pattern*
-                """.trimIndent(), RhovasAst.Pattern.VarargDestructure(
-                    RhovasAst.Pattern.Variable("pattern"), "*",
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "*")
+                },
                 "One Or More" to Test("""
                     pattern+
-                """.trimIndent(), RhovasAst.Pattern.VarargDestructure(
-                    RhovasAst.Pattern.Variable("pattern"), "+"
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "+")
+                },
                 "Operator Only" to Test("""
                     *
-                """.trimIndent(), RhovasAst.Pattern.VarargDestructure(
-                    null, "*"
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.VarargDestructure(null, "*")
+                },
             )) { test("pattern", it.source, it.expected) }
 
             suite("Predicate", listOf(
                 "Variable" to Test("""
                     pattern ${'$'}{predicate}
-                """.trimIndent(), RhovasAst.Pattern.Predicate(
-                    RhovasAst.Pattern.Variable("pattern"),
-                    expr("predicate"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Predicate(RhovasAst.Pattern.Variable("pattern"), expr("predicate"))
+                },
                 "OrderedDestructure" to Test("""
                     [ordered] ${'$'}{predicate}
-                """.trimIndent(), RhovasAst.Pattern.Predicate(
-                    RhovasAst.Pattern.OrderedDestructure(listOf(RhovasAst.Pattern.Variable("ordered"))),
-                    expr("predicate"),
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Predicate(RhovasAst.Pattern.OrderedDestructure(listOf(RhovasAst.Pattern.Variable("ordered"))), expr("predicate"))
+                },
                 "VarargDestructure" to Test("""
                     pattern* ${'$'}{predicate}
-                """.trimIndent(), RhovasAst.Pattern.Predicate(
-                    RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "*"),
-                    expr("predicate")
-                )),
+                """.trimIndent()) {
+                    RhovasAst.Pattern.Predicate(RhovasAst.Pattern.VarargDestructure(RhovasAst.Pattern.Variable("pattern"), "*"), expr("predicate"))
+                },
                 "Missing Opening Brace" to Test("""
                     pattern ${'$'}predicate}
                 """.trimIndent(), null),
@@ -1786,7 +1739,7 @@ class RhovasParserTests: RhovasSpec() {
             )) { test("pattern", it.source, it.expected) }
 
             suite("Error", listOf(
-                "Error" to Test("""
+                "Error" to Test<RhovasAst>("""
                     #
                 """.trimIndent(), null),
             )) { test("pattern", it.source, it.expected) }
@@ -1795,34 +1748,34 @@ class RhovasParserTests: RhovasSpec() {
         suite("Type", listOf(
             "Type" to Test("""
                 Type
-            """.trimIndent(), RhovasAst.Type(
-                listOf("Type"), null,
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("Type"), null)
+            },
             "Nesting" to Test("""
                 First.Second.Third
-            """.trimIndent(), RhovasAst.Type(
-                listOf("First", "Second", "Third"), null,
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("First", "Second", "Third"), null)
+            },
             "Empty Generics" to Test("""
                 Type<>
-            """.trimIndent(), RhovasAst.Type(
-                listOf("Type"), listOf(),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("Type"), listOf())
+            },
             "Single Generic" to Test("""
                 Type<Generic>
-            """.trimIndent(), RhovasAst.Type(
-                listOf("Type"), listOf(type("Generic")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("Type"), listOf(type("Generic")))
+            },
             "Multiple Generics" to Test("""
                 Type<First, Second, Third>
-            """.trimIndent(), RhovasAst.Type(
-                listOf("Type"), listOf(type("First"), type("Second"), type("Third")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("Type"), listOf(type("First"), type("Second"), type("Third")))
+            },
             "Trailing Comma" to Test("""
                 Type<Generic,>
-            """.trimIndent(), RhovasAst.Type(
-                listOf("Type"), listOf(type("Generic")),
-            )),
+            """.trimIndent()) {
+                RhovasAst.Type(listOf("Type"), listOf(type("Generic")))
+            },
             "Missing Comma" to Test("""
                 Type<First Second>
             """.trimIndent(), null),
@@ -1832,18 +1785,17 @@ class RhovasParserTests: RhovasSpec() {
             spec("Keyword Label Atom") {
                 test("statement", """
                     return :atom;
-                """.trimIndent(), RhovasAst.Statement.Return(
-                    RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom"))
-                ))
+                """.trimIndent()) {
+                    RhovasAst.Statement.Return(RhovasAst.Expression.Literal.Scalar(RhovasAst.Atom("atom")))
+                }
             }
 
             spec("Expression") {
                 test("expression", """
                     function || {} 
-                """.trimIndent(), RhovasAst.Expression.Binary("||",
-                    expr("function"),
-                    RhovasAst.Expression.Literal.Object(listOf())
-                ))
+                """.trimIndent()) {
+                    RhovasAst.Expression.Binary("||", expr("function"), RhovasAst.Expression.Literal.Object(listOf()))
+                }
             }
         }
     }
@@ -1864,8 +1816,9 @@ class RhovasParserTests: RhovasSpec() {
         return RhovasAst.Type(listOf(name), null)
     }
 
-    private fun test(rule: String, source: String, expected: RhovasAst?) {
+    private fun test(rule: String, source: String, expected: (() -> RhovasAst)?) {
         val input = Input("Test", source)
+        val expected = expected?.invoke()
         try {
             val ast = RhovasParser(input).parse(rule)
             assertEquals(expected, ast)

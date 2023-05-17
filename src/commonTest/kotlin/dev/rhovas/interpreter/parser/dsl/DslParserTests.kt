@@ -10,80 +10,95 @@ import kotlin.test.fail
 
 class DslParserTests: RhovasSpec() {
 
-    data class Test<T : DslAst>(val source: String, val expected: T?)
+    data class Test<T : DslAst>(val source: String, val expected: (() -> T)?)
 
     init {
         suite("Inline", listOf(
-            "Empty" to Test("{}", DslAst.Source(listOf(""), listOf())),
-            "Text" to Test("{text}", DslAst.Source(listOf("text"), listOf())),
-            "Surrounding Whitespace" to Test("{    text    }", DslAst.Source(listOf("    text    "), listOf())),
-            "Dollar Sign" to Test("{first\$second}", DslAst.Source(listOf("first\$second"), listOf())),
-            "Newline" to Test("{first\nsecond}", null),
-            "Braces" to Test("{text{}second}", null),
-        )) { test("source", it.source, it.expected) }
+            "Empty" to Test("""
+                {}
+            """.trimIndent()) {
+                DslAst.Source(listOf(""), listOf())
+            },
+            "Text" to Test("""
+                {text}
+            """.trimIndent()) {
+                DslAst.Source(listOf("text"), listOf())
+            },
+            "Surrounding Whitespace" to Test("""
+                {    text    }
+            """.trimIndent()) {
+                DslAst.Source(listOf("    text    "), listOf())
+            },
+            "Dollar Sign" to Test("""
+                {first${"$"}second}
+            """.trimIndent()) {
+                DslAst.Source(listOf("first\$second"), listOf())
+            },
+            "Newline" to Test("""
+                {first
+                second}
+            """.trimIndent(), null),
+            "Braces" to Test("""
+                {text{}second}
+            """.trimIndent(), null),
+        )) { test("source", it.source, it.expected?.invoke()) }
 
         suite("Multiline", listOf(
             "Text" to Test("""
                 {
                     text
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("text"), listOf()
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("text"), listOf())
+            },
             "Multiline Text" to Test("""
                 {
                     first
                     second
                     third
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("first\nsecond\nthird"),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("first\nsecond\nthird"), listOf())
+            },
             "Multiline Indented" to Test("""
                 {
                     first
                         second
                     third
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("first\n    second\nthird"),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("first\n    second\nthird"), listOf())
+            },
             "Multiline Empty" to Test("""
                 {
                     first
                 
                     second
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("first\n\nsecond"),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("first\n\nsecond"), listOf())
+            },
             "Dollar Sign" to Test("""
                 {
                     first${"\$"}second
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("first\$second"),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("first\$second"), listOf())
+            },
             "Braces" to Test("""
                 {
                     {}
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("{}"),
-                listOf(),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("{}"), listOf())
+            },
             "Interpolation" to Test("""
                 {
                     ${"\$"}{value}
                 }
-            """.trimIndent(), DslAst.Source(
-                listOf("", ""),
-                listOf(RhovasAst.Expression.Access.Variable(null, "value")),
-            )),
+            """.trimIndent()) {
+                DslAst.Source(listOf("", ""), listOf(RhovasAst.Expression.Access.Variable(null, "value")))
+            },
             "Empty" to Test("""
                 {
                 }
@@ -94,7 +109,7 @@ class DslParserTests: RhovasSpec() {
                     second
                 }
             """.trimIndent(), null),
-        )) { test("source", it.source, it.expected) }
+        )) { test("source", it.source, it.expected?.invoke()) }
     }
 
     private fun test(rule: String, source: String, expected: DslAst?) {
