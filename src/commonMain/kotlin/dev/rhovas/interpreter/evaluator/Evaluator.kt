@@ -533,7 +533,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Index): Object {
-        val receiver = visit(ir.receiver)
+        val original = visit(ir.receiver)
+        val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
         val arguments = ir.arguments.map { visit(it) }
         val method = receiver[ir.method] ?: throw error(
             ir,

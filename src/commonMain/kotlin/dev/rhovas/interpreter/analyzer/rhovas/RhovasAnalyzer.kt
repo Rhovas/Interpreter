@@ -405,6 +405,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             is RhovasAst.Expression.Access.Index -> {
                 val receiver = visit(ast.receiver.receiver)
+                require(!ast.receiver.coalesce) { error(ast.receiver,
+                    "Invalid coalesce.",
+                    "Coalescing is not allowed within an index assignment.",
+                ) }
                 val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", false, ast.receiver.arguments + listOf(ast.value))
                 RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last())
             }
@@ -868,8 +872,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Access.Index): RhovasIr.Expression.Access.Index = analyzeAst(ast) {
         val receiver = visit(ast.receiver)
-        val (method, arguments) = resolveMethod(ast, ast.receiver, receiver.type, "[]", false, ast.arguments)
-        RhovasIr.Expression.Access.Index(receiver, method, arguments)
+        val receiverType = computeCoalesceReceiver(receiver, ast.coalesce)
+        val (method, arguments) = resolveMethod(ast, ast.receiver, receiverType, "[]", false, ast.arguments)
+        val type = computeCoalesceCascadeReturn(method.returns, receiver.type, ast.coalesce, false)
+        RhovasIr.Expression.Access.Index(receiver, method, ast.coalesce, arguments, type)
     }
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Constructor): RhovasIr.Expression.Invoke.Constructor = analyzeAst(ast) {

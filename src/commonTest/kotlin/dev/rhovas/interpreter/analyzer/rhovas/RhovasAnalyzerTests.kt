@@ -379,7 +379,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Index(
                                 variable("list", listT),
                                 listT.methods["[]", listOf(Type.INTEGER)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("0"))),
+                                Type.Generic("T", Type.ANY),
                             ))),
                         )
                     },
@@ -546,6 +548,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     },
                     "Undefined Method" to Test("""
                         any[0] = 1;
+                    """.trimIndent(), null),
+                    "Coalesce" to Test("""
+                        Nullable(list)?[0] = 1;
                     """.trimIndent(), null),
                     "Invalid Arity" to Test("""
                         list[0, 1, 2] = 1;
@@ -1302,7 +1307,25 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Expression.Access.Index(
                             variable("list", Type.LIST[Type.ANY]),
                             Type.LIST[Type.ANY].methods["[]", listOf(Type.INTEGER)]!!,
+                            false,
                             listOf(literal(BigInteger.parseString("0"))),
+                            Type.ANY,
+                        )
+                    },
+                    "Coalesce" to Test("""
+                        Nullable(list)?[0]
+                    """.trimIndent()) {
+                        RhovasIr.Expression.Access.Index(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                Type.NULLABLE.ANY.base.reference,
+                                Type.NULLABLE.ANY.functions["", listOf(Type.LIST[Type.ANY])]!!,
+                                listOf(variable("list", Type.LIST[Type.ANY])),
+                                Type.NULLABLE[Type.LIST[Type.ANY]]
+                            ),
+                            Type.LIST[Type.ANY].methods["[]", listOf(Type.INTEGER)]!!,
+                            true,
+                            listOf(literal(BigInteger.parseString("0"))),
+                            Type.NULLABLE[Type.ANY],
                         )
                     },
                     "Invalid Arity" to Test("""
@@ -1829,7 +1852,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             stmt(RhovasIr.Expression.Access.Index(
                                 variable("elements", Type.LIST[Type.INTEGER]),
                                 Type.LIST[Type.INTEGER].methods["[]", listOf(Type.INTEGER)]!!,
+                                false,
                                 listOf(literal(BigInteger.parseString("0"))),
+                                Type.INTEGER,
                             )),
                         ),
                     )

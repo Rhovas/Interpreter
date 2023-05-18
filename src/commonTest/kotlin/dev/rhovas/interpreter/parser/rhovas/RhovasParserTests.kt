@@ -309,7 +309,7 @@ class RhovasParserTests: RhovasSpec() {
                 "Index" to Test("""
                     receiver[] = value;
                 """.trimIndent()) {
-                    RhovasAst.Statement.Assignment(RhovasAst.Expression.Access.Index(expr("receiver"), listOf()), expr("value"))
+                    RhovasAst.Statement.Assignment(RhovasAst.Expression.Access.Index(expr("receiver"), false, listOf()), expr("value"))
                 },
                 "Other" to Test("""
                     function() = value;
@@ -1148,17 +1148,17 @@ class RhovasParserTests: RhovasSpec() {
                     "Zero Arguments" to Test("""
                         receiver[]
                     """.trimIndent()) {
-                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf())
+                        RhovasAst.Expression.Access.Index(expr("receiver"), false, listOf())
                     },
                     "Single Argument" to Test("""
                         receiver[argument]
                     """.trimIndent()) {
-                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("argument")))
+                        RhovasAst.Expression.Access.Index(expr("receiver"), false, listOf(expr("argument")))
                     },
                     "Multiple Arguments" to Test("""
                         receiver[first, second, third]
                     """.trimIndent()) {
-                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("first"), expr("second"), expr("third")))
+                        RhovasAst.Expression.Access.Index(expr("receiver"), false, listOf(expr("first"), expr("second"), expr("third")))
                     },
                     "Multiple Indexes" to Test("""
                         receiver[first][second][third]
@@ -1167,17 +1167,25 @@ class RhovasParserTests: RhovasSpec() {
                             RhovasAst.Expression.Access.Index(
                                 RhovasAst.Expression.Access.Index(
                                     expr("receiver"),
+                                    false,
                                     listOf(expr("first")),
                                 ),
+                                false,
                                 listOf(expr("second")),
                             ),
+                            false,
                             listOf(expr("third")),
                         )
                     },
                     "Trailing Comma" to Test("""
                         receiver[argument,]
                     """.trimIndent()) {
-                        RhovasAst.Expression.Access.Index(expr("receiver"), listOf(expr("argument")))
+                        RhovasAst.Expression.Access.Index(expr("receiver"), false, listOf(expr("argument")))
+                    },
+                    "Coalesce" to Test("""
+                        receiver?[]
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Index(expr("receiver"), true, listOf())
                     },
                     "Missing Comma" to Test("""
                         receiver[first second]

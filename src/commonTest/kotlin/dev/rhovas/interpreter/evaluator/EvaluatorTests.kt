@@ -779,6 +779,11 @@ class EvaluatorTests: RhovasSpec() {
                         it.variables.define(variable("object", Type.MAP[Type.ATOM, Type.STRING], mutableMapOf(Object.Hashable(literal(RhovasAst.Atom("key"))) to literal("value"))))
                         Object(Type.NULLABLE[Type.STRING], Pair(literal("value"), null))
                     },
+                    "Coalesce" to Test("""
+                        null?[0]
+                    """.trimIndent()) {
+                       literal(null)
+                    },
                 )) { test("expression", it.source, it.log, it.expected) }
             }
 

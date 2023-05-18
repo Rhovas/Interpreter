@@ -271,8 +271,10 @@ sealed class RhovasIr {
             data class Index(
                 val receiver: Expression,
                 val method: dev.rhovas.interpreter.environment.Method,
+                val coalesce: Boolean,
                 val arguments: List<Expression>,
-            ) : Access(method.returns)
+                override val type: dev.rhovas.interpreter.environment.Type,
+            ) : Access(type)
 
         }
 

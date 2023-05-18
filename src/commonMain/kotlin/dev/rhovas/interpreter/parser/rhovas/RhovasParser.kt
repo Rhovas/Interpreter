@@ -725,7 +725,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         }
                     }
                 }
-                peek("[") -> parseAst {
+                peek("[") || peek("?", "[") -> parseAst {
+                    val coalesce = match("?")
                     val arguments = parseSequence("[", ",", "]") {
                         val expression = parseExpression()
                         require(peek(listOf(",", "]"))) { error(
@@ -734,7 +735,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         ) }
                         expression
                     }!!
-                    RhovasAst.Expression.Access.Index(expression, arguments)
+                    RhovasAst.Expression.Access.Index(expression, coalesce, arguments)
                 }
                 else -> break
             }

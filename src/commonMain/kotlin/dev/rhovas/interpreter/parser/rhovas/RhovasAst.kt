@@ -247,6 +247,7 @@ sealed class RhovasAst {
 
             data class Index(
                 val receiver: Expression,
+                val coalesce: Boolean,
                 val arguments: List<Expression>,
             ) : Access()
 
