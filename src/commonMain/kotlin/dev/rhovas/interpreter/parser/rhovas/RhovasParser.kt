@@ -891,7 +891,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             val expression = parseExpression()
             require(peek(listOf(",", ")"))) { error(
                 "Expected closing parenthesis or comma.",
-                "An macro argument must be followed by a closing parenthesis `}` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
+                "A function argument must be followed by a closing parenthesis `)` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
             ) }
             expression
         }?.toMutableList() ?: mutableListOf()
@@ -933,7 +933,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             val expression = parseExpression()
             require(peek(listOf(",", ")"))) { error(
                 "Expected closing parenthesis or comma.",
-                "An macro argument must be followed by a closing parenthesis `}` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
+                "An macro argument must be followed by a closing parenthesis `)` or comma `,`, as in `function(argument)` or `function(x, y, z)`.",
             ) }
             expression
         } ?: listOf()
