@@ -96,28 +96,183 @@ class RhovasParserTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasAst.Component.Struct("Name", listOf())
                 },
-                "Property" to Test("""
+                "Members" to Test("""
                     struct Name {
                         val name: Type;
+                        init() {}
+                        func name() {}
                     }
                 """.trimIndent()) {
                     RhovasAst.Component.Struct("Name", listOf(
                         RhovasAst.Member.Property(false, "name", type("Type"), null),
+                        RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
+                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())),
                     ))
                 },
-                "Function" to Test("""
-                    struct Name {
-                        func name(): Type {}
-                    }
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(
-                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())),
-                    ))
-                },
-                "Anonymous" to Test("""
+                "Missing Name" to Test("""
                     struct {}
                 """.trimIndent(), null),
+                "Missing Body" to Test("""
+                    struct Name;
+                """.trimIndent(), null),
+                "Missing Closing Brace" to Test("""
+                    struct Name {
+                """.trimIndent(), null),
             )) { test("component", it.source, it.expected) }
+
+            suite("Class", listOf(
+                "Empty" to Test("""
+                    class Name {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Class("Name", listOf())
+                },
+                "Members" to Test("""
+                    class Name {
+                        val name: Type;
+                        init() {}
+                        func name() {}
+                    }
+                """.trimIndent()) {
+                    RhovasAst.Component.Class("Name", listOf(
+                        RhovasAst.Member.Property(false, "name", type("Type"), null),
+                        RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
+                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())),
+                    ))
+                },
+                "Missing Name" to Test("""
+                    class {}
+                """.trimIndent(), null),
+                "Missing Body" to Test("""
+                    class Name;
+                """.trimIndent(), null),
+                "Missing Closing Brace" to Test("""
+                    class Name {
+                """.trimIndent(), null),
+            )) { test("component", it.source, it.expected) }
+        }
+
+        suite("Member") {
+            suite("Property", listOf(
+                "Immutable" to Test("""
+                    val name: Type;
+                """.trimIndent()) {
+                    RhovasAst.Member.Property(false, "name", type("Type"), null)
+                },
+                "Mutable" to Test("""
+                    var name: Type;
+                """.trimIndent()) {
+                    RhovasAst.Member.Property(true, "name", type("Type"), null)
+                },
+                "Value" to Test("""
+                    val name: Type = value;
+                """.trimIndent()) {
+                    RhovasAst.Member.Property(false, "name", type("Type"), expr("value"))
+                },
+                "Missing Name" to Test("""
+                    val;
+                """.trimIndent(), null),
+                "Missing Colon" to Test("""
+                    val name;
+                """.trimIndent(), null),
+                "Missing Type" to Test("""
+                    val name: ;
+                """.trimIndent(), null),
+                "Missing Semicolon" to Test("""
+                    val name: Type
+                """.trimIndent(), null),
+            )) { test("member", it.source, it.expected) }
+
+            suite("Initializer", listOf(
+                "Initializer" to Test("""
+                    init() {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf(), null, listOf(), block())
+                },
+                "Single Parameter" to Test("""
+                    init(parameter) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf("parameter" to null), null, listOf(), block())
+                },
+                "Multiple Parameters" to Test("""
+                    init(first, second, third) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
+                },
+                "Typed Parameter" to Test("""
+                    init(parameter: Type) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf("parameter" to type("Type")), null, listOf(), block())
+                },
+                "Trailing Comma" to Test("""
+                    init(parameter,) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf("parameter" to null), null, listOf(), block())
+                },
+                "Return Type" to Test("""
+                    init(): Type {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf(), type("Type"), listOf(), block())
+                },
+                "Single Throws" to Test("""
+                    init() throws Type {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf(), null, listOf(type("Type")), block())
+                },
+                "Multiple Throws" to Test("""
+                    init() throws First, Second, Third {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Initializer(listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
+                },
+                "Unsupported Name" to Test("""
+                    init name() {}
+                """.trimIndent(), null),
+                "Unsupported Generics" to Test("""
+                    init<T>() {}
+                """.trimIndent(), null),
+                "Missing Parenthesis" to Test("""
+                    init {}
+                """.trimIndent(), null),
+                "Invalid Parameter Name" to Test("""
+                    init(:atom) {}
+                """.trimIndent(), null),
+                "Missing Parameter Comma" to Test("""
+                    init(first second) {}
+                """.trimIndent(), null),
+                "Missing Parameter Closing Parenthesis" to Test("""
+                    init(argument {}
+                """.trimIndent(), null),
+                "Missing Return Type" to Test("""
+                    init(): {}
+                """.trimIndent(), null),
+                "Missing Throws Type Single" to Test("""
+                    init() throws {}
+                """.trimIndent(), null),
+                "Missing Throws Type Multiple" to Test("""
+                    init() throws First, {}
+                """.trimIndent(), null),
+                "Missing Body" to Test("""
+                    init()
+                """.trimIndent(), null),
+            )) { test("member", it.source, it.expected) }
+
+            suite("Method", listOf(
+                "Function" to Test("""
+                    func name() {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block()))
+                },
+                "This Parameter" to Test("""
+                    func name(this) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("this" to null), null, listOf(), block()))
+                },
+            )) { test("member", it.source, it.expected) }
+
+            spec("Invalid") {
+                test("member", """
+                    import Type;
+                """.trimIndent(), null)
+            }
         }
 
         suite("Statement") {
@@ -137,6 +292,9 @@ class RhovasParserTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasAst.Expression.Block(listOf(stmt("first"), stmt("second"), stmt("third")), null)
                 },
+                "Missing Semicolon" to Test("""
+                    { statement }
+                """.trimIndent(), null),
                 "Missing Closing Brace" to Test("""
                     { statement;
                 """.trimIndent(), null),
@@ -148,6 +306,28 @@ class RhovasParserTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasAst.Statement.Component(RhovasAst.Component.Struct("Name", listOf()))
                 },
+            )) { test("statement", it.source, it.expected) }
+
+            suite("Initializer", listOf(
+                "Empty" to Test("""
+                    this {};
+                """.trimIndent()) {
+                    RhovasAst.Statement.Initializer("this", listOf(), RhovasAst.Expression.Literal.Object(listOf()))
+                },
+                "Field" to Test("""
+                    this { field: value };
+                """.trimIndent()) {
+                    RhovasAst.Statement.Initializer("this", listOf(), RhovasAst.Expression.Literal.Object(listOf("field" to expr("value"))))
+                },
+                "Missing Semicolon" to Test("""
+                    this {}
+                """.trimIndent(), null),
+                "Super" to Test("""
+                    super {}
+                """.trimIndent(), null),
+                "Parameter" to Test("""
+                    this(parameter) {}
+                """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) }
 
             suite("Expression", listOf(
@@ -264,6 +444,9 @@ class RhovasParserTests: RhovasSpec() {
                     },
                     "Missing Name" to Test("""
                         func () {}
+                    """.trimIndent(), null),
+                    "Invalid Generic Name" to Test("""
+                        func name<?>() {}
                     """.trimIndent(), null),
                     "Missing Generic Colon" to Test("""
                         func name<T Bound>() {}
@@ -683,7 +866,7 @@ class RhovasParserTests: RhovasSpec() {
                     RhovasAst.Statement.Return(expr("value"))
                 },
                 "Missing Semicolon" to Test("""
-                    return
+                    return value
                 """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) }
 
@@ -778,6 +961,35 @@ class RhovasParserTests: RhovasSpec() {
         }
 
         suite("Expression") {
+            suite("Block", listOf(
+                "Empty" to Test("""
+                    do {}
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(), null)
+                },
+                "Single" to Test("""
+                    do { statement; }
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(stmt("statement")), null)
+                },
+                "Multiple" to Test("""
+                    do { first; second; third; }
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(stmt("first"), stmt("second"), stmt("third")), null)
+                },
+                "Expression" to Test("""
+                    do { expression }
+                """.trimIndent()) {
+                    RhovasAst.Expression.Block(listOf(), expr("expression"))
+                },
+                "Missing Semicolon" to Test("""
+                    do { expression expression }
+                """.trimIndent(), null),
+                "Missing Closing Brace" to Test("""
+                    do { statement;
+                """.trimIndent(), null),
+            )) { test("expression", it.source, it.expected) }
+
             suite("Literal") {
                 suite("Scalar", listOf(
                     "Null" to Test("""
@@ -1354,6 +1566,9 @@ class RhovasParserTests: RhovasSpec() {
                     "Missing Name" to Test("""
                         receiver.|()
                     """.trimIndent(), null),
+                    "Missing Qualifier Separator" to Test("""
+                        receiver.|Qualifier.Type()
+                    """.trimIndent(), null),
                     "Missing Qualified Name" to Test("""
                         receiver.|Qualifier.()
                     """.trimIndent(), null),
@@ -1504,6 +1719,9 @@ class RhovasParserTests: RhovasSpec() {
                         RhovasAst.Expression.Lambda(listOf(), block()),
                     ))
                 },
+                "Invalid Parameter Name" to Test("""
+                    function |name, ?| {}
+                """.trimIndent(), null),
                 "Missing Comma" to Test("""
                     function |first second| {}
                 """.trimIndent(), null),
@@ -1798,7 +2016,7 @@ class RhovasParserTests: RhovasSpec() {
                 }
             }
 
-            spec("Expression") {
+            spec("Lambda Parameters Or") {
                 test("expression", """
                     function || {} 
                 """.trimIndent()) {
