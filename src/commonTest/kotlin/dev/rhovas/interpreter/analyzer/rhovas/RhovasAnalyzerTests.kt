@@ -86,26 +86,23 @@ class RhovasAnalyzerTests: RhovasSpec() {
             suite("Struct", listOf(
                 "Struct" to Test("""
                     struct Name {}
-                    val instance = Name({});
+                    stmt(Name({}));
                 """.trimIndent()) {
                     val type = Type.Base("Name", Scope.Definition(null)).reference
                     type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf())),
-                        RhovasIr.Statement.Declaration.Variable(
-                            Variable.Declaration("instance", type, false),
-                            RhovasIr.Expression.Invoke.Constructor(
-                                type,
-                                Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
-                                listOf(RhovasIr.Expression.Literal.Object(mapOf(), type.base.inherits[0])),
-                                type,
-                            ),
-                        ),
+                        stmt(RhovasIr.Expression.Invoke.Constructor(
+                            type,
+                            Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
+                            listOf(RhovasIr.Expression.Literal.Object(mapOf(), Type.STRUCT[Type.Struct(mapOf())])),
+                            type,
+                        )),
                     ))
                 },
                 "Field" to Test("""
                     struct Name { val field: Integer; }
-                    val field = Name({field: 1}).field;
+                    stmt(Name({field: 1}).field);
                 """.trimIndent()) {
                     val type = Type.Base("Name", Scope.Definition(null)).reference
                     type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
@@ -114,21 +111,15 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(type,
                             listOf(RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null)),
                         )),
-                        RhovasIr.Statement.Declaration.Variable(
-                            Variable.Declaration("field", Type.INTEGER, false),
-                            RhovasIr.Expression.Access.Property(
-                                RhovasIr.Expression.Invoke.Constructor(
-                                    type,
-                                    Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
-                                    listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
-                                    type,
-                                ),
-                                type.properties["field"]!!,
-                                false,
-                                false,
-                                Type.INTEGER,
+                        stmt(RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                type,
+                                Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
+                                listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, true)))])),
+                                type,
                             ),
-                        ),
+                            type.properties["field"]!!, false, false, Type.INTEGER,
+                        )),
                     ))
                 },
                 "Function" to Test("""
@@ -171,11 +162,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             RhovasIr.Expression.Invoke.Constructor(
                                 type,
                                 Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", type.base.inherits[0], false)), type, listOf())),
-                                listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), type.base.inherits[0])),
+                                listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, true)))])),
                                 type,
                             ),
                             type.methods["method", listOf()]!!,
-                            false, false, false, listOf(), Type.INTEGER)),
+                            false, false, false, listOf(), Type.INTEGER,
+                        )),
                     ))
                 },
             )) { test("source", it.source, it.expected) }

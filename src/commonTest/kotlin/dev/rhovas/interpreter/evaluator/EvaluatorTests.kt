@@ -54,11 +54,11 @@ class EvaluatorTests: RhovasSpec() {
                 "Custom Initializer" to Test("""
                     struct Name {
                         var field: Integer;
-                        init(field: Integer) {
-                            this { field };
+                        init(field: Decimal) {
+                            this { field: field.to(Integer) };
                         }
                     }
-                    log(Name(1).field);
+                    log(Name(1.0).field);
                 """.trimIndent(), "1"),
                 "Function" to Test("""
                     struct Name { func function(): Integer { return 1; } }

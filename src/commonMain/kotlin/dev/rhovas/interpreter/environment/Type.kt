@@ -255,7 +255,7 @@ sealed class Type(
         }
 
         override fun toString(): String {
-            return fields.values.joinToString(", ", "{", "}") { "${it.name}: ${it.type}" }
+            return fields.values.joinToString(", ", "{", "}") { "${if (it.mutable) "var" else "val"} ${it.name}: ${it.type}" }
         }
 
     }

@@ -763,7 +763,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 ) }
                 properties[it.first] = visit(it.second, inference?.get(it.first)?.type)
             }
-            val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, inference?.get(it.key)?.mutable ?: inference == null) })]
+            val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, true) })]
             Pair(properties, type)
         }
         RhovasIr.Expression.Literal.Object(properties, type)
@@ -1009,7 +1009,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 )
                 else -> error(ast,
                     "Unresolved method.",
-                    "The ${term} ${descriptor} could not be resolved to one of the available overloads below with arguments (${arguments.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }}" }}",
+                    "The ${term} ${descriptor} could not be resolved to one of the available overloads below with arguments (${arguments.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }})" }}",
                 )
             } }
         }
@@ -1336,6 +1336,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
             type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
+            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, type, listOf())))
             RhovasIr.DefinitionPhase.Component.Struct(ast, members)
         }
 

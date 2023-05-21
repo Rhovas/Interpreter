@@ -38,13 +38,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         ir.members.forEach { visit(it) }
         val current = scope
-        val initializer = ir.type.base.scope.functions["", 1].first { it.parameters.first().type.isSubtypeOf(Type.STRUCT.ANY) }
-        initializer.implementation = { arguments ->
+        val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
+        ir.type.base.scope.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[Type.Struct(fields.filter { it.value.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, false) })]) }.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val fields = arguments[0].value as Map<String, Object>
-                Object(ir.type, ir.members.filterIsInstance<RhovasIr.Member.Property>().associate {
-                    Pair(it.getter.name, fields[it.getter.name] ?: it.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null))
-                })
+                val initial = arguments[0].value as Map<String, Object>
+                Object(ir.type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null) })
+            }
+        }
+        ir.type.base.scope.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } }.implementation = { arguments ->
+            scoped(Scope.Definition(current)) {
+                Object(ir.type, fields.keys.withIndex().associate { it.value to arguments[it.index] })
             }
         }
         return Object(Type.VOID, Unit)
