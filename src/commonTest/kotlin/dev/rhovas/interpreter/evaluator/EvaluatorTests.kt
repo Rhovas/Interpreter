@@ -479,6 +479,20 @@ class EvaluatorTests: RhovasSpec() {
                 "False" to Test("""
                     ensure false;
                 """.trimIndent(), null),
+                "Post-Return True" to Test("""
+                    func test(): Boolean {
+                        return true;
+                        ensure val;
+                    }
+                    log(test());
+                """.trimIndent(), "true"),
+                "Post-Return False" to Test("""
+                    func test(): Boolean {
+                        return false;
+                        ensure val;
+                    }
+                    log(test());
+                """.trimIndent(), null),
             )) { test("source", it.source, it.log, it.expected) }
         }
 

@@ -168,6 +168,7 @@ sealed class RhovasIr {
 
         data class Return(
             val value: RhovasIr.Expression?,
+            val ensures: List<Ensure>,
         ) : Statement()
 
         data class Throw(

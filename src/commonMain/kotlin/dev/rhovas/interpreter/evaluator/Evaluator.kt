@@ -366,7 +366,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Statement.Return): Object {
-        throw Return(ir, ir.value?.let { visit(it) })
+        val value = ir.value?.let { visit(it) }
+        scoped(Scope.Definition(scope)) {
+            value?.let { scope.variables.define(Variable.Definition(Variable.Declaration("val", it.type, false), it)) }
+            ir.ensures.forEach { visit(it) }
+        }
+        throw Return(ir, value)
     }
 
     override fun visit(ir: RhovasIr.Statement.Throw): Object {
@@ -404,8 +409,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Block): Object {
-        ir.statements.forEach { visit(it) }
-        val expression = ir.expression?.let { visit(it) }
+        val expression = scoped(Scope.Definition(scope)) {
+            ir.statements.forEach { visit(it) }
+            ir.expression?.let { visit(it) }
+        }
         return expression ?: Object(Type.VOID, Unit)
     }
 

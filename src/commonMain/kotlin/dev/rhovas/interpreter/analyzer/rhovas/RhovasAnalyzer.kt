@@ -610,7 +610,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${value?.type ?: Type.VOID}.",
         ) }
         context.jumps.add("")
-        RhovasIr.Statement.Return(value)
+        RhovasIr.Statement.Return(value, listOf())
     }
 
     override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw = analyzeAst(ast) {
@@ -673,24 +673,34 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return analyze(context.with(InferenceContext(type))) { super.visit(ast) as RhovasIr.Expression }
     }
 
-    override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block = analyzeAst(ast) {
-        val statements = ast.statements.withIndex().map {
-            require(context.jumps.isEmpty()) { error(it.value,
-                "Unreachable statement.",
-                "The previous statement changes control flow to always jump past this statement.",
-            ) }
-            visit(it.value)
+    override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block = analyzeAst(ast) { analyze {
+        val statements = mutableListOf<RhovasIr.Statement>()
+        ast.statements.forEach {
+            val previous = statements.lastOrNull()
+            if (previous is RhovasIr.Statement.Return && it is RhovasAst.Statement.Ensure) {
+                val ensure = analyze {
+                    previous.value?.let { (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", it.type, false)) }
+                    visit(it)
+                }
+                statements[statements.lastIndex] = RhovasIr.Statement.Return(previous.value, listOf(ensure)).also { it.context = previous.context }
+            } else {
+                require(context.jumps.isEmpty()) { error(it,
+                    "Unreachable statement.",
+                    "A previous statement changes control flow to always jump past this statement.",
+                ) }
+                statements.add(visit(it))
+            }
         }
         val expression = ast.expression?.let {
             require(context.jumps.isEmpty()) { error(it,
                 "Unreachable statement.",
-                "The previous statement changes control flow to always jump past this statement.",
+                "A previous statement changes control flow to always jump past this statement.",
             ) }
             visit(it, context.inference)
         }
         val type = expression?.type ?: Type.VOID
         RhovasIr.Expression.Block(statements, expression, type)
-    }
+    } }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr.Expression.Literal.Scalar = analyzeAst(ast) {
         val type = when (ast.value) {

@@ -133,7 +133,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
                             RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(
                                 type.functions["function", listOf()]!!,
-                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
                             )),
                         ))),
                         RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(type, type.functions["function", listOf()]!!, false, listOf(), Type.INTEGER)),
@@ -155,7 +155,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null),
                             RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(
                                 type.methods["method", listOf()]!!.function,
-                                block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, false, Type.INTEGER))),
+                                block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(variable("this", type), type.properties["field"]!!, false, false, Type.INTEGER), listOf())),
                             )),
                         ))),
                         RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Method(
@@ -287,7 +287,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name", listOf(), listOf(), Type.INTEGER, listOf()),
-                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                            block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
                         )
                     },
                     "If Return" to Test("""
@@ -303,8 +303,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Function.Declaration("name", listOf(), listOf(), Type.INTEGER, listOf()),
                             block(RhovasIr.Statement.If(
                                 literal(true),
-                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
-                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("2")))),
+                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
+                                block(RhovasIr.Statement.Return(literal(BigInteger.parseString("2")), listOf())),
                             )),
                         )
                     },
@@ -319,8 +319,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name", listOf(), listOf(), Type.INTEGER, listOf()),
                             block(RhovasIr.Statement.Match.Conditional(
-                                listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
-                                null to RhovasIr.Statement.Return(literal(BigInteger.parseString("2"))),
+                                listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
+                                null to RhovasIr.Statement.Return(literal(BigInteger.parseString("2")), listOf()),
                             )),
                         )
                     },
@@ -335,7 +335,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Function.Declaration("name", listOf(), listOf(), Type.INTEGER, listOf()),
                             block(RhovasIr.Statement.Match.Structural(
                                 literal(true),
-                                listOf(RhovasIr.Pattern.Value(literal(true)) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                                listOf(RhovasIr.Pattern.Value(literal(true)) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
                                 null,
                             )),
                         )
@@ -374,7 +374,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                                 false,
                                 listOf(literal(BigInteger.parseString("0"))),
                                 Type.Generic("T", Type.ANY),
-                            ))),
+                            ), listOf())),
                         )
                     },
                     "Missing Return Value" to Test("""
@@ -822,7 +822,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasIr.Statement.Declaration.Function(
                         Function.Declaration("test", listOf(), listOf(), Type.VOID, listOf()),
-                        block(RhovasIr.Statement.Return(null)),
+                        block(RhovasIr.Statement.Return(null, listOf())),
                     )
                 },
                 "Return Value" to Test("""
@@ -832,7 +832,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasIr.Statement.Declaration.Function(
                         Function.Declaration("test", listOf(), listOf(), Type.INTEGER, listOf()),
-                        block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")))),
+                        block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
                     )
                 },
                 "Invalid Return" to Test("""
@@ -893,6 +893,20 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     ensure true: "message";
                 """.trimIndent()) {
                     RhovasIr.Statement.Ensure(literal(true), literal("message"))
+                },
+                "Post-Return" to Test("""
+                    func test(): Boolean {
+                        return true;
+                        ensure val;
+                    }
+                """.trimIndent()) {
+                    RhovasIr.Statement.Ensure(literal(true), literal("message"))
+                    RhovasIr.Statement.Declaration.Function(
+                        Function.Declaration("test", listOf(), listOf(), Type.BOOLEAN, listOf()),
+                        block(RhovasIr.Statement.Return(literal(true), listOf(
+                            RhovasIr.Statement.Ensure(variable("val", Type.BOOLEAN), null),
+                        ))),
+                    )
                 },
                 "Invalid Condition" to Test("""
                     ensure 1;
