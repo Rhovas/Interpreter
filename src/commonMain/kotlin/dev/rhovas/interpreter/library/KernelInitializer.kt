@@ -46,7 +46,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         }
 
         function("lambda",
-            generics = listOf(generic("T", Type.TUPLE.ANY), generic("R")),
+            generics = listOf(generic("T", Type.TUPLE[Type.DYNAMIC]), generic("R")),
             parameters = listOf("lambda" to Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC]),
             returns = Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC],
         ) { (lambda) ->

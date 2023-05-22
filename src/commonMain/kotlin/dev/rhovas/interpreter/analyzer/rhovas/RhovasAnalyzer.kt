@@ -488,7 +488,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
-        val type = (argument.type as Type.Reference).generics[0]
+        val type = argument.type.generic("T", Type.ITERABLE.ANY.base.reference)!!
         val variable = Variable.Declaration(ast.name, type, false)
         analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
@@ -723,12 +723,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
         //check base type to avoid subtype issues with Dynamic
         val (elements, type) = if (context.inference?.base == Type.TUPLE.ANY.base) {
-            val generics = ((context.inference as Type.Reference).generics[0] as? Type.Tuple)?.elements
+            val generics = (context.inference!!.generic("T", Type.TUPLE.ANY.base.reference)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
             val type = Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, false) })
             Pair(elements, Type.TUPLE[type])
         } else {
-            val inference = if (context.inference?.base == Type.LIST.ANY.base) (context.inference as Type.Reference).generics[0] else null
+            val inference = context.inference?.generic("T", Type.LIST.ANY.base.reference)
             val elements = ast.elements.map { visit(it, inference) }
             //rough implementation of unification
             val type = elements.fold(inference ?: elements.firstOrNull()?.type ?: Type.DYNAMIC) { acc, expr ->
@@ -745,17 +745,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
         val (properties, type) = if (context.inference?.base == Type.MAP.ANY.base) {
-            val generics = (context.inference as Type.Reference).generics
+            val inferredKey = context.inference?.generic("K", Type.MAP.ANY.base.reference)!!
+            val inferredValue = context.inference?.generic("V", Type.MAP.ANY.base.reference)!!
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
                     "Redefined object property.",
                     "The property ${it.first} has already been defined for this object.",
                 ) }
-                properties[it.first] = visit(it.second, generics[1])
+                properties[it.first] = visit(it.second, inferredValue)
             }
-            val keyType = generics[0].bind(mapOf("K" to Type.ANY)).takeIf { properties.isEmpty() || generics[0].isSupertypeOf(Type.ATOM) } ?: Type.ATOM
-            val valueType = properties.values.fold(generics[1].bind(mapOf("V" to Type.ANY))) { acc, expr ->
+            val keyType = inferredKey.takeIf { properties.isEmpty() || it.isSupertypeOf(Type.ATOM) } ?: Type.ATOM
+            val valueType = properties.values.fold(inferredValue) { acc, expr ->
                 when {
                     acc.isSubtypeOf(expr.type) -> expr.type
                     acc.isSupertypeOf(expr.type) -> acc
@@ -764,7 +765,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             Pair(properties, Type.MAP[keyType, valueType])
         } else {
-            val inference = ((context.inference as? Type.Reference)?.generics?.firstOrNull() as? Type.Struct)?.fields
+            val inference = (context.inference?.generic("T", Type.STRUCT.ANY.base.reference) as? Type.Struct)?.fields
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -1087,15 +1088,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
         val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
-            val generics = (context.inference as Type.Reference).generics
-            val arguments = ((generics[0] as? Type.Reference)?.generics?.firstOrNull() as? Type.Tuple?)?.let {
+            val parameters = (context.inference?.generic("T", Type.LAMBDA.ANY.base.reference)?.generic("T", Type.TUPLE.ANY.base.reference) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
                     is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
                     else -> it.type
                 }) })
             }
-            Triple(arguments, generics[1], generics[2])
+            val returns = context.inference?.generic("R", Type.LAMBDA.ANY.base.reference)
+            val throws = context.inference?.generic("E", Type.LAMBDA.ANY.base.reference)
+            Triple(parameters, returns, throws)
         } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
             val type = it.value.second?.let { visit(it).type }
@@ -1204,10 +1206,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }
-        val type = when {
-            context.inference!!.isSubtypeOf(Type.STRUCT.ANY) -> ((context.inference as? Type.Reference?)?.generics?.firstOrNull() as? Type.Struct)?.fields
-            else -> null
-        }
+        val type = (context.inference!!.generic("T", Type.STRUCT.ANY.base.reference) as? Type.Struct)?.fields
         var vararg = false
         val patterns = ast.patterns.map { (key, pattern) ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) {

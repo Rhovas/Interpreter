@@ -15,7 +15,7 @@ object IterableInitializer : Library.TypeInitializer("Iterable") {
         method("iterator",
             returns = Type.ITERATOR[generic("T")]
         ) { (instance) ->
-            val elementType = (instance.type as Type.Reference).generics[0] as Type.Reference
+            val elementType = instance.type.generic("T", Type.ITERABLE.ANY.base.reference)!!
             val instance = instance.value as Iterable<Object>
             instance.asIterable()
             Object(Type.ITERATOR[elementType], instance.iterator())

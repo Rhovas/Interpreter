@@ -6,11 +6,11 @@ import dev.rhovas.interpreter.environment.Type
 object EquatableInitializer : Library.TypeInitializer("Equatable") {
 
     override fun initialize() {
-        generics.add(generic("T", Type.EQUATABLE.ANY))
+        generics.add(generic("T", Type.EQUATABLE[Type.DYNAMIC]))
         inherits.add(Type.ANY)
 
         function("equals", operator = "==",
-            generics = listOf(generic("T", Type.EQUATABLE.ANY)),
+            generics = listOf(generic("T", Type.EQUATABLE[Type.DYNAMIC])),
             parameters = listOf("instance" to generic("T"), "other" to generic("T")),
             returns = Type.BOOLEAN,
         ) { (instance, other) ->

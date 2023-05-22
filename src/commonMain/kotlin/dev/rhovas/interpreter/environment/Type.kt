@@ -54,6 +54,13 @@ sealed class Type(
         return other.isSubtypeOf(this, bindings)
     }
 
+    fun generic(name: String, projection: Type): Type? {
+        return when (this) {
+            DYNAMIC -> DYNAMIC
+            else -> mutableMapOf<String, Type>().also { isSubtypeOf(projection, it) }[name]
+        }
+    }
+
     inner class FunctionsDelegate {
 
         operator fun get(name: String, arity: Int): List<Function> {
@@ -182,7 +189,7 @@ sealed class Type(
 
     data class Tuple(
         val elements: List<Variable.Declaration>,
-    ) : Type(TUPLE.ANY.base) {
+    ) : Type(TUPLE[DYNAMIC].base) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return TUPLE[this].getFunction(name, arity)
@@ -213,7 +220,7 @@ sealed class Type(
 
     data class Struct(
         val fields: Map<String, Variable.Declaration>,
-    ) : Type(STRUCT.ANY.base) {
+    ) : Type(STRUCT[DYNAMIC].base) {
 
         val scope = Scope.Declaration(null)
 

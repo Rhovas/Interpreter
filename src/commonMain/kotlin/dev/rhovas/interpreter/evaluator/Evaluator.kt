@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.evaluator
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function

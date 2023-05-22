@@ -6,8 +6,8 @@ import dev.rhovas.interpreter.environment.Type
 object StructInitializer : Library.TypeInitializer("Struct") {
 
     override fun initialize() {
-        generics.add(generic("T", Type.STRUCT.ANY))
-        inherits.add(Type.EQUATABLE[Type.STRUCT.ANY])
+        generics.add(generic("T", Type.STRUCT[Type.DYNAMIC]))
+        inherits.add(Type.EQUATABLE[Type.STRUCT[Type.DYNAMIC]])
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),

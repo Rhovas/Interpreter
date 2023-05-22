@@ -12,7 +12,7 @@ object SetInitializer : Library.TypeInitializer("Set") {
     override fun initialize() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
-        inherits.add(Type.EQUATABLE[Type.SET.ANY])
+        inherits.add(Type.EQUATABLE[Type.SET[Type.DYNAMIC]])
 
         function("",
             generics = listOf(generic("T")),

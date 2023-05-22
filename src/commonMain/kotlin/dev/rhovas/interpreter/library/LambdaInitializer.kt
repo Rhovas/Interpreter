@@ -8,7 +8,7 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
 
     override fun initialize() {
-        generics.add(generic("T", Type.TUPLE.ANY))
+        generics.add(generic("T", Type.TUPLE[Type.DYNAMIC]))
         generics.add(generic("R"))
         generics.add(generic("E", Type.EXCEPTION))
         inherits.add(Type.ANY)
@@ -18,8 +18,8 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
             throws = listOf(generic("E")),
             returns = generic("R")
         ) { (instance, arguments) ->
-            val argumentsType = ((instance.type as Type.Reference).generics[0] as? Type.Reference)?.generics?.first() as? Type.Tuple
-            val returnsType = (instance.type as Type.Reference).generics[1]
+            val argumentsType = instance.type.generic("T", Type.LAMBDA.ANY.base.reference) as? Type.Tuple
+            val returnsType = instance.type.generic("R", Type.LAMBDA.ANY.base.reference) ?: Type.DYNAMIC
             val instance = instance.value as Evaluator.Lambda
             val arguments = arguments.value as List<Object>
             EVALUATOR.require(arguments.size == instance.ast.parameters.size) { EVALUATOR.error(

@@ -12,7 +12,7 @@ object ListInitializer : Library.TypeInitializer("List") {
     override fun initialize() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
-        inherits.add(Type.EQUATABLE[Type.LIST.ANY])
+        inherits.add(Type.EQUATABLE[Type.LIST[Type.DYNAMIC]])
 
         method("size",
             returns = Type.INTEGER,
