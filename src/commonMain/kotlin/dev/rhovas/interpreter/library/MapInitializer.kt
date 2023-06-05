@@ -13,9 +13,9 @@ object MapInitializer : Library.TypeInitializer("Map") {
         inherits.add(Type.EQUATABLE[Type.MAP[Type.DYNAMIC, Type.DYNAMIC]])
 
         function("",
-            generics = listOf(generic("K"), generic("V")),
-            parameters = listOf("initial" to Type.MAP[generic("K"), generic("V")]),
-            returns = Type.MAP[generic("K"), generic("V")],
+            generics = listOf(generic("K", Type.HASHABLE[generic("K")]), generic("V")),
+            parameters = listOf("initial" to Type.MAP[generic("K", Type.HASHABLE[generic("K")]), generic("V")]),
+            returns = Type.MAP[generic("K", Type.HASHABLE[generic("K")]), generic("V")],
         ) { (initial) ->
             Object(initial.type, (initial.value as Map<Object.Hashable, Object>).toMutableMap())
         }
@@ -35,7 +35,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("keys",
-            returns = Type.SET[generic("K")],
+            returns = Type.SET[generic("K", Type.HASHABLE[generic("K")])],
         ) { (instance) ->
             val keyType = instance.type.generic("K", Type.SET.ANY.base.reference)!!
             val instance = instance.value as Map<Object.Hashable, Object>
@@ -51,7 +51,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("entries",
-            returns = Type.LIST[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("key", generic("K"), false), Variable.Declaration("value", generic("V"), false)))]],
+            returns = Type.LIST[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("key", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("value", generic("V"), false)))]],
         ) { (instance) ->
             val keyType = instance.type.generic("K", Type.MAP.ANY.base.reference)!!
             val valueType = instance.type.generic("V", Type.MAP.ANY.base.reference)!!
@@ -62,7 +62,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("get", operator = "[]",
-            parameters = listOf("key" to generic("K")),
+            parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")])),
             returns = Type.NULLABLE[generic("V")],
         ) { (instance, key) ->
             val valueType = instance.type.generic("V", Type.MAP.ANY.base.reference)!!
@@ -71,7 +71,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("set", operator = "[]=",
-            parameters = listOf("key" to generic("K"), "value" to generic("V")),
+            parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")]), "value" to generic("V")),
             returns = Type.VOID,
         ) { (instance, key, value) ->
             val instance = instance.value as MutableMap<Object.Hashable, Object>
@@ -80,7 +80,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("remove",
-            parameters = listOf("key" to generic("K")),
+            parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")])),
             returns = Type.VOID,
         ) { (instance, key, value) ->
             val instance = instance.value as MutableMap<Object.Hashable, Object>
@@ -89,7 +89,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("contains",
-            parameters = listOf("key" to generic("K")),
+            parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")])),
             returns = Type.BOOLEAN,
         ) { (instance, key) ->
             val instance = instance.value as MutableMap<Object.Hashable, Object>

@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.parser.rhovas
 
 import dev.rhovas.interpreter.parser.Input
+import dev.rhovas.interpreter.parser.dsl.DslAst
 import kotlin.js.JsName
 
 sealed class RhovasAst {
@@ -286,7 +287,7 @@ sealed class RhovasAst {
             data class Macro(
                 val name: String,
                 val arguments: List<Expression>,
-                val dsl: Any?,
+                val dsl: DslAst.Source?,
             ) : Invoke()
 
         }

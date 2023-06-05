@@ -289,6 +289,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Reinitialized instance.",
             "An instance initializer can only be called once.",
         ) } }
+        initialization.initialized = true
         val initializer = visit(ast.initializer, Type.STRUCT.ANY) as RhovasIr.Expression.Literal.Object
         //TODO(#14): Validate available fields
         RhovasIr.Statement.Initializer(initializer)
@@ -353,10 +354,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Statement.Assignment): RhovasIr.Statement.Assignment = analyzeAst(ast) {
-        require(ast.receiver is RhovasAst.Expression.Access) { error(ast.receiver,
-            "Invalid assignment receiver.",
-            "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver::class.simpleName}.",
-        ) }
         when (ast.receiver) {
             is RhovasAst.Expression.Access.Variable -> {
                 val initialization = context.initialization[ast.receiver.name]
@@ -412,7 +409,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val (method, arguments) = resolveMethod(ast.receiver, ast.receiver.receiver, receiver.type, "[]=", false, ast.receiver.arguments + listOf(ast.value))
                 RhovasIr.Statement.Assignment.Index(receiver, method, arguments.dropLast(1), arguments.last())
             }
-            else -> throw AssertionError()
+            else -> throw error(ast.receiver,
+                "Invalid assignment receiver.",
+                "An assignment statement requires the receiver to be an access expression, but received ${ast.receiver::class.simpleName}.",
+            )
         }
     }
 
@@ -745,8 +745,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
         val (properties, type) = if (context.inference?.base == Type.MAP.ANY.base) {
-            val inferredKey = context.inference?.generic("K", Type.MAP.ANY.base.reference)!!
-            val inferredValue = context.inference?.generic("V", Type.MAP.ANY.base.reference)!!
+            val inferredKey = context.inference!!.generic("K", Type.MAP.ANY.base.reference) ?: Type.ANY
+            val inferredValue = context.inference!!.generic("V", Type.MAP.ANY.base.reference) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -755,7 +755,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 ) }
                 properties[it.first] = visit(it.second, inferredValue)
             }
-            val keyType = inferredKey.takeIf { properties.isEmpty() || it.isSupertypeOf(Type.ATOM) } ?: Type.ATOM
+            val keyType = inferredKey.takeIf { properties.isEmpty() || !it.isSupertypeOf(Type.ATOM) } ?: Type.ATOM
             val valueType = properties.values.fold(inferredValue) { acc, expr ->
                 when {
                     acc.isSubtypeOf(expr.type) -> expr.type
@@ -1019,13 +1019,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     "The ${term} ${descriptor} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i]}.",
                 )
                 else -> error(ast,
-                    "Unresolved method.",
+                    "Unresolved ${term}.",
                     "The ${term} ${descriptor} could not be resolved to one of the available overloads below with arguments (${arguments.joinToString()}):\n${candidates.map { c -> "\n - ${c.first.name}(${c.first.parameters.joinToString { "${it.type}" }})" }}",
                 )
             } }
         }
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
-        function.throws.forEach { exception ->
+        println(name)
+        println(function)
+        val exceptions = when {
+            name.endsWith('!') && function.returns.isSubtypeOf(Type.RESULT.ANY) -> listOf(function.returns.generic("E", Type.RESULT.ANY.base.reference)!!)
+            else -> function.throws
+        }
+        println(exceptions)
+        exceptions.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
@@ -1054,49 +1061,41 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression = analyzeAst(ast) {
-        if (ast.dsl == null) {
-            //val arguments = ast.arguments.map { visit(it) }
-            throw error(ast,
-                "Unsupported Macro",
-                "Macros without DSLs are not currently supported.",
-            )
-        } else {
-            require(ast.arguments.isEmpty()) { error(ast,
-                "Invalid DSL arguments.",
-                "DSLs with arguments are not currently supported.",
-            ) }
-            val source = ast.dsl as? DslAst.Source ?: throw error(ast,
-                "Invalid DSL AST.",
-                "The AST of type " + ast.dsl + " is not currently supported.",
-            )
-            val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST[Type.DYNAMIC])] ?: throw error(ast,
-                "Undefined DSL transformer.",
-                "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Dynamic>).",
-            )
-            val literals = RhovasIr.Expression.Literal.List(
-                source.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Type.STRING) },
-                Type.LIST[Type.STRING],
-            )
-            val arguments = RhovasIr.Expression.Literal.List(
-                source.arguments.map { visit(it as RhovasAst.Expression) },
-                Type.LIST[Type.DYNAMIC],
-            )
-            RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns)
-        }
+        require(ast.dsl != null) { error(ast,
+            "Unsupported Macro",
+            "Macros without DSLs are not currently supported.",
+        ) }
+        require(ast.arguments.isEmpty()) { error(ast,
+            "Invalid DSL arguments.",
+            "DSLs with arguments are not currently supported.",
+        ) }
+        val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST[Type.DYNAMIC])] ?: throw error(ast,
+            "Undefined DSL transformer.",
+            "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Dynamic>).",
+        )
+        val literals = RhovasIr.Expression.Literal.List(
+            ast.dsl!!.literals.map { RhovasIr.Expression.Literal.String(listOf(it), listOf(), Type.STRING) },
+            Type.LIST[Type.STRING],
+        )
+        val arguments = RhovasIr.Expression.Literal.List(
+            ast.dsl.arguments.map { visit(it as RhovasAst.Expression) },
+            Type.LIST[Type.DYNAMIC],
+        )
+        RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns)
     }
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
         val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
-            val parameters = (context.inference?.generic("T", Type.LAMBDA.ANY.base.reference)?.generic("T", Type.TUPLE.ANY.base.reference) as? Type.Tuple)?.let {
+            val parameters = (context.inference!!.generic("T", Type.LAMBDA.ANY.base.reference)?.generic("T", Type.TUPLE.ANY.base.reference) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
                     is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
                     else -> it.type
                 }) })
             }
-            val returns = context.inference?.generic("R", Type.LAMBDA.ANY.base.reference)
-            val throws = context.inference?.generic("E", Type.LAMBDA.ANY.base.reference)
+            val returns = context.inference!!.generic("R", Type.LAMBDA.ANY.base.reference)
+            val throws = context.inference!!.generic("E", Type.LAMBDA.ANY.base.reference)
             Triple(parameters, returns, throws)
         } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
@@ -1125,7 +1124,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Invalid return value type.",
                 "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${body.type}.",
             ) }
-            val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it)] } ?: Type.DYNAMIC, returns, Type.DYNAMIC]
+            val type = Type.LAMBDA[Type.TUPLE[parameters.takeIf { it.isNotEmpty() }?.let { Type.Tuple(it) } ?: Type.DYNAMIC], returns, Type.DYNAMIC]
             RhovasIr.Expression.Lambda(parameters, body, type)
         }
     }
@@ -1174,7 +1173,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ) }
         val type = when {
             context.inference!!.isSubtypeOf(Type.LIST.ANY) -> context.inference!!.methods["get", listOf(Type.INTEGER)]!!.returns
-            else -> null
+            else -> Type.DYNAMIC
         }
         var vararg = false
         val patterns = ast.patterns.map { pattern ->
@@ -1204,7 +1203,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure = analyzeAst(ast) {
         require(context.inference!!.isSupertypeOf(Type.STRUCT.ANY)) { error(ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.inference}, but received List.",
+            "This pattern is within a context that requires type ${context.inference}, but received Struct.",
         ) }
         val type = (context.inference!!.generic("T", Type.STRUCT.ANY.base.reference) as? Type.Struct)?.fields
         var vararg = false
@@ -1226,7 +1225,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                                 acc.isSupertypeOf(type) -> acc
                                 else -> Type.ANY
                             }
-                        }
+                        } ?: Type.DYNAMIC
                         analyze(context.with(InferenceContext(type))) {
                             visit(it)
                         }
@@ -1242,7 +1241,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                         "Missing pattern key",
                         "This pattern requires a key to be used within a named destructure.",
                     )
-                val pattern = analyze(context.with(InferenceContext(type?.get(key)?.type))) {
+                val pattern = analyze(context.with(InferenceContext(type?.get(key)?.type ?: Type.DYNAMIC))) {
                     visit(pattern)
                 }
                 context.bindings[key] = Variable.Declaration(key, type?.get(key)?.type ?: Type.DYNAMIC, false)
@@ -1308,13 +1307,6 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      */
     private inner class DeclarePhase {
 
-        fun visit(ast: RhovasAst.Component) {
-            when (ast) {
-                is RhovasAst.Component.Struct -> visit(ast)
-                is RhovasAst.Component.Class -> visit(ast)
-            }
-        }
-
         fun visit(ast: RhovasAst.Component.Struct) = analyze(ast.context) {
             require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
                 "Redefined type.",
@@ -1379,8 +1371,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
         fun visit(ast: RhovasAst.Member.Initializer, component: Type): RhovasIr.DefinitionPhase.Member.Initializer = analyze(ast.context) {
             val parameters = ast.parameters.mapIndexed { index, parameter ->
-                val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: throw error(ast,
-                    "Undefined parameter type.",
+                val type = parameter.second?.let { visit(it).type } ?: throw error(ast,
+                    "Missing parameter type.",
                     "The initializer init/${ast.parameters.size} requires parameter ${index} to have an defined type.",
                 )
                 Variable.Declaration(parameter.first, type, false)
@@ -1407,8 +1399,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY) }
                 generics.forEach { context.scope.types.define(it, it.name) }
                 val parameters = ast.parameters.mapIndexed { index, parameter ->
-                    val type = parameter.second?.let { visit(it).type } ?: component.takeIf { index == 0 } ?: throw error(ast,
-                        "Undefined parameter type.",
+                    val type = parameter.second?.let { visit(it).type } ?: component?.takeIf { index == 0 } ?: throw error(ast,
+                        "Missing parameter type.",
                         "The function ${ast.name}/${ast.parameters.size} requires parameter ${index} to have an explicit type.",
                     )
                     Variable.Declaration(parameter.first, type, false)

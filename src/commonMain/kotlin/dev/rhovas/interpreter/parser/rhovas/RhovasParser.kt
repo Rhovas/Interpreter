@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.parser.rhovas
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
+import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.dsl.DslParser
 
 class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
@@ -938,7 +939,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             parser.lexer.state = lexer.state.let {
                 Pair(it.first.copy(index = it.first.index - 1, column = it.first.column - 1, length = 0), it.second)
             }
-            val ast = parser.parse("source")
+            val ast = parser.parse("source") as DslAst.Source
             lexer.state = parser.lexer.state.let {
                 Pair(it.first.copy(index = it.first.index - 1, column = it.first.column - 1, length = 0), it.second)
             }

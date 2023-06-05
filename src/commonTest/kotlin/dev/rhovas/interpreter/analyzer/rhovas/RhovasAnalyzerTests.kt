@@ -19,7 +19,7 @@ import kotlin.test.fail
 
 class RhovasAnalyzerTests: RhovasSpec() {
 
-    data class Test<T : RhovasIr>(val source: String, val expected: ((Scope.Declaration) -> T)?)
+    data class Test<T : RhovasIr>(val source: String, val expected: ((Scope.Declaration) -> T?)?)
 
     private val MODULE = Type.Base("Module", Scope.Definition(null)).reference.also(Library.SCOPE.types::define)
     private val SUBMODULE = Type.Base("Module.Type", Scope.Definition(null)).reference.also(Library.SCOPE.types::define).also { MODULE.base.scope.types.define(it, "Type") }
@@ -170,30 +170,207 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         )),
                     ))
                 },
+                "Redefined" to Test("""
+                    struct Name {}
+                    struct Name {}
+                """.trimIndent(), null),
+            )) { test("source", it.source, it.expected) }
+
+            suite("Class", listOf(
+                "Class" to Test("""
+                    class Name {}
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.ANY)
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(type, listOf())),
+                    ))
+                },
+                "Members" to Test("""
+                    class Name {
+                        val field: Integer;
+                        init() {}
+                        func function() {}
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.ANY)
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(), type, listOf())))
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(), Type.VOID, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(type, listOf(
+                            RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                            RhovasIr.Member.Initializer(type.functions["", listOf()]!! as Function.Definition, block()),
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(type.functions["function", listOf()]!!, block())),
+                        ))),
+                    ))
+                },
+                "Redefined" to Test("""
+                    class Name {}
+                    class Name {}
+                """.trimIndent(), null),
+            )) { test("source", it.source, it.expected) }
+        }
+
+        suite("Member") {
+            suite("Property", listOf(
+                "Immutable" to Test("""
+                    struct Name {
+                        val field: Integer;
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                        ))),
+                    ))
+                },
+                "Mutable" to Test("""
+                    struct Name {
+                        var field: Integer;
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, true)))])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false), Variable.Declaration("value", Type.INTEGER, false)), Type.VOID, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, type.properties["field"]!!.setter!!.function as Function.Definition, null),
+                        ))),
+                    ))
+                },
+                "Value" to Test("""
+                    struct Name {
+                        val field: Integer = 1;
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("field", listOf(), listOf(Variable.Declaration("this", type, false)), Type.INTEGER, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Property(type.properties["field"]!!.getter.function as Function.Definition, null, literal(BigInteger.parseString("1"))),
+                        ))),
+                    ))
+                },
+                "Redefined" to Test("""
+                    struct Name {
+                        val field: Integer;
+                        val field: Integer;
+                    }
+                """.trimIndent(), null),
+                "Invalid Value" to Test("""
+                    struct Name {
+                        val field: Integer = 1.0;
+                    }
+                """.trimIndent(), null),
+            )) { test("source", it.source, it.expected) }
+
+            suite("Initializer", listOf(
+                /*
+                Overlaps with default constructors.
+                "Empty" to Test("""
+                    struct Name {
+                        init() {}
+                    }
+                """.trimIndent(), null),
+                 */
+                "Parameters" to Test("""
+                    struct Name {
+                        init(argument: Integer) {}
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("argument", Type.INTEGER, false)), type, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Initializer(type.functions["", listOf(Type.INTEGER)]!! as Function.Definition, block()),
+                        ))),
+                    ))
+                },
+                "Return Type" to Test("""
+                    struct Name {
+                        init(argument: Integer): Integer {
+                            return argument;
+                        }
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("argument", Type.INTEGER, false)), Type.INTEGER, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Initializer(type.functions["", listOf(Type.INTEGER)]!! as Function.Definition, block(
+                                RhovasIr.Statement.Return(variable("argument", Type.INTEGER), listOf()),
+                            )),
+                        ))),
+                    ))
+                },
+                "Missing Parameter Type" to Test("""
+                    struct Name {
+                        init(parameter) {}
+                    }
+                """.trimIndent(), null),
+                "Redefined" to Test("""
+                    struct Name {
+                        init(argument: Integer) {}
+                        init(argument: Integer) {}
+                    }
+                """.trimIndent(), null),
+            )) { test("source", it.source, it.expected) }
+
+            suite("Method", listOf(
+                "Function" to Test("""
+                    struct Name {
+                        func function() {}
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("function", listOf(), listOf(), Type.VOID, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(type.functions["function", listOf()]!! as Function.Definition, block())),
+                        ))),
+                    ))
+                },
+                "Method" to Test("""
+                    struct Name {
+                        func method(this) {}
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("method", listOf(), listOf(Variable.Declaration("this", type, false)), Type.VOID, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(type.functions["method", listOf(type)]!! as Function.Definition, block())),
+                        ))),
+                    ))
+                },
+                "Redefined" to Test("""
+                    struct Name {
+                        func function() {}
+                        func function() {}
+                    }
+                """.trimIndent(), null),
             )) { test("source", it.source, it.expected) }
         }
 
         suite("Statement") {
             suite("Block", listOf(
-                "Empty" to Test("""
-                    {}
-                """.trimIndent()) {
-                    RhovasIr.Expression.Block(listOf(), null, Type.VOID)
-                },
-                "Single" to Test("""
+                "Block" to Test("""
                     { stmt(); }
                 """.trimIndent()) {
                     RhovasIr.Expression.Block(listOf(stmt()), null, Type.VOID)
                 },
-                "Multiple" to Test("""
-                    { stmt(1); stmt(2); stmt(3); }
-                """.trimIndent()) {
-                    RhovasIr.Expression.Block(listOf(stmt(1), stmt(2), stmt(3)), null, Type.VOID)
-                },
-                "Unreachable" to Test("""
-                    { return; stmt(); }
-                """.trimIndent(), null),
-            )) { test("statement", it.source, it.expected?.let { e -> { RhovasIr.Statement.Expression(e.invoke(it)) } }) }
+            )) { test("statement", it.source, it.expected?.let { e -> { e.invoke(it)?.let { RhovasIr.Statement.Expression(it) } } }) }
 
             suite("Component", listOf(
                 "Struct" to Test("""
@@ -203,6 +380,37 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf()))
                 },
+            )) { test("statement", it.source, it.expected) }
+
+            suite("Initializer", listOf(
+                "Initializer" to Test("""
+                    struct Name {
+                        init(field: Integer) {
+                            this { field };
+                        }
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                        RhovasIr.Member.Initializer(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("field", Type.INTEGER, false)), type, listOf())), block(
+                            RhovasIr.Statement.Initializer(RhovasIr.Expression.Literal.Object(mapOf("field" to variable("field", Type.INTEGER)), Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, true)))]))
+                        )),
+                    )))
+                },
+                "Invalid Initializer" to Test("""
+                    func function() {
+                        this { field };
+                    }
+                """.trimIndent(), null),
+                "Reinitialization" to Test("""
+                    struct Name {
+                        init(field: Integer) {
+                            this { field };
+                            this { field };
+                        }
+                    }
+                """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) }
 
             suite("Expression", listOf(
@@ -247,6 +455,10 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             literal(BigInteger.parseString("1")),
                         )
                     },
+                    "Redefined" to Test("""
+                        val name = 1;
+                        val name = 2;
+                    """.trimIndent(), null),
                     "Undefined Type" to Test("""
                         val name;
                     """.trimIndent(), null),
@@ -256,7 +468,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     "Supertype Value" to Test("""
                         val name: Integer = any;
                     """.trimIndent(), null),
-                )) { test("source", it.source, it.expected?.let { e -> { e.invoke(it).let { RhovasIr.Source(listOf(), listOf(it, stmt(RhovasIr.Expression.Access.Variable(null, it.variable)))) } } }) }
+                )) { test("source", it.source, it.expected?.let { e -> { e.invoke(it)?.let { RhovasIr.Source(listOf(), listOf(it, stmt(RhovasIr.Expression.Access.Variable(null, it.variable)))) } } }) }
 
                 suite("Function", listOf(
                     "Definition" to Test("""
@@ -377,6 +589,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             ), listOf())),
                         )
                     },
+                    "Missing Parameter Type" to Test("""
+                        func name(parameter) {}
+                    """.trimIndent(), null),
                     "Missing Return Value" to Test("""
                         func name(): Integer {
                             stmt();
@@ -429,33 +644,36 @@ class RhovasAnalyzerTests: RhovasSpec() {
 
             suite("Assignment") {
                 suite("Variable", listOf(
-                    "Var Initialization" to Test("""
-                        var variable: Integer;
-                        variable = 1;
-                    """.trimIndent()) {
-                        RhovasIr.Statement.Assignment.Variable(
-                            Variable.Declaration("variable", Type.INTEGER, true),
-                            literal(BigInteger.parseString("1")),
-                        )
-                    },
                     "Val Initialization" to Test("""
                         val variable: Integer;
                         variable = 1;
                     """.trimIndent()) {
-                        RhovasIr.Statement.Assignment.Variable(
-                            Variable.Declaration("variable", Type.INTEGER, false),
-                            literal(BigInteger.parseString("1")),
-                        )
+                        RhovasIr.Source(listOf(), listOf(
+                            RhovasIr.Statement.Declaration.Variable(Variable.Declaration("variable", Type.INTEGER, false), null),
+                            RhovasIr.Statement.Assignment.Variable(Variable.Declaration("variable", Type.INTEGER, false), literal(BigInteger.parseString("1"))),
+                        ))
                     },
-                    "Subtype Value" to Test("""
-                        var variable: Dynamic;
+                    "Var Initialization" to Test("""
+                        var variable: Integer;
                         variable = 1;
                     """.trimIndent()) {
-                        RhovasIr.Statement.Assignment.Variable(
-                            Variable.Declaration("variable", Type.DYNAMIC, true),
-                            literal(BigInteger.parseString("1")),
-                        )
+                        RhovasIr.Source(listOf(), listOf(
+                            RhovasIr.Statement.Declaration.Variable(Variable.Declaration("variable", Type.INTEGER, true), null),
+                            RhovasIr.Statement.Assignment.Variable(Variable.Declaration("variable", Type.INTEGER, true), literal(BigInteger.parseString("1"))),
+                        ))
                     },
+                    "Var Reassignment" to Test("""
+                        var variable = 1;
+                        variable = 2;
+                    """.trimIndent()) {
+                        RhovasIr.Source(listOf(), listOf(
+                            RhovasIr.Statement.Declaration.Variable(Variable.Declaration("variable", Type.INTEGER, true), literal(BigInteger.parseString("1"))),
+                            RhovasIr.Statement.Assignment.Variable(Variable.Declaration("variable", Type.INTEGER, true), literal(BigInteger.parseString("2"))),
+                        ))
+                    },
+                    "Invalid Receiver" to Test("""
+                        0 = 1;
+                    """.trimIndent(), null),
                     "Undefined Variable" to Test("""
                         undefined = 1;
                     """.trimIndent(), null),
@@ -468,6 +686,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         variable = 1;
                         variable = 2;
                     """.trimIndent(), null),
+                    "Partial Initialization" to Test("""
+                        val name: Integer;
+                        if (true) {
+                            name = 1;
+                        }
+                    """.trimIndent(), null),
                     "Invalid Value" to Test("""
                         var variable: Integer;
                         variable = 1.0;
@@ -476,7 +700,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         var variable: Integer;
                         variable = any;
                     """.trimIndent(), null),
-                )) { test("source", it.source, it.expected?.let { e -> { e.invoke(it).let { RhovasIr.Source(listOf(), listOf(RhovasIr.Statement.Declaration.Variable(it.variable as Variable.Declaration, null), it)) } } }) }
+                )) { test("source", it.source, it.expected) }
 
                 suite("Property", listOf(
                     "Assignment" to Test("""
@@ -497,6 +721,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             literal(BigInteger.parseString("1")),
                         )
                     },
+                    "Invalid Receiver" to Test("""
+                        object?.property = 1;
+                    """.trimIndent(), null),
                     "Undefined Property" to Test("""
                         object.undefined = 1;
                     """.trimIndent(), null),
@@ -586,6 +813,66 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     if (1) { stmt(); }
                 """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) }
+
+            suite("Match") {
+                suite("Conditional", listOf(
+                    "Match" to Test("""
+                        match {
+                            true: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Conditional(listOf(literal(true) to stmt()), null)
+                    },
+                    "Else" to Test("""
+                        match {
+                            else: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Conditional(listOf(), null to stmt())
+                    },
+                    "Else Condition" to Test("""
+                        match {
+                            else true: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Conditional(listOf(), literal(true) to stmt())
+                    },
+                    "Invalid Condition" to Test("""
+                        match {
+                            1: stmt();
+                        }
+                    """.trimIndent(), null),
+                    "Invalid Else Condition" to Test("""
+                        match {
+                            else 1: stmt();
+                        }
+                    """.trimIndent(), null),
+                )) { test("statement", it.source, it.expected) }
+
+                suite("Structural", listOf(
+                    "Match" to Test("""
+                        match (true) {
+                            true: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Structural(literal(true), listOf(RhovasIr.Pattern.Value(literal(true)) to stmt()), null)
+                    },
+                    "Else" to Test("""
+                        match (true) {
+                            else: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Structural(literal(true), listOf(), null to stmt())
+                    },
+                    "Else Pattern" to Test("""
+                        match (true) {
+                            else true: stmt();
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Match.Structural(literal(true), listOf(), RhovasIr.Pattern.Value(literal(true)) to stmt())
+                    },
+                )) { test("statement", it.source, it.expected) }
+            }
 
             suite("For", listOf(
                 "For" to Test("""
@@ -845,6 +1132,32 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) }
 
+            suite("Throw", listOf(
+                "Throw" to Test("""
+                    func function() throws Exception {
+                        throw Exception("message");
+                    }
+                """.trimIndent()) {
+                    RhovasIr.Statement.Declaration.Function(
+                        Function.Declaration("function", listOf(), listOf(), Type.VOID, listOf(Type.EXCEPTION)),
+                        block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Constructor(
+                            Type.EXCEPTION,
+                            Type.EXCEPTION.functions["", listOf(Type.STRING)]!! as Function.Definition,
+                            listOf(literal("message")),
+                            Type.EXCEPTION,
+                        ))),
+                    )
+                },
+                "Invalid" to Test("""
+                    throw 1;
+                """.trimIndent(), null),
+                "Uncaught" to Test("""
+                    func function() {
+                        throw Exception("message");
+                    }
+                """.trimIndent(), null),
+            )) { test("statement", it.source, it.expected) }
+
             suite("Assert", listOf(
                 "Assert" to Test("""
                     assert true;
@@ -918,6 +1231,36 @@ class RhovasAnalyzerTests: RhovasSpec() {
         }
 
         suite("Expression") {
+            suite("Block", listOf(
+                "Empty" to Test("""
+                    do {}
+                """.trimIndent()) {
+                    RhovasIr.Expression.Block(listOf(), null, Type.VOID)
+                },
+                "Statement" to Test("""
+                    do { stmt(); }
+                """.trimIndent()) {
+                    RhovasIr.Expression.Block(listOf(stmt()), null, Type.VOID)
+                },
+                "Expression" to Test("""
+                    do { 1 }
+                """.trimIndent()) {
+                    RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), Type.INTEGER)
+                },
+                "Unreachable Statement" to Test("""
+                    do {
+                        throw Exception("message");
+                        stmt();
+                    }
+                """.trimIndent(), null),
+                "Unreachable Statement (Expression)" to Test("""
+                    do {
+                        throw Exception("message");
+                        1
+                    }
+                """.trimIndent(), null),
+            )) { test("expression", it.source, it.expected) }
+
             suite("Literal") {
                 suite("Scalar", listOf(
                     "Null" to Test("""
@@ -982,6 +1325,19 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             literal(BigInteger.parseString("3")),
                         ), Type.LIST[Type.INTEGER])
                     },
+                    "Tuple" to Test("""
+                        Tuple([1, "string"])
+                    """.trimIndent()) {
+                        RhovasIr.Expression.Invoke.Constructor(
+                            Type.TUPLE.ANY.base.reference,
+                            Type.TUPLE.ANY.base.reference.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))])]!!,
+                            listOf(RhovasIr.Expression.Literal.List(listOf(
+                                literal(BigInteger.parseString("1")),
+                                literal("string"),
+                            ), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))])),
+                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))],
+                        )
+                    },
                 )) { test("expression", it.source, it.expected) }
 
                 suite("Object", listOf(
@@ -1009,6 +1365,25 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.STRUCT[Type.Struct(mapOf("k1" to Variable.Declaration("k1", Type.STRING, true), "k2" to Variable.Declaration("k2", Type.STRING, true), "k3" to Variable.Declaration("k3", Type.STRING, true)))],
                         )
                     },
+                    "Map" to Test("""
+                        Map({key: "value"})
+                    """.trimIndent()) {
+                        RhovasIr.Expression.Invoke.Constructor(
+                            Type.MAP.ANY.base.reference,
+                            Type.MAP.ANY.base.reference.functions["", listOf(Type.MAP[Type.ATOM, Type.ANY])]!!,
+                            listOf(RhovasIr.Expression.Literal.Object(
+                                mapOf("key" to literal("value")),
+                                Type.MAP[Type.ATOM, Type.ANY],
+                            )),
+                            Type.MAP[Type.ATOM, Type.ANY],
+                        )
+                    },
+                    "Redefined" to Test("""
+                        {key: "v1", key: "v2"}
+                    """.trimIndent(), null),
+                    "Map Redefined" to Test("""
+                        Map({key: "v1", key: "v2"})
+                    """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
                 suite("Type", listOf(
@@ -1137,8 +1512,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.BOOLEAN,
                         )
                     },
-                    "Not Equatable" to Test("""
-                        lambda != 2
+                    "Unequatable Left" to Test("""
+                        lambda {} != 2
+                    """.trimIndent(), null),
+                    "Unequatable Right" to Test("""
+                        1 != lambda {}
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
@@ -1285,6 +1663,17 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.INTEGER,
                         )
                     },
+                    "Bang" to Test("""
+                        [""].first!
+                    """.trimIndent()) {
+                        RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Literal.List(listOf(literal("")), Type.LIST[Type.STRING]),
+                            Type.LIST[Type.STRING].properties["first"]!!,
+                            true,
+                            false,
+                            Type.STRING,
+                        )
+                    },
                     "Coalesce" to Test("""
                         Nullable("string")?.size
                     """.trimIndent()) {
@@ -1302,8 +1691,14 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         )
                     },
                     "Undefined" to Test("""
-                        string.undefined
-                    """.trimIndent(), null)
+                        "string".undefined
+                    """.trimIndent(), null),
+                    "Invalid Bang" to Test("""
+                        "string".size!
+                    """.trimIndent(), null),
+                    "Invalid Coalesce" to Test("""
+                        "string"?.size
+                    """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
                 suite("Index", listOf(
@@ -1361,11 +1756,17 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.NULLABLE[Type.STRING],
                         )
                     },
-                    "Invalid Arity" to Test("""
-                        Nullable()
-                    """.trimIndent(), null),
+                    "Unconstructable" to Test("""
+                        Unconstructable()
+                    """.trimIndent()) {
+                        it.types.define(Type.Generic("T", Type.ANY), "Unconstructable")
+                        null
+                    },
                     "Undefined" to Test("""
                         Undefined()
+                    """.trimIndent(), null),
+                    "Invalid Arity" to Test("""
+                        Nullable()
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
@@ -1375,11 +1776,17 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Function(null, STMT_1, false, listOf(literal("argument")), Type.VOID)
                     },
-                    "Invalid Arity" to Test("""
-                        function()
-                    """.trimIndent(), null),
                     "Undefined" to Test("""
                         undefined()
+                    """.trimIndent(), null),
+                    "Invalid Arity" to Test("""
+                        stmt(1, 2)
+                    """.trimIndent(), null),
+                    "Invalid Argument" to Test("""
+                        range(1, 2, "incl")
+                    """.trimIndent(), null),
+                    "Invalid Bang" to Test("""
+                        stmt!("argument")
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
@@ -1428,18 +1835,22 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.STRING,
                         )
                     },
+                    "Undefined" to Test("""
+                        "string".undefined()
+                    """.trimIndent(), null),
                     "Invalid Arity" to Test("""
                         "string".contains()
                     """.trimIndent(), null),
                     "Invalid Argument" to Test("""
                         "string".contains(0)
                     """.trimIndent(), null),
-                    "Undefined" to Test("""
-                        "string".undefined()
+                    "Unresolved Overload" to Test("""
+                        "string".to(Boolean)
                     """.trimIndent(), null),
-                )) { test("expression", it.source, it.expected) {
-
-                } }
+                    "Invalid Bang" to Test("""
+                        "string".contains!("")
+                    """.trimIndent(), null),
+                )) { test("expression", it.source, it.expected) }
 
                 suite("Pipeline", listOf(
                     "Pipeline" to Test("""
@@ -1503,18 +1914,24 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Type.INTEGER,
                         )
                     },
+                    "Undefined" to Test("""
+                        1.|undefined()
+                    """.trimIndent(), null),
                     "Invalid Arity" to Test("""
                         1.|range()
                     """.trimIndent(), null),
                     "Invalid Argument" to Test("""
                         1.|range(2, "incl")
                     """.trimIndent(), null),
-                    "Undefined" to Test("""
-                        1.|undefined()
+                    "Invalid Bang" to Test("""
+                        1.|range!(2, :incl)
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 
-                suite("DSL", listOf(
+                suite("Macro", listOf(
+                    "Macro (Unsupported)" to Test("""
+                        #macro(1)
+                    """.trimIndent(), null),
                     "DSL" to Test("""
                         #regex {
                             literal
@@ -1535,41 +1952,74 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             RhovasIr.Expression.Literal.List(listOf(literal("argument")), Type.LIST[Type.DYNAMIC]),
                         ), Type.REGEX)
                     },
-                    "Undefined DSL" to Test("""
+                    "Undefined" to Test("""
                         #undefined {}
+                    """.trimIndent(), null),
+                    "Arguments (Unsupported)" to Test("""
+                        #regex(1) {}
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
             }
 
             suite("Lambda", listOf(
-                "Lambda" to Test("""
+                "Empty" to Test("""
+                    lambda {}
+                """.trimIndent()) {
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
+                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
+                },
+                "Body" to Test("""
                     lambda { stmt(); }
                 """.trimIndent()) {
-                    RhovasIr.Expression.Lambda(
-                        listOf(),
-                        RhovasIr.Expression.Block(listOf(stmt()), null, Type.VOID),
-                        Type.LAMBDA[Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC],
-                    )
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(listOf(), block(stmt()), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
+                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
+                },
+                "Parameter" to Test("""
+                    lambda |x| {}
+                """.trimIndent()) {
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(
+                            listOf(Variable.Declaration("x", Type.DYNAMIC, false)),
+                            block(),
+                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC],
+                        ),
+                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC])
+                },
+                "Parameter Type" to Test("""
+                    lambda |x: Integer| {}
+                """.trimIndent()) {
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(
+                            listOf(Variable.Declaration("x", Type.INTEGER, false)),
+                            block(),
+                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC],
+                        ),
+                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Expression" to Test("""
                     lambda { 1 }
                 """.trimIndent()) {
-                    RhovasIr.Expression.Lambda(
-                        listOf(),
-                        RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), Type.INTEGER),
-                        Type.LAMBDA[Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC],
-                    )
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(
+                            listOf(),
+                            RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), Type.INTEGER),
+                            Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC],
+                        ),
+                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
                 },
-                "Parameter" to Test("""
-                    lambda |x| { x }
+                "Without Inference" to Test("""
+                    print {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Lambda(
-                        listOf(Variable.Declaration("x", Type.DYNAMIC, false)),
-                        RhovasIr.Expression.Block(listOf(), variable("x", Type.DYNAMIC), Type.DYNAMIC),
-                        Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC],
-                    )
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["print", listOf(Type.ANY)]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
+                    ), Type.VOID)
                 },
-            )) { test("expression", it.source, it.expected?.let { e -> { e.invoke(it).let { RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(it.type)]!!, false, listOf(it), it.type,) } } }) }
+                "Invalid Return Type" to Test("""
+                    [].find { 1 }
+                """.trimIndent(), null),
+            )) { test("expression", it.source, it.expected) }
         }
 
         suite("Pattern") {
@@ -1884,6 +2334,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         else []: stmt();
                     }
                 """.trimIndent(), null),
+                "f:Multiple Varargs" to Test("""
+                    match (any) {
+                        else [x*, y+]: stmt();
+                    }
+                """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) {
                 it.variables.define(variable("any", Type.ANY).variable)
             } }
@@ -2011,13 +2466,18 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     )
                 },
                 "Missing Key" to Test("""
-                    match (1) {
+                    match (any) {
                         else {:pattern}: stmt();
                     }
                 """.trimIndent(), null),
                 "Unmatchable Type" to Test("""
                     match (1) {
                         else {}: stmt();
+                    }
+                """.trimIndent(), null),
+                "Multiple Varargs" to Test("""
+                    match (any) {
+                        else {x*, y+}: stmt();
                     }
                 """.trimIndent(), null),
             )) { test("statement", it.source, it.expected) {
@@ -2095,6 +2555,21 @@ class RhovasAnalyzerTests: RhovasSpec() {
             "Undefined" to Test("""
                 Undefined
             """.trimIndent(), null),
+            "Undefined Submodule" to Test("""
+                Type.Undefined
+            """.trimIndent(), null),
+            "Invalid Generic Receiver" to Test("""
+                Invalid<String>
+            """.trimIndent()) {
+                it.types.define(Type.Generic("T", Type.ANY), "Invalid")
+                null
+            },
+            "Invalid Generic Arity" to Test("""
+                List<>
+            """.trimIndent(), null),
+            "Invalid Generic Type" to Test("""
+                Equatable<Any>
+            """.trimIndent(), null),
         )) { test("type", it.source, it.expected) }
     }
 
@@ -2129,7 +2604,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
         return RhovasIr.Expression.Access.Variable(null, Variable.Declaration(name, type, false))
     }
 
-    private fun test(rule: String, source: String, expected: ((Scope.Declaration) -> RhovasIr)?, scope: (Scope.Declaration) -> Unit = {}) {
+    private fun test(rule: String, source: String, expected: ((Scope.Declaration) -> RhovasIr?)?, scope: (Scope.Declaration) -> Unit = {}) {
         val input = Input("Test", source)
         val scope = Scope.Declaration(Library.SCOPE).also(scope)
         val expected = expected?.invoke(scope)
