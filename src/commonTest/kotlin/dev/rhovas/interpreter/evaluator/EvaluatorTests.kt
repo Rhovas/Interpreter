@@ -157,6 +157,11 @@ class EvaluatorTests: RhovasSpec() {
                         object.property = "final";
                         log(object.property);
                     """.trimIndent(), "final"),
+                    "Element" to Test("""
+                        val tuple = Tuple(["initial"]);
+                        tuple.0 = "final";
+                        log(tuple.0);
+                    """.trimIndent(), "final"),
                 )) { test("source", it.source, it.log, it.expected) }
 
                 suite("Index", listOf(
@@ -778,6 +783,12 @@ class EvaluatorTests: RhovasSpec() {
                         it.variables.define(variable("nullObject", Type.NULLABLE[Type.DYNAMIC], null))
                         literal(null)
                     },
+                    "Element" to Test("""
+                        tuple.0
+                    """.trimIndent()) {
+                        it.variables.define(variable("tuple", Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false)))], listOf(literal(BigInteger.parseString("1")))))
+                        literal(BigInteger.parseString("1"))
+                    }
                 )) { test("expression", it.source, it.log, it.expected) }
 
                 suite("Index", listOf(

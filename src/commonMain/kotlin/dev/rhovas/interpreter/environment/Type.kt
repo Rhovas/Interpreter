@@ -138,6 +138,10 @@ sealed class Type(
         private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
             return when (base.name) {
                 "Dynamic" -> Function.Declaration(name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
+                "Tuple" -> when (generics[0].base.name) {
+                    "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
+                    else -> generics[0].getFunction(name, arguments)
+                }
                 "Struct" -> when (generics[0].base.name) {
                     "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics[0].getFunction(name, arguments)
@@ -191,12 +195,30 @@ sealed class Type(
         val elements: List<Variable.Declaration>,
     ) : Type(TUPLE[DYNAMIC].base) {
 
+        val scope = Scope.Declaration(null)
+
+        private fun defineProperty(field: Variable.Declaration) {
+            scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf())) { (instance) ->
+                val instance = instance.value as List<Object>
+                instance[field.name.toInt()]
+            })
+            if (field.mutable) {
+                scope.functions.define(Function.Definition(Function.Declaration(field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf())) { (instance, value) ->
+                    val instance = instance.value as MutableList<Object>
+                    instance[field.name.toInt()] = value
+                    Object(VOID, Unit)
+                })
+            }
+        }
+
         override fun getFunction(name: String, arity: Int): List<Function> {
-            return TUPLE[this].getFunction(name, arity)
+            name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
+            return scope.functions[name, arity] + TUPLE.ANY.base.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            return TUPLE[this].getFunction(name, arguments)
+            name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
+            return scope.functions[name, arguments] ?: TUPLE.ANY.base.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
@@ -213,7 +235,7 @@ sealed class Type(
         }
 
         override fun toString(): String {
-            return elements.joinToString(", ", "[", "]") { it.type.toString() }
+            return elements.joinToString(", ", "[", "]") { "${if (it.mutable) "var" else "val"} ${it.name}: ${it.type}" }
         }
 
     }

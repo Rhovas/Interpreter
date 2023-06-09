@@ -1348,11 +1348,19 @@ class RhovasParserTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasAst.Expression.Access.Property(expr("receiver"), true, "property")
                     },
-                    "Coalesce" to Test("""
-                        receiver..property
-                    """.trimIndent(), null),
+                    "Element" to Test("""
+                        receiver.0
+                    """.trimIndent()) {
+                        RhovasAst.Expression.Access.Property(expr("receiver"), false, "0")
+                    },
                     "Missing Identifier" to Test("""
                         receiver.
+                    """.trimIndent(), null),
+                    "Cascade" to Test("""
+                        receiver..property
+                    """.trimIndent(), null),
+                    "Element Cascade" to Test("""
+                        receiver..0
                     """.trimIndent(), null),
                 )) { test("expression", it.source, it.expected) }
 

@@ -708,6 +708,13 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                         ) }
                         val arguments = parseInvokeExpressionArguments()
                         RhovasAst.Expression.Invoke.Pipeline(expression, coalesce, cascade, qualifier, name, arguments)
+                    } else if (match(RhovasTokenType.INTEGER)) {
+                        val name = tokens[-1]!!.literal
+                        require(!cascade) { error(
+                            "Invalid element cascade.",
+                            "An element access cannot be combined with the cascade operator, as in `receiver..0`.",
+                        ) }
+                        RhovasAst.Expression.Access.Property(expression, coalesce, name)
                     } else {
                         val name = parseIdentifier { "A property or method expression requires a name, as in `receiver.property` or `receiver.method()`." }
                         if (peek(listOf("(", "|", "{"))) {
@@ -715,8 +722,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
                             RhovasAst.Expression.Invoke.Method(expression, coalesce, cascade, name, arguments)
                         } else {
                             require(!cascade) { error(
-                                "Expected opening parenthesis, pipe, or brace.",
-                                "A pipeline expression requires an invocation, as in `receiver.|function()`, `receiver.|function |name| { ... }`, or `receiver.|function { ... }`.",
+                                "Invalid property cascade.",
+                                "A property access cannot be combined with the cascade operator, as in `receiver..property`.",
                             ) }
                             RhovasAst.Expression.Access.Property(expression, coalesce, name)
                         }

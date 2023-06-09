@@ -391,12 +391,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 val receiver = visit(ast.receiver)
                 require(receiver.property.mutable) { error(ast.receiver,
                     "Unassignable property.",
-                    "The property ${receiver.property.type.base.name}.${receiver.property.name} is not assignable.",
+                    "The property ${receiver.type.base}.${receiver.property.name} is not assignable.",
                 ) }
                 val value = visit(ast.value, receiver.property.type)
                 require(value.type.isSubtypeOf(receiver.property.type)) { error(ast.value,
                     "Invalid assignment value type.",
-                    "The property ${receiver.property.type.base.name}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
+                    "The property ${receiver.type.base.name}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value)
             }
@@ -725,7 +725,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val (elements, type) = if (context.inference?.base == Type.TUPLE.ANY.base) {
             val generics = (context.inference!!.generic("T", Type.TUPLE.ANY.base.reference)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
-            val type = Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, false) })
+            val type = Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, true) })
             Pair(elements, Type.TUPLE[type])
         } else {
             val inference = context.inference?.generic("T", Type.LIST.ANY.base.reference)
@@ -1025,13 +1025,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             } }
         }
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
-        println(name)
-        println(function)
         val exceptions = when {
             name.endsWith('!') && function.returns.isSubtypeOf(Type.RESULT.ANY) -> listOf(function.returns.generic("E", Type.RESULT.ANY.base.reference)!!)
             else -> function.throws
         }
-        println(exceptions)
         exceptions.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",

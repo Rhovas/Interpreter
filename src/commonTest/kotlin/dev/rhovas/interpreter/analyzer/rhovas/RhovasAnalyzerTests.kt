@@ -721,6 +721,15 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             literal(BigInteger.parseString("1")),
                         )
                     },
+                    "Element" to Test("""
+                        tuple.0 = 1;
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Assignment.Property(
+                            variable("tuple", it.variables["tuple"]!!.type),
+                            it.variables["tuple"]!!.type.properties["0"]!!,
+                            literal(BigInteger.parseString("1")),
+                        )
+                    },
                     "Invalid Receiver" to Test("""
                         object?.property = 1;
                     """.trimIndent(), null),
@@ -741,6 +750,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         "property" to Variable.Declaration("property", Type.INTEGER, true),
                         "dynamic" to Variable.Declaration("dynamic", Type.DYNAMIC, true),
                         "unassignable" to Variable.Declaration("unassignable", Type.INTEGER, false),
+                    ))]).variable)
+                    it.variables.define(variable("tuple", Type.TUPLE[Type.Tuple(listOf(
+                        Variable.Declaration("0", Type.INTEGER, true),
                     ))]).variable)
                 } }
 
@@ -1330,12 +1342,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
                             Type.TUPLE.ANY.base.reference,
-                            Type.TUPLE.ANY.base.reference.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))])]!!,
+                            Type.TUPLE.ANY.base.reference.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))])]!!,
                             listOf(RhovasIr.Expression.Literal.List(listOf(
                                 literal(BigInteger.parseString("1")),
                                 literal("string"),
-                            ), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))])),
-                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.STRING, false)))],
+                            ), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))])),
+                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))],
                         )
                     },
                 )) { test("expression", it.source, it.expected) }
@@ -1688,6 +1700,22 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             false,
                             true,
                             Type.NULLABLE[Type.INTEGER],
+                        )
+                    },
+                    "Element" to Test("""
+                        Tuple([1]).0
+                    """.trimIndent()) {
+                        RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                Type.TUPLE.ANY.base.reference,
+                                Type.TUPLE.ANY.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))])]!!,
+                                listOf(RhovasIr.Expression.Literal.List(listOf(literal(BigInteger.parseString("1"))), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))])),
+                                Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))],
+                            ),
+                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))].properties["0"]!!,
+                            false,
+                            false,
+                            Type.INTEGER,
                         )
                     },
                     "Undefined" to Test("""
