@@ -1029,7 +1029,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             name.endsWith('!') && function.returns.isSubtypeOf(Type.RESULT.ANY) -> listOf(function.returns.generic("E", Type.RESULT.ANY.base.reference)!!)
             else -> function.throws
         }
-        exceptions.forEach { exception ->
+        exceptions.filter { it.base !== Type.DYNAMIC.base }.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",

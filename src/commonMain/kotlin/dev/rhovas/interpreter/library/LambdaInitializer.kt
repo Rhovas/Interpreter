@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
@@ -18,20 +19,23 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
             throws = listOf(generic("E")),
             returns = generic("R")
         ) { (instance, arguments) ->
-            val argumentsType = instance.type.generic("T", Type.LAMBDA.ANY.base.reference) as? Type.Tuple
             val returnsType = instance.type.generic("R", Type.LAMBDA.ANY.base.reference) ?: Type.DYNAMIC
             val instance = instance.value as Evaluator.Lambda
             val arguments = arguments.value as List<Object>
-            EVALUATOR.require(arguments.size == instance.ast.parameters.size) { EVALUATOR.error(
-                instance.ast,
-                "Invalid lambda argument count.",
-                "Lambda requires arguments of size ${instance.ast.parameters.size}, but received ${arguments.size}.",
-            ) }
-            instance.invoke(arguments.indices.map {
-                val parameter = instance.ast.parameters.getOrNull(it)
-                val element = argumentsType?.elements?.get(it)
-                Triple(parameter?.name ?: element?.name ?: "val_${it}", parameter?.type ?: element?.type ?: Type.ANY, arguments[it])
-            }, returnsType)
+            if (instance.ast.parameters.isNotEmpty()) {
+                EVALUATOR.require(arguments.size == instance.ast.parameters.size) { EVALUATOR.error(instance.ast,
+                    "Invalid lambda argument count.",
+                    "Lambda requires arguments of size ${instance.ast.parameters.size}, but received ${arguments.size}.",
+                ) }
+                instance.invoke(arguments.indices.map { Triple(it.toString(), arguments[it].type, arguments[it]) }, returnsType)
+            } else if (arguments.isEmpty()) {
+                instance.invoke(listOf(Triple("val", Type.VOID, Object(Type.VOID, Unit))), returnsType)
+            } else if (arguments.size == 1) {
+                instance.invoke(listOf(Triple("val", arguments[0].type, arguments[0])), returnsType)
+            } else {
+                val type = Type.TUPLE[Type.Tuple(arguments.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, false) })]
+                instance.invoke(listOf(Triple("val", type, Object(type, arguments))), returnsType)
+            }
         }
 
         method("to",

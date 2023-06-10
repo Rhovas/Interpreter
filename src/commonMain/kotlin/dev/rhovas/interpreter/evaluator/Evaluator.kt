@@ -873,20 +873,21 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
         fun invoke(arguments: List<Triple<String, Type, Object>>, returns: Type): Object {
             return evaluator.scoped(Scope.Definition(scope)) {
-                if (ast.parameters.isNotEmpty()) {
-                    for (i in ast.parameters.indices) {
-                        evaluator.scope.variables.define(Variable.Definition(ast.parameters[i], arguments[i].third))
-                    }
-                } else if (arguments.size == 1) {
-                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].second, false), arguments[0].third))
-                } else {
-                    evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.STRUCT.ANY, false), Object(Type.STRUCT.ANY, arguments.associate { it.first to it.third })))
+                when {
+                    ast.parameters.isNotEmpty() -> ast.parameters.zip(arguments).forEach { evaluator.scope.variables.define(Variable.Definition(it.first, it.second.third)) }
+                    arguments.size == 1 -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].second, false), arguments[0].third))
+                    else -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.STRUCT.ANY, false), Object(Type.STRUCT.ANY, arguments.associate { it.first to it.third })))
                 }
                 try {
                     evaluator.visit(ast.body)
                 } catch (e: Return) {
                     e.value ?: Object(Type.VOID, Unit)
                 }
+            }.also {
+                evaluator.require(it.type.isSupertypeOf(returns)) { evaluator.error(ast,
+                    "Invalid lambda return value.",
+                    "The invoked lambda requires the return value to be type ${returns}, but received ${it.type}."
+                ) }
             }
         }
 
