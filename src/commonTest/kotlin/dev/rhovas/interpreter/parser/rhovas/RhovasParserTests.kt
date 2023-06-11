@@ -106,7 +106,7 @@ class RhovasParserTests: RhovasSpec() {
                     RhovasAst.Component.Struct("Name", listOf(
                         RhovasAst.Member.Property(false, "name", type("Type"), null),
                         RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())),
+                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
                     ))
                 },
                 "Missing Name" to Test("""
@@ -136,7 +136,7 @@ class RhovasParserTests: RhovasSpec() {
                     RhovasAst.Component.Class("Name", listOf(
                         RhovasAst.Member.Property(false, "name", type("Type"), null),
                         RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())),
+                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
                     ))
                 },
                 "Missing Name" to Test("""
@@ -259,13 +259,31 @@ class RhovasParserTests: RhovasSpec() {
                 "Function" to Test("""
                     func name() {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block()))
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block()))
                 },
                 "This Parameter" to Test("""
                     func name(this) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("this" to null), null, listOf(), block()))
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("this" to null), null, listOf(), block()))
                 },
+                "Operator Overload (Addition)" to Test("""
+                    func op+ add(this) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("+", "add", listOf(), listOf("this" to null), null, listOf(), block()))
+                },
+                "Operator Overload (Index)" to Test("""
+                    func op[] get(this) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("[]", "get", listOf(), listOf("this" to null), null, listOf(), block()))
+                },
+                "Operator Overload (Index Assignment)" to Test("""
+                    func op[]= set(this) {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("[]=", "set", listOf(), listOf("this" to null), null, listOf(), block()))
+                },
+                "Invalid Operator Overload" to Test("""
+                    func op&& equals(this) {}
+                """.trimIndent(), null),
             )) { test("member", it.source, it.expected) }
 
             spec("Invalid") {
@@ -390,57 +408,57 @@ class RhovasParserTests: RhovasSpec() {
                     "Function" to Test("""
                         func name() {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())
                     },
                     "Single Generic" to Test("""
                         func name<T>() {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf("T" to null), listOf(), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf("T" to null), listOf(), null, listOf(), block())
                     },
                     "Multiple Generics" to Test("""
                         func name<T1, T2, T3>() {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf("T1" to null, "T2" to null, "T3" to null), listOf(), null, listOf(), block())
                     },
                     "Bound Generic" to Test("""
                         func name<T: Bound>() {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf("T" to type("Bound")), listOf(), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf("T" to type("Bound")), listOf(), null, listOf(), block())
                     },
                     "Single Parameter" to Test("""
                         func name(parameter) {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to null), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("parameter" to null), null, listOf(), block())
                     },
                     "Multiple Parameters" to Test("""
                         func name(first, second, third) {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
                     },
                     "Typed Parameter" to Test("""
                         func name(parameter: Type) {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to type("Type")), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("parameter" to type("Type")), null, listOf(), block())
                     },
                     "Trailing Comma" to Test("""
                         func name(parameter,) {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf("parameter" to null), null, listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("parameter" to null), null, listOf(), block())
                     },
                     "Return Type" to Test("""
                         func name(): Type {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), type("Type"), listOf(), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), type("Type"), listOf(), block())
                     },
                     "Single Throws" to Test("""
                         func name() throws Type {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(type("Type")), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(type("Type")), block())
                     },
                     "Multiple Throws" to Test("""
                         func name() throws First, Second, Third {}
                     """.trimIndent()) {
-                        RhovasAst.Statement.Declaration.Function("name", listOf(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
+                        RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
                     },
                     "Missing Name" to Test("""
                         func () {}

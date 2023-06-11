@@ -255,7 +255,8 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `function = "func" generics? parameters returns? throws? statement`
+     *  - `function = "func" operator? identifier generics? parameters returns? throws? statement`
+     *     - `operator = "op" ("+" | "-" | "*" | "/" | "[]" | "[]=")`
      *     - `generics = "<" generic? ("," generic)* ","? ">"`
      *        - `generic = identifier (":" type)?`
      *     - `parameters = "(" (parameter ("," parameter)* ","?) ")"`
@@ -265,6 +266,17 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      */
     private fun parseFunctionDeclarationStatement(): RhovasAst.Statement.Declaration.Function = parseAst {
         require(match("func"))
+        val operator = if (peek("op") && !peek("op", "(")) {
+            require(match("op"))
+            when {
+                match(listOf("+", "-", "*", "/")) -> tokens[-1]!!.literal
+                match("[", "]") -> if (match("=")) "[]=" else "[]"
+                else -> throw error(
+                    "Invalid operator overload.",
+                    "Operator overloading may only be used with +, -, *, /, [], and []=, as in `func op+ add() { ... }`.",
+                )
+            }
+        } else null
         val name = parseIdentifier { "A function declaration requires a name after `func`, as in `func name() { ... }`." }
         val generics = parseSequence("<", ",", ">") {
             val name = parseIdentifier { "A function generic type declaration requires a name, as in `func name<T>() { ... }` or `func name<X, Y, Z>() { ... }`." }
@@ -291,7 +303,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val returns = if (match(":")) parseType() else null
         val throws = if (match("throws")) parseSequence(",", this::parseType) else listOf()
         val block = parseBlockStatement()
-        RhovasAst.Statement.Declaration.Function(name, generics, parameters, returns, throws, block)
+        RhovasAst.Statement.Declaration.Function(operator, name, generics, parameters, returns, throws, block)
     }
 
     /**
@@ -625,14 +637,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `additive = multiplicative (("<" | ">" | "<=" | ">=") multiplicative)*`
+     *  - `additive = multiplicative (("+" | "-") multiplicative)*`
      */
     private fun parseAdditiveExpression(): RhovasAst.Expression {
         return parseBinaryExpression(::parseMultiplicativeExpression, "+", "-")
     }
 
     /**
-     *  - `multiplicative = unary (("<" | ">" | "<=" | ">=") unary)*`
+     *  - `multiplicative = unary (("*" | "/") unary)*`
      */
     private fun parseMultiplicativeExpression(): RhovasAst.Expression {
         return parseBinaryExpression(::parseUnaryExpression, "*", "/")

@@ -109,6 +109,21 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     /**
+     * Context for storing the surrounding component declaration.
+     */
+    data class ComponentContext(
+        val component: Type
+    ) : Context.Item<Type>(component) {
+
+        override fun child(): ComponentContext {
+            return this
+        }
+
+        override fun merge(children: List<Type>) {}
+
+    }
+
+    /**
      * Context for storing the surrounding function declaration.
      */
     data class FunctionContext(
@@ -226,8 +241,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        val members = ir.members.map { visit(it) }
-        RhovasIr.Component.Struct(type, members)
+        analyze(context.with(ComponentContext(type))) {
+            val members = ir.members.map { visit(it) }
+            RhovasIr.Component.Struct(type, members)
+        }
     }
 
     override fun visit(ast: RhovasAst.Component.Class): RhovasIr.Component.Class {
@@ -236,8 +253,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        val members = ir.members.map { visit(it) }
-        RhovasIr.Component.Class(type, members)
+        analyze(context.with(ComponentContext(type))) {
+            val members = ir.members.map { visit(it) }
+            RhovasIr.Component.Class(type, members)
+        }
     }
 
     private fun visit(ir: RhovasIr.DefinitionPhase.Member): RhovasIr.Member {
@@ -1393,6 +1412,10 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         fun visit(ast: RhovasAst.Statement.Declaration.Function, component: Type? = null): RhovasIr.DefinitionPhase.Function = analyze(ast.context) {
             val scope = component?.base?.scope ?: context.scope
             analyze {
+                require(ast.operator == null || component != null) { error(ast,
+                    "Invalid operator overload.",
+                    "Operator overloading can only be used within component methods, not functions.",
+                ) }
                 val generics = ast.generics.map { Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY) }
                 generics.forEach { context.scope.types.define(it, it.name) }
                 val parameters = ast.parameters.mapIndexed { index, parameter ->
@@ -1413,6 +1436,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     is Scope.Declaration -> declaration.also { scope.functions.define(it) }
                     is Scope.Definition -> Function.Definition(declaration).also { scope.functions.define(it) }
                 }
+                ast.operator?.let { (scope as Scope<*, Function>).functions.define(method, it) }
                 RhovasIr.DefinitionPhase.Function(ast, method)
             }
         }

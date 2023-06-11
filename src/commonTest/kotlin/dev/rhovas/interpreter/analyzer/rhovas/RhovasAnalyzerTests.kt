@@ -354,6 +354,26 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         ))),
                     ))
                 },
+                "Operator Overload" to Test("""
+                    struct Name {
+                        func op+ add(this, other: Name) {
+                            print(this + other);
+                        }
+                    }
+                """.trimIndent()) {
+                    val type = Type.Base("Name", Scope.Definition(null)).reference
+                    type.base.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration("add", listOf(), listOf(Variable.Declaration("this", type, false), Variable.Declaration("other", type, false)), Type.VOID, listOf())))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(type, listOf(
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(type.functions["add", listOf(type, type)]!! as Function.Definition, block(
+                                RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["print", listOf(type)]!!, false, listOf(
+                                    RhovasIr.Expression.Binary("+", variable("this", type), variable("other", type), type.methods["add", listOf(type)]!!, Type.VOID),
+                                ), Type.VOID)),
+                            ))),
+                        ))),
+                    ))
+                },
                 "Redefined" to Test("""
                     struct Name {
                         func function() {}
@@ -589,6 +609,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             ), listOf())),
                         )
                     },
+                    "Invalid Operator Overload" to Test("""
+                        func op+ add() {}
+                    """.trimIndent(), null),
                     "Missing Parameter Type" to Test("""
                         func name(parameter) {}
                     """.trimIndent(), null),

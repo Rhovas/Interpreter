@@ -81,6 +81,7 @@ sealed class RhovasAst {
             ) : Declaration()
 
             data class Function(
+                val operator: String?,
                 val name: String,
                 val generics: List<Pair<String, Type?>>,
                 val parameters: List<Pair<String, Type?>>,
