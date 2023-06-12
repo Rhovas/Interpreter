@@ -27,14 +27,27 @@ sealed class Type(
         val MAP get() = GenericDelegate("Map")
         val SET get() = GenericDelegate("Set")
         val STRING get() = Library.type("String")
-        val STRUCT get() = GenericDelegate("Struct")
-        val TUPLE get() = GenericDelegate("Tuple")
+        val STRUCT get() = StructDelegate("Struct")
+        val TUPLE get() = TupleDelegate("Tuple")
         val TYPE get() = GenericDelegate("Type")
         val VOID get() = Library.type("Void")
 
         class GenericDelegate(val name: String) {
+            val GENERIC get() = Library.type(name)
             val ANY get() = Library.type(name).let { Reference(it.base, it.base.generics.map { DYNAMIC }) }
             operator fun get(vararg generics: Type) = Library.type(name, *generics)
+        }
+
+        class TupleDelegate(val name: String) {
+            val GENERIC get() = Library.type(name)
+            operator fun get(generic: Type) = Library.type(name, generic)
+            operator fun get(vararg elements: Variable.Declaration) = Library.type(name, Tuple(elements.toList()))
+        }
+
+        class StructDelegate(val name: String) {
+            val GENERIC get() = Library.type(name)
+            operator fun get(generic: Type) = Library.type(name, generic)
+            operator fun get(vararg elements: Variable.Declaration) = Library.type(name, Struct(elements.associateBy { it.name }))
         }
     }
 
@@ -127,6 +140,11 @@ sealed class Type(
         val generics: List<Type>,
     ) : Type(base) {
 
+        init {
+            //base.generics may be empty during initialization
+            require(base.generics.isEmpty() || generics.size == base.generics.size)
+        }
+
         override fun getFunction(name: String, arity: Int): List<Function> {
             return base.scope.functions[name, arity].takeIf { it.isNotEmpty() } ?: listOfNotNull(getFunctionDynamic(name, (1..arity).map { DYNAMIC }))
         }
@@ -193,7 +211,7 @@ sealed class Type(
 
     data class Tuple(
         val elements: List<Variable.Declaration>,
-    ) : Type(TUPLE[DYNAMIC].base) {
+    ) : Type(TUPLE.GENERIC.base) {
 
         val scope = Scope.Declaration(null)
 
@@ -213,12 +231,12 @@ sealed class Type(
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + TUPLE.ANY.base.scope.functions[name, arity]
+            return scope.functions[name, arity] + TUPLE.GENERIC.base.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: TUPLE.ANY.base.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: TUPLE.GENERIC.base.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
@@ -242,7 +260,7 @@ sealed class Type(
 
     data class Struct(
         val fields: Map<String, Variable.Declaration>,
-    ) : Type(STRUCT[DYNAMIC].base) {
+    ) : Type(STRUCT.GENERIC.base) {
 
         val scope = Scope.Declaration(null)
 
@@ -262,12 +280,12 @@ sealed class Type(
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + STRUCT.ANY.base.scope.functions[name, arity]
+            return scope.functions[name, arity] + STRUCT.GENERIC.base.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: STRUCT.ANY.base.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: STRUCT.GENERIC.base.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {

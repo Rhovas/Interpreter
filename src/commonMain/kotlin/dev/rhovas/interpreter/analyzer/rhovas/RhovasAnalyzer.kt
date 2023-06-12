@@ -309,7 +309,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "An instance initializer can only be called once.",
         ) } }
         initialization.initialized = true
-        val initializer = visit(ast.initializer, Type.STRUCT.ANY) as RhovasIr.Expression.Literal.Object
+        val initializer = visit(ast.initializer, Type.STRUCT.GENERIC) as RhovasIr.Expression.Literal.Object
         //TODO(#14): Validate available fields
         RhovasIr.Statement.Initializer(initializer)
     }
@@ -502,12 +502,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For = analyzeAst(ast) {
-        val argument = visit(ast.argument, Type.LIST.ANY)
-        require(argument.type.isSubtypeOf(Type.ITERABLE.ANY)) { error(ast.argument,
+        val argument = visit(ast.argument, Type.LIST.GENERIC)
+        require(argument.type.isSubtypeOf(Type.ITERABLE[Type.DYNAMIC])) { error(ast.argument,
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
-        val type = argument.type.generic("T", Type.ITERABLE.ANY.base.reference)!!
+        val type = argument.type.generic("T", Type.ITERABLE.GENERIC)!!
         val variable = Variable.Declaration(ast.name, type, false)
         analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
@@ -723,7 +723,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr.Expression.Literal.Scalar = analyzeAst(ast) {
         val type = when (ast.value) {
-            null -> Type.NULLABLE.ANY
+            null -> Type.NULLABLE[Type.DYNAMIC]
             is Boolean -> Type.BOOLEAN
             is BigInteger -> Type.INTEGER
             is BigDecimal -> Type.DECIMAL
@@ -741,13 +741,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
         //check base type to avoid subtype issues with Dynamic
-        val (elements, type) = if (context.inference?.base == Type.TUPLE.ANY.base) {
-            val generics = (context.inference!!.generic("T", Type.TUPLE.ANY.base.reference)!! as? Type.Tuple)?.elements
+        val (elements, type) = if (context.inference?.base == Type.TUPLE.GENERIC.base) {
+            val generics = (context.inference!!.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
-            val type = Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, true) })
-            Pair(elements, Type.TUPLE[type])
+            val type = Type.TUPLE[Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, true) })]
+            Pair(elements, type)
         } else {
-            val inference = context.inference?.generic("T", Type.LIST.ANY.base.reference)
+            val inference = context.inference?.generic("T", Type.LIST.GENERIC)
             val elements = ast.elements.map { visit(it, inference) }
             //rough implementation of unification
             val type = elements.fold(inference ?: elements.firstOrNull()?.type ?: Type.DYNAMIC) { acc, expr ->
@@ -763,9 +763,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
-        val (properties, type) = if (context.inference?.base == Type.MAP.ANY.base) {
-            val inferredKey = context.inference!!.generic("K", Type.MAP.ANY.base.reference) ?: Type.ANY
-            val inferredValue = context.inference!!.generic("V", Type.MAP.ANY.base.reference) ?: Type.ANY
+        val (properties, type) = if (context.inference?.base == Type.MAP.GENERIC.base) {
+            val inferredKey = context.inference!!.generic("K", Type.MAP.GENERIC) ?: Type.ANY
+            val inferredValue = context.inference!!.generic("V", Type.MAP.GENERIC) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -784,7 +784,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             Pair(properties, Type.MAP[keyType, valueType])
         } else {
-            val inference = (context.inference?.generic("T", Type.STRUCT.ANY.base.reference) as? Type.Struct)?.fields
+            val inference = (context.inference?.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -833,12 +833,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "==", "!=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.EQUATABLE.ANY) || left.type.isSupertypeOf(Type.EQUATABLE.ANY)) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.EQUATABLE[Type.DYNAMIC]) || left.type.isSupertypeOf(Type.EQUATABLE[Type.DYNAMIC])) { error(ast.left,
                     "Unequatable type.",
                     "A logical binary expression requires the left operand to be unifiable with type Equatable, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, left.type)
-                require(right.type.isSubtypeOf(Type.EQUATABLE.ANY) || right.type.isSupertypeOf(Type.EQUATABLE.ANY)) { error(ast.right,
+                require(right.type.isSubtypeOf(Type.EQUATABLE[Type.DYNAMIC]) || right.type.isSupertypeOf(Type.EQUATABLE[Type.DYNAMIC])) { error(ast.right,
                     "Unequatable type.",
                     "A logical binary expression requires the right operand to be unifiable with type Equatable, but received ${right.type}.",
                 ) }
@@ -851,7 +851,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "<", ">", "<=", ">=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.COMPARABLE.ANY)) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.COMPARABLE[Type.DYNAMIC])) { error(ast.left,
                     "Uncomparable type.",
                     "A logical equality expression requires the left operand to be type Comparable, but received ${left.type}.",
                 ) }
@@ -890,7 +890,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType.base.name}.",
         )
         val returnsType = if (bang) {
-            require(property.type.isSubtypeOf(Type.RESULT.ANY)) { error(ast,
+            require(property.type.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC])) { error(ast,
                 "Invalid bang attribute.",
                 "A bang attribute requires the property getter ${ast.name.removeSuffix("!")}() to return type Result, but received ${property.type}"
             ) }
@@ -970,7 +970,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     private fun computeCoalesceReceiver(receiver: RhovasIr.Expression, coalesce: Boolean): Type {
         return if (coalesce) {
-            require(receiver.type.isSubtypeOf(Type.RESULT.ANY)) { error(
+            require(receiver.type.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC])) { error(
                 "Invalid coalesce.",
                 "Coalescing requires the receiver to be type Result, but received ${receiver.type}.",
                 receiver.context.firstOrNull(),
@@ -984,7 +984,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private fun computeBangReturn(function: Function, bang: Boolean, error: () -> AnalyzeException): Type {
         return when {
             bang && function.throws.isEmpty() -> {
-                require(function.returns.isSubtypeOf(Type.RESULT.ANY), error)
+                require(function.returns.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC]), error)
                 function.returns.methods["value!", listOf()]!!.returns
             }
             !bang && function.throws.isNotEmpty() -> Type.RESULT[function.returns, function.throws.singleOrNull() ?: Type.EXCEPTION]
@@ -996,8 +996,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return when {
             cascade -> receiver
             coalesce -> when {
-                returns.isSubtypeOf(Type.RESULT.ANY) -> returns
-                receiver.isSubtypeOf(Type.NULLABLE.ANY) -> Type.NULLABLE[returns]
+                returns.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC]) -> returns
+                receiver.isSubtypeOf(Type.NULLABLE[Type.DYNAMIC]) -> Type.NULLABLE[returns]
                 else -> Type.RESULT[returns, mutableMapOf<String, Type>().also { receiver.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.Generic("E", Type.ANY)], it) }["E"]!!]
             }
             else -> returns
@@ -1044,10 +1044,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             } }
         }
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
-        val exceptions = when {
-            name.endsWith('!') && function.returns.isSubtypeOf(Type.RESULT.ANY) -> listOf(function.returns.generic("E", Type.RESULT.ANY.base.reference)!!)
-            else -> function.throws
-        }
+        val exceptions = function.throws + listOfNotNull(function.returns.generic("E", Type.RESULT.GENERIC)?.takeIf { name.endsWith('!') })
         exceptions.filter { it.base !== Type.DYNAMIC.base }.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
@@ -1102,16 +1099,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.ANY.base) {
-            val parameters = (context.inference!!.generic("T", Type.LAMBDA.ANY.base.reference)?.generic("T", Type.TUPLE.ANY.base.reference) as? Type.Tuple)?.let {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.GENERIC.base) {
+            val parameters = (context.inference!!.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
                     is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
                     else -> it.type
                 }) })
             }
-            val returns = context.inference!!.generic("R", Type.LAMBDA.ANY.base.reference)
-            val throws = context.inference!!.generic("E", Type.LAMBDA.ANY.base.reference)
+            val returns = context.inference!!.generic("R", Type.LAMBDA.GENERIC)
+            val throws = context.inference!!.generic("E", Type.LAMBDA.GENERIC)
             Triple(parameters, returns, throws)
         } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
@@ -1183,14 +1180,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure = analyzeAst(ast) {
-        require(context.inference!!.isSupertypeOf(Type.LIST.ANY)) { error(ast,
+        require(context.inference!!.isSupertypeOf(Type.LIST[Type.DYNAMIC])) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference!!}, but received List.",
         ) }
-        val type = when {
-            context.inference!!.isSubtypeOf(Type.LIST.ANY) -> context.inference!!.methods["get", listOf(Type.INTEGER)]!!.returns
-            else -> Type.DYNAMIC
-        }
+        val type = context.inference!!.generic("T", Type.LIST.GENERIC) ?: Type.DYNAMIC
         var vararg = false
         val patterns = ast.patterns.map { pattern ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) { analyzeAst(pattern) {
@@ -1217,11 +1211,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure = analyzeAst(ast) {
-        require(context.inference!!.isSupertypeOf(Type.STRUCT.ANY)) { error(ast,
+        require(context.inference!!.isSupertypeOf(Type.STRUCT.GENERIC)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received Struct.",
         ) }
-        val type = (context.inference!!.generic("T", Type.STRUCT.ANY.base.reference) as? Type.Struct)?.fields
+        val type = (context.inference!!.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
         var vararg = false
         val patterns = ast.patterns.map { (key, pattern) ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) {
@@ -1246,7 +1240,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                             visit(it)
                         }
                     }
-                    val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.ANY) } ?: mapOf()
+                    val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.GENERIC) } ?: mapOf()
                     context.bindings.putAll(bindings)
                     RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
                 })

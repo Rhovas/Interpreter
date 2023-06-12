@@ -23,7 +23,7 @@ class TypeTests : RhovasSpec() {
                 "Equal" to Test("number", listOf(Type.NUMBER), Type.ANY),
                 "Subtype" to Test("number", listOf(Type.INTEGER), Type.ANY),
                 "Supertype" to Test("number", listOf(Type.ANY), null),
-                "Generic Unbound" to Test("get", listOf(Type.LIST.ANY.base.reference, Type.INTEGER), Type.Generic("T", Type.ANY)),
+                "Generic Unbound" to Test("get", listOf(Type.LIST.GENERIC, Type.INTEGER), Type.Generic("T", Type.ANY)),
                 "Generic Bound" to Test("get", listOf(Type.LIST[Type.INTEGER], Type.INTEGER), Type.INTEGER),
                 "Generic Multiple" to Test("set", listOf(Type.LIST[Type.INTEGER], Type.INTEGER, Type.INTEGER), Type.INTEGER),
                 "Generic Multiple Primitive Subtype First" to Test("set2", listOf(Type.INTEGER, Type.INTEGER, Type.LIST[Type.NUMBER]), Type.NUMBER),
@@ -47,7 +47,7 @@ class TypeTests : RhovasSpec() {
                 "Subtype" to Test("<=>", listOf(Type.NUMBER, Type.INTEGER), Type.INTEGER),
                 "Supertype" to Test("<=>", listOf(Type.NUMBER, Type.ANY), null),
                 "Dynamic" to Test("undefined", listOf(Type.DYNAMIC, Type.ANY), Type.DYNAMIC),
-                "Generic Unbound" to Test("get", listOf(Type.LIST.ANY.base.reference, Type.INTEGER), Type.Generic("T", Type.ANY)),
+                "Generic Unbound" to Test("get", listOf(Type.LIST.GENERIC, Type.INTEGER), Type.Generic("T", Type.ANY)),
                 "Generic Bound" to Test("get", listOf(Type.LIST[Type.INTEGER], Type.INTEGER), Type.INTEGER),
             )) { assertEquals(it.returns, it.arguments[0].methods[it.name, it.arguments.drop(1)]?.returns) }
         }
@@ -103,14 +103,14 @@ class TypeTests : RhovasSpec() {
                 )) { assertEquals(it.expected, it.type.isSubtypeOf(it.other)) }
 
                 suite("Unbound", listOf(
-                    "Equal" to Test(Type.LIST.ANY.base.reference, Type.LIST.ANY.base.reference, true),
-                    "Subtype" to Test(Type.LIST.ANY.base.reference, Type.ITERABLE.ANY.base.reference, true),
-                    "Supertype" to Test(Type.ITERABLE.ANY.base.reference, Type.LIST.ANY.base.reference, false),
-                    "Grandchild" to Test(Type.LIST.ANY.base.reference, Type.ANY, true),
-                    "Generic Subtype" to Test(Type.LIST[Type.INTEGER], Type.LIST.ANY.base.reference, true),
-                    "Generic Supertype" to Test(Type.LIST.ANY.base.reference, Type.LIST[Type.INTEGER], false),
-                    "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST.ANY.base.reference, true),
-                    "Generic Dynamic Supertype" to Test(Type.LIST.ANY.base.reference, Type.LIST[Type.DYNAMIC], true),
+                    "Equal" to Test(Type.LIST.GENERIC, Type.LIST.GENERIC, true),
+                    "Subtype" to Test(Type.LIST.GENERIC, Type.ITERABLE.GENERIC, true),
+                    "Supertype" to Test(Type.ITERABLE.GENERIC, Type.LIST.GENERIC, false),
+                    "Grandchild" to Test(Type.LIST.GENERIC, Type.ANY, true),
+                    "Generic Subtype" to Test(Type.LIST[Type.INTEGER], Type.LIST.GENERIC, true),
+                    "Generic Supertype" to Test(Type.LIST.GENERIC, Type.LIST[Type.INTEGER], false),
+                    "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST.GENERIC, true),
+                    "Generic Dynamic Supertype" to Test(Type.LIST.GENERIC, Type.LIST[Type.DYNAMIC], true),
                 )) { assertEquals(it.expected, it.type.isSubtypeOf(it.other)) }
 
                 suite("Bound", listOf(

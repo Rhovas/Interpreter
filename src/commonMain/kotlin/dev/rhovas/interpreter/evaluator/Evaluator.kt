@@ -43,7 +43,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         ir.type.base.scope.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[Type.Struct(fields.filter { it.value.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, false) })]) }.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val initial = arguments[0].value as Map<String, Object>
-                Object(ir.type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null) })
+                Object(ir.type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE[Type.DYNAMIC], null) })
             }
         }
         ir.type.base.scope.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } }.implementation = { arguments ->
@@ -125,7 +125,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Variable): Object {
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
-        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE.ANY, null)
+        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE[Type.DYNAMIC], null)
         return Object(Type.VOID, Unit)
     }
 
@@ -437,7 +437,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
-        val value = if (ir.type.isSupertypeOf(Type.MAP.ANY)) {
+        val value = if (ir.type.isSupertypeOf(Type.MAP[Type.DYNAMIC, Type.DYNAMIC])) {
             ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
         } else {
             ir.properties.mapValues { visit(it.value) }
@@ -677,7 +677,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.OrderedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.LIST.ANY)) {
+        if (!patternState.value.type.isSubtypeOf(Type.LIST[Type.DYNAMIC])) {
             return Object(Type.BOOLEAN, false)
         }
         val type = patternState.value.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -704,7 +704,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.NamedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.ANY)) {
+        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.GENERIC)) {
             return Object(Type.BOOLEAN, false)
         }
         val map = patternState.value.value as Map<String, Object>
@@ -713,7 +713,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         for ((key, pattern) in ir.patterns) {
             val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 vararg = true
-                Object(Type.STRUCT.ANY, map.filterKeys { !named.contains(it) })
+                Object(Type.STRUCT.GENERIC, map.filterKeys { !named.contains(it) })
             } else {
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
@@ -739,7 +739,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.VarargDestructure): Object {
-        if (patternState.value.type.isSubtypeOf(Type.LIST.ANY)) {
+        if (patternState.value.type.isSubtypeOf(Type.LIST[Type.DYNAMIC])) {
             val list = patternState.value.value as List<Object>
             if (ir.operator == "+" && list.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
@@ -760,13 +760,13 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 bindings.forEach { patternState.scope.variables.define(it.value) }
                 Object(Type.BOOLEAN, result)
             }
-        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.ANY)) {
+        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.GENERIC)) {
             val map = patternState.value.value as Map<String, Object>
             if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.ANY, map))) }
+                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.GENERIC, map))) }
                 Object(Type.BOOLEAN, true)
             } else {
                 val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(it.value.type, mutableMapOf<String, Object>())) }
@@ -876,7 +876,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 when {
                     ast.parameters.isNotEmpty() -> ast.parameters.zip(arguments).forEach { evaluator.scope.variables.define(Variable.Definition(it.first, it.second.third)) }
                     arguments.size == 1 -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].second, false), arguments[0].third))
-                    else -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.STRUCT.ANY, false), Object(Type.STRUCT.ANY, arguments.associate { it.first to it.third })))
+                    else -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.STRUCT.GENERIC, false), Object(Type.STRUCT.GENERIC, arguments.associate { it.first to it.third })))
                 }
                 try {
                     evaluator.visit(ast.body)

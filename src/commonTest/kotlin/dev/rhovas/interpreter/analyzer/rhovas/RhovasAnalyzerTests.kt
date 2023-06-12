@@ -774,9 +774,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         "dynamic" to Variable.Declaration("dynamic", Type.DYNAMIC, true),
                         "unassignable" to Variable.Declaration("unassignable", Type.INTEGER, false),
                     ))]).variable)
-                    it.variables.define(variable("tuple", Type.TUPLE[Type.Tuple(listOf(
-                        Variable.Declaration("0", Type.INTEGER, true),
-                    ))]).variable)
+                    it.variables.define(variable("tuple", Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true)]).variable)
                 } }
 
                 suite("Index", listOf(
@@ -1301,7 +1299,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     "Null" to Test("""
                         null
                     """.trimIndent()) {
-                        RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE.ANY)
+                        RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE[Type.DYNAMIC])
                     },
                     "Boolean" to Test("""
                         true
@@ -1364,13 +1362,13 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Tuple([1, "string"])
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.TUPLE.ANY.base.reference,
-                            Type.TUPLE.ANY.base.reference.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))])]!!,
-                            listOf(RhovasIr.Expression.Literal.List(listOf(
-                                literal(BigInteger.parseString("1")),
-                                literal("string"),
-                            ), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))])),
-                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)))],
+                            Type.TUPLE.GENERIC,
+                            Type.TUPLE.GENERIC.functions["", listOf(Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)])]!!,
+                            listOf(RhovasIr.Expression.Literal.List(
+                                listOf(literal(BigInteger.parseString("1")), literal("string")),
+                                Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)],
+                            )),
+                            Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true), Variable.Declaration("1", Type.STRING, true)],
                         )
                     },
                 )) { test("expression", it.source, it.expected) }
@@ -1404,8 +1402,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Map({key: "value"})
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.MAP.ANY.base.reference,
-                            Type.MAP.ANY.base.reference.functions["", listOf(Type.MAP[Type.ATOM, Type.ANY])]!!,
+                            Type.MAP.GENERIC,
+                            Type.MAP.GENERIC.functions["", listOf(Type.MAP[Type.ATOM, Type.ANY])]!!,
                             listOf(RhovasIr.Expression.Literal.Object(
                                 mapOf("key" to literal("value")),
                                 Type.MAP[Type.ATOM, Type.ANY],
@@ -1714,8 +1712,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Property(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.ANY.base.reference,
-                                Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!!,
+                                Type.NULLABLE.GENERIC,
+                                Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!!,
                                 listOf(literal("string")),
                                 Type.NULLABLE[Type.STRING]
                             ),
@@ -1730,12 +1728,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Property(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.TUPLE.ANY.base.reference,
-                                Type.TUPLE.ANY.functions["", listOf(Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))])]!!,
-                                listOf(RhovasIr.Expression.Literal.List(listOf(literal(BigInteger.parseString("1"))), Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))])),
-                                Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))],
+                                Type.TUPLE.GENERIC,
+                                Type.TUPLE.GENERIC.functions["", listOf(Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true)])]!!,
+                                listOf(RhovasIr.Expression.Literal.List(listOf(literal(BigInteger.parseString("1"))), Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true)])),
+                                Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true)],
                             ),
-                            Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, true)))].properties["0"]!!,
+                            Type.TUPLE[Variable.Declaration("0", Type.INTEGER, true)].properties["0"]!!,
                             false,
                             false,
                             Type.INTEGER,
@@ -1769,8 +1767,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Index(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.ANY.base.reference,
-                                Type.NULLABLE.ANY.functions["", listOf(Type.LIST[Type.ANY])]!!,
+                                Type.NULLABLE.GENERIC,
+                                Type.NULLABLE.GENERIC.functions["", listOf(Type.LIST[Type.ANY])]!!,
                                 listOf(variable("list", Type.LIST[Type.ANY])),
                                 Type.NULLABLE[Type.LIST[Type.ANY]]
                             ),
@@ -1801,8 +1799,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Nullable("argument")
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.NULLABLE.ANY.base.reference,
-                            Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!!,
+                            Type.NULLABLE.GENERIC,
+                            Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!!,
                             listOf(literal("argument")),
                             Type.NULLABLE[Type.STRING],
                         )
@@ -1860,8 +1858,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Method(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.ANY.base.reference,
-                                Type.NULLABLE.ANY.functions["", listOf(Type.STRING)]!! as Function.Definition,
+                                Type.NULLABLE.GENERIC,
+                                Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!! as Function.Definition,
                                 listOf(literal("string")),
                                 Type.NULLABLE[Type.STRING],
                             ),
@@ -1937,8 +1935,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Pipeline(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.ANY.base.reference,
-                                Type.NULLABLE.ANY.functions["", listOf(Type.INTEGER)]!! as Function.Definition,
+                                Type.NULLABLE.GENERIC,
+                                Type.NULLABLE.GENERIC.functions["", listOf(Type.INTEGER)]!! as Function.Definition,
                                 listOf(literal(BigInteger.parseString("1"))),
                                 Type.NULLABLE[Type.INTEGER],
                             ),
@@ -2016,55 +2014,55 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Empty" to Test("""
                     lambda {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
-                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
-                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC]),
+                    ), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Body" to Test("""
                     lambda { stmt(); }
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
-                        RhovasIr.Expression.Lambda(listOf(), block(stmt()), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
-                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                        RhovasIr.Expression.Lambda(listOf(), block(stmt()), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC]),
+                    ), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Parameter" to Test("""
                     lambda |x| {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.DYNAMIC, false)], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
                         RhovasIr.Expression.Lambda(
                             listOf(Variable.Declaration("x", Type.DYNAMIC, false)),
                             block(),
-                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.DYNAMIC, false)], Type.DYNAMIC, Type.DYNAMIC],
                         ),
-                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC, false)))], Type.DYNAMIC, Type.DYNAMIC])
+                    ), Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.DYNAMIC, false)], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Parameter Type" to Test("""
                     lambda |x: Integer| {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.INTEGER, false)], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
                         RhovasIr.Expression.Lambda(
                             listOf(Variable.Declaration("x", Type.INTEGER, false)),
                             block(),
-                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.INTEGER, false)], Type.DYNAMIC, Type.DYNAMIC],
                         ),
-                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER, false)))], Type.DYNAMIC, Type.DYNAMIC])
+                    ), Type.LAMBDA[Type.TUPLE[Variable.Declaration("x", Type.INTEGER, false)], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Expression" to Test("""
                     lambda { 1 }
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
                         RhovasIr.Expression.Lambda(
                             listOf(),
                             RhovasIr.Expression.Block(listOf(), literal(BigInteger.parseString("1")), Type.INTEGER),
-                            Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC],
                         ),
-                    ), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC])
+                    ), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Without Inference" to Test("""
                     print {}
                 """.trimIndent()) {
                     RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["print", listOf(Type.ANY)]!!, false, listOf(
-                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE.ANY, Type.DYNAMIC, Type.DYNAMIC]),
+                        RhovasIr.Expression.Lambda(listOf(), block(), Type.LAMBDA[Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, Type.DYNAMIC]),
                     ), Type.VOID)
                 },
                 "Invalid Return Type" to Test("""
@@ -2641,7 +2639,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
 
     private fun literal(value: Any?): RhovasIr.Expression.Literal {
         return when (value) {
-            null -> RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE.ANY)
+            null -> RhovasIr.Expression.Literal.Scalar(null, Type.NULLABLE[Type.DYNAMIC])
             is Boolean -> RhovasIr.Expression.Literal.Scalar(value, Type.BOOLEAN)
             is BigInteger -> RhovasIr.Expression.Literal.Scalar(value, Type.INTEGER)
             is BigDecimal -> RhovasIr.Expression.Literal.Scalar(value, Type.DECIMAL)

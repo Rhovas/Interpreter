@@ -37,7 +37,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         method("keys",
             returns = Type.SET[generic("K", Type.HASHABLE[generic("K")])],
         ) { (instance) ->
-            val keyType = instance.type.generic("K", Type.SET.ANY.base.reference)!!
+            val keyType = instance.type.generic("K", Type.SET.GENERIC)!!
             val instance = instance.value as Map<Object.Hashable, Object>
             Object(Type.SET[keyType], instance.keys)
         }
@@ -45,27 +45,26 @@ object MapInitializer : Library.TypeInitializer("Map") {
         method("values",
             returns = Type.LIST[generic("V")],
         ) { (instance) ->
-            val valueType = instance.type.generic("V", Type.MAP.ANY.base.reference)!!
+            val valueType = instance.type.generic("V", Type.MAP.GENERIC)!!
             val instance = instance.value as Map<Object.Hashable, Object>
             Object(Type.LIST[valueType], instance.values.toList())
         }
 
         method("entries",
-            returns = Type.LIST[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("key", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("value", generic("V"), false)))]],
+            returns = Type.LIST[Type.TUPLE[Variable.Declaration("key", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("value", generic("V"), false)]],
         ) { (instance) ->
-            val keyType = instance.type.generic("K", Type.MAP.ANY.base.reference)!!
-            val valueType = instance.type.generic("V", Type.MAP.ANY.base.reference)!!
+            val keyType = instance.type.generic("K", Type.MAP.GENERIC)!!
+            val valueType = instance.type.generic("V", Type.MAP.GENERIC)!!
+            val entryType = Type.TUPLE[Variable.Declaration("0", keyType, false), Variable.Declaration("1", valueType, false)]
             val instance = instance.value as Map<Object.Hashable, Object>
-            Object(Type.LIST[Type.TUPLE[keyType, valueType]], instance.entries.map {
-                Object(Type.TUPLE[it.key.instance.type, it.value.type], listOf(it.key.instance, it.value))
-            })
+            Object(Type.LIST[entryType], instance.entries.map { Object(entryType, listOf(it.key.instance, it.value)) })
         }
 
         method("get", operator = "[]",
             parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")])),
             returns = Type.NULLABLE[generic("V")],
         ) { (instance, key) ->
-            val valueType = instance.type.generic("V", Type.MAP.ANY.base.reference)!!
+            val valueType = instance.type.generic("V", Type.MAP.GENERIC)!!
             val instance = instance.value as Map<Object.Hashable, Object>
             Object(Type.NULLABLE[valueType], instance[Object.Hashable(key)]?.let { Pair(it, null) })
         }

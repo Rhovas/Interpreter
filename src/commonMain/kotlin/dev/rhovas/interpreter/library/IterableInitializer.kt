@@ -15,14 +15,14 @@ object IterableInitializer : Library.TypeInitializer("Iterable") {
         method("iterator",
             returns = Type.ITERATOR[generic("T")]
         ) { (instance) ->
-            val elementType = instance.type.generic("T", Type.ITERABLE.ANY.base.reference)!!
+            val elementType = instance.type.generic("T", Type.ITERABLE.GENERIC)!!
             val instance = instance.value as Iterable<Object>
             instance.asIterable()
             Object(Type.ITERATOR[elementType], instance.iterator())
         }
 
         method("for",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.VOID, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.VOID, Type.DYNAMIC]),
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
             val instance = instance.value as List<Object>

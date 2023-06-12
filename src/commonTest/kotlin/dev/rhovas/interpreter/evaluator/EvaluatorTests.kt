@@ -786,7 +786,7 @@ class EvaluatorTests: RhovasSpec() {
                     "Element" to Test("""
                         tuple.0
                     """.trimIndent()) {
-                        it.variables.define(variable("tuple", Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false)))], listOf(literal(BigInteger.parseString("1")))))
+                        it.variables.define(variable("tuple", Type.TUPLE[Variable.Declaration("0", Type.INTEGER, false)], listOf(literal(BigInteger.parseString("1")))))
                         literal(BigInteger.parseString("1"))
                     }
                 )) { test("expression", it.source, it.log, it.expected) }
@@ -1072,7 +1072,7 @@ class EvaluatorTests: RhovasSpec() {
 
     private fun literal(value: Any?): Object {
         return when (value) {
-            null -> Object(Type.NULLABLE.ANY, null)
+            null -> Object(Type.NULLABLE[Type.DYNAMIC], null)
             is Boolean -> Object(Type.BOOLEAN, value)
             is BigInteger -> Object(Type.INTEGER, value)
             is BigDecimal -> Object(Type.DECIMAL, value)

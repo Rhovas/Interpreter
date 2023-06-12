@@ -126,7 +126,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("find",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -177,11 +177,11 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("map",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], generic("R"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = Type.LIST[generic("R")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.ANY)]!!.returns
+            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.GENERIC)]!!.returns
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
@@ -195,7 +195,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("filter",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("element", generic("T"), false)))], Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.LIST[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
@@ -218,11 +218,11 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("reduce",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)))], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.ANY)]!!.returns
+            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.GENERIC)]!!.returns
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 2) { EVALUATOR.error(
@@ -241,7 +241,7 @@ object ListInitializer : Library.TypeInitializer("List") {
 
         method("reduce",
             generics = listOf(generic("R")),
-            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)))], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda) ->
             val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns

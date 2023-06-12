@@ -19,7 +19,7 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
             throws = listOf(generic("E")),
             returns = generic("R")
         ) { (instance, arguments) ->
-            val returnsType = instance.type.generic("R", Type.LAMBDA.ANY.base.reference) ?: Type.DYNAMIC
+            val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Evaluator.Lambda
             val arguments = arguments.value as List<Object>
             if (instance.ast.parameters.isNotEmpty()) {
