@@ -170,11 +170,10 @@ class EvaluatorTests: RhovasSpec() {
                         list[0] = "final";
                         log(list[0]);
                     """.trimIndent(), "final"),
-                    //Disabled as Map literal type inference seem to be broken.
-                    "!Object" to Test("""
-                        val object = Map({ key: "initial" });
-                        object[:key] = "final";
-                        log(object[:key]);
+                    "Map" to Test("""
+                        val map = Map({ key: "initial" });
+                        map[:key] = "final";
+                        log(map[:key]);
                     """.trimIndent(), "final"),
                 )) { test("source", it.source, it.log, it.expected) }
             }
