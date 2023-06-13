@@ -134,22 +134,6 @@ sealed class Type(
                 .forEach { (name, function) -> scope.functions.define(function, name) }
         }
 
-        fun unify(other: Base): Base {
-            println("Base unify ${this.name}, ${other.name}")
-            return when {
-                name == "Any" || other.name == "Any" -> ANY.base
-                name == "Dynamic" || other.name == "Dynamic" -> DYNAMIC.base
-                name == other.name -> this
-                else -> {
-                    val thisUnification = inherits.map { it.base.unify(other) }.reduce { acc, type -> acc.takeUnless { type.reference.isSubtypeOf(acc.reference) } ?: type }
-                    val otherUnification = other.inherits.map { unify(it.base) }.reduce { acc, type -> acc.takeUnless { type.reference.isSubtypeOf(acc.reference) } ?: type }
-                    val result = thisUnification.takeUnless { otherUnification.reference.isSubtypeOf(it.reference) } ?: otherUnification
-                    println("Result base unify ${this.name}, ${other.name} = ${result}")
-                    result
-                }
-            }
-        }
-
         override fun equals(other: Any?): Boolean {
             return other is Base && name == other.name && generics == other.generics && inherits == other.inherits
         }
@@ -439,10 +423,9 @@ sealed class Type(
         }
 
         override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            println("Unify ${this}, ${other}")
             return when {
-                other is Variant -> Variant(other.lower?.let { lower?.unify(it, bindings) } ?: lower, (upper ?: ANY).unify(other.upper ?: ANY, bindings)).also { println("variant res = ${it}") }
-                else -> (upper ?: ANY).unify(other, bindings).also { println("normal res = ${it}") }
+                other is Variant -> Variant(other.lower?.let { lower?.unify(it, bindings) } ?: lower, (upper ?: ANY).unify(other.upper ?: ANY, bindings))
+                else -> (upper ?: ANY).unify(other, bindings)
             }
         }
 

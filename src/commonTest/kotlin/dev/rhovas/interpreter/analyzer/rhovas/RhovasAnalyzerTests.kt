@@ -2383,7 +2383,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         else []: stmt();
                     }
                 """.trimIndent(), null),
-                "f:Multiple Varargs" to Test("""
+                "Multiple Varargs" to Test("""
                     match (any) {
                         else [x*, y+]: stmt();
                     }
