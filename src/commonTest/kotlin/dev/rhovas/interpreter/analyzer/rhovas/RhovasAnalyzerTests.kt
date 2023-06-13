@@ -1403,12 +1403,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
                             Type.MAP.GENERIC,
-                            Type.MAP.GENERIC.functions["", listOf(Type.MAP[Type.ATOM, Type.ANY])]!!,
+                            Type.MAP.GENERIC.functions["", listOf(Type.MAP[Type.ATOM, Type.STRING])]!!,
                             listOf(RhovasIr.Expression.Literal.Object(
                                 mapOf("key" to literal("value")),
-                                Type.MAP[Type.ATOM, Type.ANY],
+                                Type.MAP[Type.ATOM, Type.STRING],
                             )),
-                            Type.MAP[Type.ATOM, Type.ANY],
+                            Type.MAP[Type.ATOM, Type.STRING],
                         )
                     },
                     "Redefined" to Test("""

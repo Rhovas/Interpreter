@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.environment
 
 import dev.rhovas.interpreter.RhovasSpec
 import dev.rhovas.interpreter.library.Library
+import io.kotest.matchers.shouldBe
 import kotlin.test.assertEquals
 
 class TypeTests : RhovasSpec() {
@@ -11,7 +12,8 @@ class TypeTests : RhovasSpec() {
         Type.Base("Number", Scope.Definition(null)).reference.also {
             it.base.inherit(Type.COMPARABLE[it])
             Library.SCOPE.types.define(it)
-            Type.INTEGER.base.inherit(it)
+            Type.INTEGER.base.inherits.add(0, it)
+            Type.DECIMAL.base.inherits.add(0, it)
         }
     }
 
@@ -142,6 +144,47 @@ class TypeTests : RhovasSpec() {
                     assertEquals(it.expected, Type.LIST[it.type].isSubtypeOf(Type.LIST[it.other]))
                 }
             }
+        }
+
+        suite("Unification") {
+            data class Test(val type: Type, val other: Type, val expected: Type)
+
+            fun test(type: Type, other: Type, expected: Type, wrapper: Type.Base) {
+                assertEquals(expected, type.unify(other))
+                assertEquals(expected, other.unify(type))
+                assertEquals(Type.Reference(wrapper, listOf(expected)), Type.Reference(wrapper, listOf(type)).unify(Type.Reference(wrapper, listOf(other))))
+                assertEquals(Type.Reference(wrapper, listOf(expected)), Type.Reference(wrapper, listOf(other)).unify(Type.Reference(wrapper, listOf(type))))
+            }
+
+            suite("Reference", listOf(
+                "Equal" to Test(Type.INTEGER, Type.INTEGER, Type.INTEGER),
+                "Disjoint" to Test(Type.INTEGER, Type.REGEX, Type.ANY),
+                "Supertype" to Test(Type.INTEGER, Type.NUMBER, Type.NUMBER),
+                "Common Supertype" to Test(Type.INTEGER, Type.DECIMAL, Type.NUMBER),
+                "Dynamic" to Test(Type.INTEGER, Type.DYNAMIC, Type.DYNAMIC),
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
+
+            suite("Tuple", listOf(
+                "Equal" to Test(Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false)))),
+                "Disjoint" to Test(Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.REGEX, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.ANY, false)))),
+                "Different Size" to Test(Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false), Variable.Declaration("1", Type.INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false))), Type.Tuple(listOf(Variable.Declaration("0", Type.INTEGER, false)))),
+            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.base) }
+
+            suite("Struct", listOf(
+                "Equal" to Test(Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false)))),
+                "Disjoint" to Test(Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.REGEX, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.ANY, false)))),
+                "Different Size" to Test(Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false), "y" to Variable.Declaration("y", Type.INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false))), Type.Struct(mapOf("x" to Variable.Declaration("x", Type.INTEGER, false)))),
+            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.base) }
+
+            suite("Generic", listOf(
+                "Equal" to Test(Type.Generic("T", Type.ANY), Type.Generic("T", Type.ANY), Type.Generic("T", Type.ANY)),
+                "Unbound" to Test(Type.Generic("T", Type.ANY), Type.INTEGER, Type.ANY),
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
+
+            suite("Variant", listOf(
+                "Equal" to Test(Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER)),
+                "Unbound" to Test(Type.Variant(null, null), Type.INTEGER, Type.ANY),
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
         }
     }
 

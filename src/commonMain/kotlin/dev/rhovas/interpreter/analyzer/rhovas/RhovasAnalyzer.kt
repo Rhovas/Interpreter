@@ -749,15 +749,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         } else {
             val inference = context.inference?.generic("T", Type.LIST.GENERIC)
             val elements = ast.elements.map { visit(it, inference) }
-            //rough implementation of unification
-            val type = elements.fold(inference ?: elements.firstOrNull()?.type ?: Type.DYNAMIC) { acc, expr ->
-                when {
-                    acc.isSubtypeOf(expr.type) -> expr.type
-                    acc.isSupertypeOf(expr.type) -> acc
-                    else -> Type.ANY
-                }
-            }
-            Pair(elements, Type.LIST[type])
+            val type = Type.LIST[elements.map { it.type }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC]
+            Pair(elements, type)
         }
         RhovasIr.Expression.Literal.List(elements, type)
     }
@@ -775,13 +768,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 properties[it.first] = visit(it.second, inferredValue)
             }
             val keyType = inferredKey.takeIf { properties.isEmpty() || !it.isSupertypeOf(Type.ATOM) } ?: Type.ATOM
-            val valueType = properties.values.fold(inferredValue) { acc, expr ->
-                when {
-                    acc.isSubtypeOf(expr.type) -> expr.type
-                    acc.isSupertypeOf(expr.type) -> acc
-                    else -> Type.ANY
-                }
-            }
+            val valueType = properties.values.map { it.type }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
             Pair(properties, Type.MAP[keyType, valueType])
         } else {
             val inference = (context.inference?.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
@@ -1228,14 +1215,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     val matched = ast.patterns.mapNotNull { it.first ?: (it.second as? RhovasAst.Pattern.Variable)?.name }
                     val remaining = type?.filter { !matched.contains(it.key) }
                     val p = pattern.pattern?.let {
-                        //rough implementation of unification
-                        val type = remaining?.map { it.value.type }?.fold(remaining.entries.firstOrNull()?.value?.type ?: Type.DYNAMIC) { acc, type ->
-                            when {
-                                acc.isSubtypeOf(type) -> type
-                                acc.isSupertypeOf(type) -> acc
-                                else -> Type.ANY
-                            }
-                        } ?: Type.DYNAMIC
+                        val type = remaining?.map { it.value.type }?.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
                         analyze(context.with(InferenceContext(type))) {
                             visit(it)
                         }
