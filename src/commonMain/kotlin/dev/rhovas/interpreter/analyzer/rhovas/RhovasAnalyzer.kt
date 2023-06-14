@@ -15,7 +15,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     Analyzer(Context(listOf(
         InputContext(ArrayDeque()),
         ScopeContext(scope),
-        InferenceContext(null),
+        InferenceContext(Type.ANY),
         InitializationContext(mutableMapOf()),
         FunctionContext(null),
         LabelContext(mutableSetOf()),
@@ -36,6 +36,25 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private val Context.exceptions get() = this[ExceptionContext::class]
     private val Context.bindings get() = this[BindingContext::class]
 
+    private fun Context.forComponent(component: Type) = child().with(
+        ComponentContext(component),
+        InferenceContext(Type.ANY),
+        InitializationContext(mutableMapOf()),
+        FunctionContext(null),
+        LabelContext(mutableSetOf()),
+        JumpContext(mutableSetOf()),
+        ExceptionContext(mutableSetOf()),
+    )
+
+    private fun Context.forFunction(function: Function) = child().with(
+        FunctionContext(function),
+        ExceptionContext(function.throws.toMutableSet()),
+        InferenceContext(Type.ANY),
+        InitializationContext(mutableMapOf()),
+        LabelContext(mutableSetOf()),
+        JumpContext(mutableSetOf()),
+    )
+
     /**
      * Context for variable/function/type scope.
      */
@@ -55,14 +74,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      * Context for storing the expected type for type inference.
      */
     data class InferenceContext(
-        val type: Type?,
-    ) : Context.Item<Type?>(type) {
+        val type: Type,
+    ) : Context.Item<Type>(type) {
 
         override fun child(): InferenceContext {
             return this
         }
 
-        override fun merge(children: List<Type?>) {}
+        override fun merge(children: List<Type>) {}
 
     }
 
@@ -241,7 +260,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        analyze(context.with(ComponentContext(type))) {
+        analyze(context.forComponent(type)) {
             val members = ir.members.map { visit(it) }
             RhovasIr.Component.Struct(type, members)
         }
@@ -253,7 +272,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        analyze(context.with(ComponentContext(type))) {
+        analyze(context.forComponent(type)) {
             val members = ir.members.map { visit(it) }
             RhovasIr.Component.Class(type, members)
         }
@@ -273,11 +292,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Member.Initializer): RhovasIr.Member.Initializer = analyzeAst(ir.ast) {
-        analyze(context.with(
-            ScopeContext(Scope.Declaration(context.scope)),
-            FunctionContext(ir.function.declaration),
-            ExceptionContext(ir.function.throws.toMutableSet()),
-        )) {
+        analyze(context.forFunction(ir.function)) {
             (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns, false))
             context.initialization["this"] = InitializationContext.Data(false, RhovasAst.Statement.Declaration.Variable(false, "this", null, null).also { it.context = ir.ast.context }, mutableListOf())
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
@@ -355,11 +370,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Function): RhovasIr.Statement.Declaration.Function = analyzeAst(ir.ast) {
-        analyze(context.with(
-            ScopeContext(Scope.Declaration(context.scope)),
-            FunctionContext(ir.function),
-            ExceptionContext(ir.function.throws.toMutableSet()),
-        )) {
+        analyze(context.forFunction(ir.function)) {
             ir.function.generics.forEach { context.scope.types.define(it) }
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
@@ -482,16 +493,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val argument = visit(ast.argument)
         //TODO(#10): Pattern coverage/exhaustiveness
         val cases = ast.cases.map {
-            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) { analyze(it.first.context) {
-                val pattern = visit(it.first)
+            analyze(context.child().with(BindingContext(mutableMapOf()))) { analyze(it.first.context) {
+                val pattern = visit(it.first, argument.type)
                 context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
                 Pair(pattern, statement)
             } }
         }
         val elseCase = ast.elseCase?.let {
-            analyze(context.child().with(InferenceContext(argument.type), BindingContext(mutableMapOf()))) { analyze((it.first ?: it.second).context) {
-                val pattern = it.first?.let { visit(it) }
+            analyze(context.child().with(BindingContext(mutableMapOf()))) { analyze((it.first ?: it.second).context) {
+                val pattern = it.first?.let { visit(it, argument.type) }
                 context.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
                 val statement = visit(it.second)
                 Pair(pattern, statement)
@@ -509,13 +520,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         ) }
         val type = argument.type.generic("T", Type.ITERABLE.GENERIC)!!
         val variable = Variable.Declaration(ast.name, type, false)
-        analyze {
+        val block = analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
             context.labels.add(null)
-            val block = visit(ast.block)
-            context.jumps.clear()
-            RhovasIr.Statement.For(variable, argument, block)
+            visit(ast.block).also { context.jumps.clear() }
         }
+        RhovasIr.Statement.For(variable, argument, block)
     }
 
     override fun visit(ast: RhovasAst.Statement.While): RhovasIr.Statement.While = analyzeAst(ast) {
@@ -524,12 +534,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid while condition type.",
             "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
-        analyze {
+        val block = analyze {
             context.labels.add(null)
-            val block = visit(ast.block)
-            context.jumps.clear()
-            RhovasIr.Statement.While(condition, block)
+            visit(ast.block).also { context.jumps.clear() }
         }
+        RhovasIr.Statement.While(condition, block)
     }
 
     override fun visit(ast: RhovasAst.Statement.Try): RhovasIr.Statement.Try = analyzeAst(ast) {
@@ -546,11 +555,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val catchBlocks = ast.catchBlocks.map { analyzeAst(it) {
             val type = visit(it.type).type //validated as subtype of Exception above
             val variable = Variable.Declaration(it.name, type, false)
-            analyze(context.child()) {
+            val block = analyze(context.child()) {
                 (context.scope as Scope.Declaration).variables.define(variable)
-                val block = visit(it.block)
-                RhovasIr.Statement.Try.Catch(variable, block)
+                visit(it.block)
             }
+            RhovasIr.Statement.Try.Catch(variable, block)
         } }
         context.merge()
         val finallyBlock = ast.finallyBlock?.let {
@@ -568,11 +577,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With = analyzeAst(ast) {
         val argument = visit(ast.argument)
         val variable = ast.name?.let { Variable.Declaration(ast.name, argument.type, false) }
-        analyze {
+        val block = analyze {
             variable?.let { (context.scope as Scope.Declaration).variables.define(it) }
-            val block = visit(ast.block)
-            RhovasIr.Statement.With(variable, argument, block)
+            visit(ast.block)
         }
+        RhovasIr.Statement.With(variable, argument, block)
     }
 
     override fun visit(ast: RhovasAst.Statement.Label): RhovasIr.Statement.Label = analyzeAst(ast) {
@@ -584,12 +593,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Redefined label.",
             "The label ${ast.label} is already defined in this scope.",
         ) }
-        analyze {
+        val statement = analyze {
             context.labels.add(ast.label)
-            val statement = visit(ast.statement)
-            context.jumps.remove(ast.label)
-            RhovasIr.Statement.Label(ast.label, statement)
+            visit(ast.statement).also { context.jumps.remove(ast.label) }
         }
+        RhovasIr.Statement.Label(ast.label, statement)
     }
 
     override fun visit(ast: RhovasAst.Statement.Break): RhovasIr.Statement.Break = analyzeAst(ast) {
@@ -689,7 +697,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     private fun visit(ast: RhovasAst.Expression, type: Type? = null): RhovasIr.Expression {
-        return analyze(context.with(InferenceContext(type))) { super.visit(ast) as RhovasIr.Expression }
+        return analyze(context.with(InferenceContext(type ?: Type.ANY))) { super.visit(ast) as RhovasIr.Expression }
     }
 
     override fun visit(ast: RhovasAst.Expression.Block): RhovasIr.Expression.Block = analyzeAst(ast) { analyze {
@@ -741,13 +749,13 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
         //check base type to avoid subtype issues with Dynamic
-        val (elements, type) = if (context.inference?.base == Type.TUPLE.GENERIC.base) {
-            val generics = (context.inference!!.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
+        val (elements, type) = if (context.inference.base == Type.TUPLE.GENERIC.base) {
+            val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
             val type = Type.TUPLE[Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, true) })]
             Pair(elements, type)
         } else {
-            val inference = context.inference?.generic("T", Type.LIST.GENERIC)
+            val inference = context.inference.generic("T", Type.LIST.GENERIC) ?: Type.ANY
             val elements = ast.elements.map { visit(it, inference) }
             val type = Type.LIST[elements.map { it.type }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC]
             Pair(elements, type)
@@ -756,9 +764,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
-        val (properties, type) = if (context.inference?.base == Type.MAP.GENERIC.base) {
-            val inferredKey = context.inference!!.generic("K", Type.MAP.GENERIC) ?: Type.ANY
-            val inferredValue = context.inference!!.generic("V", Type.MAP.GENERIC) ?: Type.ANY
+        val (properties, type) = if (context.inference.base == Type.MAP.GENERIC.base) {
+            val inferredKey = context.inference.generic("K", Type.MAP.GENERIC) ?: Type.ANY
+            val inferredValue = context.inference.generic("V", Type.MAP.GENERIC) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -771,7 +779,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val valueType = properties.values.map { it.type }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
             Pair(properties, Type.MAP[keyType, valueType])
         } else {
-            val inference = (context.inference?.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
+            val inference = (context.inference.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
             val properties = mutableMapOf<String, RhovasIr.Expression>()
             ast.properties.forEach {
                 require(properties[it.first] == null) { error(ast,
@@ -998,7 +1006,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         name: String,
         bang: Boolean,
         arity: Int,
-        generator: (Pair<Int, Type?>) -> Pair<RhovasAst.Expression, Type>,
+        generator: (Pair<Int, Type>) -> Pair<RhovasAst.Expression, Type>,
     ): Function {
         val descriptor = listOfNotNull(qualifier ?: "", name.takeIf { it.isNotEmpty() }).joinToString(".") + "/" + (if (term == "method") arity - 1 else arity)
         val candidates = (qualifier?.functions?.get(name, arity) ?: context.scope.functions[name, arity])
@@ -1016,7 +1024,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val filtered = candidates.toMutableList()
         val arguments = mutableListOf<Type>()
         for (i in 0 until arity) {
-            val inference = filtered.takeIf { it.size == 1 }?.let { it[0].first.parameters.getOrNull(i)?.type?.bind(it[0].second) }
+            val inference = filtered.map { it.first.parameters[i].type.bind(it.second) }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.ANY
             val (ast, type) = generator(Pair(i, inference)).also { arguments.add(it.second) }
             filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, it.second) }
             require(filtered.isNotEmpty()) { when (candidates.size) {
@@ -1086,16 +1094,16 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference?.base == Type.LAMBDA.GENERIC.base) {
-            val parameters = (context.inference!!.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference.base == Type.LAMBDA.GENERIC.base) {
+            val parameters = (context.inference.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
                     is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
                     else -> it.type
                 }) })
             }
-            val returns = context.inference!!.generic("R", Type.LAMBDA.GENERIC)
-            val throws = context.inference!!.generic("E", Type.LAMBDA.GENERIC)
+            val returns = context.inference.generic("R", Type.LAMBDA.GENERIC)
+            val throws = context.inference.generic("E", Type.LAMBDA.GENERIC)
             Triple(parameters, returns, throws)
         } else Triple(null, null, null)
         val parameters = ast.parameters.withIndex().map {
@@ -1107,10 +1115,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
         val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
         val function = Function.Declaration("lambda", listOf(), parameters, returns, throws)
-        analyze(context.child().with(
-            FunctionContext(function),
-            ExceptionContext(function.throws.toMutableSet())
-        )) {
+        val body = analyze(context.forFunction(function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             } else {
@@ -1119,18 +1124,19 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     ?: Type.DYNAMIC
                 (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type, false))
             }
-            val body = visit(ast.body)
-            require(body.type.isSubtypeOf(context.function!!.returns) || context.jumps.contains("")) { error(ast,
-                "Invalid return value type.",
-                "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${body.type}.",
-            ) }
-            val type = Type.LAMBDA[Type.TUPLE[parameters.takeIf { it.isNotEmpty() }?.let { Type.Tuple(it) } ?: Type.DYNAMIC], returns, Type.DYNAMIC]
-            RhovasIr.Expression.Lambda(parameters, body, type)
+            visit(ast.body).also {
+                require(it.type.isSubtypeOf(function.returns) || context.jumps.contains("")) { analyze(it.context) { error(ast,
+                    "Invalid return value type.",
+                    "The enclosing function ${function.name}/${function.parameters.size} requires the return value to be type ${function.returns}, but received ${it.type}.",
+                ) } }
+            }
         }
+        val type = Type.LAMBDA[Type.TUPLE[parameters.takeIf { it.isNotEmpty() }?.let { Type.Tuple(it) } ?: Type.DYNAMIC], returns, Type.DYNAMIC]
+        RhovasIr.Expression.Lambda(parameters, body, type)
     }
 
-    private fun visit(ast: RhovasAst.Pattern): RhovasIr.Pattern {
-        return super.visit(ast) as RhovasIr.Pattern
+    private fun visit(ast: RhovasAst.Pattern, type: Type): RhovasIr.Pattern {
+        return analyze(context.with(InferenceContext(type))) { super.visit(ast) as RhovasIr.Pattern }
     }
 
     override fun visit(ast: RhovasAst.Pattern.Variable): RhovasIr.Pattern.Variable = analyzeAst(ast) {
@@ -1138,14 +1144,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Redefined pattern binding",
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
-        val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference!!, false) else null
+        val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference, false) else null
         variable?.let { context.bindings[it.name] = it }
         RhovasIr.Pattern.Variable(variable)
     }
 
     override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value = analyzeAst(ast) {
-        val value = visit(ast.value, context.inference!!)
-        require(value.type.isSubtypeOf(context.inference!!)) { error(ast,
+        val value = visit(ast.value, context.inference)
+        require(value.type.isSubtypeOf(context.inference)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${value.type}.",
         ) }
@@ -1153,9 +1159,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate = analyzeAst(ast) {
-        val pattern = visit(ast.pattern)
+        val pattern = visit(ast.pattern, context.inference)
         val predicate = analyze {
-            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference!!, false))
+            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference, false))
             pattern.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
             visit(ast.predicate, Type.BOOLEAN)
         }
@@ -1167,11 +1173,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure = analyzeAst(ast) {
-        require(context.inference!!.isSupertypeOf(Type.LIST[Type.DYNAMIC])) { error(ast,
+        require(context.inference.isSupertypeOf(Type.LIST[Type.DYNAMIC])) { error(ast,
             "Unmatchable pattern type",
-            "This pattern is within a context that requires type ${context.inference!!}, but received List.",
+            "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }
-        val type = context.inference!!.generic("T", Type.LIST.GENERIC) ?: Type.DYNAMIC
+        val type = context.inference.generic("T", Type.LIST.GENERIC) ?: Type.DYNAMIC
         var vararg = false
         val patterns = ast.patterns.map { pattern ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) { analyzeAst(pattern) {
@@ -1181,28 +1187,24 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 ) }
                 vararg = true
                 val p = pattern.pattern?.let {
-                    analyze(context.with(InferenceContext(type))) {
-                        visit(it)
-                    }
+                    visit(it, type)
                 }
                 val bindings = p?.bindings?.mapValues { it.value.copy(type = Type.LIST[it.value.type]) } ?: mapOf()
                 context.bindings.putAll(bindings)
                 RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
             } } else {
-                analyze(context.with(InferenceContext(type))) {
-                    visit(pattern)
-                }
+                visit(pattern, type)
             }
         }
         RhovasIr.Pattern.OrderedDestructure(patterns)
     }
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure = analyzeAst(ast) {
-        require(context.inference!!.isSupertypeOf(Type.STRUCT.GENERIC)) { error(ast,
+        require(context.inference.isSupertypeOf(Type.STRUCT.GENERIC)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received Struct.",
         ) }
-        val type = (context.inference!!.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
+        val type = (context.inference.generic("T", Type.STRUCT.GENERIC) as? Type.Struct)?.fields
         var vararg = false
         val patterns = ast.patterns.map { (key, pattern) ->
             if (pattern is RhovasAst.Pattern.VarargDestructure) {
@@ -1216,9 +1218,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     val remaining = type?.filter { !matched.contains(it.key) }
                     val p = pattern.pattern?.let {
                         val type = remaining?.map { it.value.type }?.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
-                        analyze(context.with(InferenceContext(type))) {
-                            visit(it)
-                        }
+                        visit(it, type)
                     }
                     val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.GENERIC) } ?: mapOf()
                     context.bindings.putAll(bindings)
@@ -1231,9 +1231,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                         "Missing pattern key",
                         "This pattern requires a key to be used within a named destructure.",
                     )
-                val pattern = analyze(context.with(InferenceContext(type?.get(key)?.type ?: Type.DYNAMIC))) {
-                    visit(pattern)
-                }
+                val pattern = visit(pattern, type?.get(key)?.type ?: Type.DYNAMIC)
                 context.bindings[key] = Variable.Declaration(key, type?.get(key)?.type ?: Type.DYNAMIC, false)
                 Pair(key, pattern)
             }
@@ -1243,14 +1241,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure = analyzeAst(ast) {
         val type = visit(ast.type).type
-        require(context.inference!!.isSupertypeOf(type)) { error(ast,
+        require(context.inference.isSupertypeOf(type)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${type}.",
         ) }
         val pattern = ast.pattern?.let {
-            analyze(context.with(InferenceContext(type))) {
-                visit(it)
-            }
+            visit(it, type)
         }
         RhovasIr.Pattern.TypedDestructure(type, pattern)
     }
