@@ -20,7 +20,7 @@ import kotlin.test.fail
 
 class EvaluatorTests: RhovasSpec() {
 
-    data class Test(val source: String, val log: String? = null, val expected: ((Scope.Definition) -> Object)? = null)
+    data class Test(val source: String, val log: String? = null, val expected: ((Scope.Definition) -> Object?)? = null)
 
     init {
         suite("Source", listOf(
@@ -35,6 +35,9 @@ class EvaluatorTests: RhovasSpec() {
                 log(2);
                 log(3);
             """.trimIndent(), "123"),
+            "Exception" to Test("""
+                throw Exception("message");
+            """.trimIndent(), null),
         )) { test("source", it.source, it.log, it.expected) }
 
         suite("Component") {
@@ -44,13 +47,23 @@ class EvaluatorTests: RhovasSpec() {
                     log(Name({}));
                 """.trimIndent(), "Name{}"),
                 "Default Initializer" to Test("""
-                    struct Name { val field: Integer = 1; }
+                    struct Name {
+                        val field: Integer = 1;
+                    }
                     log(Name({}).field);
                 """.trimIndent(), "1"),
                 "Default Initializer Value" to Test("""
-                    struct Name { val field: Integer = 1; }
+                    struct Name {
+                        val field: Integer = 1;
+                    }
                     log(Name({field: 2}).field);
                 """.trimIndent(), "2"),
+                "Default Positional Initializer" to Test("""
+                    struct Name {
+                        val field: Integer = 1;
+                    }
+                    log(Name(1).field);
+                """.trimIndent(), "1"),
                 "Custom Initializer" to Test("""
                     struct Name {
                         var field: Integer;
@@ -61,16 +74,124 @@ class EvaluatorTests: RhovasSpec() {
                     log(Name(1.0).field);
                 """.trimIndent(), "1"),
                 "Function" to Test("""
-                    struct Name { func function(): Integer { return 1; } }
+                    struct Name {
+                        func function(): Integer {
+                            return 1;
+                        }
+                    }
                     log(Name.function());
                 """.trimIndent(), "1"),
                 "Method" to Test("""
                     struct Name {
                         val field: Integer = 1;
-                        func method(this): Integer { return this.field; }
+                        func method(this): Integer {
+                            return this.field;
+                        }
                     }
                     log(Name({}).method());
                 """.trimIndent(), "1"),
+            )) { test("source", it.source, it.log, it.expected) }
+
+            suite("Class", listOf(
+                "Class" to Test("""
+                    class Name {
+                        init() {}
+                    }
+                    log(Name());
+                """.trimIndent(), "Name{}"),
+                "Custom Initializer" to Test("""
+                    class Name {
+                        var field: Integer;
+                        init(field: Decimal) {
+                            this { field: field.to(Integer) };
+                        }
+                    }
+                    log(Name(1.0).field);
+                """.trimIndent(), "1"),
+                "Function" to Test("""
+                    class Name {
+                        func function(): Integer {
+                            return 1;
+                        }
+                    }
+                    log(Name.function());
+                """.trimIndent(), "1"),
+                "Method" to Test("""
+                    class Name {
+                        val field: Integer = 1;
+                        init() {
+                            this { field: 1 };
+                        }
+                        func method(this): Integer {
+                            return this.field;
+                        }
+                    }
+                    log(Name().method());
+                """.trimIndent(), "1"),
+            )) { test("source", it.source, it.log, it.expected) }
+        }
+
+        suite("Member") {
+            suite("Property", listOf(
+                "Getter" to Test("""
+                    struct Name {
+                        val field: Integer = 1;
+                    }
+                    val instance = Name({});
+                    log(instance.field);
+                """.trimIndent(), "1"),
+                "Setter" to Test("""
+                    struct Name {
+                        var field: Integer = 1;
+                    }
+                    val instance = Name({});
+                    instance.field = 2;
+                    log(instance.field);
+                """.trimIndent(), "2"),
+            )) { test("source", it.source, it.log, it.expected) }
+
+            suite("Initializer", listOf(
+                "Empty" to Test("""
+                    class Name {
+                        init() {
+                            log(1);
+                        }
+                    }
+                    Name();
+                """.trimIndent(), "1"),
+                "Argument" to Test("""
+                    class Name {
+                        init(argument: Integer) {
+                            log(argument);
+                        }
+                    }
+                    Name(1);
+                """.trimIndent(), "1"),
+                "Return" to Test("""
+                    class Name {
+                        init() {
+                            this {};
+                            return this;
+                        }
+                    }
+                    Name();
+                """.trimIndent(), ""),
+                "Declared Exception" to Test("""
+                    class Name {
+                        init() throws Exception {
+                            throw Exception("message");
+                        }
+                    }
+                    Name();
+                """.trimIndent(), null),
+                "Undeclared Exception" to Test("""
+                    class Name {
+                        init() {
+                            lambda { throw Exception("message"); }.invoke!([]);
+                        }
+                    }
+                    Name();
+                """.trimIndent(), null),
             )) { test("source", it.source, it.log, it.expected) }
         }
 
@@ -139,6 +260,18 @@ class EvaluatorTests: RhovasSpec() {
                         }
                         log(name());
                     """.trimIndent(), "1"),
+                    "Declared Exception" to Test("""
+                        func name() throws Exception {
+                            throw Exception("message");
+                        }
+                        name!();
+                    """.trimIndent(), null),
+                    "Undeclared Exception" to Test("""
+                        func name() {
+                            lambda { throw Exception("message"); }.invoke!([]);
+                        }
+                        name();
+                    """.trimIndent(), null),
                 )) { test("source", it.source, it.log, it.expected) }
             }
 
@@ -162,6 +295,18 @@ class EvaluatorTests: RhovasSpec() {
                         tuple.0 = "final";
                         log(tuple.0);
                     """.trimIndent(), "final"),
+                    "Undefined" to Test("""
+                        val dynamic: Dynamic = {};
+                        dynamic.property = "value";
+                    """.trimIndent(), null),
+                    "Unassignable" to Test("""
+                        val dynamic: Dynamic = [];
+                        dynamic.size = "value";
+                    """.trimIndent(), null),
+                    "Invalid Value" to Test("""
+                        val dynamic: Dynamic = { property: "initial" };
+                        dynamic.property = 1;
+                    """.trimIndent(), null),
                 )) { test("source", it.source, it.log, it.expected) }
 
                 suite("Index", listOf(
@@ -175,6 +320,14 @@ class EvaluatorTests: RhovasSpec() {
                         map[:key] = "final";
                         log(map[:key]);
                     """.trimIndent(), "final"),
+                    "Undefined" to Test("""
+                        val dynamic: Dynamic = 1;
+                        dynamic[:key] = "value";
+                    """.trimIndent(), null),
+                    "Invalid Value" to Test("""
+                        val dynamic: Dynamic = [];
+                        dynamic[:key] = "value";
+                    """.trimIndent(), null),
                 )) { test("source", it.source, it.log, it.expected) }
             }
 
@@ -432,6 +585,17 @@ class EvaluatorTests: RhovasSpec() {
                         log(3);
                     }
                 """.trimIndent(), "13"),
+                "Catch Exception" to Test("""
+                    try {
+                        try {
+                            throw Exception("try");
+                        } catch (val e: Exception) {
+                            throw Exception("catch");
+                        }
+                    } catch (val e: Exception) {
+                        log(e.message);
+                    }
+                """.trimIndent(), "catch"),
                 "Finally" to Test("""
                     try {
                         log(1);
@@ -439,7 +603,7 @@ class EvaluatorTests: RhovasSpec() {
                         log(2);
                     }
                 """.trimIndent(), "12"),
-                "Finally Catch" to Test("""
+                "Finally With Catch" to Test("""
                     try {
                         log(1);
                         throw Exception("message");
@@ -449,6 +613,28 @@ class EvaluatorTests: RhovasSpec() {
                         log(3);
                     }
                 """.trimIndent(), "123"),
+                "Finally Without Catch" to Test("""
+                    try {
+                        try {
+                            throw Exception("message");
+                        } finally {
+                            log(1);
+                        }
+                    } catch (val e: Exception) {
+                        log(2);
+                    }
+                """.trimIndent(), "12"),
+                "Finally Exception" to Test("""
+                    try {
+                        try {
+                            throw Exception("try");
+                        } finally {
+                            lambda { throw Exception("finally"); }.invoke!([]);
+                        }
+                    } catch (val e: Exception) {
+                        log(e.message);
+                    }
+                """.trimIndent(), "finally"),
             )) { test("source", it.source, it.log, it.expected) {
                 it.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { type ->
                     type.base.inherit(Type.EXCEPTION)
@@ -457,6 +643,19 @@ class EvaluatorTests: RhovasSpec() {
                     })
                 })
             } }
+
+            suite("With", listOf(
+                "With" to Test("""
+                    with (1) {
+                        log(1);
+                    }
+                """.trimIndent(), "1"),
+                "Argument" to Test("""
+                    with (val argument = 1) {
+                        log(argument);
+                    }
+                """.trimIndent(), "1")
+            )) { test("source", it.source, it.log, it.expected) }
 
             suite("Assert", listOf(
                 "True" to Test("""
@@ -523,15 +722,23 @@ class EvaluatorTests: RhovasSpec() {
                     """.trimIndent()) {
                         literal(BigDecimal.parseString("123.456"))
                     },
+                    "Atom" to Test("""
+                        :atom
+                    """.trimIndent()) {
+                        literal(RhovasAst.Atom("atom"))
+                    },
+                )) { test("expression", it.source, it.log, it.expected) }
+
+                suite("String", listOf(
                     "String" to Test("""
                         "string"
                     """.trimIndent()) {
                         literal("string")
                     },
-                    "Atom" to Test("""
-                        :atom
+                    "Interpolation" to Test("""
+                        "first${'$'}{1}second"
                     """.trimIndent()) {
-                        literal(RhovasAst.Atom("atom"))
+                        literal("first1second")
                     },
                 )) { test("expression", it.source, it.log, it.expected) }
 
@@ -787,7 +994,7 @@ class EvaluatorTests: RhovasSpec() {
                     """.trimIndent()) {
                         it.variables.define(variable("tuple", Type.TUPLE[Variable.Declaration("0", Type.INTEGER, false)], listOf(literal(BigInteger.parseString("1")))))
                         literal(BigInteger.parseString("1"))
-                    }
+                    },
                 )) { test("expression", it.source, it.log, it.expected) }
 
                 suite("Index", listOf(
@@ -877,15 +1084,76 @@ class EvaluatorTests: RhovasSpec() {
                         literal(BigInteger.parseString("1"))
                     },
                 )) { test("expression", it.source, it.log, it.expected) }
+
+                suite("Bang", listOf(
+                    "Exception to Result" to Test("""
+                        func throws!(): Integer throws Exception {
+                            return 1;
+                        }
+                        log(throws());
+                    """.trimIndent(), "1"),
+                    "Exception to Result Throws" to Test("""
+                        func throws!() throws Exception {
+                            throw Exception("message");
+                        }
+                        log(throws());
+                    """.trimIndent(), "message"),
+                    "Exception to Result Throws Undeclared" to Test("""
+                        func throws!() throws SubtypeException {
+                            lambda { throw Exception("message"); }.invoke!([]);
+                        }
+                        try {
+                            log(throws());
+                        } catch (val e: Exception) {
+                            log(e.message);
+                        }
+                    """.trimIndent(), "message") {
+                        it.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { type ->
+                            type.base.inherit(Type.EXCEPTION)
+                            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
+                                Object(type, arguments[0].value as String)
+                            })
+                        })
+                        null
+                    },
+                    "Result to Exception" to Test("""
+                        func result(): Nullable<Integer> {
+                            return Nullable(1);
+                        }
+                        log(result!());
+                    """.trimIndent(), "1"),
+                    "Result to Exception Throws" to Test("""
+                        func result(): Nullable<Integer> {
+                            return null;
+                        }
+                        try {
+                            log(result!());
+                        } catch (val e: Exception) {
+                            log("exception");
+                        }
+                    """.trimIndent(), "exception"),
+                )) { test("source", it.source, it.log, it.expected) }
             }
 
             suite("Lambda", listOf(
-                "Lambda" to Test("""
+                //"Zero Arguments" to Test("""
+                //    null.else { log(val) };
+                //""".trimIndent(), "void"),
+                "Single Argument" to Test("""
                     [1, 2, 3].for { log(val); };
+                """.trimIndent(), "123"),
+                //"Multiple Arguments" to Test("""
+                //    [1, 2, 3].reduce { log(val.0) + log(val.1) };
+                //""".trimIndent(), "1233"),
+                "Parameter" to Test("""
+                    [1, 2, 3].for |x| { log(x); };
                 """.trimIndent(), "123"),
                 "Return" to Test("""
                     log([1, 2, 3].map { return val * val; });
                 """.trimIndent(), "[1, 4, 9]"),
+                "Invalid Return" to Test("""
+                    [1, 2, 3].filter { lambda { 1 }.invoke!([]) };
+                """.trimIndent(), null),
             )) { test("source", it.source, it.log, it.expected) }
         }
 
@@ -1013,6 +1281,19 @@ class EvaluatorTests: RhovasSpec() {
                         [first, rest*]: { log(first); log(rest); }
                     }
                 """.trimIndent(), "1[2, 3]"),
+                "Unmatched Type" to Test("""
+                    val any: Any = null;
+                    match (any) {
+                        []: log(1);
+                        else: log(2);
+                    }
+                """.trimIndent(), "2"),
+                "Unmatched Arity" to Test("""
+                    match ([1, 2, 3]) {
+                        [x, y]: log(1);
+                        else: log(2);
+                    }
+                """.trimIndent(), "2"),
             )) { test("source", it.source, it.log, it.expected) }
 
             suite("NamedDestructure", listOf(
@@ -1041,31 +1322,112 @@ class EvaluatorTests: RhovasSpec() {
                         {k1: v1, rest*}: { log(v1); log(rest); }
                     }
                 """.trimIndent(), "1{k2=2, k3=3}"),
-            )) { test("source", it.source, it.log, it.expected) }
-
-            suite("VarargDestructure", listOf(
-                "Zero Or More" to Test("""
-                    match ([]) {
-                        [list*]: log(1);
-                    }
-                """.trimIndent(), "1"),
-                "One Or More True" to Test("""
-                    match ([1]) {
-                        [list+]: log(1);
-                    }
-                """.trimIndent(), "1"),
-                "One Or More False" to Test("""
-                    match ([]) {
-                        [list+]: log(1);
+                "Unmatched Type" to Test("""
+                    val any: Any = null;
+                    match (any) {
+                        {}: log(1);
                         else: log(2);
                     }
                 """.trimIndent(), "2"),
-                "Operator Only" to Test("""
-                    match ([]) {
-                        [*]: log(1);
+                "Unmatched Keys" to Test("""
+                    match ({x: 1, y: 2, z: 3}) {
+                        {x, y}: log(1);
+                        else: log(2);
+                    }
+                """.trimIndent(), "2"),
+            )) { test("source", it.source, it.log, it.expected) }
+
+            suite("TypedDestructure", listOf(
+                "Type" to Test("""
+                    match (1) {
+                        Integer: log(1);
                     }
                 """.trimIndent(), "1"),
+                "Pattern" to Test("""
+                    match (1) {
+                        Integer x: log(x);
+                    }
+                """.trimIndent(), "1"),
+                "Unmatched Type" to Test("""
+                    val any: Any = null;
+                    match (any) {
+                        Integer: log(1);
+                        else: log(2);
+                    }
+                """.trimIndent(), "2"),
             )) { test("source", it.source, it.log, it.expected) }
+
+            suite("VarargDestructure") {
+                suite("List", listOf(
+                    "Zero Or More" to Test("""
+                        match ([]) {
+                            [list*]: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "One Or More True" to Test("""
+                        match ([1]) {
+                            [list+]: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "One Or More False" to Test("""
+                        match ([]) {
+                            [list+]: log(1);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    "Operator Only" to Test("""
+                        match ([]) {
+                            [*]: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "Pattern True" to Test("""
+                        match ([[1], [2], [3]]) {
+                            [[x]*]: log(x);
+                        }
+                    """.trimIndent(), "[1, 2, 3]"),
+                    "Pattern False" to Test("""
+                        match ([[1], [], [3]]) {
+                            [[x]*]: log(x);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                )) { test("source", it.source, it.log, it.expected) }
+
+                suite("Struct", listOf(
+                    "Zero Or More" to Test("""
+                        match ({}) {
+                            {struct*}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "One Or More True" to Test("""
+                        match ({x: 1}) {
+                            {struct+}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "One Or More False" to Test("""
+                        match ({}) {
+                            {struct+}: log(1);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                    "Operator Only" to Test("""
+                        match ({}) {
+                            {*}: log(1);
+                        }
+                    """.trimIndent(), "1"),
+                    "Pattern True" to Test("""
+                        match ({x: [1], y: [2], z: [3]}) {
+                            {[x]*}: log(x);
+                        }
+                    """.trimIndent(), "{x=1, y=2, z=3}"),
+                    "Pattern False" to Test("""
+                        match ({x: [1], y: [], z: [3]}) {
+                            {[x]*}: log(x);
+                            else: log(2);
+                        }
+                    """.trimIndent(), "2"),
+                )) { test("source", it.source, it.log, it.expected) }
+            }
         }
     }
 
@@ -1085,7 +1447,7 @@ class EvaluatorTests: RhovasSpec() {
         return Variable.Definition(Variable.Declaration(name, type, false), Object(type, value))
     }
 
-    private fun test(rule: String, source: String, log: String?, expected: ((Scope.Definition) -> Object)?, scope: (Scope.Definition) -> Unit = {}) {
+    private fun test(rule: String, source: String, log: String?, expected: ((Scope.Definition) -> Object?)?, scope: (Scope.Definition) -> Unit = {}) {
         val input = Input("Test", source)
         val builder = StringBuilder()
         val scope = Scope.Definition(Library.SCOPE).also(scope)

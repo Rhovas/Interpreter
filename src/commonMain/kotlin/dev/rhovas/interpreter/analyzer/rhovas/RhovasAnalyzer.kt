@@ -964,24 +964,19 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     private fun computeCoalesceReceiver(receiver: RhovasIr.Expression, coalesce: Boolean): Type {
-        return if (coalesce) {
-            require(receiver.type.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC])) { error(
+        return when {
+            coalesce -> receiver.type.generic("T", Type.RESULT.GENERIC) ?: throw error(
                 "Invalid coalesce.",
                 "Coalescing requires the receiver to be type Result, but received ${receiver.type}.",
                 receiver.context.firstOrNull(),
-            ) }
-            receiver.type.methods["value!", listOf()]!!.returns
-        } else {
-            receiver.type
+            )
+            else -> receiver.type
         }
     }
 
     private fun computeBangReturn(function: Function, bang: Boolean, error: () -> AnalyzeException): Type {
         return when {
-            bang && function.throws.isEmpty() -> {
-                require(function.returns.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC]), error)
-                function.returns.methods["value!", listOf()]!!.returns
-            }
+            bang && function.throws.isEmpty() -> function.returns.generic("T", Type.RESULT.GENERIC) ?: throw error()
             !bang && function.throws.isNotEmpty() -> Type.RESULT[function.returns, function.throws.singleOrNull() ?: Type.EXCEPTION]
             else -> function.returns
         }

@@ -680,7 +680,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         if (!patternState.value.type.isSubtypeOf(Type.LIST[Type.DYNAMIC])) {
             return Object(Type.BOOLEAN, false)
         }
-        val type = patternState.value.type.methods["get", listOf(Type.INTEGER)]!!.returns
+        val type = patternState.value.type.generic("T", Type.LIST.GENERIC)!!
         val list = patternState.value.value as List<Object>
         var i = 0
         for (pattern in ir.patterns) {
@@ -752,9 +752,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val parent = patternState
                 val result = list.all {
                     patternState = PatternState(Scope.Definition(parent.scope), it)
-                    ir.pattern?.let { visit(it).value as Boolean }?.also {
+                    if (ir.pattern?.let { visit(it).value as Boolean } != false) {
                         bindings.forEach { (it.value.value.value as MutableList<Object>).add(patternState.scope.variables[it.key]!!.value) }
-                    } ?: true
+                        true
+                    } else false
                 }
                 patternState = parent
                 bindings.forEach { patternState.scope.variables.define(it.value) }
@@ -773,9 +774,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val parent = patternState
                 val result = map.all { entry ->
                     patternState = PatternState(Scope.Definition(parent.scope), entry.value)
-                    ir.pattern?.let { visit(it).value as Boolean }?.also {
+                    if (ir.pattern?.let { visit(it).value as Boolean } != false) {
                         bindings.forEach { (it.value.value.value as MutableMap<String, Object>)[entry.key] = (patternState.scope.variables[it.key]!!.value) }
-                    } ?: true
+                        true
+                    } else false
                 }
                 patternState = parent
                 bindings.forEach { patternState.scope.variables.define(it.value) }

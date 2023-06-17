@@ -15,9 +15,9 @@ object LambdaInitializer : Library.TypeInitializer("Lambda") {
         inherits.add(Type.ANY)
 
         method("invoke",
-            parameters = listOf("arguments" to generic("T")),
-            throws = listOf(generic("E")),
-            returns = generic("R")
+            parameters = listOf("arguments" to generic("T", Type.TUPLE[Type.DYNAMIC])),
+            throws = listOf(generic("E", Type.EXCEPTION)),
+            returns = generic("R"),
         ) { (instance, arguments) ->
             val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Evaluator.Lambda

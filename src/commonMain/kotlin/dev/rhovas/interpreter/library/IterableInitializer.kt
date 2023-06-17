@@ -24,7 +24,7 @@ object IterableInitializer : Library.TypeInitializer("Iterable") {
         method("for",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.VOID, Type.DYNAMIC]),
         ) { (instance, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(

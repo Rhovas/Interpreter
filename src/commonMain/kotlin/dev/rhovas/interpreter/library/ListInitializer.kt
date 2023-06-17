@@ -31,7 +31,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         method("first",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             Object(Type.NULLABLE[elementType], instance.firstOrNull()?.let { Pair(it, null) })
         }
@@ -39,7 +39,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         method("last",
             returns = Type.NULLABLE[generic("T")],
         ) { (instance) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             Object(Type.NULLABLE[elementType], instance.lastOrNull()?.let { Pair(it, null) })
         }
@@ -76,7 +76,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("start" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, start) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
             EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
@@ -91,7 +91,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, start, end) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
             val end = end.value as BigInteger
@@ -129,7 +129,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
@@ -162,7 +162,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("times" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, times) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val times = times.value as BigInteger
             Object(Type.LIST[elementType], (0 until times.intValue()).flatMap { instance })
@@ -171,7 +171,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         method("reverse",
             returns = Type.LIST[generic("T")],
         ) { (instance) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             Object(Type.LIST[elementType], instance.reversed())
         }
@@ -180,8 +180,8 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = Type.LIST[generic("R")],
         ) { (instance, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.GENERIC)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
+            val resultType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
@@ -198,7 +198,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.LIST[generic("T")],
         ) { (instance, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
@@ -218,11 +218,10 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("reduce",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("result", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            val resultType = lambda.type.methods["invoke", listOf(Type.TUPLE.GENERIC)]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 2) { EVALUATOR.error(
@@ -232,20 +231,20 @@ object ListInitializer : Library.TypeInitializer("List") {
             ) }
             val result = instance.reduceOrNull { result, element ->
                 lambda.invoke(listOf(
-                    Triple("result", resultType, result),
+                    Triple("result", elementType, result),
                     Triple("element", elementType, element),
-                ), resultType)
+                ), elementType)
             }
-            Object(Type.NULLABLE[resultType], result?.let { Pair(it, null) })
+            Object(Type.NULLABLE[elementType], result?.let { Pair(it, null) })
         }
 
         method("reduce",
             generics = listOf(generic("R")),
-            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("accumulator", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("result", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda) ->
-            val elementType = instance.type.methods["get", listOf(Type.INTEGER)]!!.returns
-            val resultType = lambda.type.methods["invoke", listOf(Type.LIST[Type.DYNAMIC])]!!.returns
+            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
+            val resultType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 2) { EVALUATOR.error(

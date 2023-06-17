@@ -19,7 +19,7 @@ object SetInitializer : Library.TypeInitializer("Set") {
             parameters = listOf("initial" to Type.LIST[generic("T")]),
             returns = Type.SET[generic("T")],
         ) { (initial) ->
-            val elementType = initial.type.methods["get", listOf(Type.INTEGER)]!!.returns
+            val elementType = initial.type.generic("T", Type.LIST.GENERIC)!!
             val initial = initial.value as List<Object>
             Object(Type.SET[elementType], initial.map { Object.Hashable(it) }.toMutableSet())
         }

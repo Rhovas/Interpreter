@@ -13,7 +13,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
             parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("instance", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, lambda) ->
-            val returnsType = lambda.type.methods["invoke", listOf(Type.LIST.GENERIC)]!!.returns
+            val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
             val lambda = lambda.value as Evaluator.Lambda
             lambda.invoke(listOf(Triple("instance", instance.type, instance)), returnsType)
         }
@@ -56,7 +56,8 @@ object AnyInitializer: Library.TypeInitializer("Any") {
                     else -> value.toString()
                 }
             }
-            Object(Type.STRING, toString(instance.value))
+            val prefix = instance.type.base.name.takeIf { it != "Struct" && instance.value is Map<*, *> } ?: ""
+            Object(Type.STRING, prefix + toString(instance.value))
         }
     }
 

@@ -39,8 +39,8 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("value", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda) ->
-            val valueType = instance.type.methods["value!", listOf()]!!.returns
-            val returnsType = lambda.type.methods["invoke", listOf(Type.LIST.GENERIC)]!!.returns
+            val valueType = instance.type.generic("T", Type.RESULT.GENERIC)!!
+            val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(lambda.ast,
@@ -57,7 +57,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], Type.RESULT[generic("T"), generic("E")], Type.DYNAMIC]),
             returns = Type.RESULT[generic("T"), generic("E")],
         ) { (instance, lambda) ->
-            val returnsType = lambda.type.methods["invoke", listOf(Type.LIST.GENERIC)]!!.returns
+            val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty()) { EVALUATOR.error(lambda.ast,
@@ -74,7 +74,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], generic("T"), Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
-            val lambdaType = lambda.type.methods["invoke", listOf(Type.LIST.GENERIC)]!!.returns
+            val lambdaType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
             EVALUATOR.require(lambda.ast.parameters.isEmpty()) { EVALUATOR.error(lambda.ast,
