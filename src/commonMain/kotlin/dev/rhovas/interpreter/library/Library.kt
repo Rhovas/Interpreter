@@ -84,8 +84,7 @@ object Library {
         ) {
             val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)) { arguments ->
                 arguments.indices.forEach {
-                    EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(
-                        null,
+                    EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(null,
                         "Invalid argument.",
                         "The native function ${base.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                     ) }

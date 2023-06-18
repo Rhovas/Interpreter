@@ -44,8 +44,7 @@ object StringInitializer : Library.TypeInitializer("String") {
         ) { (instance, index) ->
             val instance = instance.value as String
             val index = index.value as BigInteger
-            EVALUATOR.require(index >= BigInteger.ZERO && index <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(index >= BigInteger.ZERO && index <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected an index in range [0, ${instance.length}), but received ${index}.",
             ) }
@@ -58,8 +57,7 @@ object StringInitializer : Library.TypeInitializer("String") {
         ) { (instance, start) ->
             val instance = instance.value as String
             val start = start.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
             ) }
@@ -73,13 +71,11 @@ object StringInitializer : Library.TypeInitializer("String") {
             val instance = instance.value as String
             val start = start.value as BigInteger
             val end = end.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}], but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.length}], but received ${end}.",
             ) }
@@ -190,8 +186,7 @@ object StringInitializer : Library.TypeInitializer("String") {
         ) { (instance, _, base) ->
             val instance = instance.value as String
             val base = base.value as BigInteger
-            EVALUATOR.require(base >= BigInteger.TWO && base <= BigInteger.fromInt(36)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(base >= BigInteger.TWO && base <= BigInteger.fromInt(36)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a base in range [2, 36], but received ${base}.",
             ) }

@@ -50,8 +50,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         ) { (instance, index) ->
             val instance = instance.value as List<Object>
             val index = index.value as BigInteger
-            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
@@ -63,8 +62,7 @@ object ListInitializer : Library.TypeInitializer("List") {
         ) { (instance, index, value) ->
             val instance = instance.value as MutableList<Object>
             val index = index.value as BigInteger
-            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
@@ -79,8 +77,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
@@ -95,13 +92,11 @@ object ListInitializer : Library.TypeInitializer("List") {
             val instance = instance.value as List<Object>
             val start = start.value as BigInteger
             val end = end.value as BigInteger
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(
-                null,
+            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.size}), but received ${end}.",
             ) }
@@ -126,26 +121,13 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("find",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
-                lambda.ast,
-                "Invalid lambda parameter count.",
-                "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
-            ) }
-            Object(Type.LIST[elementType], instance.find {
-                val result = lambda.invoke(listOf(Triple("element", elementType, it)), elementType)
-                EVALUATOR.require(result.type.isSubtypeOf(Type.BOOLEAN)) { EVALUATOR.error(
-                    lambda.ast,
-                    "Invalid lambda result.",
-                    "Function List.filter requires the lambda result to be type Boolean, but received ${result.type}.",
-                ) }
-                result.value as Boolean
-            })
+            Object(Type.LIST[elementType], instance.find { lambda.invoke(listOf(it), Type.BOOLEAN) as Boolean })
         }
 
         method("concat", operator = "+",
@@ -177,87 +159,45 @@ object ListInitializer : Library.TypeInitializer("List") {
         }
 
         method("map",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], generic("R"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = Type.LIST[generic("R")],
         ) { (instance, lambda) ->
-            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val resultType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
-                lambda.ast,
-                "Invalid lambda parameter count.",
-                "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
-            ) }
-            Object(Type.LIST[elementType], instance.map {
-                lambda.invoke(listOf(Triple("element", elementType, it)), resultType)
-            })
+            Object(Type.LIST[resultType], instance.map { lambda.invoke(listOf(it), resultType) })
         }
 
         method("filter",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("element", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.LIST[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(
-                lambda.ast,
-                "Invalid lambda parameter count.",
-                "Function List.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
-            ) }
-            Object(Type.LIST[elementType], instance.filter {
-                val result = lambda.invoke(listOf(Triple("element", elementType, it)), elementType)
-                EVALUATOR.require(result.type.isSubtypeOf(Type.BOOLEAN)) { EVALUATOR.error(
-                    lambda.ast,
-                    "Invalid lambda result.",
-                    "Function List.filter requires the lambda result to be type Boolean, but received ${result.type}.",
-                ) }
-                result.value as Boolean
-            })
+            Object(Type.LIST[elementType], instance.filter { lambda.invoke(listOf(it), Type.BOOLEAN) as Boolean })
         }
 
         method("reduce",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("result", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false), Variable.Declaration("1", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda) ->
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 2) { EVALUATOR.error(
-                lambda.ast,
-                "Invalid lambda parameter count.",
-                "Function List.reduce requires a lambda with 2 parameters, but received ${lambda.ast.parameters.size}.",
-            ) }
-            val result = instance.reduceOrNull { result, element ->
-                lambda.invoke(listOf(
-                    Triple("result", elementType, result),
-                    Triple("element", elementType, element),
-                ), elementType)
-            }
+            val result = instance.reduceOrNull { result, element -> lambda.invoke(listOf(result, element), elementType) }
             Object(Type.NULLABLE[elementType], result?.let { Pair(it, null) })
         }
 
         method("reduce",
             generics = listOf(generic("R")),
-            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("result", generic("T"), false), Variable.Declaration("element", generic("T"), false)], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false), Variable.Declaration("1", generic("T"), false)], generic("T"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda) ->
-            val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val resultType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 2) { EVALUATOR.error(
-                lambda.ast,
-                "Invalid lambda parameter count.",
-                "Function List.reduce requires a lambda with 2 parameters, but received ${lambda.ast.parameters.size}.",
-            ) }
-            instance.fold(initial) { result, element ->
-                lambda.invoke(listOf(
-                    Triple("result", resultType, result),
-                    Triple("element", elementType, element),
-                ), resultType)
-            }
+            instance.fold(initial) { result, element -> lambda.invoke(listOf(result, element), resultType) }
         }
     }
 

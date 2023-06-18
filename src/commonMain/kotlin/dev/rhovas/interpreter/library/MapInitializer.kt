@@ -51,7 +51,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("entries",
-            returns = Type.LIST[Type.TUPLE[Variable.Declaration("key", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("value", generic("V"), false)]],
+            returns = Type.LIST[Type.TUPLE[Variable.Declaration("0", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("1", generic("V"), false)]],
         ) { (instance) ->
             val keyType = instance.type.generic("K", Type.MAP.GENERIC)!!
             val valueType = instance.type.generic("V", Type.MAP.GENERIC)!!

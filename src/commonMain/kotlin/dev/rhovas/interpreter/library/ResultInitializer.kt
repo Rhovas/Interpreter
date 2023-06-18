@@ -36,21 +36,16 @@ object ResultInitializer : Library.TypeInitializer("Result") {
 
         method("map",
             generics = listOf(generic("R")),
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("value", generic("T"), false)], generic("R"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda) ->
-            val valueType = instance.type.generic("T", Type.RESULT.GENERIC)!!
             val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty() || lambda.ast.parameters.size == 1) { EVALUATOR.error(lambda.ast,
-                "Invalid lambda parameter count.",
-                "The function Result.map requires a lambda with 1 parameter, but received ${lambda.ast.parameters.size}.",
-            ) }
             val value = instance?.takeIf { instance.first != null }?.let {
-                Pair(lambda.invoke(listOf(Triple("value", valueType, it.first!!)), returnsType), null as Object?)
+                Pair(lambda.invoke(listOf(it.first!!), returnsType), null as Object?)
             }
-            Object(Type.RESULT[value?.first?.type ?: Type.DYNAMIC, value?.second?.type ?: Type.EXCEPTION], value)
+            Object(Type.RESULT[value?.first?.type ?: returnsType, value?.second?.type ?: Type.EXCEPTION], value)
         }
 
         method("or",
@@ -60,10 +55,6 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty()) { EVALUATOR.error(lambda.ast,
-                "Invalid lambda parameter count.",
-                "The function Result.or requires a lambda with 0 parameters, but received ${lambda.ast.parameters.size}.",
-            ) }
             val value = instance?.takeIf { instance.first != null } ?: run {
                 lambda.invoke(listOf(), returnsType).value as Pair<Object?, Object?>?
             }
@@ -74,14 +65,10 @@ object ResultInitializer : Library.TypeInitializer("Result") {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], generic("T"), Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
-            val lambdaType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
+            val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
             val instance = instance.value as Pair<Object?, Object?>?
             val lambda = lambda.value as Evaluator.Lambda
-            EVALUATOR.require(lambda.ast.parameters.isEmpty()) { EVALUATOR.error(lambda.ast,
-                "Invalid lambda parameter count.",
-                "The function Result.else requires a lambda with 0 parameters, but received ${lambda.ast.parameters.size}.",
-            ) }
-            instance?.first ?: lambda.invoke(listOf(), lambdaType)
+            instance?.first ?: lambda.invoke(listOf(), returnsType)
         }
 
         method("equals", operator = "==",
