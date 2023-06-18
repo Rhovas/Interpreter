@@ -127,7 +127,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            Object(Type.LIST[elementType], instance.find { lambda.invoke(listOf(it), Type.BOOLEAN) as Boolean })
+            Object(Type.LIST[elementType], instance.find { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
         }
 
         method("concat", operator = "+",
@@ -175,7 +175,7 @@ object ListInitializer : Library.TypeInitializer("List") {
             val elementType = instance.type.generic("T", Type.LIST.GENERIC)!!
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda
-            Object(Type.LIST[elementType], instance.filter { lambda.invoke(listOf(it), Type.BOOLEAN) as Boolean })
+            Object(Type.LIST[elementType], instance.filter { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
         }
 
         method("reduce",

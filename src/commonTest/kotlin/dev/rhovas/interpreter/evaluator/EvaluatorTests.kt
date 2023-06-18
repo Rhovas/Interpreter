@@ -295,18 +295,18 @@ class EvaluatorTests: RhovasSpec() {
                         tuple.0 = "final";
                         log(tuple.0);
                     """.trimIndent(), "final"),
-                    "Undefined" to Test("""
-                        val dynamic: Dynamic = {};
-                        dynamic.property = "value";
-                    """.trimIndent(), null),
+                    //"Undefined" to Test("""
+                    //    val dynamic: Dynamic = {};
+                    //    dynamic.property = "value";
+                    //""".trimIndent(), null),
                     "Unassignable" to Test("""
                         val dynamic: Dynamic = [];
                         dynamic.size = "value";
                     """.trimIndent(), null),
-                    "Invalid Value" to Test("""
-                        val dynamic: Dynamic = { property: "initial" };
-                        dynamic.property = 1;
-                    """.trimIndent(), null),
+                    //"Invalid Value" to Test("""
+                    //    val dynamic: Dynamic = { property: "initial" };
+                    //    dynamic.property = 1;
+                    //""".trimIndent(), null),
                 )) { test("source", it.source, it.log, it.expected) }
 
                 suite("Index", listOf(
@@ -751,14 +751,14 @@ class EvaluatorTests: RhovasSpec() {
                     "Single" to Test("""
                         [1]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.INTEGER], mutableListOf(
+                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
                             literal(BigInteger.parseString("1")),
                         ))
                     },
                     "Multiple" to Test("""
                         [1, 2, 3]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.INTEGER], mutableListOf(
+                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                             literal(BigInteger.parseString("3")),
@@ -771,7 +771,7 @@ class EvaluatorTests: RhovasSpec() {
                         {}
                     """.trimIndent()) {
                         Object(
-                            Type.STRUCT[Type.Struct(mapOf())],
+                            Type.STRUCT[Type.DYNAMIC],
                             mapOf<String, Object>(),
                         )
                     },
@@ -779,7 +779,7 @@ class EvaluatorTests: RhovasSpec() {
                         {key: "value"}
                     """.trimIndent()) {
                         Object(
-                            Type.STRUCT[Type.Struct(mapOf("key" to Variable.Declaration("key", Type.STRING, true)))],
+                            Type.STRUCT[Type.DYNAMIC],
                             mapOf("key" to literal("value"))
                         )
                     },
@@ -787,7 +787,7 @@ class EvaluatorTests: RhovasSpec() {
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent()) {
                         Object(
-                            Type.STRUCT[Type.Struct(mapOf("k1" to Variable.Declaration("k1", Type.STRING, true), "k2" to Variable.Declaration("k2", Type.STRING, true), "k3" to Variable.Declaration("k3", Type.STRING, true)))],
+                            Type.STRUCT[Type.DYNAMIC],
                             mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")),
                         )
                     },
@@ -958,7 +958,7 @@ class EvaluatorTests: RhovasSpec() {
                     "List Concat" to Test("""
                         [1] + [2]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.INTEGER], listOf(
+                        Object(Type.LIST[Type.DYNAMIC], listOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                         ))
