@@ -1,21 +1,19 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.TypeInitializer("Lambda") {
 
     override fun initialize() {
-        generics.add(generic("T", Type.TUPLE[Type.DYNAMIC]))
+        generics.add(generic("T", Type.TUPLE.DYNAMIC))
         generics.add(generic("R"))
         generics.add(generic("E", Type.EXCEPTION))
         inherits.add(Type.ANY)
 
         method("invoke",
-            parameters = listOf("arguments" to generic("T", Type.TUPLE[Type.DYNAMIC])),
+            parameters = listOf("arguments" to generic("T", Type.TUPLE.DYNAMIC)),
             throws = listOf(generic("E", Type.EXCEPTION)),
             returns = generic("R"),
         ) { (instance, arguments) ->

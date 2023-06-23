@@ -10,7 +10,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
     override fun initialize() {
         function("do",
             generics = listOf(generic("T"), generic("R")),
-            parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], generic("R"), Type.DYNAMIC]),
+            parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, lambda) ->
             val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
@@ -20,7 +20,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
 
         function("if",
             generics = listOf(generic("T"), generic("E")),
-            parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], Type.BOOLEAN, Type.DYNAMIC]),
+            parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda) ->
             val lambda = lambda.value as Evaluator.Lambda

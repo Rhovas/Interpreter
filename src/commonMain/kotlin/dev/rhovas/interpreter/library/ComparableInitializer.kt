@@ -7,11 +7,11 @@ import dev.rhovas.interpreter.environment.Type
 object ComparableInitializer : Library.TypeInitializer("Comparable") {
 
     override fun initialize() {
-        generics.add(generic("T", Type.COMPARABLE[Type.DYNAMIC]))
-        inherits.add(Type.EQUATABLE[generic("T", Type.COMPARABLE[Type.DYNAMIC])])
+        generics.add(generic("T", Type.COMPARABLE.DYNAMIC))
+        inherits.add(Type.EQUATABLE[generic("T", Type.COMPARABLE.DYNAMIC)])
 
         function("compare", operator = "<=>",
-            generics = listOf(generic("T", Type.COMPARABLE[Type.DYNAMIC])),
+            generics = listOf(generic("T", Type.COMPARABLE.DYNAMIC)),
             parameters = listOf("instance" to generic("T"), "other" to generic("T")),
             returns = Type.INTEGER,
         ) { (instance, other) ->

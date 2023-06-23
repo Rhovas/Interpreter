@@ -36,7 +36,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
 
         method("map",
             generics = listOf(generic("R")),
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], generic("R"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda) ->
             val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
@@ -49,7 +49,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
         }
 
         method("or",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], Type.RESULT[generic("T"), generic("E")], Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf()], Type.RESULT[generic("T"), generic("E")], Type.DYNAMIC]),
             returns = Type.RESULT[generic("T"), generic("E")],
         ) { (instance, lambda) ->
             val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!
@@ -62,7 +62,7 @@ object ResultInitializer : Library.TypeInitializer("Result") {
         }
 
         method("else",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf())], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf()], generic("T"), Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda) ->
             val returnsType = lambda.type.generic("R", Type.LAMBDA.GENERIC)!!

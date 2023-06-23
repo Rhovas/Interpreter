@@ -22,7 +22,7 @@ object IterableInitializer : Library.TypeInitializer("Iterable") {
         }
 
         method("for",
-            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[Variable.Declaration("0", generic("T"), false)], Type.VOID, Type.DYNAMIC]),
+            parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], Type.VOID, Type.DYNAMIC]),
         ) { (instance, lambda) ->
             val instance = instance.value as List<Object>
             val lambda = lambda.value as Evaluator.Lambda

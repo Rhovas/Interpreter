@@ -770,26 +770,17 @@ class EvaluatorTests: RhovasSpec() {
                     "Empty" to Test("""
                         {}
                     """.trimIndent()) {
-                        Object(
-                            Type.STRUCT[Type.DYNAMIC],
-                            mapOf<String, Object>(),
-                        )
+                        Object(Type.STRUCT.DYNAMIC, mapOf<String, Object>())
                     },
                     "Single" to Test("""
                         {key: "value"}
                     """.trimIndent()) {
-                        Object(
-                            Type.STRUCT[Type.DYNAMIC],
-                            mapOf("key" to literal("value"))
-                        )
+                        Object(Type.STRUCT.DYNAMIC, mapOf("key" to literal("value")))
                     },
                     "Multiple" to Test("""
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent()) {
-                        Object(
-                            Type.STRUCT[Type.DYNAMIC],
-                            mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")),
-                        )
+                        Object(Type.STRUCT.DYNAMIC, mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")))
                     },
                 )) { test("expression", it.source, it.log, it.expected) }
 
@@ -992,7 +983,7 @@ class EvaluatorTests: RhovasSpec() {
                     "Element" to Test("""
                         tuple.0
                     """.trimIndent()) {
-                        it.variables.define(variable("tuple", Type.TUPLE[Variable.Declaration("0", Type.INTEGER, false)], listOf(literal(BigInteger.parseString("1")))))
+                        it.variables.define(variable("tuple", Type.TUPLE[listOf(Type.INTEGER)], listOf(literal(BigInteger.parseString("1")))))
                         literal(BigInteger.parseString("1"))
                     },
                 )) { test("expression", it.source, it.log, it.expected) }

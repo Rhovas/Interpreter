@@ -46,7 +46,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         }
 
         function("lambda",
-            generics = listOf(generic("T", Type.TUPLE[Type.DYNAMIC]), generic("R")),
+            generics = listOf(generic("T", Type.TUPLE.DYNAMIC), generic("R")),
             parameters = listOf("lambda" to Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC]),
             returns = Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC],
         ) { (lambda) ->
@@ -54,7 +54,7 @@ object KernelInitializer: Library.TypeInitializer("Kernel") {
         }
 
         function("regex",
-            parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST[Type.DYNAMIC]),
+            parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST.DYNAMIC),
             returns = Type.REGEX,
         ) { (literals, arguments) ->
             val literals = literals.value as List<Object>

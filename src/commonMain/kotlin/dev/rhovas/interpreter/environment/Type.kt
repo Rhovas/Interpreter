@@ -10,44 +10,50 @@ sealed class Type(
         val ANY get() = Library.type("Any")
         val ATOM get() = Library.type("Atom")
         val BOOLEAN get() = Library.type("Boolean")
-        val COMPARABLE get() = GenericDelegate("Comparable")
+        val COMPARABLE get() = GenericDelegate("Comparable", 1)
         val DECIMAL get() = Library.type("Decimal")
         val DYNAMIC get() = Library.type("Dynamic")
-        val EQUATABLE get() = GenericDelegate("Equatable")
+        val EQUATABLE get() = GenericDelegate("Equatable", 1)
         val EXCEPTION get() = Library.type("Exception")
-        val HASHABLE get() = GenericDelegate("Hashable")
+        val HASHABLE get() = GenericDelegate("Hashable", 1)
         val INTEGER get() = Library.type("Integer")
-        val ITERABLE get() = GenericDelegate("Iterable")
-        val ITERATOR get() = GenericDelegate("Iterator")
-        val LAMBDA get() = GenericDelegate("Lambda")
-        val LIST get() = GenericDelegate("List")
-        val NULLABLE get() = GenericDelegate("Nullable")
+        val ITERABLE get() = GenericDelegate("Iterable", 1)
+        val ITERATOR get() = GenericDelegate("Iterator", 1)
+        val LAMBDA get() = GenericDelegate("Lambda", 3)
+        val LIST get() = GenericDelegate("List", 1)
+        val NULLABLE get() = GenericDelegate("Nullable", 1)
         val REGEX get() = Library.type("Regex")
-        val RESULT get() = GenericDelegate("Result")
-        val MAP get() = GenericDelegate("Map")
-        val SET get() = GenericDelegate("Set")
+        val RESULT get() = GenericDelegate("Result", 2)
+        val MAP get() = GenericDelegate("Map", 2)
+        val SET get() = GenericDelegate("Set", 1)
         val STRING get() = Library.type("String")
         val STRUCT get() = StructDelegate("Struct")
         val TUPLE get() = TupleDelegate("Tuple")
-        val TYPE get() = GenericDelegate("Type")
+        val TYPE get() = GenericDelegate("Type", 1)
         val VOID get() = Library.type("Void")
 
-        class GenericDelegate(val name: String) {
+        class GenericDelegate(val name: String, val generics: Int) {
             val GENERIC get() = Library.type(name)
-            val ANY get() = Library.type(name).let { Reference(it.base, it.base.generics.map { DYNAMIC }) }
+            val DYNAMIC get() = Library.type(name, *(1..generics).map { Type.DYNAMIC }.toTypedArray())
             operator fun get(vararg generics: Type) = Library.type(name, *generics)
         }
 
         class TupleDelegate(val name: String) {
             val GENERIC get() = Library.type(name)
-            operator fun get(generic: Type) = Library.type(name, generic)
-            operator fun get(vararg elements: Variable.Declaration) = Library.type(name, Tuple(elements.toList()))
+            val DYNAMIC get() = Library.type(name, Type.DYNAMIC)
+            operator fun get(generic: Tuple) = Library.type(name, generic)
+            operator fun get(elements: List<Type>, mutable: Boolean = false) = Library.type(name, Tuple(elements.withIndex().map {
+                Variable.Declaration(it.index.toString(), it.value, mutable)
+            }))
         }
 
         class StructDelegate(val name: String) {
             val GENERIC get() = Library.type(name)
-            operator fun get(generic: Type) = Library.type(name, generic)
-            operator fun get(vararg elements: Variable.Declaration) = Library.type(name, Struct(elements.associateBy { it.name }))
+            val DYNAMIC get() = Library.type(name, Type.DYNAMIC)
+            operator fun get(generic: Struct) = Library.type(name, generic)
+            operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Library.type(name, Struct(fields.associate {
+                it.first to Variable.Declaration(it.first, it.second, mutable)
+            }))
         }
     }
 
@@ -74,14 +80,7 @@ sealed class Type(
         }
     }
 
-    open fun unify(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Type {
-        return when {
-            this.base == DYNAMIC.base || other.base == DYNAMIC.base -> this
-            isSubtypeOf(other) -> other
-            isSupertypeOf(other) -> this
-            else -> ANY
-        }
-    }
+    abstract fun unify(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Type
 
     inner class FunctionsDelegate {
 
@@ -280,7 +279,11 @@ sealed class Type(
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Tuple -> other.elements.withIndex().all { (index, other) ->
-                    elements.getOrNull(index)?.type?.let { TYPE[it].isSubtypeOf(TYPE[other.type]) } ?: false
+                    elements.getOrNull(index)?.let {
+                        val typeSubtype = it.type.isSubtypeOf(other.type)
+                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type)
+                        typeSubtype && mutableSubtype
+                    } ?: false
                 }
                 else -> TUPLE[this].isSubtypeOf(other, bindings)
             }
@@ -338,7 +341,11 @@ sealed class Type(
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Struct -> other.fields.all { (key, other) ->
-                    fields[key]?.type?.let { TYPE[it].isSubtypeOf(TYPE[other.type]) } ?: false
+                    fields[key]?.let {
+                        val typeSubtype = it.type.isSubtypeOf(other.type)
+                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type)
+                        typeSubtype && mutableSubtype
+                    } ?: false
                 }
                 else -> STRUCT[this].isSubtypeOf(other, bindings)
             }
@@ -349,7 +356,7 @@ sealed class Type(
                 is Struct -> Struct(fields.keys.intersect(other.fields.keys).map { Pair(fields[it]!!, other.fields[it]!!) }.associate { pair ->
                     pair.first.name to Variable.Declaration(pair.first.name, pair.first.type.unify(pair.second.type, bindings), pair.first.mutable && pair.second.mutable)
                 })
-                else -> TUPLE[this].unify(other, bindings)
+                else -> STRUCT[this].unify(other, bindings)
             }
         }
 
@@ -415,16 +422,19 @@ sealed class Type(
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when {
-                lower == null && upper == null -> false
-                other is Variant -> (lower?.let { other.lower?.isSubtypeOf(it, bindings) } ?: true) && (upper?.let { other.upper?.isSupertypeOf(it, bindings) } ?: true)
+            return when (other) {
+                is Variant -> {
+                    val lowerSubtype = lower?.isSupertypeOf(other.lower ?: DYNAMIC, bindings) ?: (other.lower == null)
+                    val upperSubtype = (upper ?: ANY).isSubtypeOf(other.upper ?: DYNAMIC, bindings)
+                    lowerSubtype && upperSubtype
+                }
                 else -> (upper ?: ANY).isSubtypeOf(other, bindings)
             }
         }
 
         override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when {
-                other is Variant -> Variant(other.lower?.let { lower?.unify(it, bindings) } ?: lower, (upper ?: ANY).unify(other.upper ?: ANY, bindings))
+            return when (other) {
+                is Variant -> Variant(other.lower?.let { lower?.unify(it, bindings) } ?: lower, (upper ?: ANY).unify(other.upper ?: ANY, bindings))
                 else -> (upper ?: ANY).unify(other, bindings)
             }
         }

@@ -514,7 +514,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For = analyzeAst(ast) {
         val argument = visit(ast.argument, Type.LIST.GENERIC)
-        require(argument.type.isSubtypeOf(Type.ITERABLE[Type.DYNAMIC])) { error(ast.argument,
+        require(argument.type.isSubtypeOf(Type.ITERABLE.DYNAMIC)) { error(ast.argument,
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
@@ -731,7 +731,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ast: RhovasAst.Expression.Literal.Scalar): RhovasIr.Expression.Literal.Scalar = analyzeAst(ast) {
         val type = when (ast.value) {
-            null -> Type.NULLABLE[Type.DYNAMIC]
+            null -> Type.NULLABLE.DYNAMIC
             is Boolean -> Type.BOOLEAN
             is BigInteger -> Type.INTEGER
             is BigDecimal -> Type.DECIMAL
@@ -752,7 +752,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         val (elements, type) = if (context.inference.base == Type.TUPLE.GENERIC.base) {
             val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
-            val type = Type.TUPLE[Type.Tuple(elements.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, true) })]
+            val type = Type.TUPLE[elements.map { it.type }, true]
             Pair(elements, type)
         } else {
             val inference = context.inference.generic("T", Type.LIST.GENERIC) ?: Type.ANY
@@ -828,12 +828,12 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "==", "!=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.EQUATABLE[Type.DYNAMIC]) || left.type.isSupertypeOf(Type.EQUATABLE[Type.DYNAMIC])) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC) || left.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC)) { error(ast.left,
                     "Unequatable type.",
                     "A logical binary expression requires the left operand to be unifiable with type Equatable, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, left.type)
-                require(right.type.isSubtypeOf(Type.EQUATABLE[Type.DYNAMIC]) || right.type.isSupertypeOf(Type.EQUATABLE[Type.DYNAMIC])) { error(ast.right,
+                require(right.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC) || right.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC)) { error(ast.right,
                     "Unequatable type.",
                     "A logical binary expression requires the right operand to be unifiable with type Equatable, but received ${right.type}.",
                 ) }
@@ -846,7 +846,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             "<", ">", "<=", ">=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.COMPARABLE[Type.DYNAMIC])) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.COMPARABLE.DYNAMIC)) { error(ast.left,
                     "Uncomparable type.",
                     "A logical equality expression requires the left operand to be type Comparable, but received ${left.type}.",
                 ) }
@@ -885,7 +885,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType.base.name}.",
         )
         val returnsType = if (bang) {
-            require(property.type.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC])) { error(ast,
+            require(property.type.isSubtypeOf(Type.RESULT.DYNAMIC)) { error(ast,
                 "Invalid bang attribute.",
                 "A bang attribute requires the property getter ${ast.name.removeSuffix("!")}() to return type Result, but received ${property.type}"
             ) }
@@ -986,9 +986,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         return when {
             cascade -> receiver
             coalesce -> when {
-                returns.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.DYNAMIC]) -> returns
-                receiver.isSubtypeOf(Type.NULLABLE[Type.DYNAMIC]) -> Type.NULLABLE[returns]
-                else -> Type.RESULT[returns, mutableMapOf<String, Type>().also { receiver.isSubtypeOf(Type.RESULT[Type.DYNAMIC, Type.Generic("E", Type.ANY)], it) }["E"]!!]
+                returns.isSubtypeOf(Type.RESULT.DYNAMIC) -> returns
+                receiver.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Type.NULLABLE[returns]
+                else -> Type.RESULT[returns, receiver.generic("E", Type.RESULT.GENERIC)!!]
             }
             else -> returns
         }
@@ -1072,7 +1072,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "Invalid DSL arguments.",
             "DSLs with arguments are not currently supported.",
         ) }
-        val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST[Type.DYNAMIC])] ?: throw error(ast,
+        val function = context.scope.functions[ast.name, listOf(Type.LIST[Type.STRING], Type.LIST.DYNAMIC)] ?: throw error(ast,
             "Undefined DSL transformer.",
             "The DSL ${ast.name} requires a transformer function ${ast.name}(List<String>, List<Dynamic>).",
         )
@@ -1082,7 +1082,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         )
         val arguments = RhovasIr.Expression.Literal.List(
             ast.dsl.arguments.map { visit(it as RhovasAst.Expression) },
-            Type.LIST[Type.DYNAMIC],
+            Type.LIST.DYNAMIC,
         )
         RhovasIr.Expression.Invoke.Function(null, function, ast.name.endsWith('!'), listOf(literals, arguments), function.returns)
     }
@@ -1093,7 +1093,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val parameters = (context.inference.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
-                    is Type.Variant -> it.type.upper ?: it.type.lower ?: Type.ANY
+                    is Type.Variant -> it.type.upper ?: Type.ANY
                     else -> it.type
                 }) })
             }
@@ -1126,7 +1126,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 ) } }
             }
         }
-        val type = Type.LAMBDA[Type.TUPLE[parameters.takeIf { it.isNotEmpty() }?.let { Type.Tuple(it) } ?: Type.DYNAMIC], returns, Type.DYNAMIC]
+        val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it.withIndex().map { it.value.copy(name = it.index.toString()) })] } ?: Type.TUPLE.DYNAMIC, returns, Type.DYNAMIC]
         RhovasIr.Expression.Lambda(parameters, body, type)
     }
 
@@ -1168,7 +1168,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     }
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure = analyzeAst(ast) {
-        require(context.inference.isSupertypeOf(Type.LIST[Type.DYNAMIC])) { error(ast,
+        require(context.inference.isSupertypeOf(Type.LIST.DYNAMIC)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }

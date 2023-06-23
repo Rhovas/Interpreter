@@ -43,7 +43,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             scoped(Scope.Definition(current)) {
                 val type = Type.Reference(ir.type.base, ir.type.base.generics.map { Type.DYNAMIC })
                 val initial = arguments[0].value as Map<String, Object>
-                Object(type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE[Type.DYNAMIC], null) })
+                Object(type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null) })
             }
         }
         ir.type.base.scope.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } }.implementation = { arguments ->
@@ -125,7 +125,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Variable): Object {
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
-        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE[Type.DYNAMIC], null)
+        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null)
         return Object(Type.VOID, Unit)
     }
 
@@ -422,9 +422,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Expression.Literal.List): Object {
         val value = ir.elements.map { visit(it) }
         return if (ir.type.base == Type.TUPLE.GENERIC.base) {
-            Object(Type.TUPLE[Type.DYNAMIC], value)
+            Object(Type.TUPLE.DYNAMIC, value)
         } else {
-            Object(Type.LIST[Type.DYNAMIC], value)
+            Object(Type.LIST.DYNAMIC, value)
         }
     }
 
@@ -434,7 +434,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             Object(Type.MAP[Type.ATOM, Type.DYNAMIC], value)
         } else {
             val value = ir.properties.mapValues { visit(it.value) }
-            Object(Type.STRUCT[Type.DYNAMIC], value)
+            Object(Type.STRUCT.DYNAMIC, value)
         }
     }
 
@@ -631,7 +631,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Lambda): Object {
-        return Object(Type.LAMBDA[Type.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC], Lambda(ir, scope, this))
+        return Object(Type.LAMBDA.DYNAMIC, Lambda(ir, scope, this))
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
@@ -658,7 +658,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.OrderedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.LIST[Type.DYNAMIC])) {
+        if (!patternState.value.type.isSubtypeOf(Type.LIST.DYNAMIC)) {
             return Object(Type.BOOLEAN, false)
         }
         val type = patternState.value.type.generic("T", Type.LIST.GENERIC)!!
@@ -694,7 +694,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         for ((key, pattern) in ir.patterns) {
             val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 vararg = true
-                Object(Type.STRUCT[Type.DYNAMIC], map.filterKeys { !named.contains(it) })
+                Object(Type.STRUCT.DYNAMIC, map.filterKeys { !named.contains(it) })
             } else {
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
@@ -720,7 +720,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.VarargDestructure): Object {
-        if (patternState.value.type.isSubtypeOf(Type.LIST[Type.DYNAMIC])) {
+        if (patternState.value.type.isSubtypeOf(Type.LIST.DYNAMIC)) {
             val list = patternState.value.value as List<Object>
             if (ir.operator == "+" && list.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
@@ -729,7 +729,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, patternState.value)) }
                 Object(Type.BOOLEAN, true)
             } else {
-                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.LIST[Type.DYNAMIC], mutableListOf<Object>())) }
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.LIST.DYNAMIC, mutableListOf<Object>())) }
                 val parent = patternState
                 val result = list.all {
                     patternState = PatternState(Scope.Definition(parent.scope), it)
@@ -742,16 +742,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 bindings.forEach { patternState.scope.variables.define(it.value) }
                 Object(Type.BOOLEAN, result)
             }
-        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT[Type.DYNAMIC])) {
+        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.DYNAMIC)) {
             val map = patternState.value.value as Map<String, Object>
             if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT[Type.DYNAMIC], map))) }
+                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.DYNAMIC, map))) }
                 Object(Type.BOOLEAN, true)
             } else {
-                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.STRUCT[Type.DYNAMIC], mutableMapOf<String, Object>())) }
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.STRUCT.DYNAMIC, mutableMapOf<String, Object>())) }
                 val parent = patternState
                 val result = map.all { entry ->
                     patternState = PatternState(Scope.Definition(parent.scope), entry.value)
@@ -872,7 +872,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     arguments.isEmpty() -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.VOID, false), Object(Type.VOID, Unit)))
                     arguments.size == 1 -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].type, false), arguments[0]))
                     else -> {
-                        val type = Type.TUPLE[Type.Tuple(arguments.withIndex().map { Variable.Declaration(it.index.toString(), it.value.type, false) })]
+                        val type = Type.TUPLE[arguments.map { it.type }]
                         evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", type, false), Object(type, arguments)))
                     }
                 }

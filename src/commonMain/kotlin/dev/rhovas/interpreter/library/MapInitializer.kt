@@ -10,7 +10,7 @@ object MapInitializer : Library.TypeInitializer("Map") {
     override fun initialize() {
         generics.add(generic("K", Type.HASHABLE[generic("K")]))
         generics.add(generic("V"))
-        inherits.add(Type.EQUATABLE[Type.MAP[Type.DYNAMIC, Type.DYNAMIC]])
+        inherits.add(Type.EQUATABLE[Type.MAP.DYNAMIC])
 
         function("",
             generics = listOf(generic("K", Type.HASHABLE[generic("K")]), generic("V")),
@@ -51,11 +51,11 @@ object MapInitializer : Library.TypeInitializer("Map") {
         }
 
         method("entries",
-            returns = Type.LIST[Type.TUPLE[Variable.Declaration("0", generic("K", Type.HASHABLE[generic("K")]), false), Variable.Declaration("1", generic("V"), false)]],
+            returns = Type.LIST[Type.TUPLE[listOf(generic("K", Type.HASHABLE[generic("K")]), generic("V"))]],
         ) { (instance) ->
             val keyType = instance.type.generic("K", Type.MAP.GENERIC)!!
             val valueType = instance.type.generic("V", Type.MAP.GENERIC)!!
-            val entryType = Type.TUPLE[Variable.Declaration("0", keyType, false), Variable.Declaration("1", valueType, false)]
+            val entryType = Type.TUPLE[listOf(keyType, valueType)]
             val instance = instance.value as Map<Object.Hashable, Object>
             Object(Type.LIST[entryType], instance.entries.map { Object(entryType, listOf(it.key.instance, it.value)) })
         }
