@@ -23,11 +23,13 @@ sealed class RhovasAst {
 
         data class Struct(
             val name: String,
+            val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
 
         data class Class(
             val name: String,
+            val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
 
@@ -64,7 +66,7 @@ sealed class RhovasAst {
         data class Initializer(
             val name: String,
             val arguments: List<RhovasAst.Expression>,
-            val initializer: RhovasAst.Expression.Literal.Object,
+            val initializer: RhovasAst.Expression.Literal.Object?,
         ) : Statement()
 
         data class Expression(

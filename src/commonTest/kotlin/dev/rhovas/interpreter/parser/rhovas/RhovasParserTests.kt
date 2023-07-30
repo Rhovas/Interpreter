@@ -94,7 +94,17 @@ class RhovasParserTests: RhovasSpec() {
                 "Empty" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf())
+                    RhovasAst.Component.Struct("Name", listOf(), listOf())
+                },
+                "Inherits Single" to Test("""
+                    struct Name: Type {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct("Name", listOf(type("Type")), listOf())
+                },
+                "Inherits Multiple" to Test("""
+                    struct Name: First, Second, Third {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct("Name", listOf(type("First"), type("Second"), type("Third")), listOf())
                 },
                 "Members" to Test("""
                     struct Name {
@@ -103,7 +113,7 @@ class RhovasParserTests: RhovasSpec() {
                         func name() {}
                     }
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(
+                    RhovasAst.Component.Struct("Name", listOf(), listOf(
                         RhovasAst.Member.Property(false, "name", type("Type"), null),
                         RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
                         RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
@@ -111,6 +121,12 @@ class RhovasParserTests: RhovasSpec() {
                 },
                 "Missing Name" to Test("""
                     struct {}
+                """.trimIndent(), null),
+                "Missing Inherits" to Test("""
+                    struct Name: {}
+                """.trimIndent(), null),
+                "Missing Inherits Separator" to Test("""
+                    struct Name: First Second {}
                 """.trimIndent(), null),
                 "Missing Body" to Test("""
                     struct Name;
@@ -124,7 +140,17 @@ class RhovasParserTests: RhovasSpec() {
                 "Empty" to Test("""
                     class Name {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf())
+                    RhovasAst.Component.Class("Name", listOf(), listOf())
+                },
+                "Inherits Single" to Test("""
+                    class Name: Type {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Class("Name", listOf(type("Type")), listOf())
+                },
+                "Inherits Multiple" to Test("""
+                    class Name: First, Second, Third {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Class("Name", listOf(type("First"), type("Second"), type("Third")), listOf())
                 },
                 "Members" to Test("""
                     class Name {
@@ -133,7 +159,7 @@ class RhovasParserTests: RhovasSpec() {
                         func name() {}
                     }
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf(
+                    RhovasAst.Component.Class("Name", listOf(), listOf(
                         RhovasAst.Member.Property(false, "name", type("Type"), null),
                         RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
                         RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
@@ -141,6 +167,12 @@ class RhovasParserTests: RhovasSpec() {
                 },
                 "Missing Name" to Test("""
                     class {}
+                """.trimIndent(), null),
+                "Missing Inherits" to Test("""
+                    class Name: {}
+                """.trimIndent(), null),
+                "Missing Inherits Separator" to Test("""
+                    class Name: First Second {}
                 """.trimIndent(), null),
                 "Missing Body" to Test("""
                     class Name;
@@ -322,7 +354,7 @@ class RhovasParserTests: RhovasSpec() {
                 "Struct" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    RhovasAst.Statement.Component(RhovasAst.Component.Struct("Name", listOf()))
+                    RhovasAst.Statement.Component(RhovasAst.Component.Struct("Name", listOf(), listOf()))
                 },
             )) { test("statement", it.source, it.expected) }
 

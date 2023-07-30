@@ -99,6 +99,34 @@ class EvaluatorTests: RhovasSpec() {
                     }
                     log(Name());
                 """.trimIndent(), "Name{}"),
+                "Extends Field" to Test("""
+                    class Parent {
+                        val field: Integer;
+                        init() {
+                            this { field: 1 };
+                        }
+                    }
+                    class Child: Parent {
+                        init() {
+                            super();
+                        }
+                    }
+                    log(Child().field);
+                """.trimIndent(), "1"),
+                "Extends Method" to Test("""
+                    class Parent {
+                        init() {}
+                        func method(this) {
+                            log(1);
+                        }
+                    }
+                    class Child: Parent {
+                        init() {
+                            super();
+                        }
+                    }
+                    Child().method();
+                """.trimIndent(), "1"),
                 "Custom Initializer" to Test("""
                     class Name {
                         var field: Integer;
@@ -118,7 +146,7 @@ class EvaluatorTests: RhovasSpec() {
                 """.trimIndent(), "1"),
                 "Method" to Test("""
                     class Name {
-                        val field: Integer = 1;
+                        val field: Integer;
                         init() {
                             this { field: 1 };
                         }

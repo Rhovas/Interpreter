@@ -81,8 +81,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         ir.function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val instance = Object(Type.Reference(ir.function.returns.base, ir.function.returns.base.generics.map { Type.DYNAMIC }), mutableMapOf<String, Object>())
-                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns, false), instance))
+                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns, false), Object(ir.function.returns, mutableMapOf<String, Object>())))
                 for (i in ir.function.parameters.indices) {
                     scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
                 }
@@ -95,7 +94,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ) }
                     throw e
                 } catch (ignored: Return) {}
-                instance
+                scope.variables["this"]!!.value
             }
         }
         return Object(Type.VOID, Unit)
@@ -112,9 +111,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Statement.Initializer): Object {
-        val fields = visit(ir.initializer).value as MutableMap<String, Object>
-        val instance = scope.variables["this"]!!.value.value as MutableMap<String, Object>
-        instance.putAll(fields)
+        val variable = scope.variables["this"]!!
+        val arguments = ir.arguments.map { visit(it) }
+        ir.delegate?.let { variable.value = Object(variable.type, it.invoke(arguments).value) }
+        ir.initializer?.let { (variable.value.value as MutableMap<String, Object>).putAll(visit(it).value as MutableMap<String, Object>) }
         return Object(Type.VOID, Unit)
     }
 

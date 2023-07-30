@@ -75,12 +75,15 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseStruct(): RhovasAst.Component.Struct = parseAst {
         require(match("struct"))
         val name = parseIdentifier { "A struct requires a name after `struct`, as in `struct Name { ... }`." }
+        val inherits = if (match(":")) {
+            parseSequence(",") { parseType() }
+        } else listOf()
         require(peek("{")) { error(
             "Expected opening brace.",
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
         val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Struct(name, members)
+        RhovasAst.Component.Struct(name, inherits, members)
     }
 
     /**
@@ -89,12 +92,15 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseClass(): RhovasAst.Component.Class = parseAst {
         require(match("class"))
         val name = parseIdentifier { "A class requires a name after `class`, as in `class Name { ... }`." }
+        val inherits = if (match(":")) {
+            parseSequence(",") { parseType() }
+        } else listOf()
         require(peek("{")) { error(
             "Expected opening brace.",
             "A class requires braces for defining members, as in `class Name { ... }`.",
         ) }
         val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Class(name, members)
+        RhovasAst.Component.Class(name, inherits, members)
     }
 
     /**
@@ -175,7 +181,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     private fun parseStatement(): RhovasAst.Statement {
         return when {
             peek("{") -> parseAst { RhovasAst.Statement.Expression(parseBlockStatement()) }
-            peek(listOf("this"), listOf("(", "{")) -> parseInitializerStatement()
+            peek(listOf("this", "super"), listOf("(", "{")) -> parseInitializerStatement()
             peek(listOf("val", "var"), RhovasTokenType.IDENTIFIER) -> parseVariableDeclarationStatement()
             peek("func") -> parseFunctionDeclarationStatement()
             peek("if") -> parseIfStatement()
@@ -230,15 +236,21 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     private fun parseInitializerStatement(): RhovasAst.Statement.Initializer = parseAst {
-        require(match("this"))
+        require(match(listOf("this", "super")))
         val name = tokens[-1]!!.literal
-        require(peek("{")) { error(
-            "Expected opening brace.",
-            "An initializer statement requires an initializer block, as in `init { field };`.",
-        ) }
-        val initializer = parsePrimaryExpression() as RhovasAst.Expression.Literal.Object
+        val arguments = parseSequence("(", ",", ")") {
+            val expression = parseExpression()
+            require(peek(listOf(",", ")"))) { error(
+                "Expected closing parenthesis or comma.",
+                "An initializer argument must be followed by a closing parenthesis `)` or comma `,`, as in `this(argument)` or `super(x, y, z)`.",
+            ) }
+            expression
+        }?.toMutableList() ?: mutableListOf()
+        val initializer = if (peek("{")) {
+            parsePrimaryExpression() as RhovasAst.Expression.Literal.Object
+        } else null
         requireSemicolon { "An initializer statement must be followed by a semicolon, as in `init { field };`." }
-        RhovasAst.Statement.Initializer(name, listOf(), initializer)
+        RhovasAst.Statement.Initializer(name, arguments, initializer)
     }
 
     /**

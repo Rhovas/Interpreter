@@ -1,6 +1,5 @@
 package dev.rhovas.interpreter.analyzer.rhovas
 
-import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import kotlin.js.JsName
@@ -23,11 +22,14 @@ sealed class RhovasIr {
 
         data class Struct(
             val type: dev.rhovas.interpreter.environment.Type,
+            val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
             val members: List<Member>,
         ) : Component()
 
         data class Class(
             val type: dev.rhovas.interpreter.environment.Type,
+            val extends: dev.rhovas.interpreter.environment.Type.Reference?,
+            val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
             val members: List<Member>,
         ) : Component()
 
@@ -59,7 +61,10 @@ sealed class RhovasIr {
         ) : Statement()
 
         data class Initializer(
-            val initializer: RhovasIr.Expression.Literal.Object,
+            val name: String,
+            val delegate: dev.rhovas.interpreter.environment.Function.Definition?,
+            val arguments: List<RhovasIr.Expression>,
+            val initializer: RhovasIr.Expression.Literal.Object?,
         ) : Statement()
 
         data class Expression(
@@ -511,11 +516,14 @@ sealed class RhovasIr {
 
             data class Struct(
                 val ast: RhovasAst.Component.Struct,
+                val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
                 val members: List<Member>,
             ) : Component()
 
             data class Class(
                 val ast: RhovasAst.Component.Class,
+                val extends: dev.rhovas.interpreter.environment.Type.Reference?,
+                val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
                 val members: List<Member>,
             ) : Component()
 

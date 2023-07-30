@@ -30,14 +30,15 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
     private val Context.scope get() = this[ScopeContext::class]
     private val Context.inference get() = this[InferenceContext::class]
     private val Context.initialization get() = this[InitializationContext::class]
+    private val Context.component get() = this[ComponentContext::class]
     private val Context.function get() = this[FunctionContext::class]
     private val Context.labels get() = this[LabelContext::class]
     private val Context.jumps get() = this[JumpContext::class]
     private val Context.exceptions get() = this[ExceptionContext::class]
     private val Context.bindings get() = this[BindingContext::class]
 
-    private fun Context.forComponent(component: Type) = child().with(
-        ComponentContext(component),
+    private fun Context.forComponent(type: Type, extends: Type?) = child().with(
+        ComponentContext(type, extends),
         InferenceContext(Type.ANY),
         InitializationContext(mutableMapOf()),
         FunctionContext(null),
@@ -131,14 +132,20 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      * Context for storing the surrounding component declaration.
      */
     data class ComponentContext(
-        val component: Type
-    ) : Context.Item<Type>(component) {
+        val type: Type,
+        val extends: Type?,
+    ) : Context.Item<ComponentContext.Data>(Data(type, extends)) {
+
+        data class Data(
+            val type: Type,
+            val extends: Type?,
+        )
 
         override fun child(): ComponentContext {
             return this
         }
 
-        override fun merge(children: List<Type>) {}
+        override fun merge(children: List<Data>) {}
 
     }
 
@@ -260,9 +267,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        analyze(context.forComponent(type)) {
+        analyze(context.forComponent(type, null)) {
             val members = ir.members.map { visit(it) }
-            RhovasIr.Component.Struct(type, members)
+            RhovasIr.Component.Struct(type, ir.implements, members)
         }
     }
 
@@ -272,9 +279,9 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class = analyzeAst(ir.ast) {
         val type = context.scope.types[ir.ast.name]!!
-        analyze(context.forComponent(type)) {
+        analyze(context.forComponent(type, ir.extends)) {
             val members = ir.members.map { visit(it) }
-            RhovasIr.Component.Class(type, members)
+            RhovasIr.Component.Class(type, ir.extends, ir.implements, members)
         }
     }
 
@@ -324,9 +331,33 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             "An instance initializer can only be called once.",
         ) } }
         initialization.initialized = true
-        val initializer = visit(ast.initializer, Type.STRUCT.GENERIC) as RhovasIr.Expression.Literal.Object
+        val arguments = mutableListOf<RhovasIr.Expression>()
+        val delegate = when (ast.name) {
+            "this" -> {
+                if (ast.arguments.isNotEmpty()) {
+                    resolveFunction("initializer", ast, context.component.type, "", false, ast.arguments.size) {
+                        ast.arguments[it.first] to visit(ast.arguments[it.first], it.second).also { arguments.add(it) }.type
+                    } as Function.Definition
+                } else if (context.component.extends != null) {
+                    resolveFunction("initializer", ast, context.component.extends, "", false, 0) {
+                        throw AssertionError()
+                    } as Function.Definition
+                } else null
+            }
+            "super" -> {
+                require(context.component.extends != null) { error(ast,
+                    "Invalid super initializer.",
+                    "A super initializer requires the surrounding component to extend a class.",
+                ) }
+                resolveFunction("initializer", ast, context.component.extends, "", false, ast.arguments.size) {
+                    ast.arguments[it.first] to visit(ast.arguments[it.first], it.second).also { arguments.add(it) }.type
+                } as Function.Definition
+            }
+            else -> throw AssertionError()
+        }
+        val initializer = ast.initializer?.let { visit(it, Type.STRUCT.GENERIC) as RhovasIr.Expression.Literal.Object }
         //TODO(#14): Validate available fields
-        RhovasIr.Statement.Initializer(initializer)
+        RhovasIr.Statement.Initializer(ast.name, delegate, arguments, initializer)
     }
 
     override fun visit(ast: RhovasAst.Statement.Expression): RhovasIr.Statement.Expression = analyzeAst(ast) {
@@ -1314,19 +1345,36 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
         fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
+            val inherits = ast.inherits.map {
+                visit(it).type as? Type.Reference ?: throw error(it,
+                    "Invalid type inheritance.",
+                    "The type ${type} cannot be inherited from as it is not a reference type.",
+                )
+            }
             val members = ast.members.map { visit(it, type) }.toMutableList()
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
+            inherits.forEach { type.base.inherit(it) }
             type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
             type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, type, listOf())))
-            RhovasIr.DefinitionPhase.Component.Struct(ast, members)
+            RhovasIr.DefinitionPhase.Component.Struct(ast, inherits, members)
         }
 
         fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
+            val inherits = ast.inherits.map {
+                visit(it).type as? Type.Reference ?: throw error(it,
+                    "Invalid type inheritance.",
+                    "The type ${type} cannot be inherited from as it is not a reference type.",
+                )
+            }
+            //TODO: class/interface validation
+            val extends = inherits.firstOrNull()
+            val implements = inherits.drop(1)
             val members = ast.members.map { visit(it, type) }.toMutableList()
-            type.base.inherit(Type.ANY)
-            RhovasIr.DefinitionPhase.Component.Class(ast, members)
+            type.base.inherit(extends ?: Type.ANY)
+            implements.forEach { type.base.inherit(it) }
+            RhovasIr.DefinitionPhase.Component.Class(ast, extends, implements, members)
         }
 
         fun visit(ast: RhovasAst.Member, component: Type): RhovasIr.DefinitionPhase.Member {
