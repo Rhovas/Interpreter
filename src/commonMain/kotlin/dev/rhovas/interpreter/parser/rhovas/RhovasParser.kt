@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.Parser
@@ -58,13 +59,23 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         RhovasAst.Import(path, alias)
     }
 
+    private fun parseModifiers(): Modifiers {
+        val inheritance = when {
+            match("virtual") -> Modifiers.Inheritance.VIRTUAL
+            match("abstract") -> Modifiers.Inheritance.ABSTRACT
+            else -> Modifiers.Inheritance.DEFAULT
+        }
+        return Modifiers(inheritance)
+    }
+
     /**
-     *  - `component = struct | class`
+     *  - `component = modifiers (struct | class)`
      */
     private fun parseComponent(): RhovasAst.Component {
+        val modifiers = parseModifiers()
         return when {
-            peek("struct") -> parseStruct()
-            peek("class") -> parseClass()
+            peek("struct") -> parseStruct(modifiers)
+            peek("class") -> parseClass(modifiers)
             else -> throw AssertionError()
         }
     }
@@ -72,7 +83,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     /**
      *  - `struct = "struct" identifier "{" member* "}"`
      */
-    private fun parseStruct(): RhovasAst.Component.Struct = parseAst {
+    private fun parseStruct(modifiers: Modifiers): RhovasAst.Component.Struct = parseAst {
         require(match("struct"))
         val name = parseIdentifier { "A struct requires a name after `struct`, as in `struct Name { ... }`." }
         val inherits = if (match(":")) {
@@ -83,13 +94,13 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A struct requires braces for defining members, as in `struct Name { ... }`.",
         ) }
         val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Struct(name, inherits, members)
+        RhovasAst.Component.Struct(modifiers, name, inherits, members)
     }
 
     /**
      *  - `class = "class" identifier "{" member* "}"`
      */
-    private fun parseClass(): RhovasAst.Component.Class = parseAst {
+    private fun parseClass(modifiers: Modifiers): RhovasAst.Component.Class = parseAst {
         require(match("class"))
         val name = parseIdentifier { "A class requires a name after `class`, as in `class Name { ... }`." }
         val inherits = if (match(":")) {
@@ -100,17 +111,18 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             "A class requires braces for defining members, as in `class Name { ... }`.",
         ) }
         val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Class(name, inherits, members)
+        RhovasAst.Component.Class(modifiers, name, inherits, members)
     }
 
     /**
      *  - `member = property | initializer | method`
      */
     private fun parseMember(): RhovasAst.Member {
+        val modifiers = parseModifiers()
         return when {
-            peek(listOf("val", "var")) -> parsePropertyMember()
-            peek("init") -> parseInitializerMember()
-            peek("func") -> parseMethodMember()
+            peek(listOf("val", "var")) -> parsePropertyMember(modifiers)
+            peek("init") -> parseInitializerMember(modifiers)
+            peek("func") -> parseMethodMember(modifiers)
             else -> throw error(
                 "Expected member.",
                 "A member is either a property (`val`/`var`), initializer (`init`), or method (`func`).",
@@ -121,7 +133,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     /**
      *  - `property = ("val" | "var") identifier ":" type ("=" expression)? ";"`
      */
-    private fun parsePropertyMember(): RhovasAst.Member.Property = parseAst {
+    private fun parsePropertyMember(modifiers: Modifiers): RhovasAst.Member.Property = parseAst {
         require(match(listOf("val", "var")))
         val mutable = tokens[-1]!!.literal == "var"
         val name = parseIdentifier { "A property member requires a name after `val`/`var`, as in `val name: Type = value;` or `var name: Type;`." }
@@ -132,7 +144,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val type = parseType()
         val value = if (match("=")) parseExpression() else null
         requireSemicolon { "A property member must be followed by a semicolon, as in `val name: Type = value;` or `var name: Type;`." }
-        RhovasAst.Member.Property(mutable, name, type, value)
+        RhovasAst.Member.Property(modifiers, mutable, name, type, value)
     }
 
     /**
@@ -142,7 +154,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
      *     - `returns = ":" type`
      *     - `throws = "throws" type ("," type)*`
      */
-    private fun parseInitializerMember(): RhovasAst.Member.Initializer = parseAst {
+    private fun parseInitializerMember(modifiers: Modifiers): RhovasAst.Member.Initializer = parseAst {
         require(match("init"))
         require(peek("(")) { error(
             "Expected opening parenthesis.",
@@ -160,14 +172,14 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val returns = if (match(":")) parseType() else null
         val throws = if (match("throws")) parseSequence(",") { parseType() } else listOf()
         val block = parseBlockStatement()
-        RhovasAst.Member.Initializer(parameters, returns, throws, block)
+        RhovasAst.Member.Initializer(modifiers, parameters, returns, throws, block)
     }
 
     /**
      * - `method = function`
      */
-    private fun parseMethodMember(): RhovasAst.Member.Method = parseAst {
-        RhovasAst.Member.Method(parseFunctionDeclarationStatement())
+    private fun parseMethodMember(modifiers: Modifiers): RhovasAst.Member.Method = parseAst {
+        RhovasAst.Member.Method(modifiers, parseFunctionDeclarationStatement())
     }
 
     /**
@@ -198,7 +210,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             peek("require") -> parseRequireStatement()
             peek("ensure") -> parseEnsureStatement()
             peek(RhovasTokenType.IDENTIFIER, ":") -> parseLabelStatement()
-            peek(listOf("struct", "class")) -> parseAst { RhovasAst.Statement.Component(parseComponent()) }
+            peek(listOf("virtual", "abstract", "struct", "class")) -> parseAst {
+                RhovasAst.Statement.Component(parseComponent())
+            }
             else -> parseAst {
                 val expression = parseExpression()
                 if (match("=")) {

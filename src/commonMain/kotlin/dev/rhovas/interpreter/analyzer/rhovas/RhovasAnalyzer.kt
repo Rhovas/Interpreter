@@ -8,7 +8,6 @@ import dev.rhovas.interpreter.environment.*
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
-import dev.rhovas.interpreter.parser.dsl.DslAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
@@ -1140,7 +1139,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
         val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
-        val function = Function.Declaration("lambda", listOf(), parameters, returns, throws)
+        val function = Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "lambda", listOf(), parameters, returns, throws)
         val body = analyze(context.forFunction(function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
@@ -1324,7 +1323,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, ast.modifiers, Scope.Definition(null)).reference)
         }
 
         fun visit(ast: RhovasAst.Component.Class) = analyze(ast.context) {
@@ -1332,7 +1331,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, Scope.Definition(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, ast.modifiers, Scope.Definition(null)).reference)
         }
 
     }
@@ -1346,27 +1345,39 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
             val inherits = ast.inherits.map {
-                visit(it).type as? Type.Reference ?: throw error(it,
-                    "Invalid type inheritance.",
-                    "The type ${type} cannot be inherited from as it is not a reference type.",
-                )
+                val type = visit(it).type
+                require(type is Type.Reference) { error(it,
+                    "Invalid inheritance type.",
+                    "The type ${it} cannot be inherited from as it is not a reference type.",
+                ) }
+                require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
+                    "Invalid inheritance.",
+                    "The type ${type} cannot be inherited from as it is not virtual/abstract.",
+                ) }
+                type as Type.Reference
             }
             val members = ast.members.map { visit(it, type) }.toMutableList()
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
             inherits.forEach { type.base.inherit(it) }
-            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
-            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, type, listOf())))
+            type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
+            type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, type, listOf())))
             RhovasIr.DefinitionPhase.Component.Struct(ast, inherits, members)
         }
 
         fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
             val inherits = ast.inherits.map {
-                visit(it).type as? Type.Reference ?: throw error(it,
-                    "Invalid type inheritance.",
-                    "The type ${type} cannot be inherited from as it is not a reference type.",
-                )
+                val type = visit(it).type
+                require(type is Type.Reference) { error(it,
+                    "Invalid inheritance type.",
+                    "The type ${it} cannot be inherited from as it is not a reference type.",
+                ) }
+                require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
+                    "Invalid inheritance.",
+                    "The type ${type} cannot be inherited from as it is not virtual/abstract.",
+                ) }
+                type as Type.Reference
             }
             //TODO: class/interface validation
             val extends = inherits.firstOrNull()
@@ -1391,8 +1402,8 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "The property ${ast.name} is already defined in ${component.base.name}.",
             ) }
             val type = ast.type.let { visit(it).type }
-            val getter = Function.Definition(Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("this", component, false)), type, listOf()))
-            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.name, listOf(), listOf(Variable.Declaration("this", component, false), Variable.Declaration("value", type, false)), Type.VOID, listOf())) else null
+            val getter = Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component, false)), type, listOf()))
+            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component, false), Variable.Declaration("value", type, false)), Type.VOID, listOf())) else null
             component.base.scope.functions.define(getter)
             setter?.let { component.base.scope.functions.define(it) }
             RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter)
@@ -1408,7 +1419,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             }
             val returns = ast.returns?.let { visit(it).type } ?: component
             val throws = ast.throws.map { visit(it).type }
-            val initializer = Function.Definition(Function.Declaration("", listOf(), parameters, returns, throws))
+            val initializer = Function.Definition(Function.Declaration(ast.modifiers, "", listOf(), parameters, returns, throws))
             require(component.base.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(initializer.declaration) }) { error(ast,
                 "Redefined initializer.",
                 "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.base.name}.",
@@ -1418,11 +1429,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
 
         fun visit(ast: RhovasAst.Member.Method, component: Type): RhovasIr.DefinitionPhase.Member.Method {
-            val function = visit(ast.function, component)
+            val function = visit(ast.function, ast.modifiers, component)
             return RhovasIr.DefinitionPhase.Member.Method(ast, function)
         }
 
-        fun visit(ast: RhovasAst.Statement.Declaration.Function, component: Type? = null): RhovasIr.DefinitionPhase.Function = analyze(ast.context) {
+        fun visit(ast: RhovasAst.Statement.Declaration.Function, modifiers: Modifiers? = null, component: Type? = null): RhovasIr.DefinitionPhase.Function = analyze(ast.context) {
             val scope = component?.base?.scope ?: context.scope
             analyze {
                 require(ast.operator == null || component != null) { error(ast,
@@ -1440,7 +1451,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 }
                 val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
                 val throws = ast.throws.map { visit(it).type }
-                val declaration = Function.Declaration(ast.name, generics, parameters, returns, throws)
+                val declaration = Function.Declaration(modifiers ?: Modifiers(Modifiers.Inheritance.DEFAULT), ast.name, generics, parameters, returns, throws)
                 require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
                     "Redefined function.",
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.base?.name ?: "this scope"}.",

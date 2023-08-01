@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.environment
 
 sealed interface Function {
 
+    val modifiers: Modifiers
     val name: String
     val generics: List<Type.Generic>
     val parameters: List<Variable.Declaration>
@@ -25,6 +26,7 @@ sealed interface Function {
     }
 
     data class Declaration(
+        override val modifiers: Modifiers,
         override val name: String,
         override val generics: List<Type.Generic>,
         override val parameters: List<Variable.Declaration>,
@@ -34,6 +36,7 @@ sealed interface Function {
 
         override fun bind(generics: Map<String, Type>): Declaration {
             return Declaration(
+                modifiers,
                 name,
                 this.generics.map { Type.Generic(it.name, it.bound.bind(generics)) },
                 parameters.map { Variable.Declaration(it.name, it.type.bind(generics), it.mutable) },

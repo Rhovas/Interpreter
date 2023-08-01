@@ -1,11 +1,11 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object AnyInitializer: Library.TypeInitializer("Any") {
+object AnyInitializer: Library.TypeInitializer("Any", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         function("do",
@@ -45,6 +45,7 @@ object AnyInitializer: Library.TypeInitializer("Any") {
         }
 
         method("to",
+            modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
         ) { (instance, _) ->

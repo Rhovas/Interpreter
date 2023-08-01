@@ -1,0 +1,19 @@
+struct Vector {
+    var x: Decimal;
+    var y: Decimal;
+
+    func magnitude(this): Decimal {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+}
+
+class UnitVector {
+    val x: Decimal;
+    val y: Decimal;
+
+    init(direction: Vector) {
+        require direction.x != 0.0 || direction.y != 0.0;
+        val magnitude = direction.magnitude();
+        this { x: direction.x / magnitude, y: direction.y / magnitude };
+    }
+}

@@ -56,11 +56,14 @@ object Library {
         return if (generics.isEmpty()) type else Type.Reference(type.base, generics.toList())
     }
 
-    abstract class TypeInitializer(name: String) {
+    abstract class TypeInitializer(
+        name: String,
+        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+    ) {
 
         val generics = mutableListOf<Type.Generic>()
         val inherits = mutableListOf<Type.Reference>()
-        val base = Type.Base(name, Scope.Definition(null))
+        val base = Type.Base(name, modifiers, Scope.Definition(null))
 
         abstract fun initialize()
 
@@ -76,13 +79,14 @@ object Library {
         fun function(
             name: String,
             operator: String? = null,
+            modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>> = listOf(),
             returns: Type = Type.VOID,
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            val function = Function.Definition(Function.Declaration(name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)) { arguments ->
+            val function = Function.Definition(Function.Declaration(modifiers, name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)) { arguments ->
                 arguments.indices.forEach {
                     EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(null,
                         "Invalid argument.",
@@ -98,13 +102,14 @@ object Library {
         fun method(
             name: String,
             operator: String? = null,
+            modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>> = listOf(),
             returns: Type = Type.VOID,
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            function(name, operator, this.generics + generics, listOf("instance" to base.reference) + parameters, returns, throws, implementation)
+            function(name, operator, modifiers, this.generics + generics, listOf("instance" to base.reference) + parameters, returns, throws, implementation)
         }
 
         fun generic(name: String, bound: Type = Type.ANY) = Type.Generic(name, bound)

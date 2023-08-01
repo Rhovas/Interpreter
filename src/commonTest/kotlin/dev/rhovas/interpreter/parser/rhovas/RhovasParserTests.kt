@@ -3,10 +3,10 @@ package dev.rhovas.interpreter.parser.rhovas
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.RhovasSpec
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
 import dev.rhovas.interpreter.parser.dsl.DslAst
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -94,17 +94,22 @@ class RhovasParserTests: RhovasSpec() {
                 "Empty" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(), listOf())
+                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf())
+                },
+                "Modifiers" to Test("""
+                    virtual struct Name {}
+                """.trimIndent()) {
+                    RhovasAst.Component.Struct(modifiers(Modifiers.Inheritance.VIRTUAL), "Name", listOf(), listOf())
                 },
                 "Inherits Single" to Test("""
                     struct Name: Type {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(type("Type")), listOf())
+                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("Type")), listOf())
                 },
                 "Inherits Multiple" to Test("""
                     struct Name: First, Second, Third {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(type("First"), type("Second"), type("Third")), listOf())
+                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
                 },
                 "Members" to Test("""
                     struct Name {
@@ -113,10 +118,10 @@ class RhovasParserTests: RhovasSpec() {
                         func name() {}
                     }
                 """.trimIndent()) {
-                    RhovasAst.Component.Struct("Name", listOf(), listOf(
-                        RhovasAst.Member.Property(false, "name", type("Type"), null),
-                        RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
+                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf(
+                        RhovasAst.Member.Property(modifiers(),false, "name", type("Type"), null),
+                        RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block()),
+                        RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
                     ))
                 },
                 "Missing Name" to Test("""
@@ -140,17 +145,17 @@ class RhovasParserTests: RhovasSpec() {
                 "Empty" to Test("""
                     class Name {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf(), listOf())
+                    RhovasAst.Component.Class(modifiers(), "Name", listOf(), listOf())
                 },
                 "Inherits Single" to Test("""
                     class Name: Type {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf(type("Type")), listOf())
+                    RhovasAst.Component.Class(modifiers(), "Name", listOf(type("Type")), listOf())
                 },
                 "Inherits Multiple" to Test("""
                     class Name: First, Second, Third {}
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf(type("First"), type("Second"), type("Third")), listOf())
+                    RhovasAst.Component.Class(modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
                 },
                 "Members" to Test("""
                     class Name {
@@ -159,10 +164,10 @@ class RhovasParserTests: RhovasSpec() {
                         func name() {}
                     }
                 """.trimIndent()) {
-                    RhovasAst.Component.Class("Name", listOf(), listOf(
-                        RhovasAst.Member.Property(false, "name", type("Type"), null),
-                        RhovasAst.Member.Initializer(listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
+                    RhovasAst.Component.Class(modifiers(), "Name", listOf(), listOf(
+                        RhovasAst.Member.Property(modifiers(), false, "name", type("Type"), null),
+                        RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block()),
+                        RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
                     ))
                 },
                 "Missing Name" to Test("""
@@ -188,17 +193,17 @@ class RhovasParserTests: RhovasSpec() {
                 "Immutable" to Test("""
                     val name: Type;
                 """.trimIndent()) {
-                    RhovasAst.Member.Property(false, "name", type("Type"), null)
+                    RhovasAst.Member.Property(modifiers(), false, "name", type("Type"), null)
                 },
                 "Mutable" to Test("""
                     var name: Type;
                 """.trimIndent()) {
-                    RhovasAst.Member.Property(true, "name", type("Type"), null)
+                    RhovasAst.Member.Property(modifiers(), true, "name", type("Type"), null)
                 },
                 "Value" to Test("""
                     val name: Type = value;
                 """.trimIndent()) {
-                    RhovasAst.Member.Property(false, "name", type("Type"), expr("value"))
+                    RhovasAst.Member.Property(modifiers(), false, "name", type("Type"), expr("value"))
                 },
                 "Missing Name" to Test("""
                     val;
@@ -218,42 +223,42 @@ class RhovasParserTests: RhovasSpec() {
                 "Initializer" to Test("""
                     init() {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf(), null, listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block())
                 },
                 "Single Parameter" to Test("""
                     init(parameter) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf("parameter" to null), null, listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf("parameter" to null), null, listOf(), block())
                 },
                 "Multiple Parameters" to Test("""
                     init(first, second, third) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf("first" to null, "second" to null, "third" to null), null, listOf(), block())
                 },
                 "Typed Parameter" to Test("""
                     init(parameter: Type) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf("parameter" to type("Type")), null, listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf("parameter" to type("Type")), null, listOf(), block())
                 },
                 "Trailing Comma" to Test("""
                     init(parameter,) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf("parameter" to null), null, listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf("parameter" to null), null, listOf(), block())
                 },
                 "Return Type" to Test("""
                     init(): Type {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf(), type("Type"), listOf(), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf(), type("Type"), listOf(), block())
                 },
                 "Single Throws" to Test("""
                     init() throws Type {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf(), null, listOf(type("Type")), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(type("Type")), block())
                 },
                 "Multiple Throws" to Test("""
                     init() throws First, Second, Third {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Initializer(listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
+                    RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(type("First"), type("Second"), type("Third")), block())
                 },
                 "Unsupported Name" to Test("""
                     init name() {}
@@ -291,27 +296,27 @@ class RhovasParserTests: RhovasSpec() {
                 "Function" to Test("""
                     func name() {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block()))
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block()))
                 },
                 "This Parameter" to Test("""
                     func name(this) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("this" to null), null, listOf(), block()))
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf("this" to null), null, listOf(), block()))
                 },
                 "Operator Overload (Addition)" to Test("""
                     func op+ add(this) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("+", "add", listOf(), listOf("this" to null), null, listOf(), block()))
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function("+", "add", listOf(), listOf("this" to null), null, listOf(), block()))
                 },
                 "Operator Overload (Index)" to Test("""
                     func op[] get(this) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("[]", "get", listOf(), listOf("this" to null), null, listOf(), block()))
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function("[]", "get", listOf(), listOf("this" to null), null, listOf(), block()))
                 },
                 "Operator Overload (Index Assignment)" to Test("""
                     func op[]= set(this) {}
                 """.trimIndent()) {
-                    RhovasAst.Member.Method(RhovasAst.Statement.Declaration.Function("[]=", "set", listOf(), listOf("this" to null), null, listOf(), block()))
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function("[]=", "set", listOf(), listOf("this" to null), null, listOf(), block()))
                 },
                 "Invalid Operator Overload" to Test("""
                     func op&& equals(this) {}
@@ -354,7 +359,7 @@ class RhovasParserTests: RhovasSpec() {
                 "Struct" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    RhovasAst.Statement.Component(RhovasAst.Component.Struct("Name", listOf(), listOf()))
+                    RhovasAst.Statement.Component(RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf()))
                 },
             )) { test("statement", it.source, it.expected) }
 
@@ -2082,6 +2087,10 @@ class RhovasParserTests: RhovasSpec() {
                 }
             }
         }
+    }
+
+    private fun modifiers(inheritance: Modifiers.Inheritance = Modifiers.Inheritance.DEFAULT): Modifiers {
+        return Modifiers(inheritance)
     }
 
     private fun block(vararg statements: RhovasAst.Statement): RhovasAst.Expression.Block {

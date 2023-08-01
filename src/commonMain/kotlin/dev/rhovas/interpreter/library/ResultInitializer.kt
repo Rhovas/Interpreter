@@ -1,12 +1,11 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.EVALUATOR
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object ResultInitializer : Library.TypeInitializer("Result") {
+object ResultInitializer : Library.TypeInitializer("Result", Modifiers(Modifiers.Inheritance.VIRTUAL)) {
 
     override fun initialize() {
         generics.add(generic("T"))

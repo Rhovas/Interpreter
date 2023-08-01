@@ -1,18 +1,18 @@
 package dev.rhovas.interpreter.library
 
-import dev.rhovas.interpreter.EVALUATOR
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object IterableInitializer : Library.TypeInitializer("Iterable") {
+object IterableInitializer : Library.TypeInitializer("Iterable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T"))
         inherits.add(Type.ANY)
 
         method("iterator",
+            modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
             returns = Type.ITERATOR[generic("T")]
         ) { (instance) ->
             val elementType = instance.type.generic("T", Type.ITERABLE.GENERIC)!!

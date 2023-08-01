@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.parser.rhovas
 
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.dsl.DslAst
 import kotlin.js.JsName
@@ -22,12 +23,14 @@ sealed class RhovasAst {
     sealed class Component : RhovasAst() {
 
         data class Struct(
+            val modifiers: Modifiers,
             val name: String,
             val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
 
         data class Class(
+            val modifiers: Modifiers,
             val name: String,
             val inherits: List<Type>,
             val members: List<Member>,
@@ -38,6 +41,7 @@ sealed class RhovasAst {
     sealed class Member : RhovasAst() {
 
         data class Property(
+            val modifiers: Modifiers,
             val mutable: Boolean,
             val name: String,
             val type: Type,
@@ -45,6 +49,7 @@ sealed class RhovasAst {
         ) : Member()
 
         data class Initializer(
+            val modifiers: Modifiers,
             val parameters: List<Pair<String, Type?>>,
             val returns: Type?,
             val throws: List<Type>,
@@ -52,7 +57,8 @@ sealed class RhovasAst {
         ) : Member()
 
         data class Method(
-            val function: Statement.Declaration.Function
+            val modifiers: Modifiers,
+            val function: Statement.Declaration.Function,
         ) : Member()
 
     }

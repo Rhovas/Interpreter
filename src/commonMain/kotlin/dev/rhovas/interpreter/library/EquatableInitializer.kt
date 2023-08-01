@@ -1,15 +1,17 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object EquatableInitializer : Library.TypeInitializer("Equatable") {
+object EquatableInitializer : Library.TypeInitializer("Equatable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T", Type.EQUATABLE.DYNAMIC))
         inherits.add(Type.ANY)
 
         function("equals", operator = "==",
+            modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
             generics = listOf(generic("T", Type.EQUATABLE.DYNAMIC)),
             parameters = listOf("instance" to generic("T"), "other" to generic("T")),
             returns = Type.BOOLEAN,

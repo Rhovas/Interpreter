@@ -6,6 +6,7 @@ import dev.rhovas.interpreter.RhovasSpec
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
@@ -100,7 +101,7 @@ class EvaluatorTests: RhovasSpec() {
                     log(Name());
                 """.trimIndent(), "Name{}"),
                 "Extends Field" to Test("""
-                    class Parent {
+                    virtual class Parent {
                         val field: Integer;
                         init() {
                             this { field: 1 };
@@ -114,7 +115,7 @@ class EvaluatorTests: RhovasSpec() {
                     log(Child().field);
                 """.trimIndent(), "1"),
                 "Extends Method" to Test("""
-                    class Parent {
+                    virtual class Parent {
                         init() {}
                         func method(this) {
                             log(1);
@@ -664,9 +665,13 @@ class EvaluatorTests: RhovasSpec() {
                     }
                 """.trimIndent(), "finally"),
             )) { test("source", it.source, it.log, it.expected) {
-                it.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { type ->
+                it.types.define(Type.Base(
+                    "SubtypeException",
+                    Modifiers(Modifiers.Inheritance.DEFAULT),
+                    Scope.Definition(null)
+                ).reference.also { type ->
                     type.base.inherit(Type.EXCEPTION)
-                    type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
+                    type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
                         Object(type, arguments[0].value as String)
                     })
                 })
@@ -1127,9 +1132,13 @@ class EvaluatorTests: RhovasSpec() {
                             log(e.message);
                         }
                     """.trimIndent(), "message") {
-                        it.types.define(Type.Base("SubtypeException", Scope.Definition(null)).reference.also { type ->
+                        it.types.define(Type.Base(
+                            "SubtypeException",
+                            Modifiers(Modifiers.Inheritance.DEFAULT),
+                            Scope.Definition(null)
+                        ).reference.also { type ->
                             type.base.inherit(Type.EXCEPTION)
-                            type.base.scope.functions.define(Function.Definition(Function.Declaration("", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
+                            type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
                                 Object(type, arguments[0].value as String)
                             })
                         })
@@ -1470,7 +1479,7 @@ class EvaluatorTests: RhovasSpec() {
         val input = Input("Test", source)
         val builder = StringBuilder()
         val scope = Scope.Definition(Library.SCOPE).also(scope)
-        scope.functions.define(Function.Definition(Function.Declaration("log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())) { arguments ->
+        scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "log", listOf(), listOf(Variable.Declaration("obj", Type.ANY, false)), Type.ANY, listOf())) { arguments ->
             arguments[0].also { builder.append(it.methods.toString()) }
         })
         val expected = expected?.invoke(scope)
