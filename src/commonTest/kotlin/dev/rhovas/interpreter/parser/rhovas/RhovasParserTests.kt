@@ -89,104 +89,66 @@ class RhovasParserTests: RhovasSpec() {
             """.trimIndent(), null),
         )) { test("source", it.source, it.expected?.let { { RhovasAst.Source(listOf(it.invoke()), listOf()) } }) }
 
-        suite("Component") {
-            suite("Struct", listOf(
-                "Empty" to Test("""
-                    struct Name {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf())
-                },
-                "Modifiers" to Test("""
-                    virtual struct Name {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct(modifiers(Modifiers.Inheritance.VIRTUAL), "Name", listOf(), listOf())
-                },
-                "Inherits Single" to Test("""
-                    struct Name: Type {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("Type")), listOf())
-                },
-                "Inherits Multiple" to Test("""
-                    struct Name: First, Second, Third {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
-                },
-                "Members" to Test("""
-                    struct Name {
-                        val name: Type;
-                        init() {}
-                        func name() {}
-                    }
-                """.trimIndent()) {
-                    RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf(
-                        RhovasAst.Member.Property(modifiers(),false, "name", type("Type"), null),
-                        RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
-                    ))
-                },
-                "Missing Name" to Test("""
-                    struct {}
-                """.trimIndent(), null),
-                "Missing Inherits" to Test("""
-                    struct Name: {}
-                """.trimIndent(), null),
-                "Missing Inherits Separator" to Test("""
-                    struct Name: First Second {}
-                """.trimIndent(), null),
-                "Missing Body" to Test("""
-                    struct Name;
-                """.trimIndent(), null),
-                "Missing Closing Brace" to Test("""
-                    struct Name {
-                """.trimIndent(), null),
-            )) { test("component", it.source, it.expected) }
-
-            suite("Class", listOf(
-                "Empty" to Test("""
-                    class Name {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Class(modifiers(), "Name", listOf(), listOf())
-                },
-                "Inherits Single" to Test("""
-                    class Name: Type {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Class(modifiers(), "Name", listOf(type("Type")), listOf())
-                },
-                "Inherits Multiple" to Test("""
-                    class Name: First, Second, Third {}
-                """.trimIndent()) {
-                    RhovasAst.Component.Class(modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
-                },
-                "Members" to Test("""
-                    class Name {
-                        val name: Type;
-                        init() {}
-                        func name() {}
-                    }
-                """.trimIndent()) {
-                    RhovasAst.Component.Class(modifiers(), "Name", listOf(), listOf(
-                        RhovasAst.Member.Property(modifiers(), false, "name", type("Type"), null),
-                        RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block()),
-                        RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
-                    ))
-                },
-                "Missing Name" to Test("""
-                    class {}
-                """.trimIndent(), null),
-                "Missing Inherits" to Test("""
-                    class Name: {}
-                """.trimIndent(), null),
-                "Missing Inherits Separator" to Test("""
-                    class Name: First Second {}
-                """.trimIndent(), null),
-                "Missing Body" to Test("""
-                    class Name;
-                """.trimIndent(), null),
-                "Missing Closing Brace" to Test("""
-                    class Name {
-                """.trimIndent(), null),
-            )) { test("component", it.source, it.expected) }
-        }
+        suite("Component", listOf(
+            "Modifiers" to Test("""
+                virtual struct Name {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(modifiers(Modifiers.Inheritance.VIRTUAL), "Name", listOf(), listOf())
+            },
+            "Struct" to Test("""
+                struct Name {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf())
+            },
+            "Class" to Test("""
+                class Name {}
+            """.trimIndent()) {
+                RhovasAst.Component.Class(modifiers(), "Name", listOf(), listOf())
+            },
+            "Interface" to Test("""
+                interface Name {}
+            """.trimIndent()) {
+                RhovasAst.Component.Interface(modifiers(), "Name", listOf(), listOf())
+            },
+            "Inherits Single" to Test("""
+                struct Name: Type {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("Type")), listOf())
+            },
+            "Inherits Multiple" to Test("""
+                struct Name: First, Second, Third {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
+            },
+            "Members" to Test("""
+                struct Name {
+                    val name: Type;
+                    init() {}
+                    func name() {}
+                }
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(modifiers(), "Name", listOf(), listOf(
+                    RhovasAst.Member.Property(modifiers(),false, "name", type("Type"), null),
+                    RhovasAst.Member.Initializer(modifiers(), listOf(), null, listOf(), block()),
+                    RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
+                ))
+            },
+            "Missing Name" to Test("""
+                struct {}
+            """.trimIndent(), null),
+            "Missing Inherits" to Test("""
+                struct Name: {}
+            """.trimIndent(), null),
+            "Missing Inherits Separator" to Test("""
+                struct Name: First Second {}
+            """.trimIndent(), null),
+            "Missing Body" to Test("""
+                struct Name;
+            """.trimIndent(), null),
+            "Missing Closing Brace" to Test("""
+                struct Name {
+            """.trimIndent(), null),
+        )) { test("component", it.source, it.expected) }
 
         suite("Member") {
             suite("Property", listOf(

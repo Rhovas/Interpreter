@@ -7,7 +7,7 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object DecimalInitializer : Library.TypeInitializer("Decimal") {
+object DecimalInitializer : Library.TypeInitializer("Decimal", Type.Component.CLASS) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.DECIMAL])

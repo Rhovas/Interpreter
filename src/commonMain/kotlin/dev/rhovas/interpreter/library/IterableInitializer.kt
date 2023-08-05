@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object IterableInitializer : Library.TypeInitializer("Iterable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object IterableInitializer : Library.TypeInitializer("Iterable", Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T"))

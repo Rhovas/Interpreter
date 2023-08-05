@@ -7,7 +7,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
-object KernelInitializer: Library.TypeInitializer("Kernel") {
+object KernelInitializer: Library.TypeInitializer("Kernel", Type.Component.CLASS) {
 
     override fun initialize() {
         function("input",

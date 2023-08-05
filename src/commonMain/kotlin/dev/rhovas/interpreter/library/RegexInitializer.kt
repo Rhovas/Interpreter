@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 
-object RegexInitializer : Library.TypeInitializer("Regex") {
+object RegexInitializer : Library.TypeInitializer("Regex", Type.Component.CLASS) {
 
     private val MATCH_TYPE get() = Type.STRUCT[Type.Struct(mapOf(
         "index" to Variable.Declaration("index", Type.INTEGER, false),

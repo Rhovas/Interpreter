@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object TupleInitializer : Library.TypeInitializer("Tuple") {
+object TupleInitializer : Library.TypeInitializer("Tuple", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))

@@ -11,7 +11,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasLexer
 import dev.rhovas.interpreter.parser.rhovas.RhovasTokenType
 
-object StringInitializer : Library.TypeInitializer("String") {
+object StringInitializer : Library.TypeInitializer("String", Type.Component.CLASS) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.STRING])

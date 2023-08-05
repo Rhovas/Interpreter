@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object VoidInitializer : Library.TypeInitializer("Void") {
+object VoidInitializer : Library.TypeInitializer("Void", Type.Component.CLASS) {
 
     override fun initialize() {
         inherits.add(Type.HASHABLE[Type.VOID])

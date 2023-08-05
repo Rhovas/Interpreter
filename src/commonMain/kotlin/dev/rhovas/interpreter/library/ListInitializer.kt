@@ -7,7 +7,7 @@ import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object ListInitializer : Library.TypeInitializer("List") {
+object ListInitializer : Library.TypeInitializer("List", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("T"))

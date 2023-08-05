@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 
-object MapInitializer : Library.TypeInitializer("Map") {
+object MapInitializer : Library.TypeInitializer("Map", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("K", Type.HASHABLE[generic("K")]))

@@ -9,7 +9,7 @@ class TypeTests : RhovasSpec() {
 
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
-        Type.Base("Number", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null)).reference.also {
+        Type.Base("Number", Type.Component.CLASS, Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Definition(null)).reference.also {
             it.base.inherit(Type.COMPARABLE[it])
             Library.SCOPE.types.define(it)
             Type.INTEGER.base.inherits.add(0, it)

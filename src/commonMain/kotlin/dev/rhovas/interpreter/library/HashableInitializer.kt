@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object HashableInitializer : Library.TypeInitializer("Hashable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object HashableInitializer : Library.TypeInitializer("Hashable", Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T", Type.HASHABLE.DYNAMIC))

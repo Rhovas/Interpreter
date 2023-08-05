@@ -36,6 +36,13 @@ sealed class RhovasAst {
             val members: List<Member>,
         ) : Component()
 
+        data class Interface(
+            val modifiers: Modifiers,
+            val name: String,
+            val inherits: List<Type>,
+            val members: List<Member>,
+        ) : Component()
+
     }
 
     sealed class Member : RhovasAst() {
@@ -359,6 +366,7 @@ sealed class RhovasAst {
 
                 is Component.Struct -> visit(ast)
                 is Component.Class -> visit(ast)
+                is Component.Interface -> visit(ast)
 
                 is Member.Property -> visit(ast)
                 is Member.Initializer -> visit(ast)
@@ -423,6 +431,7 @@ sealed class RhovasAst {
 
         fun visit(ast: Component.Struct): T
         fun visit(ast: Component.Class): T
+        fun visit(ast: Component.Interface): T
 
         @JsName("visitMemberProperty") fun visit(ast: Member.Property): T
         @JsName("visitMemberInitializer") fun visit(ast: Member.Initializer): T

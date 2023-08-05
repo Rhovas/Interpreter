@@ -6,6 +6,8 @@ sealed class Type(
     open val base: Base,
 ) {
 
+    enum class Component { STRUCT, CLASS, INTERFACE }
+
     companion object {
         val ANY get() = Library.type("Any")
         val ATOM get() = Library.type("Atom")
@@ -116,6 +118,7 @@ sealed class Type(
 
     class Base(
         val name: String,
+        val component: Component,
         val modifiers: Modifiers,
         val scope: Scope.Definition,
     ) {
@@ -124,8 +127,20 @@ sealed class Type(
         val inherits: MutableList<Type> = mutableListOf()
         val reference = Reference(this, generics)
 
+        init {
+            when (component) {
+                Component.STRUCT -> require(modifiers.inheritance == Modifiers.Inheritance.DEFAULT)
+                Component.CLASS -> {}
+                Component.INTERFACE -> require(modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
+            }
+        }
+
         fun inherit(type: Reference) {
-            require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT))
+            when (component) {
+                Component.STRUCT -> require(type.base == STRUCT.GENERIC.base || type.base.component == Component.INTERFACE)
+                Component.CLASS -> require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT))
+                Component.INTERFACE -> require(type.base == ANY.base || type.base.component == Component.INTERFACE)
+            }
             inherits.add(type)
             type.base.scope.functions.collect()
                 .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
@@ -136,7 +151,11 @@ sealed class Type(
         }
 
         override fun equals(other: Any?): Boolean {
-            return other is Base && name == other.name && generics == other.generics && inherits == other.inherits
+            return (other is Base && name == other.name && generics == other.generics && inherits == other.inherits).also {
+                if (this.toString() == other.toString()) {
+                    println("${this} == ${other} = ${it}")
+                }
+            }
         }
 
         override fun toString(): String {
@@ -235,6 +254,14 @@ sealed class Type(
                     else -> unify(other.bound, bindings).also { bindings[other.name] = it }
                 }
                 is Variant -> unify(other.upper ?: ANY)
+            }
+        }
+
+        override fun equals(other: Any?): Boolean {
+            return (other is Reference && this.base == other.base && this.generics == other.generics).also {
+                if (this.toString() == other.toString()) {
+                    println("${this} == ${other} = ${it}")
+                }
             }
         }
 

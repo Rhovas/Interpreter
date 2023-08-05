@@ -284,6 +284,18 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
         }
     }
 
+    override fun visit(ast: RhovasAst.Component.Interface): RhovasIr.Component.Interface {
+        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+    }
+
+    override fun visit(ir: RhovasIr.DefinitionPhase.Component.Interface): RhovasIr.Component.Interface = analyzeAst(ir.ast) {
+        val type = context.scope.types[ir.ast.name]!!
+        analyze(context.forComponent(type, null)) {
+            val members = ir.members.map { visit(it) }
+            RhovasIr.Component.Interface(type, ir.implements, members)
+        }
+    }
+
     private fun visit(ir: RhovasIr.DefinitionPhase.Member): RhovasIr.Member {
         return super.visit(ir) as RhovasIr.Member
     }
@@ -1323,7 +1335,11 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, ast.modifiers, Scope.Definition(null)).reference)
+            require(ast.modifiers.inheritance == Modifiers.Inheritance.DEFAULT) { error(ast,
+                "Invalid inheritance modifier.",
+                "A struct cannot specify virtual/abstract modifiers as they cannot be inherited from.",
+            ) }
+            context.scope.types.define(Type.Base(ast.name, Type.Component.STRUCT, Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null)).reference)
         }
 
         fun visit(ast: RhovasAst.Component.Class) = analyze(ast.context) {
@@ -1331,7 +1347,19 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            context.scope.types.define(Type.Base(ast.name, ast.modifiers, Scope.Definition(null)).reference)
+            context.scope.types.define(Type.Base(ast.name, Type.Component.CLASS, ast.modifiers, Scope.Definition(null)).reference)
+        }
+
+        fun visit(ast: RhovasAst.Component.Interface) = analyze(ast.context) {
+            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
+                "Redefined type.",
+                "The type ${ast.name} is already defined in this scope.",
+            ) }
+            require(ast.modifiers.inheritance == Modifiers.Inheritance.DEFAULT) { error(ast,
+                "Invalid inheritance modifier.",
+                "An interface cannot specify virtual/abstract modifiers as they are always considered abstract.",
+            ) }
+            context.scope.types.define(Type.Base(ast.name, Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Definition(null)).reference)
         }
 
     }
@@ -1344,48 +1372,58 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
 
         fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
-            val inherits = ast.inherits.map {
-                val type = visit(it).type
-                require(type is Type.Reference) { error(it,
-                    "Invalid inheritance type.",
-                    "The type ${it} cannot be inherited from as it is not a reference type.",
-                ) }
-                require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
-                    "Invalid inheritance.",
-                    "The type ${type} cannot be inherited from as it is not virtual/abstract.",
-                ) }
-                type as Type.Reference
-            }
+            val (_, implements) = visitInherits(ast.inherits, false)
             val members = ast.members.map { visit(it, type) }.toMutableList()
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             type.base.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
-            inherits.forEach { type.base.inherit(it) }
+            implements.forEach { type.base.inherit(it) }
             type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), type, listOf())))
             type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, type, listOf())))
-            RhovasIr.DefinitionPhase.Component.Struct(ast, inherits, members)
+            RhovasIr.DefinitionPhase.Component.Struct(ast, implements, members)
         }
 
         fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
             val type = context.scope.types[ast.name]!!
-            val inherits = ast.inherits.map {
-                val type = visit(it).type
-                require(type is Type.Reference) { error(it,
-                    "Invalid inheritance type.",
-                    "The type ${it} cannot be inherited from as it is not a reference type.",
-                ) }
-                require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
-                    "Invalid inheritance.",
-                    "The type ${type} cannot be inherited from as it is not virtual/abstract.",
-                ) }
-                type as Type.Reference
-            }
-            //TODO: class/interface validation
-            val extends = inherits.firstOrNull()
-            val implements = inherits.drop(1)
+            val (extends, implements) = visitInherits(ast.inherits, true)
             val members = ast.members.map { visit(it, type) }.toMutableList()
             type.base.inherit(extends ?: Type.ANY)
             implements.forEach { type.base.inherit(it) }
             RhovasIr.DefinitionPhase.Component.Class(ast, extends, implements, members)
+        }
+
+        fun visit(ast: RhovasAst.Component.Interface): RhovasIr.DefinitionPhase.Component.Interface = analyze(ast.context) {
+            val type = context.scope.types[ast.name]!!
+            val (_, implements) = visitInherits(ast.inherits, false)
+            val members = ast.members.map { visit(it, type) }.toMutableList()
+            implements.ifEmpty { listOf(Type.ANY) }.forEach { type.base.inherit(it) }
+            println("Base = ${type.base}")
+            RhovasIr.DefinitionPhase.Component.Interface(ast, implements, members)
+        }
+
+        private fun visitInherits(inherits: List<RhovasAst.Type>, extendable: Boolean): Pair<Type.Reference?, List<Type.Reference>> {
+            var extends: Type.Reference? = null
+            val implements = mutableListOf<Type.Reference>()
+            inherits.forEach {
+                val type = visit(it).type
+                require(type is Type.Reference) { error(it,
+                    "Invalid inheritance type.",
+                    "The type ${type} cannot be inherited from as it is not a reference type.",
+                ) }
+                if (extendable && extends == null && implements.isEmpty() && type.base.component == Type.Component.CLASS) {
+                    require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
+                        "Invalid class inheritance.",
+                        "The type ${type} cannot be inherited from as it is not virtual/abstract.",
+                    ) }
+                    extends = type as Type.Reference
+                } else {
+                    require(type.base.component == Type.Component.INTERFACE) { error(it,
+                        "Invalid class inheritance.",
+                        "The type ${type} cannot be inherited from here as it is not an interface.",
+                    ) }
+                    implements.add(type as Type.Reference)
+                }
+            }
+            return Pair(extends, implements)
         }
 
         fun visit(ast: RhovasAst.Member, component: Type): RhovasIr.DefinitionPhase.Member {

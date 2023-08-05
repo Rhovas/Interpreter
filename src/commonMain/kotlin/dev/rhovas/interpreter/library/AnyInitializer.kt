@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object AnyInitializer: Library.TypeInitializer("Any", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object AnyInitializer: Library.TypeInitializer("Any", Type.Component.CLASS, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         function("do",

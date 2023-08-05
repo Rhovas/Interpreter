@@ -158,6 +158,20 @@ class EvaluatorTests: RhovasSpec() {
                     log(Name().method());
                 """.trimIndent(), "1"),
             )) { test("source", it.source, it.log, it.expected) }
+
+            suite("Interface", listOf(
+                "Interface" to Test("""
+                    interface Parent {
+                        func method(this): Integer {
+                            return 1;
+                        }
+                    }
+                    class Name: Parent {
+                        init() {}
+                    }
+                    log(Name().method());
+                """.trimIndent(), "1"),
+            )) { test("source", it.source, it.log, it.expected) }
         }
 
         suite("Member") {
@@ -667,6 +681,7 @@ class EvaluatorTests: RhovasSpec() {
             )) { test("source", it.source, it.log, it.expected) {
                 it.types.define(Type.Base(
                     "SubtypeException",
+                    Type.Component.CLASS,
                     Modifiers(Modifiers.Inheritance.DEFAULT),
                     Scope.Definition(null)
                 ).reference.also { type ->
@@ -1134,6 +1149,7 @@ class EvaluatorTests: RhovasSpec() {
                     """.trimIndent(), "message") {
                         it.types.define(Type.Base(
                             "SubtypeException",
+                            Type.Component.CLASS,
                             Modifiers(Modifiers.Inheritance.DEFAULT),
                             Scope.Definition(null)
                         ).reference.also { type ->

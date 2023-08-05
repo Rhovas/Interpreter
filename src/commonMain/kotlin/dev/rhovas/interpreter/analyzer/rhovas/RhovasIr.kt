@@ -33,6 +33,12 @@ sealed class RhovasIr {
             val members: List<Member>,
         ) : Component()
 
+        data class Interface(
+            val type: dev.rhovas.interpreter.environment.Type,
+            val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
+            val members: List<Member>,
+        ) : Component()
+
     }
 
     sealed class Member : RhovasIr() {
@@ -385,6 +391,7 @@ sealed class RhovasIr {
 
                 is Component.Struct -> visit(ir)
                 is Component.Class -> visit(ir)
+                is Component.Interface -> visit(ir)
 
                 is Member.Property -> visit(ir)
                 is Member.Initializer -> visit(ir)
@@ -450,6 +457,7 @@ sealed class RhovasIr {
 
         fun visit(ir: Component.Struct): T
         fun visit(ir: Component.Class): T
+        fun visit(ir: Component.Interface): T
 
         @JsName("visitPropertyMember") fun visit(ir: Member.Property): T
         @JsName("visitInitializerMember") fun visit(ir: Member.Initializer): T
@@ -527,6 +535,12 @@ sealed class RhovasIr {
                 val members: List<Member>,
             ) : Component()
 
+            data class Interface(
+                val ast: RhovasAst.Component.Interface,
+                val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
+                val members: List<Member>,
+            ) : Component()
+
         }
 
         sealed class Member : DefinitionPhase() {
@@ -560,6 +574,7 @@ sealed class RhovasIr {
                 return when (ir) {
                     is Component.Struct -> visit(ir)
                     is Component.Class -> visit(ir)
+                    is Component.Interface -> visit(ir)
 
                     is Member.Property -> visit(ir)
                     is Member.Initializer -> visit(ir)
@@ -570,6 +585,7 @@ sealed class RhovasIr {
 
             @JsName("visitDefinitionPhaseStruct") fun visit(ir: Component.Struct): T
             @JsName("visitDefinitionPhaseClass") fun visit(ir: Component.Class): T
+            @JsName("visitDefinitionPhaseInterface") fun visit(ir: Component.Interface): T
 
             @JsName("visitDefinitionPhaseProperty") fun visit(ir: Member.Property): T
             @JsName("visitDefinitionPhaseInitializer") fun visit(ir: Member.Initializer): T

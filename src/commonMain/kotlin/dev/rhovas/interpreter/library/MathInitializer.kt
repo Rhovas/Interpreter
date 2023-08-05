@@ -7,7 +7,7 @@ import dev.rhovas.interpreter.environment.Type
 import kotlin.math.pow
 import kotlin.random.Random
 
-object MathInitializer : Library.TypeInitializer("Math") {
+object MathInitializer : Library.TypeInitializer("Math", Type.Component.CLASS) {
 
     override fun initialize() {
         variable("pi", Type.DECIMAL, BigDecimal.fromDouble(kotlin.math.PI))

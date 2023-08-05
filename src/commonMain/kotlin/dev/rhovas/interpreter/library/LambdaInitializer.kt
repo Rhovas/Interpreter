@@ -4,7 +4,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object LambdaInitializer : Library.TypeInitializer("Lambda") {
+object LambdaInitializer : Library.TypeInitializer("Lambda", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))

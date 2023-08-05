@@ -4,7 +4,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object IteratorInitializer : Library.TypeInitializer("Iterator", Modifiers(Modifiers.Inheritance.VIRTUAL)) {
+object IteratorInitializer : Library.TypeInitializer("Iterator", Type.Component.CLASS, Modifiers(Modifiers.Inheritance.VIRTUAL)) {
 
     override fun initialize() {
         generics.add(generic("T"))

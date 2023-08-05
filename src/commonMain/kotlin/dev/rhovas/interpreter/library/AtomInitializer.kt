@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
-object AtomInitializer : Library.TypeInitializer("Atom") {
+object AtomInitializer : Library.TypeInitializer("Atom", Type.Component.CLASS) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.ATOM])

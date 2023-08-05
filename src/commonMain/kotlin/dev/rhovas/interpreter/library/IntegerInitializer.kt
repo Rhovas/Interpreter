@@ -5,7 +5,7 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object IntegerInitializer : Library.TypeInitializer("Integer") {
+object IntegerInitializer : Library.TypeInitializer("Integer", Type.Component.CLASS) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.INTEGER])

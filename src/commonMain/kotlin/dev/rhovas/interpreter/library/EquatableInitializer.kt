@@ -4,7 +4,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object EquatableInitializer : Library.TypeInitializer("Equatable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object EquatableInitializer : Library.TypeInitializer("Equatable", Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T", Type.EQUATABLE.DYNAMIC))

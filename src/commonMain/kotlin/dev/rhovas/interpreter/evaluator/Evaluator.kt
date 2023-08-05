@@ -64,6 +64,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return Object(Type.VOID, Unit)
     }
 
+    override fun visit(ir: RhovasIr.Component.Interface): Object {
+        if (!scope.types.isDefined(ir.type.base.name, true)) {
+            scope.types.define(ir.type, ir.type.base.name)
+        }
+        ir.members.forEach { visit(it) }
+        return Object(Type.VOID, Unit)
+    }
+
     override fun visit(ir: RhovasIr.Member.Property): Object {
         ir.getter.implementation = { arguments ->
             val instance = arguments[0].value as MutableMap<String, Object>

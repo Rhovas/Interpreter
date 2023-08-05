@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object ComparableInitializer : Library.TypeInitializer("Comparable", Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object ComparableInitializer : Library.TypeInitializer("Comparable", Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
 
     override fun initialize() {
         generics.add(generic("T", Type.COMPARABLE.DYNAMIC))

@@ -69,49 +69,29 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `component = modifiers (struct | class)`
+     *  - `component = modifiers term inherits? "{" member* "}"`
+     *     - term = "struct" | "class" | "interface"
+     *     - inherits = ":" type ("," type)*
      */
-    private fun parseComponent(): RhovasAst.Component {
+    private fun parseComponent(): RhovasAst.Component = parseAst {
         val modifiers = parseModifiers()
-        return when {
-            peek("struct") -> parseStruct(modifiers)
-            peek("class") -> parseClass(modifiers)
+        require(match(listOf("struct", "class", "interface")))
+        val term = tokens[-1]!!.literal
+        val name = parseIdentifier { "A component requires a name, as in `struct Name { ... }`." }
+        val inherits = if (match(":")) {
+            parseSequence(",") { parseType() }
+        } else listOf()
+        require(peek("{")) { error(
+            "Expected opening brace.",
+            "A component requires braces for defining members, as in `struct Name { ... }`.",
+        ) }
+        val members = parseSequence("{", null, "}") { parseMember() }!!
+        when (term) {
+            "struct" -> RhovasAst.Component.Struct(modifiers, name, inherits, members)
+            "class" -> RhovasAst.Component.Class(modifiers, name, inherits, members)
+            "interface" -> RhovasAst.Component.Interface(modifiers, name, inherits, members)
             else -> throw AssertionError()
         }
-    }
-
-    /**
-     *  - `struct = "struct" identifier "{" member* "}"`
-     */
-    private fun parseStruct(modifiers: Modifiers): RhovasAst.Component.Struct = parseAst {
-        require(match("struct"))
-        val name = parseIdentifier { "A struct requires a name after `struct`, as in `struct Name { ... }`." }
-        val inherits = if (match(":")) {
-            parseSequence(",") { parseType() }
-        } else listOf()
-        require(peek("{")) { error(
-            "Expected opening brace.",
-            "A struct requires braces for defining members, as in `struct Name { ... }`.",
-        ) }
-        val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Struct(modifiers, name, inherits, members)
-    }
-
-    /**
-     *  - `class = "class" identifier "{" member* "}"`
-     */
-    private fun parseClass(modifiers: Modifiers): RhovasAst.Component.Class = parseAst {
-        require(match("class"))
-        val name = parseIdentifier { "A class requires a name after `class`, as in `class Name { ... }`." }
-        val inherits = if (match(":")) {
-            parseSequence(",") { parseType() }
-        } else listOf()
-        require(peek("{")) { error(
-            "Expected opening brace.",
-            "A class requires braces for defining members, as in `class Name { ... }`.",
-        ) }
-        val members = parseSequence("{", null, "}") { parseMember() }!!
-        RhovasAst.Component.Class(modifiers, name, inherits, members)
     }
 
     /**
@@ -210,7 +190,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             peek("require") -> parseRequireStatement()
             peek("ensure") -> parseEnsureStatement()
             peek(RhovasTokenType.IDENTIFIER, ":") -> parseLabelStatement()
-            peek(listOf("virtual", "abstract", "struct", "class")) -> parseAst {
+            peek(listOf("virtual", "abstract", "struct", "class", "interface")) -> parseAst {
                 RhovasAst.Statement.Component(parseComponent())
             }
             else -> parseAst {

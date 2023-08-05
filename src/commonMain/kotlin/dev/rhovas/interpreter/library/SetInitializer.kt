@@ -7,7 +7,7 @@ import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object SetInitializer : Library.TypeInitializer("Set") {
+object SetInitializer : Library.TypeInitializer("Set", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("T"))

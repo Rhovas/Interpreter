@@ -58,12 +58,13 @@ object Library {
 
     abstract class TypeInitializer(
         name: String,
+        component: Type.Component,
         modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
     ) {
 
         val generics = mutableListOf<Type.Generic>()
         val inherits = mutableListOf<Type.Reference>()
-        val base = Type.Base(name, modifiers, Scope.Definition(null))
+        val base = Type.Base(name, component, modifiers, Scope.Definition(null))
 
         abstract fun initialize()
 

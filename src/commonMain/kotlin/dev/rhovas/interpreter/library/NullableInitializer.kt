@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object NullableInitializer : Library.TypeInitializer("Nullable") {
+object NullableInitializer : Library.TypeInitializer("Nullable", Type.Component.CLASS) {
 
     override fun initialize() {
         generics.add(generic("T"))
