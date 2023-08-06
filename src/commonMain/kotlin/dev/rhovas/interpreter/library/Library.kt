@@ -76,7 +76,7 @@ object Library {
             value: Any?
         ) {
             val variable = Variable.Definition(Variable.Declaration(name, type, false), Object(type, value))
-            (component.scope as Scope<in Variable.Definition, *>).variables.define(variable)
+            component.scope.variables.define(variable)
         }
 
         fun function(
@@ -98,7 +98,7 @@ object Library {
                 }
                 implementation.invoke(arguments)
             }
-            (component.scope as Scope<*, in Function.Definition>).functions.define(function)
+            component.scope.functions.define(function)
             operator?.let { component.scope.functions.define(function, it) }
         }
 

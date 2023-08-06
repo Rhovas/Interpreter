@@ -1,51 +1,53 @@
 package dev.rhovas.interpreter.environment
 
-sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, out F>?) {
+sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
+    private val parent: Scope<*, out VO, *, out FO>?,
+) {
 
-    val variables = VariablesDelegate<V>()
-    val functions = FunctionsDelegate<F>()
+    val variables = VariablesDelegate()
+    val functions = FunctionsDelegate()
     val types = TypesDelegate()
 
-    class Declaration(parent: Scope<out Variable, out Function>?): Scope<Variable, Function>(parent)
+    class Declaration(parent: Scope<*, out Variable, *, out Function>?): Scope<Variable, Variable, Function, Function>(parent)
 
-    class Definition(parent: Definition?): Scope<Variable.Definition, Function.Definition>(parent)
+    class Definition(parent: Definition?): Scope<Variable.Definition, Variable.Definition, Function.Definition, Function.Definition>(parent)
 
-    inner class VariablesDelegate<V: Variable> {
+    inner class VariablesDelegate {
 
-        private val variables = mutableMapOf<String, V>()
+        private val variables = mutableMapOf<String, VO>()
 
-        operator fun get(name: String, current: Boolean = false): V? {
+        operator fun get(name: String, current: Boolean = false): VO? {
             return variables[name] ?: when {
                 current -> null
-                else -> (parent as Scope<V, *>?)?.variables?.get(name)
+                else -> (parent as Scope<*, out VO, *, *>?)?.variables?.get(name)
             }
         }
 
-        fun define(variable: V) {
+        fun define(variable: VI) {
             require(!variables.containsKey(variable.name))
             variables[variable.name] = variable
         }
 
-        internal fun collect(): MutableMap<String, V> {
-            val map = (parent as Scope<V, *>?)?.variables?.collect() ?: mutableMapOf()
+        internal fun collect(): MutableMap<String, VO> {
+            val map = (parent as Scope<*, VO, *, *>?)?.variables?.collect() ?: mutableMapOf()
             map.putAll(variables)
             return map
         }
 
     }
 
-    inner class FunctionsDelegate<F: Function> {
+    inner class FunctionsDelegate {
 
-        private val functions = mutableMapOf<Pair<String, Int>, MutableList<F>>()
+        private val functions = mutableMapOf<Pair<String, Int>, MutableList<FO>>()
 
-        operator fun get(name: String, arity: Int, current: Boolean = false): List<F> {
+        operator fun get(name: String, arity: Int, current: Boolean = false): List<FO> {
             return (functions[Pair(name, arity)] ?: listOf()) + when {
                 current -> listOf()
-                else -> ((parent as Scope<*, F>?)?.functions?.get(name, arity) ?: listOf())
+                else -> ((parent as Scope<*, *, *, FO>?)?.functions?.get(name, arity) ?: listOf())
             }
         }
 
-        operator fun get(name: String, arguments: List<Type>, current: Boolean = false): F? {
+        operator fun get(name: String, arguments: List<Type>, current: Boolean = false): FO? {
             return get(name, arguments.size, current).firstNotNullOfOrNull { function ->
                 val generics = mutableMapOf<String, Type>()
                 function.takeIf {
@@ -56,18 +58,18 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
                         is Type.Variant -> type.upper ?: type.lower ?: Type.ANY
                         else -> type
                     }
-                }) as F?
+                }) as FO?
             }
         }
 
-        fun define(function: F, alias: String = function.name) {
+        fun define(function: FI, alias: String = function.name) {
             val overloads = functions.getOrPut(Pair(alias, function.parameters.size), ::mutableListOf)
             require(overloads.all { it.isDisjointWith(function) })
             overloads.add(function)
         }
 
-        internal fun collect(): MutableMap<Pair<String, Int>, List<F>> {
-            val map = (parent as Scope<*, F>?)?.functions?.collect() ?: mutableMapOf()
+        internal fun collect(): MutableMap<Pair<String, Int>, List<FO>> {
+            val map = (parent as Scope<*, *, *, FO>?)?.functions?.collect() ?: mutableMapOf()
             map.putAll(functions)
             return map
         }

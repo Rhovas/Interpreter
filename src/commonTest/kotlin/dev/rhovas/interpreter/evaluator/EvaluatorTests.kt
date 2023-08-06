@@ -682,7 +682,7 @@ class EvaluatorTests: RhovasSpec() {
             )) { test("source", it.source, it.log, it.expected) {
                 val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
                 component.inherit(Type.EXCEPTION)
-                (component.scope as Scope<*, in Function.Definition>).functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
+                component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
                     Object(component.type, arguments[0].value as String)
                 })
                 it.types.define(component.type)
@@ -1145,7 +1145,7 @@ class EvaluatorTests: RhovasSpec() {
                     """.trimIndent(), "message") {
                         val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
                         component.inherit(Type.EXCEPTION)
-                        (component.scope as Scope<*, in Function.Definition>).functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
+                        component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
                             Object(component.type, arguments[0].value as String)
                         })
                         it.types.define(component.type)

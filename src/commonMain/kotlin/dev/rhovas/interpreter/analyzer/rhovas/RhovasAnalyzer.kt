@@ -15,7 +15,7 @@ import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
-class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
+class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>) :
     Analyzer(Context(listOf(
         InputContext(ArrayDeque()),
         ScopeContext(scope),
@@ -64,14 +64,14 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
      * Context for variable/function/type scope.
      */
     data class ScopeContext(
-        val scope: Scope<out Variable, out Function>,
-    ) : Context.Item<Scope<out Variable, out Function>>(scope) {
+        val scope: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>,
+    ) : Context.Item<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(scope) {
 
         override fun child(): ScopeContext {
             return ScopeContext(Scope.Declaration(scope))
         }
 
-        override fun merge(children: List<Scope<out Variable, out Function>>) {}
+        override fun merge(children: List<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>) {}
 
     }
 
@@ -1449,7 +1449,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
             val type = ast.type.let { visit(it).type }
             val getter = Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component.type, false)), type, listOf()))
             val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component.type, false), Variable.Declaration("value", type, false)), Type.VOID, listOf())) else null
-            (component.scope as Scope<*, in Function.Definition>).functions.define(getter)
+            component.scope.functions.define(getter)
             setter?.let { component.scope.functions.define(it) }
             RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter)
         }
@@ -1469,7 +1469,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                 "Redefined initializer.",
                 "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.name}.",
             ) }
-            (component.scope as Scope<*, in Function.Definition>).functions.define(initializer)
+            component.scope.functions.define(initializer)
             RhovasIr.DefinitionPhase.Member.Initializer(ast, initializer)
         }
 
@@ -1502,7 +1502,7 @@ class RhovasAnalyzer(scope: Scope<out Variable, out Function>) :
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.name ?: "this scope"}.",
                 ) }
                 val method = if (component != null || scope is Scope.Definition) Function.Definition(declaration) else declaration
-                (scope as Scope<*, Function>).functions.define(method)
+                (scope as Scope<*, *, in Function, *>).functions.define(method)
                 ast.operator?.let { scope.functions.define(method, it) }
                 RhovasIr.DefinitionPhase.Function(ast, method)
             }

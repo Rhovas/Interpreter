@@ -1,6 +1,6 @@
 package dev.rhovas.interpreter.environment
 
-sealed class Component<S: Scope<out Variable, out Function>>(
+sealed class Component<S: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(
     val name: String,
     val modifiers: Modifiers,
     val scope: S,
@@ -31,7 +31,7 @@ sealed class Component<S: Scope<out Variable, out Function>>(
             .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
             .forEach { (name, function) ->
                 require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
-                (scope as Scope<*, Function>).functions.define(function, name)
+                (scope as Scope<*, *, in Function, *>).functions.define(function, name)
             }
     }
 
@@ -52,8 +52,8 @@ sealed class Component<S: Scope<out Variable, out Function>>(
     class Class(
         name: String,
         modifiers: Modifiers,
-        scope: Scope<out Variable, out Function>,
-    ) : Component<Scope<out Variable, out Function>>(name, modifiers, scope)
+        scope: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>,
+    ) : Component<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(name, modifiers, scope)
 
     class Interface(
         name: String,
