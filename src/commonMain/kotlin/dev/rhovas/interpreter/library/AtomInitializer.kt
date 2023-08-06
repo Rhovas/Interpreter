@@ -2,13 +2,11 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
-object AtomInitializer : Library.ComponentInitializer(Component.Class("Atom", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object AtomInitializer : Library.ComponentInitializer(Component.Class("Atom")) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.ATOM])

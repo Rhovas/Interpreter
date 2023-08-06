@@ -23,8 +23,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
 
     data class Test<T : RhovasIr>(val source: String, val expected: ((Scope.Declaration) -> T?)?)
 
-    private val MODULE = Component.Class("Module", modifiers(), Scope.Definition(null)).type.also(Library.SCOPE.types::define)
-    private val SUBMODULE = Component.Class("Module.Type", modifiers(), Scope.Definition(null)).type.also(Library.SCOPE.types::define).also { MODULE.component.scope.types.define(it, "Type") }
+    private val MODULE = Component.Class("Module").type.also(Library.SCOPE.types::define)
+    private val SUBMODULE = Component.Class("Module.Type").type.also(Library.SCOPE.types::define).also { MODULE.component.scope.types.define(it, "Type") }
     private val STMT_0 = Function.Definition(Function.Declaration(modifiers(), "stmt", listOf(), listOf(), Type.VOID, listOf())).also(Library.SCOPE.functions::define)
     private val STMT_1 = Function.Definition(Function.Declaration(modifiers(), "stmt", listOf(), listOf(Variable.Declaration("argument", Type.ANY, false)), Type.VOID, listOf())).also(Library.SCOPE.functions::define)
 
@@ -90,7 +90,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     struct Name {}
                     stmt(Name({}));
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Struct(component, listOf(), listOf())),
@@ -106,7 +106,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     struct Name { val field: Integer; }
                     stmt(Name({field: 1}).field);
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -128,7 +128,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     struct Name { func function(): Integer { return 1; } }
                     Name.function();
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "function", listOf(), listOf(), Type.INTEGER, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -148,7 +148,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     Name({field: 1}).method();
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "method", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
@@ -185,7 +185,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Class" to Test("""
                     class Name {}
                 """.trimIndent()) {
-                    val component = Component.Class("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Class("Name")
                     component.inherit(Type.ANY)
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Class(component, null, listOf(), listOf())),
@@ -201,11 +201,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     stmt(Child().field);
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))
+                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), parent.type, listOf())))
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", parent.type, false)), Type.INTEGER, listOf())))
-                    val child = Component.Class("Child", modifiers(), Scope.Definition(null))
+                    val child = Component.Class("Child")
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), child.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -232,11 +232,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     stmt(Child().method());
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), parent.type, listOf())))
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "method", listOf(), listOf(Variable.Declaration("this", parent.type, false)), Type.VOID, listOf())))
-                    val child = Component.Class("Child", modifiers(), Scope.Definition(null))
+                    val child = Component.Class("Child")
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), child.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -260,7 +260,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         func function() {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Class("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Class("Name")
                     component.inherit(Type.ANY)
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), component.type, listOf())))
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
@@ -294,7 +294,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Interface" to Test("""
                     interface Name {}
                 """.trimIndent()) {
-                    val component = Component.Interface("Name", modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))
+                    val component = Component.Interface("Name")
                     component.inherit(Type.ANY)
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Interface(component, listOf(), listOf())),
@@ -309,10 +309,10 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     stmt(Child().method());
                 """.trimIndent()) {
-                    val parent = Component.Interface("Parent", modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))
+                    val parent = Component.Interface("Parent")
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "method", listOf(), listOf(Variable.Declaration("this", parent.type, false)), Type.VOID, listOf())))
-                    val child = Component.Class("Child", modifiers(), Scope.Definition(null))
+                    val child = Component.Class("Child")
                     child.inherit(Type.ANY)
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), child.type, listOf())))
@@ -335,7 +335,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         func function() {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Interface("Name", modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))
+                    val component = Component.Interface("Name")
                     component.inherit(Type.ANY)
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), component.type, listOf())))
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
@@ -375,7 +375,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         val field: Integer;
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -389,7 +389,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         var field: Integer;
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, true)))])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false), Variable.Declaration("value", Type.INTEGER, false)), Type.VOID, listOf())))
@@ -404,7 +404,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         val field: Integer = 1;
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf("field" to Variable.Declaration("field", Type.INTEGER, false)))])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "field", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.INTEGER, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -440,7 +440,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         init(argument: Integer) {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(Variable.Declaration("argument", Type.INTEGER, false)), component.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -456,7 +456,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(Variable.Declaration("argument", Type.INTEGER, false)), Type.INTEGER, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -486,7 +486,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         func function() {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "function", listOf(), listOf(), Type.VOID, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -500,7 +500,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         func method(this) {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "method", listOf(), listOf(Variable.Declaration("this", component.type, false)), Type.VOID, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -516,7 +516,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "add", listOf(), listOf(Variable.Declaration("this", component.type, false), Variable.Declaration("other", component.type, false)), Type.VOID, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -551,7 +551,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Struct" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     RhovasIr.Statement.Component(RhovasIr.Component.Struct(component, listOf(), listOf()))
                 },
@@ -565,7 +565,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val component = Component.Struct("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Struct("Name")
                     component.inherit(Type.STRUCT[Type.Struct(mapOf())])
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(Variable.Declaration("field", Type.INTEGER, false)), component.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -584,7 +584,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         init(field: Integer) {}
                     }
                 """.trimIndent()) {
-                    val component = Component.Class("Name", modifiers(), Scope.Definition(null))
+                    val component = Component.Class("Name")
                     component.inherit(Type.ANY)
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), component.type, listOf())))
                     component.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(Variable.Declaration("field", Type.INTEGER, false)), component.type, listOf())))
@@ -607,10 +607,10 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(Variable.Declaration("field", Type.INTEGER, false)), parent.type, listOf())))
-                    val child = Component.Class("Child", modifiers(), Scope.Definition(null))
+                    val child = Component.Class("Child")
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), child.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(
@@ -634,10 +634,10 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))
+                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), parent.type, listOf())))
-                    val child = Component.Class("Child", modifiers(), Scope.Definition(null))
+                    val child = Component.Class("Child")
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration(modifiers(), "", listOf(), listOf(), child.type, listOf())))
                     RhovasIr.Source(listOf(), listOf(

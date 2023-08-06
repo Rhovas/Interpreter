@@ -1,12 +1,10 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object NullableInitializer : Library.ComponentInitializer(Component.Class("Nullable", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object NullableInitializer : Library.ComponentInitializer(Component.Class("Nullable")) {
 
     override fun initialize() {
         generics.add(generic("T"))

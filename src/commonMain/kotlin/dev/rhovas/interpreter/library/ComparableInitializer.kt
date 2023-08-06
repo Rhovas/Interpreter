@@ -4,10 +4,9 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object ComparableInitializer : Library.ComponentInitializer(Component.Interface("Comparable", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
+object ComparableInitializer : Library.ComponentInitializer(Component.Interface("Comparable", Modifiers(Modifiers.Inheritance.ABSTRACT))) {
 
     override fun initialize() {
         generics.add(generic("T", Type.COMPARABLE.DYNAMIC))

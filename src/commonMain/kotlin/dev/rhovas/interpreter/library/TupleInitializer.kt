@@ -3,10 +3,9 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple", Modifiers(Modifiers.Inheritance.DEFAULT))) {
 
     override fun initialize() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))

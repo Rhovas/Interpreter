@@ -3,11 +3,10 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object IterableInitializer : Library.ComponentInitializer(Component.Interface("Iterable", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
+object IterableInitializer : Library.ComponentInitializer(Component.Interface("Iterable")) {
 
     override fun initialize() {
         generics.add(generic("T"))

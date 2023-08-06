@@ -1,13 +1,11 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object LambdaInitializer : Library.ComponentInitializer(Component.Class("Lambda", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object LambdaInitializer : Library.ComponentInitializer(Component.Class("Lambda")) {
 
     override fun initialize() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))

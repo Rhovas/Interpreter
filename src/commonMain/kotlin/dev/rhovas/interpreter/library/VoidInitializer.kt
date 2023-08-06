@@ -1,12 +1,10 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object VoidInitializer : Library.ComponentInitializer(Component.Class("Void", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object VoidInitializer : Library.ComponentInitializer(Component.Class("Void")) {
 
     override fun initialize() {
         inherits.add(Type.HASHABLE[Type.VOID])

@@ -2,13 +2,11 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 
-object RegexInitializer : Library.ComponentInitializer(Component.Class("Regex", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object RegexInitializer : Library.ComponentInitializer(Component.Class("Regex")) {
 
     private val MATCH_TYPE get() = Type.STRUCT[Type.Struct(mapOf(
         "index" to Variable.Declaration("index", Type.INTEGER, false),

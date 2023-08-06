@@ -4,12 +4,10 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.DecimalMode
 import com.ionspin.kotlin.bignum.decimal.RoundingMode
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object DecimalInitializer : Library.ComponentInitializer(Component.Class("Decimal", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object DecimalInitializer : Library.ComponentInitializer(Component.Class("Decimal")) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.DECIMAL])

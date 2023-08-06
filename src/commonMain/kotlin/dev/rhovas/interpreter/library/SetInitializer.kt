@@ -2,12 +2,10 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object SetInitializer : Library.ComponentInitializer(Component.Class("Set", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
 
     override fun initialize() {
         generics.add(generic("T"))

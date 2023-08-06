@@ -3,10 +3,9 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object ExceptionInitializer : Library.ComponentInitializer(Component.Class("Exception", Modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))) {
+object ExceptionInitializer : Library.ComponentInitializer(Component.Class("Exception", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
     override fun initialize() {
         inherits.add(Type.HASHABLE[Type.EXCEPTION])

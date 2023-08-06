@@ -3,19 +3,15 @@ package dev.rhovas.interpreter.environment
 sealed class Component<S: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(
     val name: String,
     val modifiers: Modifiers,
-    val scope: S,
 ) {
-
-    init {
-        when (modifiers.inheritance) {
-            Modifiers.Inheritance.DEFAULT, Modifiers.Inheritance.VIRTUAL -> require(scope is Scope.Definition)
-            Modifiers.Inheritance.ABSTRACT -> require(scope is Scope.Declaration)
-        }
-    }
 
     val generics: MutableList<Type.Generic> = mutableListOf()
     val inherits: MutableList<Type> = mutableListOf()
     val type = Type.Reference(this, generics)
+    val scope: S = when (modifiers.inheritance) {
+        Modifiers.Inheritance.DEFAULT, Modifiers.Inheritance.VIRTUAL -> Scope.Definition(null) as S
+        Modifiers.Inheritance.ABSTRACT -> Scope.Declaration(null) as S
+    }
 
     open fun inherit(type: Type.Reference) {
         when (this) {
@@ -45,20 +41,29 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
 
     class Struct(
         name: String,
-        modifiers: Modifiers,
-        scope: Scope.Definition,
-    ) : Component<Scope.Definition>(name, modifiers, scope)
+        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+    ) : Component<Scope.Definition>(name, modifiers) {
+
+        init {
+            require(modifiers.inheritance == Modifiers.Inheritance.DEFAULT)
+        }
+
+    }
 
     class Class(
         name: String,
-        modifiers: Modifiers,
-        scope: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>,
-    ) : Component<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(name, modifiers, scope)
+        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+    ) : Component<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(name, modifiers)
 
     class Interface(
         name: String,
-        modifiers: Modifiers,
-        scope: Scope.Declaration,
-    ) : Component<Scope.Declaration>(name, modifiers, scope)
+        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.ABSTRACT),
+    ) : Component<Scope.Declaration>(name, modifiers) {
+
+        init {
+            require(modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
+        }
+
+    }
 
 }

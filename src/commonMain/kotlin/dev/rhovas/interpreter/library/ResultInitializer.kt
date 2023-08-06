@@ -3,11 +3,10 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object ResultInitializer : Library.ComponentInitializer(Component.Class("Result", Modifiers(Modifiers.Inheritance.VIRTUAL), Scope.Definition(null))) {
+object ResultInitializer : Library.ComponentInitializer(Component.Class("Result", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
     override fun initialize() {
         generics.add(generic("T"))

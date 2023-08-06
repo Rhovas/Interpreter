@@ -4,9 +4,7 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.ParseException
@@ -14,7 +12,7 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 import dev.rhovas.interpreter.parser.rhovas.RhovasLexer
 import dev.rhovas.interpreter.parser.rhovas.RhovasTokenType
 
-object StringInitializer : Library.ComponentInitializer(Component.Class("String", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object StringInitializer : Library.ComponentInitializer(Component.Class("String")) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.STRING])

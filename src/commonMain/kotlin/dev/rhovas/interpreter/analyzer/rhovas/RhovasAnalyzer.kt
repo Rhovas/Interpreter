@@ -1341,7 +1341,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Invalid inheritance modifier.",
                 "A struct cannot specify virtual/abstract modifiers as they cannot be inherited from.",
             ) }
-            val component = Component.Struct(ast.name, Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
+            val component = Component.Struct(ast.name)
             context.scope.types.define(component.type)
         }
 
@@ -1350,10 +1350,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            val component = when (ast.modifiers.inheritance) {
-                Modifiers.Inheritance.ABSTRACT -> Component.Class(ast.name, ast.modifiers, Scope.Declaration(null))
-                else -> Component.Class(ast.name, ast.modifiers, Scope.Definition(null))
-            }
+            val component = Component.Class(ast.name, ast.modifiers)
             context.scope.types.define(component.type)
         }
 
@@ -1366,7 +1363,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Invalid inheritance modifier.",
                 "An interface cannot specify virtual/abstract modifiers as they are always considered abstract.",
             ) }
-            val component = Component.Interface(ast.name, Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))
+            val component = Component.Interface(ast.name)
             context.scope.types.define(component.type)
         }
 

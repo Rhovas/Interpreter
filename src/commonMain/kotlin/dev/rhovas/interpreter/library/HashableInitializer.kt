@@ -4,10 +4,9 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object HashableInitializer : Library.ComponentInitializer(Component.Interface("Hashable", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
+object HashableInitializer : Library.ComponentInitializer(Component.Interface("Hashable")) {
 
     override fun initialize() {
         generics.add(generic("T", Type.HASHABLE.DYNAMIC))

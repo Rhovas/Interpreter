@@ -680,7 +680,7 @@ class EvaluatorTests: RhovasSpec() {
                     }
                 """.trimIndent(), "finally"),
             )) { test("source", it.source, it.log, it.expected) {
-                val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
+                val component = Component.Class("SubtypeException")
                 component.inherit(Type.EXCEPTION)
                 component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
                     Object(component.type, arguments[0].value as String)
@@ -1143,7 +1143,7 @@ class EvaluatorTests: RhovasSpec() {
                             log(e.message);
                         }
                     """.trimIndent(), "message") {
-                        val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
+                        val component = Component.Class("SubtypeException")
                         component.inherit(Type.EXCEPTION)
                         component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
                             Object(component.type, arguments[0].value as String)

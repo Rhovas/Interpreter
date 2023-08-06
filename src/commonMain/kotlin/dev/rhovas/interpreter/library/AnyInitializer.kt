@@ -3,11 +3,10 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
+object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modifiers(Modifiers.Inheritance.ABSTRACT))) {
 
     override fun initialize() {
         function("do",

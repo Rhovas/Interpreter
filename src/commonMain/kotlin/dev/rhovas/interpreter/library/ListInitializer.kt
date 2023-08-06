@@ -3,13 +3,11 @@ package dev.rhovas.interpreter.library
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object ListInitializer : Library.ComponentInitializer(Component.Class("List", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
+object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
 
     override fun initialize() {
         generics.add(generic("T"))
