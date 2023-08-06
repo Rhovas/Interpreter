@@ -1,8 +1,13 @@
 package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.EVALUATOR
-import dev.rhovas.interpreter.environment.*
+import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Modifiers
+import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.Variable
 
 object Library {
 
@@ -38,33 +43,30 @@ object Library {
             KernelInitializer,
             MathInitializer,
         )
-        initializers.forEach { type ->
-            TYPES.define(type.base.reference)
+        initializers.forEach { initializer ->
+            TYPES.define(initializer.component.type)
         }
-        initializers.forEach { type ->
-            type.initialize()
-            type.base.generics.addAll(type.generics)
-            type.inherits.forEach { type.base.inherit(it) }
+        initializers.forEach { initializer ->
+            initializer.initialize()
+            initializer.component.generics.addAll(initializer.generics)
+            initializer.inherits.forEach { initializer.component.inherit(it) }
         }
-        KernelInitializer.base.scope.functions.collect().values.flatten().forEach {
+        (KernelInitializer.component.scope as Scope.Definition).functions.collect().values.flatten().forEach {
             SCOPE.functions.define(it)
         }
     }
 
     fun type(name: String, vararg generics: Type = arrayOf()): Type.Reference {
         val type = TYPES[name]!! as Type.Reference
-        return if (generics.isEmpty()) type else Type.Reference(type.base, generics.toList())
+        return if (generics.isEmpty()) type else Type.Reference(type.component, generics.toList())
     }
 
-    abstract class TypeInitializer(
-        name: String,
-        component: Type.Component,
-        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+    abstract class ComponentInitializer(
+        val component: Component<*>,
     ) {
 
         val generics = mutableListOf<Type.Generic>()
         val inherits = mutableListOf<Type.Reference>()
-        val base = Type.Base(name, component, modifiers, Scope.Definition(null))
 
         abstract fun initialize()
 
@@ -74,7 +76,7 @@ object Library {
             value: Any?
         ) {
             val variable = Variable.Definition(Variable.Declaration(name, type, false), Object(type, value))
-            base.scope.variables.define(variable)
+            (component.scope as Scope<in Variable.Definition, *>).variables.define(variable)
         }
 
         fun function(
@@ -91,13 +93,13 @@ object Library {
                 arguments.indices.forEach {
                     EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(null,
                         "Invalid argument.",
-                        "The native function ${base.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
+                        "The native function ${component.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                     ) }
                 }
                 implementation.invoke(arguments)
             }
-            base.scope.functions.define(function)
-            operator?.let { base.scope.functions.define(function, it) }
+            (component.scope as Scope<*, in Function.Definition>).functions.define(function)
+            operator?.let { component.scope.functions.define(function, it) }
         }
 
         fun method(
@@ -110,7 +112,7 @@ object Library {
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            function(name, operator, modifiers, this.generics + generics, listOf("instance" to base.reference) + parameters, returns, throws, implementation)
+            function(name, operator, modifiers, this.generics + generics, listOf("instance" to component.type) + parameters, returns, throws, implementation)
         }
 
         fun generic(name: String, bound: Type = Type.ANY) = Type.Generic(name, bound)

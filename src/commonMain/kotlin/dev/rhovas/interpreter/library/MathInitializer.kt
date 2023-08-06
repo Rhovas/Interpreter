@@ -2,12 +2,15 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.environment.Component
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import kotlin.math.pow
 import kotlin.random.Random
 
-object MathInitializer : Library.TypeInitializer("Math", Type.Component.CLASS) {
+object MathInitializer : Library.ComponentInitializer(Component.Class("Math", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
 
     override fun initialize() {
         variable("pi", Type.DECIMAL, BigDecimal.fromDouble(kotlin.math.PI))

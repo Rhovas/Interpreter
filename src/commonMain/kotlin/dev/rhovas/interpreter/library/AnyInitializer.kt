@@ -1,11 +1,13 @@
 package dev.rhovas.interpreter.library
 
+import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.evaluator.Evaluator
 
-object AnyInitializer: Library.TypeInitializer("Any", Type.Component.CLASS, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
 
     override fun initialize() {
         function("do",
@@ -57,7 +59,7 @@ object AnyInitializer: Library.TypeInitializer("Any", Type.Component.CLASS, Modi
                     else -> value.toString()
                 }
             }
-            val prefix = instance.type.base.name.takeIf { it != "Struct" && instance.value is Map<*, *> } ?: ""
+            val prefix = instance.type.component.name.takeIf { it != "Struct" && instance.value is Map<*, *> } ?: ""
             Object(Type.STRING, prefix + toString(instance.value))
         }
     }

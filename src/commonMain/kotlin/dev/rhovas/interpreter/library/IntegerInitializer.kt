@@ -2,10 +2,13 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.environment.Component
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object IntegerInitializer : Library.TypeInitializer("Integer", Type.Component.CLASS) {
+object IntegerInitializer : Library.ComponentInitializer(Component.Class("Integer", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))) {
 
     override fun initialize() {
         inherits.add(Type.COMPARABLE[Type.INTEGER])

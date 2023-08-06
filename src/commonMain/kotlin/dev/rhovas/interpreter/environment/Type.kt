@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.environment
 import dev.rhovas.interpreter.library.Library
 
 sealed class Type(
-    open val base: Base,
+    open val component: dev.rhovas.interpreter.environment.Component<*>,
 ) {
 
     enum class Component { STRUCT, CLASS, INTERFACE }
@@ -116,80 +116,32 @@ sealed class Type(
 
     }
 
-    class Base(
-        val name: String,
-        val component: Component,
-        val modifiers: Modifiers,
-        val scope: Scope.Definition,
-    ) {
-
-        val generics: MutableList<Generic> = mutableListOf()
-        val inherits: MutableList<Type> = mutableListOf()
-        val reference = Reference(this, generics)
-
-        init {
-            when (component) {
-                Component.STRUCT -> require(modifiers.inheritance == Modifiers.Inheritance.DEFAULT)
-                Component.CLASS -> {}
-                Component.INTERFACE -> require(modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
-            }
-        }
-
-        fun inherit(type: Reference) {
-            when (component) {
-                Component.STRUCT -> require(type.base == STRUCT.GENERIC.base || type.base.component == Component.INTERFACE)
-                Component.CLASS -> require(type.base.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT))
-                Component.INTERFACE -> require(type.base == ANY.base || type.base.component == Component.INTERFACE)
-            }
-            inherits.add(type)
-            type.base.scope.functions.collect()
-                .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
-                .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false }
-                .map { (name, function) -> Pair(name, function.bind(type.base.generics.zip(type.generics).associate { it.first.name to it.second })) }
-                .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
-                .forEach { (name, function) -> scope.functions.define(function, name) }
-        }
-
-        override fun equals(other: Any?): Boolean {
-            return (other is Base && name == other.name && generics == other.generics && inherits == other.inherits).also {
-                if (this.toString() == other.toString()) {
-                    println("${this} == ${other} = ${it}")
-                }
-            }
-        }
-
-        override fun toString(): String {
-            return "Type.Base(name='$name', generics=$generics, inherits=$inherits, scope=$scope)"
-        }
-
-    }
-
     data class Reference(
-        override val base: Base,
+        override val component: dev.rhovas.interpreter.environment.Component<*>,
         val generics: List<Type>,
-    ) : Type(base) {
+    ) : Type(component) {
 
         init {
-            //base.generics may be empty during initialization
-            require(base.generics.isEmpty() || generics.size == base.generics.size)
+            //component.generics may be empty during initialization
+            require(component.generics.isEmpty() || generics.size == component.generics.size)
         }
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            return base.scope.functions[name, arity].takeIf { it.isNotEmpty() } ?: listOfNotNull(getFunctionDynamic(name, (1..arity).map { DYNAMIC }))
+            return component.scope.functions[name, arity].takeIf { it.isNotEmpty() } ?: listOfNotNull(getFunctionDynamic(name, (1..arity).map { DYNAMIC }))
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            return base.scope.functions[name, arguments] ?: getFunctionDynamic(name, arguments)
+            return component.scope.functions[name, arguments] ?: getFunctionDynamic(name, arguments)
         }
 
         private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
-            return when (base.name) {
+            return when (component.name) {
                 "Dynamic" -> Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
-                "Tuple" -> when (generics[0].base.name) {
+                "Tuple" -> when (generics[0].component.name) {
                     "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics[0].getFunction(name, arguments)
                 }
-                "Struct" -> when (generics[0].base.name) {
+                "Struct" -> when (generics[0].component.name) {
                     "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics[0].getFunction(name, arguments)
                 }
@@ -198,18 +150,18 @@ sealed class Type(
         }
 
         override fun bind(parameters: Map<String, Type>): Reference {
-            return Reference(base, generics.map { it.bind(parameters) })
+            return Reference(component, generics.map { it.bind(parameters) })
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Reference -> when {
-                    base.name == "Dynamic" || other.base.name == "Dynamic" || other.base.name == "Any" -> true
-                    base.name == other.base.name -> generics.zip(other.generics).all { (type, other) ->
+                    component.name == "Dynamic" || other.component.name == "Dynamic" || other.component.name == "Any" -> true
+                    component.name == other.component.name -> generics.zip(other.generics).all { (type, other) ->
                         when {
                             type is Reference && other is Reference -> when {
-                                type.base.name == "Dynamic" || other.base.name == "Dynamic" -> true
-                                else -> type.base == other.base && type.isSubtypeOf(other, bindings)
+                                type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
+                                else -> type.component == other.component && type.isSubtypeOf(other, bindings)
                             }
                             type is Generic -> type.isSubtypeOf(other, bindings)
                             other is Generic -> type.isSubtypeOf(other, bindings).takeIf { it }.also { bindings[other.name] = type } ?: false
@@ -217,14 +169,14 @@ sealed class Type(
                         }
                     }
                     else -> {
-                        val parameters = base.generics.zip(generics).associate { Pair(it.first.name, it.second) }
-                        base.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
+                        val parameters = component.generics.zip(generics).associate { Pair(it.first.name, it.second) }
+                        component.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
                     }
                 }
                 is Tuple -> isSubtypeOf(TUPLE[other], bindings)
                 is Struct -> isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
-                    base.name == "Dynamic" || other.base.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
+                    component.name == "Dynamic" || other.component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
                     else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
@@ -235,13 +187,13 @@ sealed class Type(
         override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
             return when (other) {
                 is Reference -> when {
-                    base.name == "Any" || other.base.name == "Any" -> ANY
-                    base.name == "Dynamic" || other.base.name == "Dynamic" -> DYNAMIC
-                    base.name == other.base.name -> Reference(base, generics.zip(other.generics).map { (type, other) -> type.unify(other, bindings) })
+                    component.name == "Any" || other.component.name == "Any" -> ANY
+                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC
+                    component.name == other.component.name -> Reference(component, generics.zip(other.generics).map { (type, other) -> type.unify(other, bindings) })
                     else -> {
                         var top = other
                         while (!isSubtypeOf(top)) {
-                            top = top.base.inherits.first().bind(base.generics.zip(generics).associate { Pair(it.first.name, it.second) })
+                            top = top.component.inherits.first().bind(component.generics.zip(generics).associate { Pair(it.first.name, it.second) })
                         }
                         top.unify(this, bindings)
                     }
@@ -249,7 +201,7 @@ sealed class Type(
                 is Tuple -> unify(TUPLE[other], bindings)
                 is Struct -> unify(STRUCT[other], bindings)
                 is Generic -> when {
-                    base.name == "Dynamic" || other.base.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
+                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
                     else -> unify(other.bound, bindings).also { bindings[other.name] = it }
                 }
@@ -258,22 +210,20 @@ sealed class Type(
         }
 
         override fun equals(other: Any?): Boolean {
-            return (other is Reference && this.base == other.base && this.generics == other.generics).also {
-                if (this.toString() == other.toString()) {
-                    println("${this} == ${other} = ${it}")
-                }
+            return (other is Reference && this.component == other.component && this.generics == other.generics).also {
+                require(it || toString() != other.toString())
             }
         }
 
         override fun toString(): String {
-            return "${base.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
+            return "${component.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
         }
 
     }
 
     data class Tuple(
         val elements: List<Variable.Declaration>,
-    ) : Type(TUPLE.GENERIC.base) {
+    ) : Type(TUPLE.GENERIC.component) {
 
         val scope = Scope.Declaration(null)
 
@@ -293,12 +243,12 @@ sealed class Type(
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + TUPLE.GENERIC.base.scope.functions[name, arity]
+            return scope.functions[name, arity] + TUPLE.GENERIC.component.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: TUPLE.GENERIC.base.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: TUPLE.GENERIC.component.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
@@ -335,7 +285,7 @@ sealed class Type(
 
     data class Struct(
         val fields: Map<String, Variable.Declaration>,
-    ) : Type(STRUCT.GENERIC.base) {
+    ) : Type(STRUCT.GENERIC.component) {
 
         val scope = Scope.Declaration(null)
 
@@ -355,12 +305,12 @@ sealed class Type(
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + STRUCT.GENERIC.base.scope.functions[name, arity]
+            return scope.functions[name, arity] + STRUCT.GENERIC.component.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: STRUCT.GENERIC.base.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: STRUCT.GENERIC.component.scope.functions[name, arguments]
         }
 
         override fun bind(parameters: Map<String, Type>): Type {
@@ -398,7 +348,7 @@ sealed class Type(
     data class Generic(
         val name: String,
         val bound: Type,
-    ) : Type(bound.base) {
+    ) : Type(bound.component) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return bound.getFunction(name, arity)
@@ -436,7 +386,7 @@ sealed class Type(
     data class Variant(
         val lower: Type?,
         val upper: Type?,
-    ) : Type((upper ?: ANY).base) {
+    ) : Type((upper ?: ANY).component) {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return (upper ?: ANY).getFunction(name, arity)

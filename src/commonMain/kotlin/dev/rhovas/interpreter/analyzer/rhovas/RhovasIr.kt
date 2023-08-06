@@ -21,20 +21,20 @@ sealed class RhovasIr {
     sealed class Component : RhovasIr() {
 
         data class Struct(
-            val type: dev.rhovas.interpreter.environment.Type,
+            val component: dev.rhovas.interpreter.environment.Component.Struct,
             val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
             val members: List<Member>,
         ) : Component()
 
         data class Class(
-            val type: dev.rhovas.interpreter.environment.Type,
+            val component: dev.rhovas.interpreter.environment.Component.Class,
             val extends: dev.rhovas.interpreter.environment.Type.Reference?,
             val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
             val members: List<Member>,
         ) : Component()
 
         data class Interface(
-            val type: dev.rhovas.interpreter.environment.Type,
+            val component: dev.rhovas.interpreter.environment.Component.Interface,
             val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
             val members: List<Member>,
         ) : Component()
@@ -524,12 +524,14 @@ sealed class RhovasIr {
 
             data class Struct(
                 val ast: RhovasAst.Component.Struct,
+                val component: dev.rhovas.interpreter.environment.Component.Struct,
                 val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
                 val members: List<Member>,
             ) : Component()
 
             data class Class(
                 val ast: RhovasAst.Component.Class,
+                val component: dev.rhovas.interpreter.environment.Component.Class,
                 val extends: dev.rhovas.interpreter.environment.Type.Reference?,
                 val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
                 val members: List<Member>,
@@ -537,6 +539,7 @@ sealed class RhovasIr {
 
             data class Interface(
                 val ast: RhovasAst.Component.Interface,
+                val component: dev.rhovas.interpreter.environment.Component.Interface,
                 val implements: List<dev.rhovas.interpreter.environment.Type.Reference>,
                 val members: List<Member>,
             ) : Component()

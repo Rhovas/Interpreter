@@ -86,7 +86,7 @@ sealed class Scope<V: Variable, F: Function>(private val parent: Scope<out V, ou
             return types.containsKey(name) || !current && parent?.types?.isDefined(name, current) ?: false
         }
 
-        fun define(type: Type, alias: String = type.base.name) {
+        fun define(type: Type, alias: String = type.component.name) {
             require(!types.containsKey(alias))
             types[alias] = type
         }

@@ -1,11 +1,13 @@
 package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 
-object ComparableInitializer : Library.TypeInitializer("Comparable", Type.Component.INTERFACE, Modifiers(Modifiers.Inheritance.ABSTRACT)) {
+object ComparableInitializer : Library.ComponentInitializer(Component.Interface("Comparable", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null))) {
 
     override fun initialize() {
         generics.add(generic("T", Type.COMPARABLE.DYNAMIC))

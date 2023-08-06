@@ -9,11 +9,11 @@ class TypeTests : RhovasSpec() {
 
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
-        Type.Base("Number", Type.Component.CLASS, Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Definition(null)).reference.also {
-            it.base.inherit(Type.COMPARABLE[it])
+        Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT), Scope.Declaration(null)).type.also {
+            it.component.inherit(Type.COMPARABLE[it])
             Library.SCOPE.types.define(it)
-            Type.INTEGER.base.inherits.add(0, it)
-            Type.DECIMAL.base.inherits.add(0, it)
+            Type.INTEGER.component.inherits.add(0, it)
+            Type.DECIMAL.component.inherits.add(0, it)
         }
     }
 
@@ -128,7 +128,7 @@ class TypeTests : RhovasSpec() {
 
             fun test(test: Test, wrapper: Type? = null) {
                 assertEquals(test.expected, test.type.isSubtypeOf(test.other))
-                wrapper?.let { assertEquals(test.expected, Type.Reference(it.base, listOf(test.type)).isSubtypeOf(Type.Reference(it.base, listOf(test.other)))) }
+                wrapper?.let { assertEquals(test.expected, Type.Reference(it.component, listOf(test.type)).isSubtypeOf(Type.Reference(it.component, listOf(test.other)))) }
             }
 
             suite("Base", listOf(
@@ -239,7 +239,7 @@ class TypeTests : RhovasSpec() {
         suite("Unification") {
             data class Test(val type: Type, val other: Type, val expected: Type)
 
-            fun test(type: Type, other: Type, expected: Type, wrapper: Type.Base) {
+            fun test(type: Type, other: Type, expected: Type, wrapper: Component<*>) {
                 assertEquals(expected, type.unify(other))
                 assertEquals(expected, other.unify(type))
                 assertEquals(Type.Reference(wrapper, listOf(expected)), Type.Reference(wrapper, listOf(type)).unify(Type.Reference(wrapper, listOf(other))))
@@ -252,7 +252,7 @@ class TypeTests : RhovasSpec() {
                 "Supertype" to Test(Type.INTEGER, Type.NUMBER, Type.NUMBER),
                 "Common Supertype" to Test(Type.INTEGER, Type.DECIMAL, Type.NUMBER),
                 "Dynamic" to Test(Type.INTEGER, Type.DYNAMIC, Type.DYNAMIC),
-            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
 
             suite("Tuple", listOf(
                 "Equal" to Test(tuple(Type.INTEGER), tuple(Type.INTEGER), tuple(Type.INTEGER)),
@@ -260,7 +260,7 @@ class TypeTests : RhovasSpec() {
                 "Different Size" to Test(tuple(Type.INTEGER, Type.INTEGER), tuple(Type.INTEGER), tuple(Type.INTEGER)),
                 "Any" to Test(tuple(Type.INTEGER), Type.ANY, Type.ANY),
                 "Dynamic" to Test(tuple(Type.INTEGER), Type.DYNAMIC, Type.DYNAMIC),
-            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.base) }
+            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.component) }
 
             suite("Struct", listOf(
                 "Equal" to Test(struct("x" to Type.INTEGER), struct("x" to Type.INTEGER), struct("x" to Type.INTEGER)),
@@ -268,17 +268,17 @@ class TypeTests : RhovasSpec() {
                 "Different Size" to Test(struct("x" to Type.INTEGER, "y" to Type.INTEGER), struct("x" to Type.INTEGER), struct("x" to Type.INTEGER)),
                 "Any" to Test(struct("x" to Type.INTEGER), Type.ANY, Type.ANY),
                 "Dynamic" to Test(struct("x" to Type.INTEGER), Type.DYNAMIC, Type.DYNAMIC),
-            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.base) }
+            )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.component) }
 
             suite("Generic", listOf(
                 "Equal" to Test(generic("T"), generic("T"), generic("T")),
                 "Unbound" to Test(generic("T"), Type.INTEGER, Type.ANY),
-            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
 
             suite("Variant", listOf(
                 "Equal" to Test(Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER)),
                 "Unbound" to Test(Type.Variant(null, null), Type.INTEGER, Type.ANY),
-            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.base) }
+            )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
         }
     }
 

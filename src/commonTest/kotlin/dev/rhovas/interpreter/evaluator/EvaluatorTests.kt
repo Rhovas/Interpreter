@@ -5,6 +5,7 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.RhovasSpec
 import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
+import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
@@ -679,17 +680,12 @@ class EvaluatorTests: RhovasSpec() {
                     }
                 """.trimIndent(), "finally"),
             )) { test("source", it.source, it.log, it.expected) {
-                it.types.define(Type.Base(
-                    "SubtypeException",
-                    Type.Component.CLASS,
-                    Modifiers(Modifiers.Inheritance.DEFAULT),
-                    Scope.Definition(null)
-                ).reference.also { type ->
-                    type.base.inherit(Type.EXCEPTION)
-                    type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
-                        Object(type, arguments[0].value as String)
-                    })
+                val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
+                component.inherit(Type.EXCEPTION)
+                (component.scope as Scope<*, in Function.Definition>).functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
+                    Object(component.type, arguments[0].value as String)
                 })
+                it.types.define(component.type)
             } }
 
             suite("With", listOf(
@@ -1147,17 +1143,12 @@ class EvaluatorTests: RhovasSpec() {
                             log(e.message);
                         }
                     """.trimIndent(), "message") {
-                        it.types.define(Type.Base(
-                            "SubtypeException",
-                            Type.Component.CLASS,
-                            Modifiers(Modifiers.Inheritance.DEFAULT),
-                            Scope.Definition(null)
-                        ).reference.also { type ->
-                            type.base.inherit(Type.EXCEPTION)
-                            type.base.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), type, listOf())) { arguments ->
-                                Object(type, arguments[0].value as String)
-                            })
+                        val component = Component.Class("SubtypeException", Modifiers(Modifiers.Inheritance.DEFAULT), Scope.Definition(null))
+                        component.inherit(Type.EXCEPTION)
+                        (component.scope as Scope<*, in Function.Definition>).functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("message", Type.STRING, false)), component.type, listOf())) { arguments ->
+                            Object(component.type, arguments[0].value as String)
                         })
+                        it.types.define(component.type)
                         null
                     },
                     "Result to Exception" to Test("""
