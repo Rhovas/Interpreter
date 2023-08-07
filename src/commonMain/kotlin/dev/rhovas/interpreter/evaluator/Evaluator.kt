@@ -2,9 +2,7 @@ package dev.rhovas.interpreter.evaluator
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
-import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
@@ -44,7 +42,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         ir.members.forEach { visit(it) }
         val current = scope
         val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
-        ir.component.scope.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[Type.Struct(fields.filter { it.value.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, false) })]) }.implementation = { arguments ->
+        ir.component.scope.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[Type.Struct(fields.filter { it.value.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns) })]) }.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val type = Type.Reference(ir.component, ir.component.generics.map { Type.DYNAMIC })
                 val initial = arguments[0].value as Map<String, Object>
@@ -94,7 +92,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         ir.function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns, false), Object(ir.function.returns, mutableMapOf<String, Object>())))
+                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns), Object(ir.function.returns, mutableMapOf<String, Object>())))
                 for (i in ir.function.parameters.indices) {
                     scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
                 }
@@ -107,7 +105,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ) }
                     throw e
                 } catch (ignored: Return) {}
-                scope.variables["this"]!!.value
+                scope.variables["this"]!!.value!!
             }
         }
         return Object(Type.VOID, Unit)
@@ -127,7 +125,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val variable = scope.variables["this"]!!
         val arguments = ir.arguments.map { visit(it) }
         ir.delegate?.let { variable.value = Object(variable.type, it.invoke(arguments).value) }
-        ir.initializer?.let { (variable.value.value as MutableMap<String, Object>).putAll(visit(it).value as MutableMap<String, Object>) }
+        ir.initializer?.let { (variable.value!!.value as MutableMap<String, Object>).putAll(visit(it).value as MutableMap<String, Object>) }
         return Object(Type.VOID, Unit)
     }
 
@@ -245,7 +243,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         val case = ir.cases.firstOrNull { predicate.invoke(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.invoke(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type, false)))) { error(ir.elseCase.first,
+                require(predicate.invoke(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type)))) { error(ir.elseCase.first,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
                 ) }
@@ -373,7 +371,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Statement.Return): Object {
         val value = ir.value?.let { visit(it) }
         scoped(Scope.Definition(scope)) {
-            value?.let { scope.variables.define(Variable.Definition(Variable.Declaration("val", it.type, false), it)) }
+            value?.let { scope.variables.define(Variable.Definition(Variable.Declaration("val", it.type), it)) }
             ir.ensures.forEach { visit(it) }
         }
         throw Return(ir, value)
@@ -528,7 +526,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Expression.Access.Variable): Object {
         val variable = ir.variable as? Variable.Definition ?: scope.variables[ir.variable.name]!!
-        return variable.value
+        return variable.value!!
     }
 
     override fun visit(ir: RhovasIr.Expression.Access.Property): Object {
@@ -662,7 +660,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         var result = visit(ir.pattern)
         if (result.value as Boolean) {
             result = scoped(Scope.Definition(scope)) {
-                scope.variables.define(Variable.Definition(Variable.Declaration("val", patternState.value.type, false), patternState.value))
+                scope.variables.define(Variable.Definition(Variable.Declaration("val", patternState.value.type), patternState.value))
                 ir.pattern.bindings.forEach { scope.variables.define(Variable.Definition(it.value, patternState.scope.variables[it.key]!!.value)) }
                 visit(ir.predicate)
             }
@@ -712,7 +710,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
             if (key != null && (pattern as? RhovasIr.Pattern.Variable)?.variable?.name != key) {
-                patternState.scope.variables.define(Variable.Definition(Variable.Declaration(key, value.type, false), value))
+                patternState.scope.variables.define(Variable.Definition(Variable.Declaration(key, value.type), value))
             }
             patternState = patternState.copy(value = value)
             if (!(visit(pattern).value as Boolean)) {
@@ -747,7 +745,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val result = list.all {
                     patternState = PatternState(Scope.Definition(parent.scope), it)
                     if (ir.pattern?.let { visit(it).value as Boolean } != false) {
-                        bindings.forEach { (it.value.value.value as MutableList<Object>).add(patternState.scope.variables[it.key]!!.value) }
+                        bindings.forEach { (it.value.value!!.value as MutableList<Object>).add(patternState.scope.variables[it.key]!!.value!!) }
                         true
                     } else false
                 }
@@ -769,7 +767,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 val result = map.all { entry ->
                     patternState = PatternState(Scope.Definition(parent.scope), entry.value)
                     if (ir.pattern?.let { visit(it).value as Boolean } != false) {
-                        bindings.forEach { (it.value.value.value as MutableMap<String, Object>)[entry.key] = (patternState.scope.variables[it.key]!!.value) }
+                        bindings.forEach { (it.value.value!!.value as MutableMap<String, Object>)[entry.key] = (patternState.scope.variables[it.key]!!.value!!) }
                         true
                     } else false
                 }
@@ -882,11 +880,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                             evaluator.scope.variables.define(Variable.Definition(ir.parameters[it], arguments[it]))
                         }
                     }
-                    arguments.isEmpty() -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.VOID, false), Object(Type.VOID, Unit)))
-                    arguments.size == 1 -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].type, false), arguments[0]))
+                    arguments.isEmpty() -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", Type.VOID), Object(Type.VOID, Unit)))
+                    arguments.size == 1 -> evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", arguments[0].type), arguments[0]))
                     else -> {
                         val type = Type.TUPLE[arguments.map { it.type }]
-                        evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", type, false), Object(type, arguments)))
+                        evaluator.scope.variables.define(Variable.Definition(Variable.Declaration("val", type), Object(type, arguments)))
                     }
                 }
                 val result = try {

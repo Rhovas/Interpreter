@@ -32,9 +32,10 @@ class TypeTests : RhovasSpec() {
                     "Subtype" to Test("number", listOf(Type.INTEGER), Type.ANY),
                     "Supertype" to Test("number", listOf(Type.ANY), null),
                 )) { test(it) {
-                    it.functions.define(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "number", listOf(), listOf(
-                        Variable.Declaration("number", Type.NUMBER, false),
-                    ), Type.ANY, listOf()))
+                    it.functions.define(Function.Declaration("number",
+                        parameters = listOf(Variable.Declaration("number", Type.NUMBER)),
+                        returns = Type.ANY,
+                    ))
                 } }
 
                 suite("Generics", listOf(
@@ -42,10 +43,11 @@ class TypeTests : RhovasSpec() {
                     "Bound" to Test("get", listOf(Type.LIST[Type.INTEGER], Type.INTEGER), Type.INTEGER),
                     "Dynamic" to Test("get", listOf(Type.LIST[Type.DYNAMIC], Type.INTEGER), Type.DYNAMIC),
                 )) { test(it) {
-                    it.functions.define(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "get", listOf(generic("T")), listOf(
-                        Variable.Declaration("list", Type.LIST[generic("T")], false),
-                        Variable.Declaration("index", Type.INTEGER, false),
-                    ), generic("T"), listOf()))
+                    it.functions.define(Function.Declaration("get",
+                        generics = listOf(generic("T")),
+                        parameters = listOf(Variable.Declaration("list", Type.LIST[generic("T")]), Variable.Declaration("index", Type.INTEGER)),
+                        returns = generic("T"),
+                    ))
                 } }
 
                 suite("Variance", listOf(
@@ -60,16 +62,16 @@ class TypeTests : RhovasSpec() {
                     "Dynamic Generic Variant First" to Test("set", listOf(Type.LIST[Type.DYNAMIC], Type.INTEGER, Type.NUMBER), Type.DYNAMIC),
                     "Dynamic Generic Primitive First" to Test("set2", listOf(Type.NUMBER, Type.INTEGER, Type.LIST[Type.DYNAMIC]), Type.DYNAMIC),
                 )) { test(it) {
-                    it.functions.define(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "set", listOf(generic("T")), listOf(
-                        Variable.Declaration("list", Type.LIST[generic("T")], false),
-                        Variable.Declaration("index", Type.INTEGER, false),
-                        Variable.Declaration("value", generic("T"), false),
-                    ), generic("T"), listOf()))
-                    it.functions.define(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "set2", listOf(generic("T")), listOf(
-                        Variable.Declaration("value", generic("T"), false),
-                        Variable.Declaration("index", Type.INTEGER, false),
-                        Variable.Declaration("list", Type.LIST[generic("T")], false),
-                    ), generic("T"), listOf()))
+                    it.functions.define(Function.Declaration("set",
+                        generics = listOf(generic("T")),
+                        parameters = listOf(Variable.Declaration("list", Type.LIST[generic("T")]), Variable.Declaration("index", Type.INTEGER), Variable.Declaration("value", generic("T"))),
+                        returns = generic("T"),
+                    ))
+                    it.functions.define(Function.Declaration("set2",
+                        generics = listOf(generic("T")),
+                        parameters = listOf(Variable.Declaration("value", generic("T")), Variable.Declaration("index", Type.INTEGER), Variable.Declaration("list", Type.LIST[generic("T")])),
+                        returns = generic("T"),
+                    ))
                 } }
             }
 

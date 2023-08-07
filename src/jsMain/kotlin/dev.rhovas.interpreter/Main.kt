@@ -1,21 +1,16 @@
 package dev.rhovas.interpreter
 
 import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 
 fun main() {
-    val js = Function.Definition(Function.Declaration(
-        "js",
-        listOf(),
-        listOf(
-            Variable.Declaration("literals", Type.LIST[Type.STRING], false),
-            Variable.Declaration("arguments", Type.LIST[Type.DYNAMIC], false),
-        ),
-        Type.VOID,
-        listOf(),
+    val js = Function.Definition(Function.Declaration("js",
+        parameters = listOf(Variable.Declaration("literals", Type.LIST[Type.STRING]), Variable.Declaration("arguments", Type.LIST[Type.DYNAMIC])),
+        returns = Type.VOID,
     )) {
         val literals = (it[0].value as List<Object>).map { it.value as String }
         val arguments = (it[1].value as List<Object>)

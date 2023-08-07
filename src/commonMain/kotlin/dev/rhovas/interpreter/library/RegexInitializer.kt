@@ -9,9 +9,9 @@ import dev.rhovas.interpreter.environment.Variable
 object RegexInitializer : Library.ComponentInitializer(Component.Class("Regex")) {
 
     private val MATCH_TYPE get() = Type.STRUCT[Type.Struct(mapOf(
-        "index" to Variable.Declaration("index", Type.INTEGER, false),
-        "value" to Variable.Declaration("value", Type.INTEGER, false),
-        "groups" to Variable.Declaration("groups", Type.LIST[Type.NULLABLE[Type.STRING]], false),
+        "index" to Variable.Declaration("index", Type.INTEGER),
+        "value" to Variable.Declaration("value", Type.INTEGER),
+        "groups" to Variable.Declaration("groups", Type.LIST[Type.NULLABLE[Type.STRING]]),
     ))]
 
     override fun initialize() {

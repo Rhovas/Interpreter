@@ -75,7 +75,7 @@ object Library {
             type: Type,
             value: Any?
         ) {
-            val variable = Variable.Definition(Variable.Declaration(name, type, false), Object(type, value))
+            val variable = Variable.Definition(Variable.Declaration(name, type), Object(type, value))
             component.scope.variables.define(variable)
         }
 
@@ -84,12 +84,12 @@ object Library {
             operator: String? = null,
             modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
             generics: List<Type.Generic> = listOf(),
-            parameters: List<Pair<String, Type>> = listOf(),
-            returns: Type = Type.VOID,
+            parameters: List<Pair<String, Type>>,
+            returns: Type,
             throws: List<Type> = listOf(),
             implementation: (List<Object>) -> Object,
         ) {
-            val function = Function.Definition(Function.Declaration(modifiers, name, generics, parameters.map { Variable.Declaration(it.first, it.second, false) }, returns, throws)) { arguments ->
+            val function = Function.Definition(Function.Declaration(name, modifiers, generics, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)) { arguments ->
                 arguments.indices.forEach {
                     EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(null,
                         "Invalid argument.",

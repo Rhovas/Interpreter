@@ -313,7 +313,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Member.Initializer): RhovasIr.Member.Initializer = analyzeAst(ir.ast) {
         analyze(context.forFunction(ir.function)) {
-            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns, false))
+            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns))
             context.initialization["this"] = InitializationContext.Data(false, RhovasAst.Statement.Declaration.Variable(false, "this", null, null).also { it.context = ir.ast.context }, mutableListOf())
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
@@ -563,7 +563,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
         val type = argument.type.generic("T", Type.ITERABLE.GENERIC)!!
-        val variable = Variable.Declaration(ast.name, type, false)
+        val variable = Variable.Declaration(ast.name, type)
         val block = analyze {
             (context.scope as Scope.Declaration).variables.define(variable)
             context.labels.add(null)
@@ -598,7 +598,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         val tryBlock = analyze(child) { visit(ast.tryBlock) }
         val catchBlocks = ast.catchBlocks.map { analyzeAst(it) {
             val type = visit(it.type).type //validated as subtype of Exception above
-            val variable = Variable.Declaration(it.name, type, false)
+            val variable = Variable.Declaration(it.name, type)
             val block = analyze(context.child()) {
                 (context.scope as Scope.Declaration).variables.define(variable)
                 visit(it.block)
@@ -620,7 +620,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.With): RhovasIr.Statement.With = analyzeAst(ast) {
         val argument = visit(ast.argument)
-        val variable = ast.name?.let { Variable.Declaration(ast.name, argument.type, false) }
+        val variable = ast.name?.let { Variable.Declaration(ast.name, argument.type) }
         val block = analyze {
             variable?.let { (context.scope as Scope.Declaration).variables.define(it) }
             visit(ast.block)
@@ -750,7 +750,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             val previous = statements.lastOrNull()
             if (previous is RhovasIr.Statement.Return && it is RhovasAst.Statement.Ensure) {
                 val ensure = analyze {
-                    previous.value?.let { (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", it.type, false)) }
+                    previous.value?.let { (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", it.type)) }
                     visit(it)
                 }
                 statements[statements.lastIndex] = RhovasIr.Statement.Return(previous.value, listOf(ensure)).also { it.context = previous.context }
@@ -1149,11 +1149,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             val type = it.value.second?.let { visit(it).type }
                 ?: inferenceParameters?.elements?.getOrNull(it.index)?.type
                 ?: Type.DYNAMIC
-            Variable.Declaration(it.value.first, type, false)
+            Variable.Declaration(it.value.first, type)
         }
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
         val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
-        val function = Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "lambda", listOf(), parameters, returns, throws)
+        val function = Function.Declaration("lambda", Modifiers(Modifiers.Inheritance.DEFAULT), listOf(), parameters, returns, throws)
         val body = analyze(context.forFunction(function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
@@ -1161,7 +1161,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 val type = inferenceParameters?.takeIf { it.elements.size == 1 }?.let { it.elements[0].type }
                     ?: inferenceParameters?.let { Type.TUPLE[it] }
                     ?: Type.DYNAMIC
-                (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type, false))
+                (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type))
             }
             visit(ast.body).also {
                 require(it.type.isSubtypeOf(function.returns) || context.jumps.contains("")) { analyze(it.context) { error(ast,
@@ -1183,7 +1183,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             "Redefined pattern binding",
             "The identifier ${ast.name} is already bound in this pattern.",
         ) }
-        val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference, false) else null
+        val variable = if (ast.name != "_") Variable.Declaration(ast.name, context.inference) else null
         variable?.let { context.bindings[it.name] = it }
         RhovasIr.Pattern.Variable(variable)
     }
@@ -1200,7 +1200,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     override fun visit(ast: RhovasAst.Pattern.Predicate): RhovasIr.Pattern.Predicate = analyzeAst(ast) {
         val pattern = visit(ast.pattern, context.inference)
         val predicate = analyze {
-            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference, false))
+            (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", context.inference))
             pattern.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
             visit(ast.predicate, Type.BOOLEAN)
         }
@@ -1271,7 +1271,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                         "This pattern requires a key to be used within a named destructure.",
                     )
                 val pattern = visit(pattern, type?.get(key)?.type ?: Type.DYNAMIC)
-                context.bindings[key] = Variable.Declaration(key, type?.get(key)?.type ?: Type.DYNAMIC, false)
+                context.bindings[key] = Variable.Declaration(key, type?.get(key)?.type ?: Type.DYNAMIC)
                 Pair(key, pattern)
             }
         }
@@ -1382,8 +1382,14 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
             component.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
             implements.forEach { component.inherit(it) }
-            component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })], false)), component.type, listOf())))
-            component.scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), "", listOf(), fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns, false) }, component.type, listOf())))
+            component.scope.functions.define(Function.Definition(Function.Declaration("",
+                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])),
+                returns = component.type,
+            )))
+            component.scope.functions.define(Function.Definition(Function.Declaration("",
+                parameters = fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns) },
+                returns = component.type,
+            )))
             RhovasIr.DefinitionPhase.Component.Struct(ast, component, implements, members)
         }
 
@@ -1444,8 +1450,14 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "The property ${ast.name} is already defined in ${component.name}.",
             ) }
             val type = ast.type.let { visit(it).type }
-            val getter = Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component.type, false)), type, listOf()))
-            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.modifiers, ast.name, listOf(), listOf(Variable.Declaration("this", component.type, false), Variable.Declaration("value", type, false)), Type.VOID, listOf())) else null
+            val getter = Function.Definition(Function.Declaration(ast.name,
+                parameters = listOf(Variable.Declaration("this", component.type)),
+                returns = type,
+            ))
+            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.name,
+                parameters = listOf(Variable.Declaration("this", component.type), Variable.Declaration("value", type)),
+                returns = Type.VOID,
+            )) else null
             component.scope.functions.define(getter)
             setter?.let { component.scope.functions.define(it) }
             RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter)
@@ -1457,11 +1469,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                     "Missing parameter type.",
                     "The initializer init/${ast.parameters.size} requires parameter ${index} to have an defined type.",
                 )
-                Variable.Declaration(parameter.first, type, false)
+                Variable.Declaration(parameter.first, type)
             }
             val returns = ast.returns?.let { visit(it).type } ?: component.type
             val throws = ast.throws.map { visit(it).type }
-            val initializer = Function.Definition(Function.Declaration(ast.modifiers, "", listOf(), parameters, returns, throws))
+            val initializer = Function.Definition(Function.Declaration("", ast.modifiers, listOf(), parameters, returns, throws))
             require(component.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(initializer.declaration) }) { error(ast,
                 "Redefined initializer.",
                 "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.name}.",
@@ -1489,11 +1501,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                         "Missing parameter type.",
                         "The function ${ast.name}/${ast.parameters.size} requires parameter ${index} to have an explicit type.",
                     )
-                    Variable.Declaration(parameter.first, type, false)
+                    Variable.Declaration(parameter.first, type)
                 }
                 val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
                 val throws = ast.throws.map { visit(it).type }
-                val declaration = Function.Declaration(modifiers ?: Modifiers(Modifiers.Inheritance.DEFAULT), ast.name, generics, parameters, returns, throws)
+                val declaration = Function.Declaration(ast.name, modifiers ?: Modifiers(Modifiers.Inheritance.DEFAULT), generics, parameters, returns, throws)
                 require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
                     "Redefined function.",
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.name ?: "this scope"}.",

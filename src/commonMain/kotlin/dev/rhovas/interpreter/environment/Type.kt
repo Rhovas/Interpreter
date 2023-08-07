@@ -136,7 +136,10 @@ sealed class Type(
 
         private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
             return when (component.name) {
-                "Dynamic" -> Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), name, listOf(), arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC, false) }, DYNAMIC, listOf())
+                "Dynamic" -> Function.Declaration(name,
+                    parameters = arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC) },
+                    returns = DYNAMIC,
+                )
                 "Tuple" -> when (generics[0].component.name) {
                     "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics[0].getFunction(name, arguments)
@@ -228,12 +231,18 @@ sealed class Type(
         val scope = Scope.Declaration(null)
 
         private fun defineProperty(field: Variable.Declaration) {
-            scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf())) { (instance) ->
+            scope.functions.define(Function.Definition(Function.Declaration(field.name,
+                parameters = listOf(Variable.Declaration("this", this)),
+                returns = field.type,
+            )) { (instance) ->
                 val instance = instance.value as List<Object>
                 instance[field.name.toInt()]
             })
             if (field.mutable) {
-                scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf())) { (instance, value) ->
+                scope.functions.define(Function.Definition(Function.Declaration(field.name,
+                    parameters = listOf(Variable.Declaration("this", this), Variable.Declaration("value", field.type)),
+                    returns = VOID,
+                )) { (instance, value) ->
                     val instance = instance.value as MutableList<Object>
                     instance[field.name.toInt()] = value
                     Object(VOID, Unit)
@@ -290,12 +299,18 @@ sealed class Type(
         val scope = Scope.Declaration(null)
 
         private fun defineProperty(field: Variable.Declaration) {
-            scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), field.name, listOf(), listOf(Variable.Declaration("this", this, false)), field.type, listOf())) { (instance) ->
+            scope.functions.define(Function.Definition(Function.Declaration(field.name,
+                parameters = listOf(Variable.Declaration("this", this)),
+                returns = field.type,
+            )) { (instance) ->
                 val instance = instance.value as Map<String, Object>
                 instance[field.name]!!
             })
             if (field.mutable) {
-                scope.functions.define(Function.Definition(Function.Declaration(Modifiers(Modifiers.Inheritance.DEFAULT), field.name, listOf(), listOf(Variable.Declaration("this", this, false), Variable.Declaration("value", field.type, false)), VOID, listOf())) { (instance, value) ->
+                scope.functions.define(Function.Definition(Function.Declaration(field.name,
+                    parameters = listOf(Variable.Declaration("this", this), Variable.Declaration("value", field.type)),
+                    returns = VOID,
+                )) { (instance, value) ->
                     val instance = instance.value as MutableMap<String, Object>
                     instance[field.name] = value
                     Object(VOID, Unit)

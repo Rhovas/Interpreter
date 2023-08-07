@@ -2,8 +2,8 @@ package dev.rhovas.interpreter.environment
 
 sealed interface Function {
 
-    val modifiers: Modifiers
     val name: String
+    val modifiers: Modifiers
     val generics: List<Type.Generic>
     val parameters: List<Variable.Declaration>
     val returns: Type
@@ -26,18 +26,18 @@ sealed interface Function {
     }
 
     data class Declaration(
-        override val modifiers: Modifiers,
         override val name: String,
-        override val generics: List<Type.Generic>,
+        override val modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+        override val generics: List<Type.Generic> = listOf(),
         override val parameters: List<Variable.Declaration>,
         override val returns: Type,
-        override val throws: List<Type>,
+        override val throws: List<Type> = listOf(),
     ) : Function {
 
         override fun bind(generics: Map<String, Type>): Declaration {
             return Declaration(
-                modifiers,
                 name,
+                modifiers,
                 this.generics.map { Type.Generic(it.name, it.bound.bind(generics)) },
                 parameters.map { Variable.Declaration(it.name, it.type.bind(generics), it.mutable) },
                 returns.bind(generics),
@@ -58,11 +58,11 @@ sealed interface Function {
         }
 
         fun invoke(arguments: List<Object>): Object {
-            return implementation.invoke(arguments)
+            return implementation!!.invoke(arguments)
         }
 
         override fun bind(generics: Map<String, Type>): Definition {
-            return Definition(declaration.bind(generics)) { implementation.invoke(it) }
+            return Definition(declaration.bind(generics)) { implementation!!.invoke(it) }
         }
 
     }

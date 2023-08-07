@@ -12,6 +12,7 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
 
     override fun initialize() {
         function("input",
+            parameters = listOf(),
             returns = Type.STRING,
         ) {
             Object(Type.STRING, INTERPRETER.stdin())
@@ -27,6 +28,7 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
 
         function("print",
             parameters = listOf("object" to Type.ANY),
+            returns = Type.VOID,
         ) { (obj) ->
             INTERPRETER.stdout(obj.methods.toString())
             Object(Type.VOID, null)

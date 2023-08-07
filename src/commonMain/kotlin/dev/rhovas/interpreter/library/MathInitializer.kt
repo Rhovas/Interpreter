@@ -15,7 +15,8 @@ object MathInitializer : Library.ComponentInitializer(Component.Class("Math")) {
         variable("e", Type.DECIMAL, BigDecimal.fromDouble(kotlin.math.E))
 
         function("random",
-            returns = Type.DECIMAL
+            parameters = listOf(),
+            returns = Type.DECIMAL,
         ) {
             Object(Type.DECIMAL, BigDecimal.fromDouble(Random.nextDouble()))
         }

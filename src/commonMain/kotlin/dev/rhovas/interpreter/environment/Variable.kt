@@ -9,7 +9,7 @@ sealed interface Variable {
     data class Declaration(
         override val name: String,
         override val type: Type,
-        override val mutable: Boolean,
+        override val mutable: Boolean = false,
     ) : Variable
 
     data class Definition(
