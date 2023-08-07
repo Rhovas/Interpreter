@@ -7,6 +7,10 @@ data class Object(
     val value: Any?,
 ) {
 
+    init {
+        require(type.component.scope is Scope.Definition)
+    }
+
     val properties = PropertiesDelegate()
     val methods = MethodsDelegate()
 

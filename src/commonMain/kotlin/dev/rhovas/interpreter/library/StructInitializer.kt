@@ -4,7 +4,7 @@ import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Type
 
-object StructInitializer : Library.ComponentInitializer(Component.Class("Struct", Modifiers(Modifiers.Inheritance.ABSTRACT))) {
+object StructInitializer : Library.ComponentInitializer(Component.Class("Struct", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
     override fun initialize() {
         generics.add(generic("T", Type.STRUCT.DYNAMIC))
