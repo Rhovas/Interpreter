@@ -68,7 +68,7 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         val inheritance = when {
             match("virtual") -> Modifiers.Inheritance.VIRTUAL
             match("abstract") -> Modifiers.Inheritance.ABSTRACT
-            else -> Modifiers.Inheritance.DEFAULT
+            else -> Modifiers.Inheritance.FINAL
         }
         val override = match("override")
         return Modifiers(inheritance, override)

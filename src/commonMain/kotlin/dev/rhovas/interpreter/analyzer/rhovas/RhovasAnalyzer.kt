@@ -1153,7 +1153,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         }
         val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
         val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
-        val function = Function.Declaration("lambda", Modifiers(Modifiers.Inheritance.DEFAULT), listOf(), parameters, returns, throws)
+        val function = Function.Declaration("lambda", Modifiers(), listOf(), parameters, returns, throws)
         val body = analyze(context.forFunction(function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
@@ -1337,7 +1337,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            require(ast.modifiers.inheritance == Modifiers.Inheritance.DEFAULT) { error(ast,
+            require(ast.modifiers.inheritance == Modifiers.Inheritance.FINAL) { error(ast,
                 "Invalid inheritance modifier.",
                 "A struct cannot specify virtual/abstract modifiers as they cannot be inherited from.",
             ) }
@@ -1359,7 +1359,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Redefined type.",
                 "The type ${ast.name} is already defined in this scope.",
             ) }
-            require(ast.modifiers.inheritance == Modifiers.Inheritance.DEFAULT) { error(ast,
+            require(ast.modifiers.inheritance == Modifiers.Inheritance.FINAL) { error(ast,
                 "Invalid inheritance modifier.",
                 "An interface cannot specify virtual/abstract modifiers as they are always considered abstract.",
             ) }
@@ -1523,7 +1523,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 }
                 val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
                 val throws = ast.throws.map { visit(it).type }
-                val declaration = Function.Declaration(ast.name, modifiers ?: Modifiers(Modifiers.Inheritance.DEFAULT), generics, parameters, returns, throws)
+                val declaration = Function.Declaration(ast.name, modifiers ?: Modifiers(), generics, parameters, returns, throws)
                 require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
                     "Redefined function.",
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.name ?: "this scope"}.",

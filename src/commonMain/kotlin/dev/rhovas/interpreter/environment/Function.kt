@@ -27,7 +27,7 @@ sealed interface Function {
 
     data class Declaration(
         override val name: String,
-        override val modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+        override val modifiers: Modifiers = Modifiers(),
         override val generics: List<Type.Generic> = listOf(),
         override val parameters: List<Variable.Declaration>,
         override val returns: Type,

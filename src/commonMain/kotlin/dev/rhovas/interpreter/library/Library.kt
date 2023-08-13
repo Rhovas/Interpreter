@@ -82,7 +82,7 @@ object Library {
         fun function(
             name: String,
             operator: String? = null,
-            modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+            modifiers: Modifiers = Modifiers(),
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>>,
             returns: Type,
@@ -105,7 +105,7 @@ object Library {
         fun method(
             name: String,
             operator: String? = null,
-            modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+            modifiers: Modifiers = Modifiers(),
             generics: List<Type.Generic> = listOf(),
             parameters: List<Pair<String, Type>> = listOf(),
             returns: Type = Type.VOID,

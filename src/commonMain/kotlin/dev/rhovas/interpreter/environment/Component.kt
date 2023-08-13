@@ -11,7 +11,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
 
     val inherited = Scope.Declaration(null)
     val scope: S = when (modifiers.inheritance) {
-        Modifiers.Inheritance.DEFAULT, Modifiers.Inheritance.VIRTUAL -> Scope.Definition(inherited as Scope<*, out Variable.Definition, *, out Function.Definition>) as S
+        Modifiers.Inheritance.FINAL, Modifiers.Inheritance.VIRTUAL -> Scope.Definition(inherited as Scope<*, out Variable.Definition, *, out Function.Definition>) as S
         Modifiers.Inheritance.ABSTRACT -> Scope.Declaration(inherited) as S
     }
 
@@ -43,18 +43,18 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
 
     class Struct(
         name: String,
-        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+        modifiers: Modifiers = Modifiers(),
     ) : Component<Scope.Definition>(name, modifiers) {
 
         init {
-            require(modifiers.inheritance == Modifiers.Inheritance.DEFAULT)
+            require(modifiers.inheritance == Modifiers.Inheritance.FINAL)
         }
 
     }
 
     class Class(
         name: String,
-        modifiers: Modifiers = Modifiers(Modifiers.Inheritance.DEFAULT),
+        modifiers: Modifiers = Modifiers(),
     ) : Component<Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(name, modifiers)
 
     class Interface(

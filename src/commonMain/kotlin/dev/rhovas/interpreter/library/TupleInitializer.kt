@@ -5,7 +5,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
 
-object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple", Modifiers(Modifiers.Inheritance.DEFAULT))) {
+object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple")) {
 
     override fun initialize() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))

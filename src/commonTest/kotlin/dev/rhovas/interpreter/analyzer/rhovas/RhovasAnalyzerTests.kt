@@ -237,7 +237,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     stmt(Child().field);
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL))
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration("",
                         parameters = listOf(),
@@ -325,7 +325,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     val child = Component.Class("Child")
                     child.inherit(parent.type)
                     child.scope.functions.define(Function.Definition(Function.Declaration("method",
-                        modifiers = Modifiers(Modifiers.Inheritance.DEFAULT, override = true),
+                        modifiers = Modifiers(override = true),
                         parameters = listOf(Variable.Declaration("this", child.type)),
                         returns = Type.VOID,
                     )))
@@ -685,7 +685,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         returns = child.type,
                     )))
                     child.scope.functions.define(Function.Definition(Function.Declaration("method",
-                        modifiers = Modifiers(Modifiers.Inheritance.DEFAULT, override = true),
+                        modifiers = Modifiers(override = true),
                         parameters = listOf(Variable.Declaration("this", child.type)),
                         returns = Type.VOID,
                     )))
@@ -864,7 +864,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         }
                     }
                 """.trimIndent()) {
-                    val parent = Component.Class("Parent", modifiers(Modifiers.Inheritance.VIRTUAL))
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.VIRTUAL))
                     parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration("",
                         parameters = listOf(),
@@ -972,7 +972,10 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             name();
                         }
                     """.trimIndent()) {
-                        val func = Function.Declaration("name", modifiers(), listOf(), listOf(), Type.VOID, listOf())
+                        val func = Function.Declaration("name",
+                            parameters = listOf(),
+                            returns = Type.VOID,
+                        )
                         RhovasIr.Statement.Declaration.Function(
                             func,
                             block(RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(null, func, false, listOf(), Type.VOID))),
@@ -999,7 +1002,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name",
                                 parameters = listOf(),
-                                returns = Type.INTEGER
+                                returns = Type.INTEGER,
                             ),
                             block(RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
                         )
@@ -1016,7 +1019,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name",
                                 parameters = listOf(),
-                                returns = Type.INTEGER
+                                returns = Type.INTEGER,
                             ),
                             block(RhovasIr.Statement.If(
                                 literal(true),
@@ -1036,7 +1039,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name",
                                 parameters = listOf(),
-                                returns = Type.INTEGER
+                                returns = Type.INTEGER,
                             ),
                             block(RhovasIr.Statement.Match.Conditional(
                                 listOf(literal(true) to RhovasIr.Statement.Return(literal(BigInteger.parseString("1")), listOf())),
@@ -1054,7 +1057,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("name",
                                 parameters = listOf(),
-                                returns = Type.INTEGER
+                                returns = Type.INTEGER,
                             ),
                             block(RhovasIr.Statement.Match.Structural(
                                 literal(true),
@@ -1072,7 +1075,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             Function.Declaration("name",
                                 parameters = listOf(),
                                 returns = Type.VOID,
-                                throws = listOf(Type.EXCEPTION)
+                                throws = listOf(Type.EXCEPTION),
                             ),
                             block(RhovasIr.Statement.Throw(RhovasIr.Expression.Invoke.Constructor(
                                 Type.EXCEPTION,
@@ -3126,10 +3129,6 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 Equatable<Any>
             """.trimIndent(), null),
         )) { test("type", it.source, it.expected) }
-    }
-
-    private fun modifiers(inheritance: Modifiers.Inheritance = Modifiers.Inheritance.DEFAULT): Modifiers {
-        return Modifiers(inheritance)
     }
 
     private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Expression.Block {
