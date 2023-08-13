@@ -10,7 +10,7 @@ sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
 
     class Declaration(parent: Scope<*, out Variable, *, out Function>?): Scope<Variable, Variable, Function, Function>(parent)
 
-    class Definition(parent: Definition?): Scope<Variable.Definition, Variable.Definition, Function.Definition, Function.Definition>(parent)
+    class Definition(parent: Scope<*, out Variable.Definition, *, out Function.Definition>?): Scope<Variable.Definition, Variable.Definition, Function.Definition, Function.Definition>(parent)
 
     inner class VariablesDelegate {
 

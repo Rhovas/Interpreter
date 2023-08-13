@@ -260,6 +260,11 @@ class RhovasParserTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasAst.Member.Method(modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block()))
                 },
+                "Override" to Test("""
+                    override func name() {}
+                """.trimIndent()) {
+                    RhovasAst.Member.Method(Modifiers(Modifiers.Inheritance.DEFAULT, override = true), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block()))
+                },
                 "This Parameter" to Test("""
                     func name(this) {}
                 """.trimIndent()) {

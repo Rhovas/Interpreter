@@ -8,9 +8,11 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
     val generics: MutableList<Type.Generic> = mutableListOf()
     val inherits: MutableList<Type> = mutableListOf()
     val type = Type.Reference(this, generics)
+
+    val inherited = Scope.Declaration(null)
     val scope: S = when (modifiers.inheritance) {
-        Modifiers.Inheritance.DEFAULT, Modifiers.Inheritance.VIRTUAL -> Scope.Definition(null) as S
-        Modifiers.Inheritance.ABSTRACT -> Scope.Declaration(null) as S
+        Modifiers.Inheritance.DEFAULT, Modifiers.Inheritance.VIRTUAL -> Scope.Definition(inherited as Scope<*, out Variable.Definition, *, out Function.Definition>) as S
+        Modifiers.Inheritance.ABSTRACT -> Scope.Declaration(inherited) as S
     }
 
     open fun inherit(type: Type.Reference) {
@@ -26,8 +28,8 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
             .map { (name, function) -> Pair(name, function.bind(type.component.generics.zip(type.generics).associate { it.first.name to it.second })) }
             .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
             .forEach { (name, function) ->
-                require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
-                (scope as Scope<*, *, in Function, *>).functions.define(function, name)
+                //require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
+                inherited.functions.define(function, name)
             }
     }
 

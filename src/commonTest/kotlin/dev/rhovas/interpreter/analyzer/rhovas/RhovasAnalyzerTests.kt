@@ -209,6 +209,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Invalid Modifier" to Test("""
                     virtual interface Name {}
                 """.trimIndent(), null),
+                "Missing Override" to Test("""
+                    interface Parent {
+                        abstract func method(this) {}
+                    }
+                    struct Child: Parent {}
+                """.trimIndent(), null),
             )) { test("source", it.source, it.expected) }
 
             suite("Class", listOf(
@@ -298,7 +304,38 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         stmt(RhovasIr.Expression.Invoke.Method(
                             RhovasIr.Expression.Invoke.Constructor(child.type, child.type.functions["", listOf()]!! as Function.Definition, listOf(), child.type),
                             child.type.methods["method", listOf()]!!, false, false, false, listOf(), Type.VOID,
-                        ))
+                        )),
+                    ))
+                },
+                "Override Abstract Method" to Test("""
+                    abstract class Parent {
+                        abstract func method(this) {}
+                    }
+                    class Child: Parent {
+                        override func method(this) {}
+                    }
+                """.trimIndent()) {
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.ABSTRACT))
+                    parent.inherit(Type.ANY)
+                    parent.scope.functions.define(Function.Definition(Function.Declaration("method",
+                        modifiers = Modifiers(Modifiers.Inheritance.ABSTRACT),
+                        parameters = listOf(Variable.Declaration("this", parent.type)),
+                        returns = Type.VOID,
+                    )))
+                    val child = Component.Class("Child")
+                    child.inherit(parent.type)
+                    child.scope.functions.define(Function.Definition(Function.Declaration("method",
+                        modifiers = Modifiers(Modifiers.Inheritance.DEFAULT, override = true),
+                        parameters = listOf(Variable.Declaration("this", child.type)),
+                        returns = Type.VOID,
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(parent, null, listOf(), listOf(
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(parent.type.methods["method", listOf()]!!.function as Function.Definition, block())),
+                        ))),
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(child, parent.type, listOf(), listOf(
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(child.type.methods["method", listOf()]!!.function as Function.Definition, block())),
+                        ))),
                     ))
                 },
                 "Members" to Test("""
@@ -344,6 +381,12 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     }
                     class Child: Parent {}
                     Child.function();
+                """.trimIndent(), null),
+                "Missing Override" to Test("""
+                    abstract class Parent {
+                        abstract func method(this) {}
+                    }
+                    class Child: Parent {}
                 """.trimIndent(), null),
             )) { test("source", it.source, it.expected) }
 
@@ -511,14 +554,23 @@ class RhovasAnalyzerTests: RhovasSpec() {
             )) { test("source", it.source, it.expected) }
 
             suite("Initializer", listOf(
-                /*
-                Overlaps with default constructors.
                 "Empty" to Test("""
                     struct Name {
                         init() {}
                     }
-                """.trimIndent(), null),
-                 */
+                """.trimIndent()) {
+                    val component = Component.Struct("Name")
+                    component.inherit(Type.STRUCT[Type.Struct(mapOf())])
+                    component.scope.functions.define(Function.Definition(Function.Declaration("",
+                        parameters = listOf(),
+                        returns = component.type,
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(component, listOf(), listOf(
+                            RhovasIr.Member.Initializer(component.type.functions["", listOf()]!! as Function.Definition, block()),
+                        ))),
+                    ))
+                },
                 "Parameters" to Test("""
                     struct Name {
                         init(argument: Integer) {}
@@ -605,6 +657,49 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         ))),
                     ))
                 },
+                "Override" to Test("""
+                    virtual class Parent {
+                        init() {}
+                        virtual func method(this) {}
+                    }
+                    class Child: Parent {
+                        init() {}
+                        override func method(this) {}
+                    }
+                """.trimIndent()) {
+                    val parent = Component.Class("Parent", Modifiers(Modifiers.Inheritance.VIRTUAL))
+                    parent.inherit(Type.ANY)
+                    parent.scope.functions.define(Function.Definition(Function.Declaration("",
+                        parameters = listOf(),
+                        returns = parent.type,
+                    )))
+                    parent.scope.functions.define(Function.Definition(Function.Declaration("method",
+                        modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
+                        parameters = listOf(Variable.Declaration("this", parent.type)),
+                        returns = Type.VOID,
+                    )))
+                    val child = Component.Class("Child")
+                    child.inherit(parent.type)
+                    child.scope.functions.define(Function.Definition(Function.Declaration("",
+                        parameters = listOf(),
+                        returns = child.type,
+                    )))
+                    child.scope.functions.define(Function.Definition(Function.Declaration("method",
+                        modifiers = Modifiers(Modifiers.Inheritance.DEFAULT, override = true),
+                        parameters = listOf(Variable.Declaration("this", child.type)),
+                        returns = Type.VOID,
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(parent, null, listOf(), listOf(
+                            RhovasIr.Member.Initializer(parent.type.functions["", listOf()]!! as Function.Definition, block()),
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(parent.type.methods["method", listOf()]!!.function as Function.Definition, block())),
+                        ))),
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(child, parent.type, listOf(), listOf(
+                            RhovasIr.Member.Initializer(child.type.functions["", listOf()]!! as Function.Definition, block()),
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(child.type.methods["method", listOf()]!!.function as Function.Definition, block())),
+                        ))),
+                    ))
+                },
                 "Operator Overload" to Test("""
                     struct Name {
                         func op+ add(this, other: Name) {
@@ -632,6 +727,27 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     struct Name {
                         func function() {}
                         func function() {}
+                    }
+                """.trimIndent(), null),
+                "Invalid Override" to Test("""
+                    class Parent {
+                        func method(this) {}
+                    }
+                    class Child: Parent {
+                        func method(this) {}
+                    }
+                """.trimIndent(), null),
+                "Invalid Override Modifier" to Test("""
+                    class Name {
+                        override func method(this) {}
+                    }
+                """.trimIndent(), null),
+                "Missing Override Modifier" to Test("""
+                    class Parent {
+                        virtual func method(this) {}
+                    }
+                    class Child: Parent {
+                        func method(this) {}
                     }
                 """.trimIndent(), null),
             )) { test("source", it.source, it.expected) }

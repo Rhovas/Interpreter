@@ -59,13 +59,19 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         RhovasAst.Import(path, alias)
     }
 
+    /**
+     *  - `modifiers = inheritance? override?`
+     *     - `inheritance = 'virtual' | 'abstract'`
+     *     - `override = 'override'`
+     */
     private fun parseModifiers(): Modifiers {
         val inheritance = when {
             match("virtual") -> Modifiers.Inheritance.VIRTUAL
             match("abstract") -> Modifiers.Inheritance.ABSTRACT
             else -> Modifiers.Inheritance.DEFAULT
         }
-        return Modifiers(inheritance)
+        val override = match("override")
+        return Modifiers(inheritance, override)
     }
 
     /**

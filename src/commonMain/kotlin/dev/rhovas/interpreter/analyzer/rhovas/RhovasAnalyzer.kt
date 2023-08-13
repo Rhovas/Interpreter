@@ -1378,35 +1378,41 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
             val component = context.scope.types[ast.name]!!.component as Component.Struct
             val (_, implements) = visitInherits(ast.inherits, false)
-            val members = ast.members.map { visit(it, component) }.toMutableList()
-            val fields = members.filterIsInstance<RhovasIr.DefinitionPhase.Member.Property>().associateBy { it.getter.name }
-            component.inherit(Type.STRUCT[Type.Struct(fields.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])
+            val fields = ast.members.filterIsInstance<RhovasAst.Member.Property>().map { visit(it, component) }
+            component.inherit(Type.STRUCT[Type.Struct(fields.associate { it.getter.name to Variable.Declaration(it.getter.name, it.getter.returns, it.setter != null) })])
+            component.inherited.functions.define(Function.Definition(Function.Declaration("",
+                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.ast.value == null }.associate { it.getter.name to Variable.Declaration(it.getter.name, it.getter.returns, false) })])),
+                returns = component.type,
+            )))
+            component.inherited.functions.define(Function.Definition(Function.Declaration("",
+                parameters = fields.map { Variable.Declaration(it.getter.name, it.getter.returns) },
+                returns = component.type,
+            )))
             implements.forEach { component.inherit(it) }
-            component.scope.functions.define(Function.Definition(Function.Declaration("",
-                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.value.ast.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns, it.value.setter != null) })])),
-                returns = component.type,
-            )))
-            component.scope.functions.define(Function.Definition(Function.Declaration("",
-                parameters = fields.values.map { Variable.Declaration(it.getter.name, it.getter.returns) },
-                returns = component.type,
-            )))
+            println("fields = ${fields}")
+            println(component.inherited.functions.collect().entries.joinToString("\n"))
+            val members = fields + ast.members.filter { it !is RhovasAst.Member.Property }.map { visit(it, component) }
+            validateConcrete(ast, component)
             RhovasIr.DefinitionPhase.Component.Struct(ast, component, implements, members)
         }
 
         fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
             val component = context.scope.types[ast.name]!!.component as Component.Class
             val (extends, implements) = visitInherits(ast.inherits, true)
-            val members = ast.members.map { visit(it, component) }.toMutableList()
             component.inherit(extends ?: Type.ANY)
             implements.forEach { component.inherit(it) }
+            val members = ast.members.map { visit(it, component) }.toMutableList()
+            if (ast.modifiers.inheritance != Modifiers.Inheritance.ABSTRACT) {
+                validateConcrete(ast, component)
+            }
             RhovasIr.DefinitionPhase.Component.Class(ast, component, extends, implements, members)
         }
 
         fun visit(ast: RhovasAst.Component.Interface): RhovasIr.DefinitionPhase.Component.Interface = analyze(ast.context) {
             val component = context.scope.types[ast.name]!!.component as Component.Interface
             val (_, implements) = visitInherits(ast.inherits, false)
-            val members = ast.members.map { visit(it, component) }.toMutableList()
             implements.ifEmpty { listOf(Type.ANY) }.forEach { component.inherit(it) }
+            val members = ast.members.map { visit(it, component) }.toMutableList()
             RhovasIr.DefinitionPhase.Component.Interface(ast, component, implements, members)
         }
 
@@ -1434,6 +1440,18 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 }
             }
             return Pair(extends, implements)
+        }
+
+        private fun validateConcrete(ast: RhovasAst.Component, component: Component<*>) {
+            component.inherited.functions.collect().values.flatten()
+                .filter { it.modifiers.inheritance == Modifiers.Inheritance.ABSTRACT }
+                .forEach {
+                    require(component.scope.functions[it.name, listOf(component.type) + it.parameters.drop(1).map { it.type }, true] != null) { error(ast,
+                        "Missing override.",
+                        "The method ${it.name}/${it.parameters.size} is abstract and not overriden in ${component.name}, which requires a definition.",
+                    )
+                }
+            }
         }
 
         fun visit(ast: RhovasAst.Member, component: Component<*>): RhovasIr.DefinitionPhase.Member {
@@ -1509,6 +1527,19 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
                     "Redefined function.",
                     "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.name ?: "this scope"}.",
+                ) }
+                val inherited = component?.inherited?.functions?.get(declaration.name, declaration.parameters.map { it.type })
+                require(inherited == null || inherited.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(ast,
+                    "Invalid override.",
+                    "The function ${ast.name}/${ast.parameters.size} overrides an inherited function that is final.",
+                ) }
+                require(inherited != null || !declaration.modifiers.override) { error(ast,
+                    "Invalid override modifier.",
+                    "The function ${ast.name}/${ast.parameters.size} does not override an inherited function but has an `override` modifier.",
+                ) }
+                require(inherited == null || declaration.modifiers.override) { error(ast,
+                    "Missing override modifier.",
+                    "The function ${ast.name}/${ast.parameters.size} overrides an inherited function and must have an `override` modifier.",
                 ) }
                 val method = if (component != null || scope is Scope.Definition) Function.Definition(declaration) else declaration
                 (scope as Scope<*, *, in Function, *>).functions.define(method)
