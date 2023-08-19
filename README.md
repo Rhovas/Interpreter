@@ -16,6 +16,30 @@ Rhovas, see the following links:
  - [Discord Server](https://discord.gg/gm96xd8): Discussion on Rhovas including
    language design, implementation, and anything related.
 
+## Running Locally (Latest Changes)
+
+The [Online Editor](https://rhovas.dev/editor) runs the [latest release](https://github.com/Rhovas/Interpreter/releases)
+of Rhovas. To run the latest changes off of the current master branch (e.g. for
+testing unreleased features) you will need to build and run Rhovas locally.
+
+This process is made relatively straightforward using Gradle. You will need to
+have a JDK/JRE installation for Java (recommended latest LTS+), such as releases
+from [Adoptium](https://adoptium.net).
+
+```sh
+#from the desired directory, e.g C:\dev\Rhovas:
+git clone https://github.com/Rhovas/Interpreter
+cd Interpreter
+./gradlew build #eta: ~3-4m
+
+java -jar build/libs/Interpreter-${version}.jar #starts a REPL session
+java -jar build/libs/Interpreter-${version}.jar file.rho #executes a file
+```
+
+Note that while the REPL is convenient for quick testing, using a file is often
+safer as the REPL is lacking many common quality-of-life features for longer
+sessions (e.g. editing the last prompt to fix errors).
+
 ## Project Structure & Setup
 
 This information is for other developers to understand and contribute to the
@@ -49,6 +73,9 @@ likely take some time to configure and index, as well as on the first build
    for Kotlin/JS, which minimizes most of the identifier mangling for debugging.
    - executable is in `build/compileSync/main/developmentExecutable`
  - `verification/allTests`: Runs all tests (`js` + `jvm`)
+
+For manual testing, it is often more convenient to create a run configuration
+which uses the JVM `Main.kt` directly rather than going through Gradle `build`.
 
 ## Sponsor Me!
 
