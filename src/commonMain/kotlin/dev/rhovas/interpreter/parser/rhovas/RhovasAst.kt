@@ -350,10 +350,28 @@ sealed class RhovasAst {
 
     }
 
-    data class Type(
-        val path: List<String>,
-        val generics: List<Type>?,
-    ) : RhovasAst()
+    sealed class Type : RhovasAst() {
+
+        data class Reference(
+            val path: List<String>,
+            val generics: List<Type>?,
+            val nullable: Boolean,
+        ) : Type()
+
+        data class Tuple(
+            val elements: List<Type>,
+        ) : Type()
+
+        data class Struct(
+            val fields: List<Pair<String, Type>>,
+        ) : Type()
+
+        data class Variant(
+            val lower: Type?,
+            val upper: Type?,
+        ) : Type()
+
+    }
 
     data class Atom(val name: String)
 
@@ -422,14 +440,17 @@ sealed class RhovasAst {
                 is Pattern.TypedDestructure -> visit(ast)
                 is Pattern.VarargDestructure -> visit(ast)
 
-                is Type -> visit(ast)
+                is Type.Reference -> visit(ast)
+                is Type.Tuple -> visit(ast)
+                is Type.Struct -> visit(ast)
+                is Type.Variant -> visit(ast)
             }
         }
 
         fun visit(ast: Source): T
         fun visit(ast: Import): T
 
-        fun visit(ast: Component.Struct): T
+        @JsName("visitComponentStruct") fun visit(ast: Component.Struct): T
         fun visit(ast: Component.Class): T
         fun visit(ast: Component.Interface): T
 
@@ -487,7 +508,10 @@ sealed class RhovasAst {
         fun visit(ast: Pattern.TypedDestructure): T
         fun visit(ast: Pattern.VarargDestructure): T
 
-        @JsName("visitType") fun visit(ast: Type): T
+        fun visit(ast: Type.Reference): T
+        fun visit(ast: Type.Tuple): T
+        @JsName("visitTypeStruct") fun visit(ast: Type.Struct): T
+        fun visit(ast: Type.Variant): T
 
     }
 

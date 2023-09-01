@@ -3098,37 +3098,90 @@ class RhovasAnalyzerTests: RhovasSpec() {
             } }
         }
 
-        suite("Type", listOf(
-            "Type" to Test("""
-                Any
-            """.trimIndent()) {
-                RhovasIr.Type(Type.ANY)
-            },
-            "Generic" to Test("""
-                T
-            """.trimIndent()) {
-                it.types.define(Type.Generic("T", Type.ANY), "T")
-                RhovasIr.Type(Type.Generic("T", Type.ANY))
-            },
-            "Undefined" to Test("""
-                Undefined
-            """.trimIndent(), null),
-            "Undefined Submodule" to Test("""
-                Type.Undefined
-            """.trimIndent(), null),
-            "Invalid Generic Receiver" to Test("""
-                Invalid<String>
-            """.trimIndent()) {
-                it.types.define(Type.Generic("T", Type.ANY), "Invalid")
-                null
-            },
-            "Invalid Generic Arity" to Test("""
-                List<>
-            """.trimIndent(), null),
-            "Invalid Generic Type" to Test("""
-                Equatable<Any>
-            """.trimIndent(), null),
-        )) { test("type", it.source, it.expected) }
+        suite("Type") {
+            suite("Reference", listOf(
+                "Type" to Test("""
+                    Any
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.ANY)
+                },
+                "Generic" to Test("""
+                    List<Any>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.LIST[Type.ANY])
+                },
+                "Nullable" to Test("""
+                    Any?
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.NULLABLE[Type.ANY])
+                },
+                "Undefined" to Test("""
+                    Undefined
+                """.trimIndent(), null),
+                "Undefined Submodule" to Test("""
+                    Type.Undefined
+                """.trimIndent(), null),
+                "Invalid Generic Receiver" to Test("""
+                    Invalid<String>
+                """.trimIndent()) {
+                    it.types.define(Type.Generic("T", Type.ANY), "Invalid")
+                    null
+                },
+                "Invalid Generic Arity" to Test("""
+                    List<>
+                """.trimIndent(), null),
+                "Invalid Generic Type" to Test("""
+                    Equatable<Any>
+                """.trimIndent(), null),
+            )) { test("type", it.source, it.expected) }
+
+            suite("Tuple", listOf(
+                "Empty" to Test("""
+                    Tuple<[]>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.TUPLE[listOf()])
+                },
+                "Element" to Test("""
+                    Tuple<[Any]>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.TUPLE[listOf(Type.ANY)])
+                },
+            )) { test("type", it.source, it.expected) }
+
+            suite("Struct", listOf(
+                "Empty" to Test("""
+                    Struct<{}>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.STRUCT[listOf()])
+                },
+                "Field" to Test("""
+                    Struct<{name: Any}>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.STRUCT[listOf("name" to Type.ANY)])
+                },
+                "Redefined" to Test("""
+                    Struct<{name: Any, name: Any}>
+                """.trimIndent(), null),
+            )) { test("type", it.source, it.expected) }
+
+            suite("Variant", listOf(
+                "Wildcard" to Test("""
+                    List<*>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.LIST[Type.Variant(null, null)])
+                },
+                "Lower" to Test("""
+                    List<Any : *>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.LIST[Type.Variant(Type.ANY, null)])
+                },
+                "Upper" to Test("""
+                    List<* : Any>
+                """.trimIndent()) {
+                    RhovasIr.Type(Type.LIST[Type.Variant(null, Type.ANY)])
+                },
+            )) { test("type", it.source, it.expected) }
+        }
     }
 
     private fun block(vararg statements: RhovasIr.Statement): RhovasIr.Expression.Block {

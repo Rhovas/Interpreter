@@ -1179,12 +1179,12 @@ class RhovasParserTests: RhovasSpec() {
                     "Nesting" to Test("""
                         First.Second.Third
                     """.trimIndent()) {
-                        RhovasAst.Expression.Literal.Type(RhovasAst.Type(listOf("First", "Second", "Third"), null))
+                        RhovasAst.Expression.Literal.Type(type("First.Second.Third"))
                     },
                     "Generic" to Test("""
                         Type<Generic>
                     """.trimIndent()) {
-                        RhovasAst.Expression.Literal.Type(RhovasAst.Type(listOf("Type"), listOf(type("Generic"))))
+                        RhovasAst.Expression.Literal.Type(type("Type", listOf(type("Generic"))))
                     },
                 )) { test("expression", it.source, it.expected) }
             }
@@ -1443,12 +1443,12 @@ class RhovasParserTests: RhovasSpec() {
                     "Qualifier" to Test("""
                         Qualifier.Type()
                     """.trimIndent()) {
-                        RhovasAst.Expression.Invoke.Constructor(RhovasAst.Type(listOf("Qualifier", "Type"), null), listOf())
+                        RhovasAst.Expression.Invoke.Constructor(type("Qualifier.Type"), listOf())
                     },
                     "Generics" to Test("""
                         Type<Generic>()
                     """.trimIndent()) {
-                        RhovasAst.Expression.Invoke.Constructor(RhovasAst.Type(listOf("Type"), listOf(type("Generic"))), listOf())
+                        RhovasAst.Expression.Invoke.Constructor(type("Type", listOf(type("Generic"))), listOf())
                     },
                     "Zero Arguments" to Test("""
                         Type()
@@ -2001,41 +2001,130 @@ class RhovasParserTests: RhovasSpec() {
             )) { test("pattern", it.source, it.expected) }
         }
 
-        suite("Type", listOf(
-            "Type" to Test("""
-                Type
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("Type"), null)
-            },
-            "Nesting" to Test("""
-                First.Second.Third
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("First", "Second", "Third"), null)
-            },
-            "Empty Generics" to Test("""
-                Type<>
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("Type"), listOf())
-            },
-            "Single Generic" to Test("""
-                Type<Generic>
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("Type"), listOf(type("Generic")))
-            },
-            "Multiple Generics" to Test("""
-                Type<First, Second, Third>
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("Type"), listOf(type("First"), type("Second"), type("Third")))
-            },
-            "Trailing Comma" to Test("""
-                Type<Generic,>
-            """.trimIndent()) {
-                RhovasAst.Type(listOf("Type"), listOf(type("Generic")))
-            },
-            "Missing Comma" to Test("""
-                Type<First Second>
-            """.trimIndent(), null),
-        )) { test("type", it.source, it.expected) }
+        suite("Type") {
+            suite("Reference", listOf(
+                "Type" to Test("""
+                    Type
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), null, false)
+                },
+                "Nesting" to Test("""
+                    First.Second.Third
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("First", "Second", "Third"), null, false)
+                },
+                "Empty Generics" to Test("""
+                    Type<>
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), listOf(), false)
+                },
+                "Single Generic" to Test("""
+                    Type<Generic>
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), listOf(type("Generic")), false)
+                },
+                "Multiple Generics" to Test("""
+                    Type<First, Second, Third>
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), listOf(type("First"), type("Second"), type("Third")), false)
+                },
+                "Trailing Comma" to Test("""
+                    Type<Generic,>
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), listOf(type("Generic")), false)
+                },
+                "Nullable" to Test("""
+                    Type?
+                """.trimIndent()) {
+                    RhovasAst.Type.Reference(listOf("Type"), null, true)
+                },
+                "Missing Comma" to Test("""
+                    Type<First Second>
+                """.trimIndent(), null),
+            )) { test("type", it.source, it.expected) }
+
+            suite("Tuple", listOf(
+                "Empty" to Test("""
+                    Tuple<[]>
+                """.trimIndent()) {
+                    type("Tuple", listOf(RhovasAst.Type.Tuple(listOf())))
+                },
+                "Single Element" to Test("""
+                    Tuple<[Type,]>
+                """.trimIndent()) {
+                    type("Tuple", listOf(RhovasAst.Type.Tuple(listOf(type("Type")))))
+                },
+                "Multiple Elements" to Test("""
+                    Tuple<[First, Second, Third]>
+                """.trimIndent()) {
+                    type("Tuple", listOf(RhovasAst.Type.Tuple(listOf(type("First"), type("Second"), type("Third")))))
+                },
+                "Trailing Comma" to Test("""
+                    Tuple<[Type,]>
+                """.trimIndent()) {
+                    type("Tuple", listOf(RhovasAst.Type.Tuple(listOf(type("Type")))))
+                },
+                "Missing Comma" to Test("""
+                    Tuple<[First Second]>
+                """.trimIndent(), null),
+                "Missing Closing Bracket" to Test("""
+                    Tuple<[Type>
+                """.trimIndent(), null),
+            )) { test("type", it.source, it.expected) }
+
+            suite("Struct", listOf(
+                "Empty" to Test("""
+                    Struct<{}>
+                """.trimIndent()) {
+                    type("Struct", listOf(RhovasAst.Type.Struct(listOf())))
+                },
+                "Single Element" to Test("""
+                    Struct<{name: Type}>
+                """.trimIndent()) {
+                    type("Struct", listOf(RhovasAst.Type.Struct(listOf("name" to type("Type")))))
+                },
+                "Multiple Elements" to Test("""
+                    Struct<{first: First, second: Second, third: Third}>
+                """.trimIndent()) {
+                    type("Struct", listOf(RhovasAst.Type.Struct(listOf("first" to type("First"), "second" to type("Second"), "third" to type("Third")))))
+                },
+                "Trailing Comma" to Test("""
+                    Struct<{name: Type,}>
+                """.trimIndent()) {
+                    type("Struct", listOf(RhovasAst.Type.Struct(listOf("name" to type("Type")))))
+                },
+                "Missing Name" to Test("""
+                    Struct<{: Type}>
+                """.trimIndent(), null),
+                "Missing Colon" to Test("""
+                    Struct<{name Type}>
+                """.trimIndent(), null),
+                "Missing Comma" to Test("""
+                    Struct<{first: First second: Second}>
+                """.trimIndent(), null),
+                "Missing Closing Brace" to Test("""
+                    Struct<{name: Type>
+                """.trimIndent(), null),
+            )) { test("type", it.source, it.expected) }
+
+            suite("Variant", listOf(
+                "Wildcard" to Test("""
+                    Type<*>
+                """.trimIndent()) {
+                    type("Type", listOf(RhovasAst.Type.Variant(null, null)))
+                },
+                "Lower" to Test("""
+                    Type<Lower : *>
+                """.trimIndent()) {
+                    type("Type", listOf(RhovasAst.Type.Variant(type("Lower"), null)))
+                },
+                "Upper" to Test("""
+                    Type<* : Upper>
+                """.trimIndent()) {
+                    type("Type", listOf(RhovasAst.Type.Variant(null, type("Upper"))))
+                },
+            )) { test("type", it.source, it.expected) }
+        }
 
         suite("Interaction") {
             spec("Keyword Label Atom") {
@@ -2068,8 +2157,8 @@ class RhovasParserTests: RhovasSpec() {
         return RhovasAst.Expression.Access.Variable(null, name)
     }
 
-    private fun type(name: String): RhovasAst.Type {
-        return RhovasAst.Type(listOf(name), null)
+    private fun type(name: String, generics: List<RhovasAst.Type>? = null): RhovasAst.Type {
+        return RhovasAst.Type.Reference(name.split("."), generics, false)
     }
 
     private fun test(rule: String, source: String, expected: (() -> RhovasAst)?) {

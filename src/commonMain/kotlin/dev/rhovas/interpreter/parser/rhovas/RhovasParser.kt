@@ -1071,7 +1071,11 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
     }
 
     /**
-     *  - `type = identifier ("." identifier)* ("<" (type ",")* ">")?`
+     *  - `type = identifier ("." identifier)* ("<" (generic-type ("," generic-type)* ","?)? ">")? "?"?`
+     *     - `generic-type = tuple | struct | variant-able`
+     *     - `tuple = "[" (type ("," type)* ","?)? "]"`
+     *     - `struct = "{" (identifier ":" type ("," identifier ":" type)* ","?)? "}"`
+     *     - `variant-able = type (":" "*")? | "*" (":" type)?`
      */
     private fun parseType(): RhovasAst.Type = parseAst {
         val path = mutableListOf<String>()
@@ -1081,14 +1085,51 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
             path.add(tokens[-1]!!.literal)
         }
         val generics = parseSequence("<", ",", ">") {
-            val type = parseType()
+            val type = when {
+                peek("[") -> {
+                    val elements = parseSequence("[", ",", "]") {
+                        val type = parseType()
+                        require(peek(listOf(",", "]"))) { error(
+                            "Expected closing bracket or comma.",
+                            "A tuple type element must be followed by a closing bracket `]` or comma `,`, as in `[Type]` or `[X, Y, Z]`.",
+                        ) }
+                        type
+                    }!!
+                    RhovasAst.Type.Tuple(elements)
+                }
+                peek("{") -> {
+                    val fields = parseSequence("{", ",", "}") {
+                        val name = parseIdentifier { "A struct type field requires a name, as in `{name: Type}`." }
+                        require(match(":")) { error(
+                            "Expected colon",
+                            "A struct field requires a colon between the name and type, as in `{name: Type}`.",
+                        ) }
+                        val type = parseType()
+                        require(peek(listOf(",", "}"))) { error(
+                            "Expected closing brace or comma.",
+                            "An struct type field must be followed by a closing brace `}` or comma `,`, as in `{name: Type}` or `{x: X, y: Y, z: Z}`.",
+                        ) }
+                        Pair(name, type)
+                    }!!
+                    RhovasAst.Type.Struct(fields)
+                }
+                else -> {
+                    var type = if (match("*")) null else parseType()
+                    if (match(":")) {
+                        val upper = if (match("*")) null else parseType()
+                        type = RhovasAst.Type.Variant(type, upper)
+                    }
+                    type ?: RhovasAst.Type.Variant(null, null)
+                }
+            }
             require(peek(listOf(",", ">"))) { error(
                 "Expected closing bracket or comma.",
                 "A generic parameter must be followed by a closing bracket `>` or comma `,`, as in `Type<T>` or `Type<X, Y, Z>`",
             ) }
             type
         }
-        RhovasAst.Type(path, generics)
+        val nullable = match("?")
+        RhovasAst.Type.Reference(path, generics, nullable)
     }
 
     /**

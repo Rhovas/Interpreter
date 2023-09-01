@@ -1294,7 +1294,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         throw AssertionError()
     }
 
-    override fun visit(ast: RhovasAst.Type): RhovasIr.Type = analyzeAst(ast) {
+    fun visit(ast: RhovasAst.Type): RhovasIr.Type {
+        return super.visit(ast) as RhovasIr.Type
+    }
+
+    override fun visit(ast: RhovasAst.Type.Reference): RhovasIr.Type = analyzeAst(ast) {
         var type: Type = context.scope.types[ast.path.first()] ?: throw error(ast,
             "Undefined type.",
             "The type ${ast.path.first()} is not defined in the current scope."
@@ -1323,7 +1327,33 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             }
             type = Type.Reference(type.component, generics)
         }
+        if (ast.nullable) {
+            type = Type.NULLABLE[type]
+        }
         RhovasIr.Type(type)
+    }
+
+    override fun visit(ast: RhovasAst.Type.Tuple): RhovasIr.Type = analyzeAst(ast) {
+        val elements = ast.elements.map { visit(it).type }
+        RhovasIr.Type(Type.TUPLE[elements].generics[0])
+    }
+
+    override fun visit(ast: RhovasAst.Type.Struct): RhovasIr = analyzeAst(ast) {
+        val fields = mutableMapOf<String, Type>()
+        ast.fields.forEach {
+            require(fields[it.first] == null) { error(ast,
+                "Redefined struct field.",
+                "The property ${it.first} has already been defined for this object.",
+            ) }
+            fields[it.first] = visit(it.second).type
+        }
+        RhovasIr.Type(Type.STRUCT[fields.map { it.key to it.value }].generics[0])
+    }
+
+    override fun visit(ast: RhovasAst.Type.Variant): RhovasIr = analyzeAst(ast) {
+        val lower = ast.lower?.let { visit(it).type }
+        val upper = ast.upper?.let { visit(it).type }
+        RhovasIr.Type(Type.Variant(lower, upper))
     }
 
     /**
