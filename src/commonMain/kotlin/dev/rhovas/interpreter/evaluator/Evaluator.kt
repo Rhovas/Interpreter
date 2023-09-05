@@ -42,7 +42,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         ir.members.forEach { visit(it) }
         val current = scope
         val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
-        (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[Type.Struct(fields.filter { it.value.value == null }.mapValues { Variable.Declaration(it.key, it.value.getter.returns) })]) } as Function.Definition).implementation = { arguments ->
+        (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }]) } as Function.Definition).implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val type = Type.Reference(ir.component, ir.component.generics.map { Type.DYNAMIC })
                 val initial = arguments[0].value as Map<String, Object>

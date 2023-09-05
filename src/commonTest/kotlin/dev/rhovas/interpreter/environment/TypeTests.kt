@@ -285,11 +285,11 @@ class TypeTests : RhovasSpec() {
     }
 
     private fun tuple(vararg types: Type, mutable: Boolean = false): Type.Tuple {
-        return Type.Tuple(types.withIndex().map { Variable.Declaration(it.index.toString(), it.value, mutable) })
+        return Type.TUPLE[types.toList(), mutable].generics[0] as Type.Tuple
     }
 
     private fun struct(vararg entries: Pair<String, Type>, mutable: Boolean = false): Type.Struct {
-        return Type.Struct(entries.associate { it.first to Variable.Declaration(it.first, it.second, mutable) })
+        return Type.STRUCT[entries.toList(), mutable].generics[0] as Type.Struct
     }
 
     private fun generic(name: String, bound: Type = Type.ANY): Type.Generic {

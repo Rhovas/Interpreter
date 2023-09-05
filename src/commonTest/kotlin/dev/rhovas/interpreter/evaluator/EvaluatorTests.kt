@@ -1018,7 +1018,7 @@ class EvaluatorTests: RhovasSpec() {
                     "Property" to Test("""
                         object.property
                     """.trimIndent()) {
-                        it.variables.define(variable("object", Type.STRUCT[Type.Struct(mapOf("property" to Variable.Declaration("property", Type.STRING)))], mapOf("property" to literal("property"))))
+                        it.variables.define(variable("object", Type.STRUCT[listOf("property" to Type.STRING)], mapOf("property" to literal("property"))))
                         literal("property")
                     },
                     "Coalesce" to Test("""

@@ -832,7 +832,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 ) }
                 properties[it.first] = visit(it.second, inference?.get(it.first)?.type)
             }
-            val type = Type.STRUCT[Type.Struct(properties.entries.associate { it.key to Variable.Declaration(it.key, it.value.type, true) })]
+            val type = Type.STRUCT[properties.map { it.key to it.value.type }, true]
             Pair(properties, type)
         }
         RhovasIr.Expression.Literal.Object(properties, type)
@@ -1259,7 +1259,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                         val type = remaining?.map { it.value.type }?.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
                         visit(it, type)
                     }
-                    val bindings = p?.bindings?.mapValues { b -> b.value.copy(type = remaining?.let { Type.STRUCT[Type.Struct(it.keys.associateWith { b.value.copy(name = it) })] } ?: Type.STRUCT.GENERIC) } ?: mapOf()
+                    val bindings = p?.bindings?.mapValues { b -> Variable.Declaration(b.key, remaining?.let { Type.STRUCT[it.keys.map { it to b.value.type }, b.value.mutable] } ?: Type.STRUCT.GENERIC, b.value.mutable) } ?: mapOf()
                     context.bindings.putAll(bindings)
                     RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
                 })
@@ -1411,7 +1411,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             val fields = ast.members.filterIsInstance<RhovasAst.Member.Property>().map { visit(it, component) }
             component.inherit(Type.STRUCT[Type.Struct(fields.associate { it.getter.name to Variable.Declaration(it.getter.name, it.getter.returns, it.setter != null) })])
             component.inherited.functions.define(Function.Definition(Function.Declaration("",
-                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[Type.Struct(fields.filter { it.ast.value == null }.associate { it.getter.name to Variable.Declaration(it.getter.name, it.getter.returns, false) })])),
+                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[fields.filter { it.ast.value == null }.map { it.getter.name to it.getter.returns }])),
                 returns = component.type,
             )))
             component.inherited.functions.define(Function.Definition(Function.Declaration("",
