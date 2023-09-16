@@ -14,8 +14,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     private var label: String? = null
     private lateinit var patternState: PatternState
-    private var stacktrace = ArrayDeque<StackFrame>().also {
-        it.addLast(StackFrame("Source", Input.Range(0, 1, 0, 0)))
+    private val stacktrace = ArrayDeque<StackFrame>().also {
+        it.addLast(StackFrame(null, "Source", Input.Range(0, 1, 0, 0)))
     }
 
     override fun visit(ir: RhovasIr.Source): Object {
@@ -186,7 +186,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Invalid property value type.",
             "The property ${receiver.type.component.name}.${method.name} requires the value to be type ${method.parameters[0].type}, but received ${value.type}.",
         ) }
-        trace("${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(listOf(value))
         }
         return Object(Type.VOID, Unit)
@@ -205,7 +205,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        trace("${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
         return Object(Type.VOID, Unit)
@@ -224,7 +224,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Statement.Match.Conditional): Object {
         val case = ir.cases.firstOrNull { visit(it.first).value as Boolean }
             ?: ir.elseCase?.also {
-                require(it.first == null || visit(it.first!!).value as Boolean) { error(ir.elseCase.first,
+                require(it.first == null || visit(it.first!!).value as Boolean) { error(it.first!!,
                     "Failed match else assertion.",
                     "A condition match statement requires the else condition to be true.",
                 ) }
@@ -243,7 +243,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
         val case = ir.cases.firstOrNull { predicate.invoke(it.first) }
             ?: ir.elseCase?.also {
-                require(predicate.invoke(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type)))) { error(ir.elseCase.first,
+                require(predicate.invoke(it.first ?: RhovasIr.Pattern.Variable(Variable.Declaration("_", argument.type)))) { error(it.first!!,
                     "Failed match else assertion.",
                     "A structural match statement requires the else pattern to match.",
                 ) }
@@ -464,7 +464,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Undefined method.",
             "The method op${ir.operator}() is not defined in ${expression.type.component.name}.",
         )
-        return trace("${expression.type.component.name}.${ir.operator}()", ir.context.firstOrNull()) {
+        return trace(ir, "${expression.type.component.name}.${ir.operator}()", ir.context.firstOrNull()) {
             method.invoke(listOf())
         }
     }
@@ -498,7 +498,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     "Invalid method argument type.",
                     "The method ${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].type}, but received ${right.type}."
                 ) }
-                val result = trace("${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+                val result = trace(ir, "${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right)).value as BigInteger
                 }
                 val value = when (ir.operator) {
@@ -516,7 +516,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type.component.name}.",
                 )
                 val right = visit(ir.right)
-                trace("${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+                trace(ir, "${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right))
                 }
             }
@@ -536,7 +536,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Undefined property.",
             "The property ${ir.property.name} is not defined in ${receiver.type.component.name}.",
         )
-        val returns = trace("${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val returns = trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, method.throws) { method.invoke(listOf()) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, false)
@@ -556,7 +556,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
     }
@@ -570,7 +570,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("${ir.type.component.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace(ir, "${ir.type.component.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             function.invoke(arguments)
         }
     }
@@ -584,7 +584,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace(ir, "Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
         }
     }
@@ -603,7 +603,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        val returns = trace("${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val returns = trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, method.throws) { method.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
@@ -620,7 +620,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.qualifier?.let { "$it." } ?: ""}${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        val returns = trace("Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val returns = trace(ir, "Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
@@ -812,10 +812,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
     }
 
-    private fun <T> trace(source: String, range: Input.Range?, block: () -> T): T {
+    private fun <T> trace(ir: RhovasIr, source: String, range: Input.Range?, block: () -> T): T {
         //TODO(#3): RhovasIr context
         stacktrace.addLast(stacktrace.removeLast().copy(range = range ?: Input.Range(0, 1, 0, 0)))
-        stacktrace.addLast(StackFrame(source, Input.Range(0, 1, 0, 0)))
+        stacktrace.addLast(StackFrame(ir, source, Input.Range(0, 1, 0, 0)))
         try {
             return block()
         } finally {
@@ -824,7 +824,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     fun require(condition: Boolean) {
-        require(condition) { error(null,
+        require(condition) { error(stacktrace.last().ir,
             "Broken evaluator invariant.", """
                 This is an internal compiler error, please report this!
 
@@ -839,8 +839,12 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
     }
 
-    fun error(ast: RhovasIr?, summary: String, details: String): EvaluateException {
-        val range = ast?.context?.first() ?: Input.Range(0, 1, 0, 0)
+    fun error(summary: String, details: String): EvaluateException {
+        return error(stacktrace.last().ir, summary, details)
+    }
+
+    fun error(ir: RhovasIr?, summary: String, details: String): EvaluateException {
+        val range = ir?.context?.first() ?: Input.Range(0, 1, 0, 0)
         stacktrace.addLast(stacktrace.removeLast().copy(range = range))
         return EvaluateException(
             summary,

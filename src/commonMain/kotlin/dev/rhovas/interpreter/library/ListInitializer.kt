@@ -1,7 +1,6 @@
 package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
@@ -48,7 +47,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf("index" to Type.INTEGER),
             returns = generic("T")
         ) { (instance, index): T2<List<Object>, BigInteger> ->
-            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
+            require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { error(
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
@@ -59,7 +58,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf("index" to Type.INTEGER, "value" to generic("T")),
             returns = Type.VOID,
         ) { (instance, index, value): T3<MutableList<Object>, BigInteger, Object> ->
-            EVALUATOR.require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
+            require(index >= BigInteger.ZERO && index < BigInteger.fromInt(instance.size)) { error(
                 "Invalid list index.",
                 "Expected an index in range [0, ${instance.size}), but received ${index}.",
             ) }
@@ -72,7 +71,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             returns = Type.LIST[generic("T")],
         ) { (instance, start): T2<List<Object>, BigInteger> ->
             val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
+            require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
@@ -84,11 +83,11 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             returns = Type.LIST[generic("T")],
         ) { (instance, start, end): T3<List<Object>, BigInteger, BigInteger> ->
             val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
+            require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.size)) { EVALUATOR.error(null,
+            require(end >= start && end <= BigInteger.fromInt(instance.size)) { error(
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.size}), but received ${end}.",
             ) }

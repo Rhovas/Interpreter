@@ -1,12 +1,10 @@
 package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.INTERPRETER
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
-import dev.rhovas.interpreter.evaluator.Evaluator
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")) {
@@ -64,7 +62,7 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
                     argument == null -> ""
                     argument.type.isSubtypeOf(Type.STRING) -> Regex.escape(argument.value as String)
                     argument.type.isSubtypeOf(Type.REGEX) -> (argument.value as Regex).pattern
-                    else -> throw EVALUATOR.error(null,
+                    else -> throw error(
                         "Invalid argument.",
                         "The native function #regex requires argument ${index} to be type String | Regex, but received ${argument.type}.",
                     )

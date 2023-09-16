@@ -1,12 +1,6 @@
 package dev.rhovas.interpreter.library
 
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
-import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.Quadruple
-import com.ionspin.kotlin.bignum.integer.Quintuple
-import com.ionspin.kotlin.bignum.integer.Sextuple
 import dev.rhovas.interpreter.EVALUATOR
-import dev.rhovas.interpreter.analyzer.rhovas.RhovasIr
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Modifiers
@@ -14,8 +8,7 @@ import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
 import dev.rhovas.interpreter.environment.Variable
-import dev.rhovas.interpreter.parser.rhovas.RhovasAst
-import kotlin.reflect.KClass
+import dev.rhovas.interpreter.evaluator.EvaluateException
 import kotlin.reflect.typeOf
 
 object Library {
@@ -99,8 +92,9 @@ object Library {
             crossinline implementation: Context.(T) -> Object,
         ) {
             val function = Function.Definition(Function.Declaration(name, modifiers, generics, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)) { arguments ->
+                val context = Context(arguments)
                 arguments.indices.forEach {
-                    EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { EVALUATOR.error(null,
+                    context.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { context.error(
                         "Invalid argument.",
                         "The native function ${component.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                     ) }
@@ -120,7 +114,7 @@ object Library {
                     T5::class -> T5(transform[0], transform[1], transform[2], transform[3], transform[4]) as T
                     else -> transform as T
                 }
-                implementation.invoke(Context(arguments), wrapper)
+                implementation.invoke(context, wrapper)
             }
             component.scope.functions.define(function)
             operator?.let { component.scope.functions.define(function, it) }
@@ -143,7 +137,12 @@ object Library {
 
         data class Context(
             val arguments: List<Object>,
-        )
+        ) {
+
+            fun require(condition: Boolean, error: () -> EvaluateException) = EVALUATOR.require(condition, error)
+            fun error(summary: String, details: String) = EVALUATOR.error(summary, details)
+
+        }
 
         data class T1<A>(val a: A)
         data class T2<A, B>(val a: A, val b: B)

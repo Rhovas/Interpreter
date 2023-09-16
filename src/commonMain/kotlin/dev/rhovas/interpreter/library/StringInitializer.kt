@@ -2,8 +2,6 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
-import com.ionspin.kotlin.bignum.integer.Quadruple
-import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
@@ -44,7 +42,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
             parameters = listOf("index" to Type.INTEGER),
             returns = Type.STRING,
         ) { (instance, index): T2<String, BigInteger> ->
-            EVALUATOR.require(index >= BigInteger.ZERO && index <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
+            require(index >= BigInteger.ZERO && index <= BigInteger.fromInt(instance.length)) { error(
                 "Invalid index.",
                 "Expected an index in range [0, ${instance.length}), but received ${index}.",
             ) }
@@ -55,7 +53,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
             parameters = listOf("start" to Type.INTEGER),
             returns = Type.STRING,
         ) { (instance, start): T2<String, BigInteger> ->
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
+            require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
             ) }
@@ -66,11 +64,11 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
             parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
             returns = Type.STRING,
         ) { (instance, start, end): T3<String, BigInteger, BigInteger> ->
-            EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
+            require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}], but received ${start}.",
             ) }
-            EVALUATOR.require(end >= start && end <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
+            require(end >= start && end <= BigInteger.fromInt(instance.length)) { error(
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.length}], but received ${end}.",
             ) }
@@ -163,7 +161,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
             parameters = listOf("type" to Type.TYPE[Type.INTEGER], "base" to Type.INTEGER),
             returns = Type.NULLABLE[Type.INTEGER],
         ) { (instance, _type, base): T3<String, Type, BigInteger> ->
-            EVALUATOR.require(base >= BigInteger.TWO && base <= BigInteger.fromInt(36)) { EVALUATOR.error(null,
+            require(base >= BigInteger.TWO && base <= BigInteger.fromInt(36)) { error(
                 "Invalid index.",
                 "Expected a base in range [2, 36], but received ${base}.",
             ) }
