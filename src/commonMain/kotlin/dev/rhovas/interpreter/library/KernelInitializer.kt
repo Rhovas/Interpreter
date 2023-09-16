@@ -6,6 +6,7 @@ import dev.rhovas.interpreter.INTERPRETER
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.evaluator.Evaluator
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")) {
@@ -14,22 +15,22 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
         function("input",
             parameters = listOf(),
             returns = Type.STRING,
-        ) {
+        ) { _: Unit ->
             Object(Type.STRING, INTERPRETER.stdin())
         }
 
         function("input",
             parameters = listOf("prompt" to Type.STRING),
             returns = Type.STRING,
-        ) { (prompt) ->
-            INTERPRETER.stdout(prompt.value as String)
+        ) { (prompt): T1<String> ->
+            INTERPRETER.stdout(prompt)
             Object(Type.STRING, INTERPRETER.stdin())
         }
 
         function("print",
             parameters = listOf("object" to Type.ANY),
             returns = Type.VOID,
-        ) { (obj) ->
+        ) { (obj): T1<Object> ->
             INTERPRETER.stdout(obj.methods.toString())
             Object(Type.VOID, null)
         }
@@ -37,10 +38,7 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
         function("range",
             parameters = listOf("lower" to Type.INTEGER, "upper" to Type.INTEGER, "bound" to Type.ATOM),
             returns = Type.LIST[Type.INTEGER],
-        ) { (lower, upper, bound) ->
-            val lower = lower.value as BigInteger
-            val upper = upper.value as BigInteger
-            val bound = bound.value as RhovasAst.Atom
+        ) { (lower, upper, bound): T3<BigInteger, BigInteger, RhovasAst.Atom> ->
             val start = if (bound.name in listOf("incl", "incl_excl")) lower else lower.add(BigInteger.ONE)
             val end = if (bound.name in listOf("incl", "excl_incl")) upper.add(BigInteger.ONE) else upper
             Object(Type.LIST[Type.INTEGER], generateSequence(start.takeIf { it < end }) {
@@ -52,16 +50,14 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
             generics = listOf(generic("T", Type.TUPLE.DYNAMIC), generic("R")),
             parameters = listOf("lambda" to Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC]),
             returns = Type.LAMBDA[generic("T"), generic("R"), Type.DYNAMIC],
-        ) { (lambda) ->
+        ) { (lambda): T1<Object> ->
             lambda
         }
 
         function("regex",
             parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST.DYNAMIC),
             returns = Type.REGEX,
-        ) { (literals, arguments) ->
-            val literals = literals.value as List<Object>
-            val arguments = arguments.value as List<Object>
+        ) { (literals, arguments): T2<List<Object>, List<Object>> ->
             val pattern = literals.zip(arguments + listOf(null)).mapIndexed { index, (literal, argument) ->
                 //TODO(#16): Union type for String | Regex
                 literal.value as String + when {

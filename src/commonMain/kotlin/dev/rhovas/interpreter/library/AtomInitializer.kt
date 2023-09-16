@@ -13,26 +13,23 @@ object AtomInitializer : Library.ComponentInitializer(Component.Class("Atom")) {
         inherits.add(Type.HASHABLE[Type.ATOM])
 
         method("name",
-            returns = Type.STRING
-        ) { (instance) ->
-            val instance = instance.value as RhovasAst.Atom
+            parameters = listOf(),
+            returns = Type.STRING,
+        ) { (instance): T1<RhovasAst.Atom> ->
             Object(Type.STRING, instance.name)
         }
 
         method("compare", operator = "<=>",
             parameters = listOf("other" to Type.ATOM),
             returns = Type.INTEGER,
-        ) { (instance, other) ->
-            val instance = instance.value as RhovasAst.Atom
-            val other = other.value as RhovasAst.Atom
+        ) { (instance, other): T2<RhovasAst.Atom, RhovasAst.Atom> ->
             Object(Type.INTEGER, BigInteger.fromInt(instance.name.compareTo(other.name)))
         }
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as RhovasAst.Atom
+        ) { (instance, _type): T2<RhovasAst.Atom, Type> ->
             Object(Type.STRING, ":${instance.name}")
         }
     }

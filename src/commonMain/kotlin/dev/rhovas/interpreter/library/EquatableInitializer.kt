@@ -16,7 +16,7 @@ object EquatableInitializer : Library.ComponentInitializer(Component.Interface("
             generics = listOf(generic("T", Type.EQUATABLE.DYNAMIC)),
             parameters = listOf("instance" to generic("T"), "other" to generic("T")),
             returns = Type.BOOLEAN,
-        ) { (instance, other) ->
+        ) { (instance, other): T2<Any?, Any?> ->
             fun equals(value: Any?, other: Any?): Boolean {
                 return when {
                     value is Object && other is Object -> value.methods.equals(other)
@@ -25,7 +25,7 @@ object EquatableInitializer : Library.ComponentInitializer(Component.Interface("
                     else -> value == other
                 }
             }
-            Object(Type.BOOLEAN, equals(instance.value, other.value))
+            Object(Type.BOOLEAN, equals(instance, other))
         }
     }
 

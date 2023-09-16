@@ -17,8 +17,8 @@ object HashableInitializer : Library.ComponentInitializer(Component.Interface("H
             generics = listOf(generic("T", Type.HASHABLE.DYNAMIC)),
             parameters = listOf("instance" to generic("T")),
             returns = Type.INTEGER,
-        ) { (instance) ->
-            Object(Type.INTEGER, BigInteger.fromInt(instance.value.hashCode()))
+        ) { (instance): T1<Any?> ->
+            Object(Type.INTEGER, BigInteger.fromInt(instance.hashCode()))
         }
     }
 

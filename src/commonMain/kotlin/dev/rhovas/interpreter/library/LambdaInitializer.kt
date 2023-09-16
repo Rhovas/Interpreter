@@ -17,18 +17,15 @@ object LambdaInitializer : Library.ComponentInitializer(Component.Class("Lambda"
             parameters = listOf("arguments" to generic("T", Type.TUPLE.DYNAMIC)),
             throws = listOf(generic("E", Type.EXCEPTION)),
             returns = generic("R"),
-        ) { (instance, arguments) ->
-            val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
-            val instance = instance.value as Evaluator.Lambda
-            val arguments = arguments.value as List<Object>
+        ) { (instance, arguments): T2<Evaluator.Lambda, List<Object>> ->
+            val returnsType = arguments[0].type.generic("R", Type.LAMBDA.GENERIC)!!
             instance.invoke(arguments, returnsType)
         }
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as Evaluator.Lambda
+        ) { (instance): T1<Evaluator.Lambda> ->
             Object(Type.STRING, "Lambda/${instance.ir.parameters.size}#${instance.hashCode()}")
         }
     }

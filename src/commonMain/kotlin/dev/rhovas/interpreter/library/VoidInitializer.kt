@@ -12,14 +12,14 @@ object VoidInitializer : Library.ComponentInitializer(Component.Class("Void")) {
         method("equals", operator = "==",
             parameters = listOf("other" to Type.VOID),
             returns = Type.BOOLEAN,
-        ) { (instance, other) ->
+        ) { (_instance, _other): T2<Unit, Unit> ->
             Object(Type.BOOLEAN, true)
         }
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
-        ) { (instance) ->
+        ) { (_instance, _type): T2<Unit, Type> ->
             Object(Type.STRING, "void")
         }
     }

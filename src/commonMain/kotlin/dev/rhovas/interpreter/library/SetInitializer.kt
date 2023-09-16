@@ -16,46 +16,44 @@ object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
             generics = listOf(generic("T")),
             parameters = listOf("initial" to Type.LIST[generic("T")]),
             returns = Type.SET[generic("T")],
-        ) { (initial) ->
-            val elementType = initial.type.generic("T", Type.LIST.GENERIC)!!
-            val initial = initial.value as List<Object>
+        ) { (initial): T1<List<Object>> ->
+            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
             Object(Type.SET[elementType], initial.map { Object.Hashable(it) }.toMutableSet())
         }
 
         method("size",
+            parameters = listOf(),
             returns = Type.INTEGER,
-        ) { (instance) ->
-            val instance = instance.value as Set<Object.Hashable>
+        ) { (instance): T1<Set<Object.Hashable>> ->
             Object(Type.INTEGER, BigInteger.fromInt(instance.size))
         }
 
         method("empty",
+            parameters = listOf(),
             returns = Type.BOOLEAN,
-        ) { (instance) ->
-            val instance = instance.value as Set<Object.Hashable>
+        ) { (instance): T1<Set<Object.Hashable>> ->
             Object(Type.BOOLEAN, instance.isEmpty())
         }
 
         method("contains", operator = "[]",
             parameters = listOf("element" to generic("T")),
             returns = Type.BOOLEAN,
-        ) { (instance, element) ->
-            val instance = instance.value as Set<Object.Hashable>
+        ) { (instance, element): T2<Set<Object.Hashable>, Object> ->
             Object(Type.BOOLEAN, instance.contains(Object.Hashable(element)))
         }
 
         method("add",
             parameters = listOf("element" to generic("T")),
-        ) { (instance, element) ->
-            val instance = instance.value as MutableSet<Object.Hashable>
+            returns = Type.VOID,
+        ) { (instance, element): T2<MutableSet<Object.Hashable>, Object> ->
             instance.add(Object.Hashable(element))
             Object(Type.VOID, Unit)
         }
 
         method("remove",
             parameters = listOf("element" to generic("T")),
-        ) { (instance, element) ->
-            val instance = instance.value as MutableSet<Object.Hashable>
+            returns = Type.VOID,
+        ) { (instance, element): T2<MutableSet<Object.Hashable>, Object> ->
             instance.remove(Object.Hashable(element))
             Object(Type.VOID, Unit)
         }
@@ -63,31 +61,22 @@ object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
         method("union",
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
-        ) { (instance, other) ->
-            val type = instance.type
-            val instance = instance.value as Set<Object.Hashable>
-            val other = other.value as Set<Object.Hashable>
-            Object(type, instance.union(other).toMutableSet())
+        ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
+            Object(arguments[0].type, instance.union(other).toMutableSet())
         }
 
         method("intersection",
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
-        ) { (instance, other) ->
-            val type = instance.type
-            val instance = instance.value as Set<Object.Hashable>
-            val other = other.value as Set<Object.Hashable>
-            Object(type, instance.intersect(other).toMutableSet())
+        ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
+            Object(arguments[0].type, instance.intersect(other).toMutableSet())
         }
 
         method("difference",
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
-        ) { (instance, other) ->
-            val type = instance.type
-            val instance = instance.value as Set<Object.Hashable>
-            val other = other.value as Set<Object.Hashable>
-            Object(type, instance.minus(other).toMutableSet())
+        ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
+            Object(arguments[0].type, instance.minus(other).toMutableSet())
         }
     }
 

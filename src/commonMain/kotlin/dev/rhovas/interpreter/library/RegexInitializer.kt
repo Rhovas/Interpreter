@@ -19,17 +19,14 @@ object RegexInitializer : Library.ComponentInitializer(Component.Class("Regex"))
         function("",
             parameters = listOf("regex" to Type.STRING),
             returns = Type.REGEX,
-        ) { (pattern) ->
-            val pattern = pattern.value as String
+        ) { (pattern): T1<String> ->
             Object(Type.REGEX, Regex(pattern))
         }
 
         method("match",
             parameters = listOf("value" to Type.STRING),
             returns = Type.LIST[MATCH_TYPE]
-        ) { (instance, value) ->
-            val instance = instance.value as Regex
-            val value = value.value as String
+        ) { (instance, value): T2<Regex, String> ->
             Object(Type.LIST[MATCH_TYPE], instance.findAll(value).toList().map {
                 Object(MATCH_TYPE, mapOf(
                     "index" to Object(Type.INTEGER, BigInteger.fromInt(it.range.first)),

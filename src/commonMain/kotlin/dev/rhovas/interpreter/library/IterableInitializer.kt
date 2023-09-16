@@ -14,19 +14,17 @@ object IterableInitializer : Library.ComponentInitializer(Component.Interface("I
 
         method("iterator",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
-            returns = Type.ITERATOR[generic("T")]
-        ) { (instance) ->
-            val elementType = instance.type.generic("T", Type.ITERABLE.GENERIC)!!
-            val instance = instance.value as Iterable<Object>
-            instance.asIterable()
+            parameters = listOf(),
+            returns = Type.ITERATOR[generic("T")],
+        ) { (instance): T1<Iterable<Object>> ->
+            val elementType = arguments[0].type.generic("T", Type.ITERABLE.GENERIC)!!
             Object(Type.ITERATOR[elementType], instance.iterator())
         }
 
         method("for",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], Type.VOID, Type.DYNAMIC]),
-        ) { (instance, lambda) ->
-            val instance = instance.value as List<Object>
-            val lambda = lambda.value as Evaluator.Lambda
+            returns = Type.VOID,
+        ) { (instance, lambda): T2<Iterable<Object>, Evaluator.Lambda> ->
             instance.forEach { lambda.invoke(listOf(it), Type.VOID) }
             Object(Type.VOID, Unit)
         }

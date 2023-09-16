@@ -17,9 +17,9 @@ object ComparableInitializer : Library.ComponentInitializer(Component.Interface(
             generics = listOf(generic("T", Type.COMPARABLE.DYNAMIC)),
             parameters = listOf("instance" to generic("T"), "other" to generic("T")),
             returns = Type.INTEGER,
-        ) { (instance, other) ->
-            require(instance.value is Comparable<*> && instance.value::class.isInstance(other.value))
-            val result = (instance.value as Comparable<Any?>).compareTo(other.value)
+        ) { (instance, other): T2<Any?, Any?> ->
+            require(instance is Comparable<*> && instance::class.isInstance(other))
+            val result = (instance as Comparable<Any?>).compareTo(other)
             Object(Type.INTEGER, BigInteger.fromInt(result))
         }
     }

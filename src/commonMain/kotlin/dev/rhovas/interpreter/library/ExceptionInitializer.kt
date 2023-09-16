@@ -13,15 +13,15 @@ object ExceptionInitializer : Library.ComponentInitializer(Component.Class("Exce
         function("",
             parameters = listOf("message" to Type.STRING),
             returns = Type.EXCEPTION,
-        ) { (message) ->
-            val message = message.value as String
+        ) { (message): T1<String> ->
             Object(Type.EXCEPTION, message)
         }
 
         method("message",
+            parameters = listOf(),
             returns = Type.STRING,
-        ) { (instance) ->
-            Object(Type.STRING, "${instance.value}")
+        ) { (instance): T1<String> ->
+            Object(Type.STRING, instance)
         }
     }
 

@@ -10,9 +10,9 @@ object BooleanInitializer : Library.ComponentInitializer(Component.Class("Boolea
         inherits.add(Type.HASHABLE[Type.BOOLEAN])
 
         method("negate", operator = "!",
+            parameters = listOf(),
             returns = Type.BOOLEAN,
-        ) { (instance) ->
-            val instance = instance.value as Boolean
+        ) { (instance): T1<Boolean> ->
             Object(Type.BOOLEAN, !instance)
         }
     }

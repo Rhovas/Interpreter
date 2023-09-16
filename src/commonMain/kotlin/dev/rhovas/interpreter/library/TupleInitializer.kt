@@ -15,8 +15,8 @@ object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple"))
             generics = listOf(generic("T", Type.TUPLE.DYNAMIC)),
             parameters = listOf("initial" to generic("T", Type.TUPLE.DYNAMIC)),
             returns = generic("T", Type.TUPLE.DYNAMIC),
-        ) { (initial) ->
-            Object(initial.type, (initial.value as List<Object>).toMutableList())
+        ) { (initial): T1<List<Object>> ->
+            Object(arguments[0].type, initial.toMutableList())
         }
     }
 

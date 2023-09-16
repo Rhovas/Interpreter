@@ -2,6 +2,7 @@ package dev.rhovas.interpreter.library
 
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import com.ionspin.kotlin.bignum.integer.Quadruple
 import dev.rhovas.interpreter.EVALUATOR
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
@@ -19,32 +20,30 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         inherits.add(Type.HASHABLE[Type.STRING])
 
         method("size",
+            parameters = listOf(),
             returns = Type.INTEGER,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.INTEGER, BigInteger.fromInt(instance.length))
         }
 
         method("empty",
+            parameters = listOf(),
             returns = Type.BOOLEAN,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.BOOLEAN, instance.isEmpty())
         }
 
         method("chars",
+            parameters = listOf(),
             returns = Type.LIST[Type.STRING],
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.LIST[Type.STRING], instance.toCharArray().map { Object(Type.STRING, it.toString()) })
         }
 
         method("get", "[]",
             parameters = listOf("index" to Type.INTEGER),
             returns = Type.STRING,
-        ) { (instance, index) ->
-            val instance = instance.value as String
-            val index = index.value as BigInteger
+        ) { (instance, index): T2<String, BigInteger> ->
             EVALUATOR.require(index >= BigInteger.ZERO && index <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected an index in range [0, ${instance.length}), but received ${index}.",
@@ -55,9 +54,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("slice",
             parameters = listOf("start" to Type.INTEGER),
             returns = Type.STRING,
-        ) { (instance, start) ->
-            val instance = instance.value as String
-            val start = start.value as BigInteger
+        ) { (instance, start): T2<String, BigInteger> ->
             EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}), but received ${start}.",
@@ -68,10 +65,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("slice", "[]",
             parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
             returns = Type.STRING,
-        ) { (instance, start, end) ->
-            val instance = instance.value as String
-            val start = start.value as BigInteger
-            val end = end.value as BigInteger
+        ) { (instance, start, end): T3<String, BigInteger, BigInteger> ->
             EVALUATOR.require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.length)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.length}], but received ${start}.",
@@ -86,27 +80,21 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("contains",
             parameters = listOf("other" to Type.STRING),
             returns = Type.BOOLEAN,
-        ) { (instance, other) ->
-            val instance = instance.value as String
-            val other = other.value as String
+        ) { (instance, other): T2<String, String> ->
             Object(Type.BOOLEAN, instance.contains(other))
         }
 
         method("matches",
             parameters = listOf("regex" to Type.REGEX),
             returns = Type.BOOLEAN,
-        ) { (instance, regex) ->
-            val instance = instance.value as String
-            val regex = regex.value as Regex
+        ) { (instance, regex): T2<String, Regex> ->
             Object(Type.BOOLEAN, instance.matches(regex))
         }
 
         method("indexOf",
             parameters = listOf("other" to Type.STRING),
             returns = Type.NULLABLE[Type.INTEGER],
-        ) { (instance, other) ->
-            val instance = instance.value as String
-            val other = other.value as String
+        ) { (instance, other): T2<String, String> ->
             val result = instance.indexOf(other).takeIf { it != -1 }?.let { BigInteger.fromInt(it) }
             Object(Type.NULLABLE[Type.INTEGER], result?.let { Pair(Object(Type.INTEGER, it), null) })
         }
@@ -114,66 +102,56 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("replace",
             parameters = listOf("original" to Type.STRING, "other" to Type.STRING),
             returns = Type.STRING,
-        ) { (instance, original, other) ->
-            val instance = instance.value as String
-            val original = original.value as String
-            val other = other.value as String
+        ) { (instance, original, other): T3<String, String, String> ->
             Object(Type.STRING, instance.replace(original, other))
         }
 
         method("concat", operator = "+",
             parameters = listOf("other" to Type.STRING),
             returns = Type.STRING,
-        ) { (instance, other) ->
-            val instance = instance.value as String
-            val other = other.value as String
+        ) { (instance, other): T2<String, String> ->
             Object(Type.STRING, instance + other)
         }
 
         method("repeat", operator = "*",
             parameters = listOf("times" to Type.INTEGER),
             returns = Type.STRING,
-        ) { (instance, times) ->
-            val instance = instance.value as String
-            val times = times.value as BigInteger
+        ) { (instance, times): T2<String, BigInteger> ->
             Object(Type.STRING, instance.repeat(times.intValue()))
         }
 
         method("reverse",
+            parameters = listOf(),
             returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.STRING, instance.reversed())
         }
 
         method("lowercase",
+            parameters = listOf(),
             returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.STRING, instance.lowercase())
         }
 
         method("uppercase",
+            parameters = listOf(),
             returns = Type.STRING,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance): T1<String> ->
             Object(Type.STRING, instance.uppercase())
         }
 
         method("split",
             parameters = listOf("other" to Type.STRING),
             returns = Type.LIST[Type.STRING]
-        ) { (instance, other) ->
-            val instance = instance.value as String
-            val other = other.value as String
+        ) { (instance, other): T2<String, String> ->
             Object(Type.LIST[Type.STRING], instance.split(other).map { Object(Type.STRING, it) })
         }
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.INTEGER]),
             returns = Type.NULLABLE[Type.INTEGER],
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance, _type): T2<String, Type> ->
             val result = try {
                 val lexer = RhovasLexer(Input("String.to(Integer)", instance))
                 lexer.lexToken()?.takeIf { it.type == RhovasTokenType.INTEGER && lexer.lexToken() == null }?.value as BigInteger?
@@ -184,9 +162,7 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.INTEGER], "base" to Type.INTEGER),
             returns = Type.NULLABLE[Type.INTEGER],
-        ) { (instance, _, base) ->
-            val instance = instance.value as String
-            val base = base.value as BigInteger
+        ) { (instance, _type, base): T3<String, Type, BigInteger> ->
             EVALUATOR.require(base >= BigInteger.TWO && base <= BigInteger.fromInt(36)) { EVALUATOR.error(null,
                 "Invalid index.",
                 "Expected a base in range [2, 36], but received ${base}.",
@@ -200,21 +176,19 @@ object StringInitializer : Library.ComponentInitializer(Component.Class("String"
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.DECIMAL]),
             returns = Type.NULLABLE[Type.DECIMAL],
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance, _type): T2<String, Type> ->
             val input = if (instance.contains(".")) instance else "${instance}.0"
             val result = try {
                 val lexer = RhovasLexer(Input("String.to(Decimal)", input))
                 lexer.lexToken()?.takeIf { it.type == RhovasTokenType.DECIMAL && lexer.lexToken() == null }?.value as BigDecimal?
             } catch (e: ParseException) { null }
-            Object(Type.NULLABLE[Type.INTEGER], result?.let { Pair(Object(Type.DECIMAL, it), null) })
+            Object(Type.NULLABLE[Type.DECIMAL], result?.let { Pair(Object(Type.DECIMAL, it), null) })
         }
 
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.ATOM]),
             returns = Type.ATOM,
-        ) { (instance) ->
-            val instance = instance.value as String
+        ) { (instance, _type): T2<String, Type> ->
             Object(Type.ATOM, RhovasAst.Atom(instance))
         }
     }
