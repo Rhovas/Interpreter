@@ -17,7 +17,7 @@ object ResultInitializer : Library.ComponentInitializer(Component.Class("Result"
             parameters = listOf(),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance): T1<Pair<Object?, Object?>?> ->
-            Object(Type.NULLABLE[instance?.first?.type ?: Type.DYNAMIC], instance?.first?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["T"]!!], instance?.first?.let { Pair(it, null) })
         }
 
         method("value!",
@@ -31,7 +31,7 @@ object ResultInitializer : Library.ComponentInitializer(Component.Class("Result"
             parameters = listOf(),
             returns = Type.NULLABLE[generic("E")],
         ) { (instance): T1<Pair<Object?, Object?>?> ->
-            Object(Type.NULLABLE[instance?.first?.type ?: Type.DYNAMIC], instance?.second?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["E"]!!], instance?.second?.let { Pair(it, null) })
         }
 
         method("map",
@@ -39,30 +39,28 @@ object ResultInitializer : Library.ComponentInitializer(Component.Class("Result"
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = Type.RESULT[generic("R"), generic("E")],
         ) { (instance, lambda): T2<Pair<Object?, Object?>?, Evaluator.Lambda> ->
-            val returnsType = arguments[1].type.generic("R", Type.LAMBDA.GENERIC)!!
             val value = instance?.takeIf { instance.first != null }?.let {
-                Pair(lambda.invoke(listOf(it.first!!), returnsType), null as Object?)
+                Pair(lambda.invoke(listOf(it.first!!), generics["R"]!!), null as Object?)
             }
-            Object(Type.RESULT[value?.first?.type ?: returnsType, value?.second?.type ?: Type.EXCEPTION], value)
+            Object(Type.RESULT[generics["R"]!!, generics["E"]!!], value)
         }
 
         method("or",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf()], Type.RESULT[generic("T"), generic("E")], Type.DYNAMIC]),
             returns = Type.RESULT[generic("T"), generic("E")],
         ) { (instance, lambda): T2<Pair<Object?, Object?>?, Evaluator.Lambda> ->
-            val returnsType = arguments[1].type.generic("R", Type.LAMBDA.GENERIC)!!
+            val returnsType = Type.RESULT[generics["T"]!!, generics["E"]!!]
             val value = instance?.takeIf { instance.first != null } ?: run {
                 lambda.invoke(listOf(), returnsType).value as Pair<Object?, Object?>?
             }
-            Object(Type.RESULT[value?.first?.type ?: Type.DYNAMIC, value?.second?.type ?: Type.EXCEPTION], value)
+            Object(returnsType, value)
         }
 
         method("else",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf()], generic("T"), Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda): T2<Pair<Object?, Object?>?, Evaluator.Lambda> ->
-            val returnsType = arguments[1].type.generic("R", Type.LAMBDA.GENERIC)!!
-            instance?.first ?: lambda.invoke(listOf(), returnsType)
+            instance?.first ?: lambda.invoke(listOf(), generics["T"]!!)
         }
 
         method("equals", operator = "==",
@@ -78,7 +76,7 @@ object ResultInitializer : Library.ComponentInitializer(Component.Class("Result"
         method("to",
             parameters = listOf("type" to Type.TYPE[Type.STRING]),
             returns = Type.STRING,
-        ) { (instance): T1<Pair<Object?, Object?>?> ->
+        ) { (instance, _type): T2<Pair<Object?, Object?>?, Type> ->
             when {
                 instance?.first != null -> Object(Type.STRING, instance.first!!.methods.toString())
                 instance?.second != null -> Object(Type.STRING, instance.second!!.methods.toString())

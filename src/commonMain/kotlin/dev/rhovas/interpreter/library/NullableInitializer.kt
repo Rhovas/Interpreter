@@ -15,7 +15,7 @@ object NullableInitializer : Library.ComponentInitializer(Component.Class("Nulla
             parameters = listOf("value" to generic("T")),
             returns = Type.NULLABLE[generic("T")],
         ) { (value): T1<Object> ->
-            Object(Type.NULLABLE[value.type], Pair(value, null))
+            Object(Type.NULLABLE[generics["T"]!!], Pair(value, null))
         }
     }
 

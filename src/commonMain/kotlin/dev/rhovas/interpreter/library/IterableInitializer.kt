@@ -17,8 +17,7 @@ object IterableInitializer : Library.ComponentInitializer(Component.Interface("I
             parameters = listOf(),
             returns = Type.ITERATOR[generic("T")],
         ) { (instance): T1<Iterable<Object>> ->
-            val elementType = arguments[0].type.generic("T", Type.ITERABLE.GENERIC)!!
-            Object(Type.ITERATOR[elementType], instance.iterator())
+            Object(Type.ITERATOR[generics["T"]!!], instance.iterator())
         }
 
         method("for",

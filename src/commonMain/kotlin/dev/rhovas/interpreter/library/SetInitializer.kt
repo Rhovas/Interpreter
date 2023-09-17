@@ -17,8 +17,7 @@ object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
             parameters = listOf("initial" to Type.LIST[generic("T")]),
             returns = Type.SET[generic("T")],
         ) { (initial): T1<List<Object>> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.SET[elementType], initial.map { Object.Hashable(it) }.toMutableSet())
+            Object(Type.SET[generics["T"]!!], initial.map { Object.Hashable(it) }.toMutableSet())
         }
 
         method("size",
@@ -62,21 +61,21 @@ object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
         ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
-            Object(arguments[0].type, instance.union(other).toMutableSet())
+            Object(Type.SET[generics["T"]!!], instance.union(other).toMutableSet())
         }
 
         method("intersection",
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
         ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
-            Object(arguments[0].type, instance.intersect(other).toMutableSet())
+            Object(Type.SET[generics["T"]!!], instance.intersect(other).toMutableSet())
         }
 
         method("difference",
             parameters = listOf("other" to Type.SET[generic("T")]),
             returns = Type.SET[generic("T")],
         ) { (instance, other): T2<Set<Object.Hashable>, Set<Object.Hashable>> ->
-            Object(arguments[0].type, instance.minus(other).toMutableSet())
+            Object(Type.SET[generics["T"]!!], instance.minus(other).toMutableSet())
         }
     }
 

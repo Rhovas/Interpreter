@@ -18,8 +18,7 @@ object LambdaInitializer : Library.ComponentInitializer(Component.Class("Lambda"
             throws = listOf(generic("E", Type.EXCEPTION)),
             returns = generic("R"),
         ) { (instance, arguments): T2<Evaluator.Lambda, List<Object>> ->
-            val returnsType = arguments[0].type.generic("R", Type.LAMBDA.GENERIC)!!
-            instance.invoke(arguments, returnsType)
+            instance.invoke(arguments, generics["R"]!!)
         }
 
         method("to",

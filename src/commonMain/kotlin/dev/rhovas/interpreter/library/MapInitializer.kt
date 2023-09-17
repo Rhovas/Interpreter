@@ -17,7 +17,7 @@ object MapInitializer : Library.ComponentInitializer(Component.Class("Map")) {
             parameters = listOf("initial" to Type.MAP[generic("K", Type.HASHABLE[generic("K")]), generic("V")]),
             returns = Type.MAP[generic("K", Type.HASHABLE[generic("K")]), generic("V")],
         ) { (initial): T1<Map<Object.Hashable, Object>> ->
-            Object(arguments[0].type, initial.toMutableMap())
+            Object(Type.MAP[generics["K"]!!, generics["V"]!!], initial.toMutableMap())
         }
 
         method("size",
@@ -38,25 +38,21 @@ object MapInitializer : Library.ComponentInitializer(Component.Class("Map")) {
             parameters = listOf(),
             returns = Type.SET[generic("K", Type.HASHABLE[generic("K")])],
         ) { (instance): T1<Map<Object.Hashable, Object>> ->
-            val keyType = arguments[0].type.generic("K", Type.SET.GENERIC)!!
-            Object(Type.SET[keyType], instance.keys)
+            Object(Type.SET[generics["K"]!!], instance.keys)
         }
 
         method("values",
             parameters = listOf(),
             returns = Type.LIST[generic("V")],
         ) { (instance): T1<Map<Object.Hashable, Object>> ->
-            val valueType = arguments[0].type.generic("V", Type.MAP.GENERIC)!!
-            Object(Type.LIST[valueType], instance.values.toList())
+            Object(Type.LIST[generics["V"]!!], instance.values.toList())
         }
 
         method("entries",
             parameters = listOf(),
             returns = Type.LIST[Type.TUPLE[listOf(generic("K", Type.HASHABLE[generic("K")]), generic("V"))]],
         ) { (instance): T1<Map<Object.Hashable, Object>> ->
-            val keyType = arguments[0].type.generic("K", Type.MAP.GENERIC)!!
-            val valueType = arguments[0].type.generic("V", Type.MAP.GENERIC)!!
-            val entryType = Type.TUPLE[listOf(keyType, valueType)]
+            val entryType = Type.TUPLE[listOf(generics["K"]!!, generics["V"]!!)]
             Object(Type.LIST[entryType], instance.entries.map { Object(entryType, listOf(it.key.instance, it.value)) })
         }
 
@@ -64,8 +60,7 @@ object MapInitializer : Library.ComponentInitializer(Component.Class("Map")) {
             parameters = listOf("key" to generic("K", Type.HASHABLE[generic("K")])),
             returns = Type.NULLABLE[generic("V")],
         ) { (instance, key): T2<Map<Object.Hashable, Object>, Object> ->
-            val valueType = arguments[0].type.generic("V", Type.MAP.GENERIC)!!
-            Object(Type.NULLABLE[valueType], instance[Object.Hashable(key)]?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["V"]!!], instance[Object.Hashable(key)]?.let { Pair(it, null) })
         }
 
         method("set", operator = "[]=",

@@ -24,7 +24,7 @@ object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modif
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda): T2<Object, Evaluator.Lambda> ->
             val result = instance.takeIf { lambda.invoke(listOf(instance), Type.BOOLEAN).value as Boolean }
-            Object(Type.NULLABLE[instance.type], result?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["T"]!!], result?.let { Pair(it, null) })
         }
 
         method("is",

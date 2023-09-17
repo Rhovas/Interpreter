@@ -17,7 +17,7 @@ object IteratorInitializer : Library.ComponentInitializer(Component.Class("Itera
             returns = Type.NULLABLE[generic("T")],
         ) { (instance): T1<Iterator<Object>> ->
             val result = if (instance.hasNext()) instance.next() else null
-            Object(Type.NULLABLE[result?.type ?: Type.DYNAMIC], result?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["T"]!!], result?.let { Pair(it, null) })
         }
     }
 

@@ -92,17 +92,21 @@ object Library {
             crossinline implementation: Context.(T) -> Object,
         ) {
             val function = Function.Definition(Function.Declaration(name, modifiers, generics, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)) { arguments ->
-                val context = Context(arguments)
-                arguments.indices.forEach {
-                    context.require(arguments[it].type.isSubtypeOf(parameters[it].second)) { context.error(
+                val generics = mutableMapOf<String, Type>()
+                val transform = arguments.indices.map {
+                    EVALUATOR.require(arguments[it].type.isSubtypeOf(parameters[it].second, generics)) { EVALUATOR.error(
                         "Invalid argument.",
                         "The native function ${component.name}.${name} requires argument ${it} to be type ${parameters[it].second}, but received ${arguments[it]}.",
                     ) }
+                    when (typeOf<T>().arguments[it].type?.classifier) {
+                        Object::class -> arguments[it]
+                        else -> arguments[it].value
+                    }
                 }
-                val transform = arguments.withIndex().map {
-                    when (typeOf<T>().arguments[it.index].type?.classifier) {
-                        Object::class -> it.value
-                        else -> it.value.value
+                generics.forEach {
+                    generics[it.key] = when (val type = it.value) {
+                        is Type.Variant -> type.upper ?: type.lower ?: Type.ANY
+                        else -> type
                     }
                 }
                 val wrapper = when (T::class) {
@@ -114,7 +118,12 @@ object Library {
                     T5::class -> T5(transform[0], transform[1], transform[2], transform[3], transform[4]) as T
                     else -> transform as T
                 }
-                implementation.invoke(context, wrapper)
+                val result = implementation.invoke(Context(arguments, generics), wrapper)
+                EVALUATOR.require(result.type.isSubtypeOf(returns, generics)) { EVALUATOR.error(
+                    "Invalid return value.",
+                    "The native function ${component.name}.${name} requires the value returned to be type ${returns}, but received ${result.type}.",
+                ) }
+                result
             }
             component.scope.functions.define(function)
             operator?.let { component.scope.functions.define(function, it) }
@@ -137,6 +146,7 @@ object Library {
 
         data class Context(
             val arguments: List<Object>,
+            val generics: Map<String, Type>,
         ) {
 
             fun require(condition: Boolean, error: () -> EvaluateException) = EVALUATOR.require(condition, error)

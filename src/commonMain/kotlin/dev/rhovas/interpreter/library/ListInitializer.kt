@@ -31,16 +31,14 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf(),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance): T1<List<Object>> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.NULLABLE[elementType], instance.firstOrNull()?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["T"]!!], instance.firstOrNull()?.let { Pair(it, null) })
         }
 
         method("last",
             parameters = listOf(),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance): T1<List<Object>> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.NULLABLE[elementType], instance.lastOrNull()?.let { Pair(it, null) })
+            Object(Type.NULLABLE[generics["T"]!!], instance.lastOrNull()?.let { Pair(it, null) })
         }
 
         method("get", operator = "[]",
@@ -70,19 +68,17 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf("start" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, start): T2<List<Object>, BigInteger> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
             require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
             ) }
-            Object(Type.LIST[elementType], instance.subList(start.intValue(), instance.size))
+            Object(Type.LIST[generics["T"]!!], instance.subList(start.intValue(), instance.size))
         }
 
         method("slice", "[]",
             parameters = listOf("start" to Type.INTEGER, "end" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, start, end): T3<List<Object>, BigInteger, BigInteger> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
             require(start >= BigInteger.ZERO && start <= BigInteger.fromInt(instance.size)) { error(
                 "Invalid index.",
                 "Expected a start index in range [0, ${instance.size}), but received ${start}.",
@@ -91,7 +87,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
                 "Invalid index.",
                 "Expected an end index in range [start = ${start}, ${instance.size}), but received ${end}.",
             ) }
-            Object(Type.LIST[elementType], instance.subList(start.intValue(), end.intValue()))
+            Object(Type.LIST[generics["T"]!!], instance.subList(start.intValue(), end.intValue()))
         }
 
         method("contains",
@@ -113,56 +109,50 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], Type.BOOLEAN, Type.DYNAMIC]),
             returns = generic("T"),
         ) { (instance, lambda): T2<List<Object>, Evaluator.Lambda> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.LIST[elementType], instance.find { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
+            Object(generics["T"]!!, instance.find { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
         }
 
         method("concat", operator = "+",
             parameters = listOf("other" to Type.LIST[generic("T")]),
             returns = Type.LIST[generic("T")],
         ) { (instance, other): T2<List<Object>, List<Object>> ->
-            Object(arguments[0].type, instance + other)
+            Object(Type.LIST[generics["T"]!!], instance + other)
         }
 
         method("repeat", operator = "*",
             parameters = listOf("times" to Type.INTEGER),
             returns = Type.LIST[generic("T")],
         ) { (instance, times): T2<List<Object>, BigInteger> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.LIST[elementType], (0 until times.intValue()).flatMap { instance })
+            Object(Type.LIST[generics["T"]!!], (0 until times.intValue()).flatMap { instance })
         }
 
         method("reverse",
             parameters = listOf(),
             returns = Type.LIST[generic("T")],
         ) { (instance): T1<List<Object>> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.LIST[elementType], instance.reversed())
+            Object(Type.LIST[generics["T"]!!], instance.reversed())
         }
 
         method("map",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = Type.LIST[generic("R")],
         ) { (instance, lambda): T2<List<Object>, Evaluator.Lambda> ->
-            val resultType = arguments[0].type.generic("R", Type.LAMBDA.GENERIC)!!
-            Object(Type.LIST[resultType], instance.map { lambda.invoke(listOf(it), resultType) })
+            Object(Type.LIST[generics["R"]!!], instance.map { lambda.invoke(listOf(it), generics["R"]!!) })
         }
 
         method("filter",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], Type.BOOLEAN, Type.DYNAMIC]),
             returns = Type.LIST[generic("T")],
         ) { (instance, lambda): T2<List<Object>, Evaluator.Lambda> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            Object(Type.LIST[elementType], instance.filter { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
+            Object(Type.LIST[generics["T"]!!], instance.filter { lambda.invoke(listOf(it), Type.BOOLEAN).value as Boolean })
         }
 
         method("reduce",
             parameters = listOf("lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"), generic("T"))], generic("T"), Type.DYNAMIC]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, lambda): T2<List<Object>, Evaluator.Lambda> ->
-            val elementType = arguments[0].type.generic("T", Type.LIST.GENERIC)!!
-            val result = instance.reduceOrNull { result, element -> lambda.invoke(listOf(result, element), elementType) }
-            Object(Type.NULLABLE[elementType], result?.let { Pair(it, null) })
+            val result = instance.reduceOrNull { result, element -> lambda.invoke(listOf(result, element), generics["T"]!!) }
+            Object(Type.NULLABLE[generics["T"]!!], result?.let { Pair(it, null) })
         }
 
         method("reduce",
@@ -170,8 +160,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
             parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"), generic("T"))], generic("T"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda): T3<List<Object>, Object, Evaluator.Lambda> ->
-            val resultType = arguments[0].type.generic("R", Type.LAMBDA.GENERIC)!!
-            instance.fold(initial) { result, element -> lambda.invoke(listOf(result, element), resultType) }
+            instance.fold(initial) { result, element -> lambda.invoke(listOf(result, element), generics["R"]!!) }
         }
     }
 
