@@ -9,6 +9,23 @@ sealed interface Function {
     val returns: Type
     val throws: List<Type>
 
+    /**
+     * Returns true if this function is resolved by [arguments], thus it can be
+     * invoked by arguments of that type. Bounds on generic types are stored in
+     * the given [generics] map for later use (such as with [bind]) and should
+     * only be considered meaningful if this method returns true.
+     */
+    fun isResolvedBy(arguments: List<Type>, generics: MutableMap<String, Type> = mutableMapOf()): Boolean {
+        val result = arguments.indices.all {
+            arguments[it].isSubtypeOf(parameters[it].type, generics)
+        }
+        generics.mapValuesTo(generics) { (_, type) ->
+            // Finalize variant type bounds between arguments after resolution is complete.
+            if (type is Type.Variant) type.upper ?: type.lower ?: Type.ANY else type
+        }
+        return result
+    }
+
     fun bind(generics: Map<String, Type>): Function
 
     /**

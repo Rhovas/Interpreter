@@ -50,15 +50,7 @@ sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
         operator fun get(name: String, arguments: List<Type>, current: Boolean = false): FO? {
             return get(name, arguments.size, current).firstNotNullOfOrNull { function ->
                 val generics = mutableMapOf<String, Type>()
-                function.takeIf {
-                    arguments.zip(function.parameters)
-                        .all { zip -> zip.first.isSubtypeOf(zip.second.type, generics) }
-                }?.bind(generics.mapValues {
-                    when (val type = it.value) {
-                        is Type.Variant -> type.upper ?: type.lower ?: Type.ANY
-                        else -> type
-                    }
-                }) as FO?
+                function.takeIf { it.isResolvedBy(arguments, generics) }?.bind(generics) as FO?
             }
         }
 
