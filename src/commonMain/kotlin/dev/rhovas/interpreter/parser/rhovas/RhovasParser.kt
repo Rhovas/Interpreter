@@ -84,6 +84,15 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         require(match(listOf("struct", "class", "interface")))
         val term = tokens[-1]!!.literal
         val name = parseIdentifier { "A component requires a name, as in `struct Name { ... }`." }
+        val generics = parseSequence("<", ",", ">") {
+            val name = parseIdentifier { "A component generic type declaration requires a name, as in `struct Name<T>() { ... }` or `struct Name<T: Bound> { ... }`." }
+            val type = if (match(":")) parseType() else null
+            require(peek(listOf(",", ">"))) { error(
+                "Expected closing angle bracket or comma.",
+                "A component generic type declaration must be followed by a closing angle bracket `>` or comma `,`, as in `struct Name<T>() { ... }` or `class Name<T: Bound> { ... }`.",
+            ) }
+            Pair(name, type)
+        } ?: listOf()
         val inherits = if (match(":")) {
             parseSequence(",") { parseType() }
         } else listOf()
@@ -93,9 +102,9 @@ class RhovasParser(input: Input) : Parser<RhovasTokenType>(RhovasLexer(input)) {
         ) }
         val members = parseSequence("{", null, "}") { parseMember() }!!
         when (term) {
-            "struct" -> RhovasAst.Component.Struct(modifiers, name, inherits, members)
-            "class" -> RhovasAst.Component.Class(modifiers, name, inherits, members)
-            "interface" -> RhovasAst.Component.Interface(modifiers, name, inherits, members)
+            "struct" -> RhovasAst.Component.Struct(modifiers, name, generics, inherits, members)
+            "class" -> RhovasAst.Component.Class(modifiers, name, generics, inherits, members)
+            "interface" -> RhovasAst.Component.Interface(modifiers, name, generics, inherits, members)
             else -> throw AssertionError()
         }
     }

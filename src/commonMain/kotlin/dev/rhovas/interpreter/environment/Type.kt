@@ -195,7 +195,7 @@ sealed class Type(
                     component.name == other.component.name -> Reference(component, generics.zip(other.generics).map { (type, other) -> type.unify(other, bindings) })
                     else -> {
                         var top = other
-                        while (!isSubtypeOf(top)) {
+                        while (!isSubtypeOf(top, bindings)) {
                             top = top.component.inherits.first().bind(component.generics.zip(generics).associate { Pair(it.first.name, it.second) })
                         }
                         top.unify(this, bindings)
@@ -268,8 +268,8 @@ sealed class Type(
             return when (other) {
                 is Tuple -> other.elements.withIndex().all { (index, other) ->
                     elements.getOrNull(index)?.let {
-                        val typeSubtype = it.type.isSubtypeOf(other.type)
-                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type)
+                        val typeSubtype = it.type.isSubtypeOf(other.type, bindings)
+                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
                         typeSubtype && mutableSubtype
                     } ?: false
                 }
@@ -336,8 +336,8 @@ sealed class Type(
             return when (other) {
                 is Struct -> other.fields.all { (key, other) ->
                     fields[key]?.let {
-                        val typeSubtype = it.type.isSubtypeOf(other.type)
-                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type)
+                        val typeSubtype = it.type.isSubtypeOf(other.type, bindings)
+                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
                         typeSubtype && mutableSubtype
                     } ?: false
                 }

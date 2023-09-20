@@ -112,6 +112,48 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         )),
                     ))
                 },
+                "Generic" to Test("""
+                    struct Name<T> {
+                        val field: T;
+                        val dummy: Integer = 1; //required for disjoint overloads with constructor
+                    }
+                    stmt(Name({field: 1}).field);
+                """.trimIndent()) {
+                    val component = Component.Struct("Name")
+                    component.generics.add(Type.Generic("T", Type.ANY))
+                    component.inherit(Type.STRUCT[listOf("field" to Type.Generic("T", Type.ANY), "dummy" to Type.INTEGER)])
+                    component.scope.functions.define(Function.Definition(Function.Declaration("",
+                        generics = component.generics,
+                        parameters = listOf(Variable.Declaration("fields", Type.STRUCT[listOf("field" to Type.Generic("T", Type.ANY))])),
+                        returns = component.type,
+                    )))
+                    component.scope.functions.define(Function.Definition(Function.Declaration("field",
+                        generics = component.generics,
+                        parameters = listOf(Variable.Declaration("this", component.type)),
+                        returns = Type.Generic("T", Type.ANY),
+                    )))
+                    component.scope.functions.define(Function.Definition(Function.Declaration("dummy",
+                        generics = component.generics,
+                        parameters = listOf(Variable.Declaration("this", component.type)),
+                        returns = Type.INTEGER,
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Struct(component, listOf(), listOf(
+                            RhovasIr.Member.Property(component.type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                            RhovasIr.Member.Property(component.type.properties["dummy"]!!.getter.function as Function.Definition, null, RhovasIr.Expression.Literal.Scalar(BigInteger.parseString("1"), Type.INTEGER)),
+                        ))),
+                        stmt(RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                component.type,
+                                component.type.functions["", listOf(component.inherits[0].bind(mapOf("T" to Type.INTEGER)))]!!,
+                                listOf(RhovasIr.Expression.Literal.Object(mapOf("field" to literal(BigInteger.parseString("1"))), Type.STRUCT[listOf("field" to Type.INTEGER), true])),
+                                component.type.bind(mapOf("T" to Type.INTEGER)),
+                            ),
+                            component.type.bind(mapOf("T" to Type.INTEGER)).properties["field"]!!,
+                            false, false, Type.INTEGER,
+                        )),
+                    ))
+                },
                 "Field" to Test("""
                     struct Name { val field: Integer; }
                     stmt(Name({field: 1}).field);
@@ -225,6 +267,45 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     component.inherit(Type.ANY)
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Class(component, null, listOf(), listOf())),
+                    ))
+                },
+                "Generic" to Test("""
+                    class Name<T> {
+                        val field: T;
+                        init(field: T) { this { field }; }
+                    }
+                    stmt(Name(1).field);
+                """.trimIndent()) {
+                    val component = Component.Class("Name")
+                    component.generics.add(Type.Generic("T", Type.ANY))
+                    component.inherit(Type.ANY)
+                    component.scope.functions.define(Function.Definition(Function.Declaration("",
+                        generics = component.generics,
+                        parameters = listOf(Variable.Declaration("field", Type.Generic("T", Type.ANY))),
+                        returns = component.type,
+                    )))
+                    component.scope.functions.define(Function.Definition(Function.Declaration("field",
+                        generics = component.generics,
+                        parameters = listOf(Variable.Declaration("this", component.type)),
+                        returns = Type.Generic("T", Type.ANY),
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(component, null, listOf(), listOf(
+                            RhovasIr.Member.Property(component.type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                            RhovasIr.Member.Initializer(component.type.functions["", listOf(Type.Generic("T", Type.ANY))]!! as Function.Definition, block(
+                                RhovasIr.Statement.Initializer("this", null, listOf(), RhovasIr.Expression.Literal.Object(mapOf("field" to variable("field", Type.Generic("T", Type.ANY))), Type.STRUCT[listOf("field" to Type.Generic("T", Type.ANY)), true])),
+                            )),
+                        ))),
+                        stmt(RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                component.type,
+                                component.type.functions["", listOf(Type.INTEGER)]!!,
+                                listOf(literal(BigInteger.parseString("1"))),
+                                component.type.bind(mapOf("T" to Type.INTEGER)),
+                            ),
+                            component.type.bind(mapOf("T" to Type.INTEGER)).properties["field"]!!,
+                            false, false, Type.INTEGER,
+                        )),
                     ))
                 },
                 "Extends Field" to Test("""
@@ -398,6 +479,60 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     component.inherit(Type.ANY)
                     RhovasIr.Source(listOf(), listOf(
                         RhovasIr.Statement.Component(RhovasIr.Component.Interface(component, listOf(), listOf())),
+                    ))
+                },
+                "Generic" to Test("""
+                    interface Parent<T> {
+                        val field: T;
+                    }
+                    class Child<T>: Parent<T> {
+                        override val field: T;
+                        init(field: T) { this { field }; }
+                    }
+                    stmt(Child(1).field);
+                """.trimIndent()) {
+                    val parent = Component.Interface("Parent")
+                    parent.inherit(Type.ANY)
+                    parent.generics.add(Type.Generic("T", Type.ANY))
+                    parent.scope.functions.define(Function.Definition(Function.Declaration("field",
+                        generics = parent.generics,
+                        parameters = listOf(Variable.Declaration("this", parent.type)),
+                        returns = Type.Generic("T", Type.ANY),
+                    )))
+                    val child = Component.Class("Child")
+                    child.inherit(Type.ANY)
+                    child.inherit(parent.type)
+                    child.generics.add(Type.Generic("T", Type.ANY))
+                    child.scope.functions.define(Function.Definition(Function.Declaration("",
+                        generics = child.generics,
+                        parameters = listOf(Variable.Declaration("field", Type.Generic("T", Type.ANY))),
+                        returns = child.type,
+                    )))
+                    child.scope.functions.define(Function.Definition(Function.Declaration("field",
+                        generics = child.generics,
+                        parameters = listOf(Variable.Declaration("this", child.type)),
+                        returns = Type.Generic("T", Type.ANY),
+                    )))
+                    RhovasIr.Source(listOf(), listOf(
+                        RhovasIr.Statement.Component(RhovasIr.Component.Interface(parent, listOf(), listOf(
+                            RhovasIr.Member.Property(parent.type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                        ))),
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(child, null, listOf(parent.type), listOf(
+                            RhovasIr.Member.Property(child.type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                            RhovasIr.Member.Initializer(child.type.functions["", listOf(Type.Generic("T", Type.ANY))]!! as Function.Definition, block(
+                                RhovasIr.Statement.Initializer("this", null, listOf(), RhovasIr.Expression.Literal.Object(mapOf("field" to variable("field", Type.Generic("T", Type.ANY))), Type.STRUCT[listOf("field" to Type.Generic("T", Type.ANY)), true])),
+                            )),
+                        ))),
+                        stmt(RhovasIr.Expression.Access.Property(
+                            RhovasIr.Expression.Invoke.Constructor(
+                                child.type,
+                                child.type.functions["", listOf(Type.INTEGER)]!!,
+                                listOf(literal(BigInteger.parseString("1"))),
+                                child.type.bind(mapOf("T" to Type.INTEGER)),
+                            ),
+                            child.type.bind(mapOf("T" to Type.INTEGER)).properties["field"]!!,
+                            false, false, Type.INTEGER,
+                        )),
                     ))
                 },
                 "Implements" to Test("""

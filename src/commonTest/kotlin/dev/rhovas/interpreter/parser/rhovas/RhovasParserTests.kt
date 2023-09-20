@@ -93,32 +93,47 @@ class RhovasParserTests: RhovasSpec() {
             "Modifiers" to Test("""
                 virtual struct Name {}
             """.trimIndent()) {
-                RhovasAst.Component.Struct(Modifiers(Modifiers.Inheritance.VIRTUAL), "Name", listOf(), listOf())
+                RhovasAst.Component.Struct(Modifiers(Modifiers.Inheritance.VIRTUAL), "Name", listOf(), listOf(), listOf())
             },
             "Struct" to Test("""
                 struct Name {}
             """.trimIndent()) {
-                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf())
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(), listOf())
             },
             "Class" to Test("""
                 class Name {}
             """.trimIndent()) {
-                RhovasAst.Component.Class(Modifiers(), "Name", listOf(), listOf())
+                RhovasAst.Component.Class(Modifiers(), "Name", listOf(), listOf(), listOf())
             },
             "Interface" to Test("""
                 interface Name {}
             """.trimIndent()) {
-                RhovasAst.Component.Interface(Modifiers(), "Name", listOf(), listOf())
+                RhovasAst.Component.Interface(Modifiers(), "Name", listOf(), listOf(), listOf())
+            },
+            "Generics Single" to Test("""
+                struct Name<Type> {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf("Type" to null), listOf(), listOf())
+            },
+            "Generics Multiple" to Test("""
+                struct Name<First, Second, Third> {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf("First" to null, "Second" to null, "Third" to null), listOf(), listOf())
+            },
+            "Generics Bound" to Test("""
+                struct Name<Type: Bound> {}
+            """.trimIndent()) {
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf("Type" to type("Bound")), listOf(), listOf())
             },
             "Inherits Single" to Test("""
                 struct Name: Type {}
             """.trimIndent()) {
-                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(type("Type")), listOf())
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(type("Type")), listOf())
             },
             "Inherits Multiple" to Test("""
                 struct Name: First, Second, Third {}
             """.trimIndent()) {
-                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(type("First"), type("Second"), type("Third")), listOf())
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(type("First"), type("Second"), type("Third")), listOf())
             },
             "Members" to Test("""
                 struct Name {
@@ -127,7 +142,7 @@ class RhovasParserTests: RhovasSpec() {
                     func name() {}
                 }
             """.trimIndent()) {
-                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(
+                RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(), listOf(
                     RhovasAst.Member.Property(Modifiers(),false, "name", type("Type"), null),
                     RhovasAst.Member.Initializer(Modifiers(), listOf(), null, listOf(), block()),
                     RhovasAst.Member.Method(Modifiers(), RhovasAst.Statement.Declaration.Function(null, "name", listOf(), listOf(), null, listOf(), block())),
@@ -135,6 +150,15 @@ class RhovasParserTests: RhovasSpec() {
             },
             "Missing Name" to Test("""
                 struct {}
+            """.trimIndent(), null),
+            "Missing Generic Name" to Test("""
+                struct Name<: Bound> {}
+            """.trimIndent(), null),
+            "Missing Generic Bound" to Test("""
+                struct Name<T: > {}
+            """.trimIndent(), null),
+            "Missing Generic Separator" to Test("""
+                struct Name<First Second> {}
             """.trimIndent(), null),
             "Missing Inherits" to Test("""
                 struct Name: {}
@@ -326,7 +350,7 @@ class RhovasParserTests: RhovasSpec() {
                 "Struct" to Test("""
                     struct Name {}
                 """.trimIndent()) {
-                    RhovasAst.Statement.Component(RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf()))
+                    RhovasAst.Statement.Component(RhovasAst.Component.Struct(Modifiers(), "Name", listOf(), listOf(), listOf()))
                 },
             )) { test("statement", it.source, it.expected) }
 

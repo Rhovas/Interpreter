@@ -25,6 +25,7 @@ sealed class RhovasAst {
         data class Struct(
             val modifiers: Modifiers,
             val name: String,
+            val generics: List<Pair<String, Type?>>,
             val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
@@ -32,6 +33,7 @@ sealed class RhovasAst {
         data class Class(
             val modifiers: Modifiers,
             val name: String,
+            val generics: List<Pair<String, Type?>>,
             val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
@@ -39,6 +41,7 @@ sealed class RhovasAst {
         data class Interface(
             val modifiers: Modifiers,
             val name: String,
+            val generics: List<Pair<String, Type?>>,
             val inherits: List<Type>,
             val members: List<Member>,
         ) : Component()
