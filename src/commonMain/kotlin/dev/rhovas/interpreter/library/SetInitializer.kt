@@ -7,11 +7,13 @@ import dev.rhovas.interpreter.environment.Type
 
 object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
         inherits.add(Type.EQUATABLE[Type.SET.DYNAMIC])
+    }
 
+    override fun define() {
         function("",
             generics = listOf(generic("T")),
             parameters = listOf("initial" to Type.LIST[generic("T")]),

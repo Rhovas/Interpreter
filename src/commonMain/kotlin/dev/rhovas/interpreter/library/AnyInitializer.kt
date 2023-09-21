@@ -8,7 +8,9 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 
 object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modifiers(Modifiers.Inheritance.ABSTRACT))) {
 
-    override fun initialize() {
+    override fun declare() {}
+
+    override fun define() {
         function("do",
             generics = listOf(generic("T"), generic("R")),
             parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),

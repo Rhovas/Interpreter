@@ -6,9 +6,11 @@ import dev.rhovas.interpreter.environment.Type
 
 object VoidInitializer : Library.ComponentInitializer(Component.Class("Void")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.HASHABLE[Type.VOID])
+    }
 
+    override fun define() {
         method("equals", operator = "==",
             parameters = listOf("other" to Type.VOID),
             returns = Type.BOOLEAN,

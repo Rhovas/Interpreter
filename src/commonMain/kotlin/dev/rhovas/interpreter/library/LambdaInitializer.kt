@@ -7,12 +7,14 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 
 object LambdaInitializer : Library.ComponentInitializer(Component.Class("Lambda")) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T", Type.TUPLE.DYNAMIC))
         generics.add(generic("R"))
         generics.add(generic("E", Type.EXCEPTION))
         inherits.add(Type.ANY)
+    }
 
+    override fun define() {
         method("invoke",
             parameters = listOf("arguments" to generic("T", Type.TUPLE.DYNAMIC)),
             throws = listOf(generic("E", Type.EXCEPTION)),

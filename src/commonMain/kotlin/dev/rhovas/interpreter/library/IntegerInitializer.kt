@@ -8,10 +8,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object IntegerInitializer : Library.ComponentInitializer(Component.Class("Integer")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.COMPARABLE[Type.INTEGER])
         inherits.add(Type.HASHABLE[Type.INTEGER])
+    }
 
+    override fun define() {
         method("abs",
             parameters = listOf(),
             returns = Type.INTEGER,

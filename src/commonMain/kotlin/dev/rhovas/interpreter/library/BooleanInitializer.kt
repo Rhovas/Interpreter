@@ -6,9 +6,11 @@ import dev.rhovas.interpreter.environment.Type
 
 object BooleanInitializer : Library.ComponentInitializer(Component.Class("Boolean")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.HASHABLE[Type.BOOLEAN])
+    }
 
+    override fun define() {
         method("negate", operator = "!",
             parameters = listOf(),
             returns = Type.BOOLEAN,

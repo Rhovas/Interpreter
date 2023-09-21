@@ -7,10 +7,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object IteratorInitializer : Library.ComponentInitializer(Component.Class("Iterator", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.ANY)
+    }
 
+    override fun define() {
         method("next",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
             parameters = listOf(),

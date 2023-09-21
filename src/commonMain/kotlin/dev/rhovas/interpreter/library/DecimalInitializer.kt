@@ -10,10 +10,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object DecimalInitializer : Library.ComponentInitializer(Component.Class("Decimal")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.COMPARABLE[Type.DECIMAL])
         inherits.add(Type.HASHABLE[Type.DECIMAL])
+    }
 
+    override fun define() {
         method("abs",
             parameters = listOf(),
             returns = Type.DECIMAL,

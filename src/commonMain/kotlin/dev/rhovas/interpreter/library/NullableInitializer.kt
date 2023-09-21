@@ -6,10 +6,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object NullableInitializer : Library.ComponentInitializer(Component.Class("Nullable")) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.RESULT[generic("T"), Type.EXCEPTION])
+    }
 
+    override fun define() {
         function("",
             generics = listOf(generic("T")),
             parameters = listOf("value" to generic("T")),

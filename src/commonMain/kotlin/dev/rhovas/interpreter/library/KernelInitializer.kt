@@ -9,7 +9,9 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")) {
 
-    override fun initialize() {
+    override fun declare() {}
+
+    override fun define() {
         function("input",
             parameters = listOf(),
             returns = Type.STRING,

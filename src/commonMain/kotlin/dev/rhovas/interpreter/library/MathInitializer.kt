@@ -10,7 +10,9 @@ import kotlin.random.Random
 
 object MathInitializer : Library.ComponentInitializer(Component.Class("Math")) {
 
-    override fun initialize() {
+    override fun declare() {}
+
+    override fun define() {
         variable("pi", Type.DECIMAL, BigDecimal.fromDouble(kotlin.math.PI))
         variable("e", Type.DECIMAL, BigDecimal.fromDouble(kotlin.math.E))
 

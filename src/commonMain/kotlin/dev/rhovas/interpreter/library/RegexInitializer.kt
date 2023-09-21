@@ -13,9 +13,11 @@ object RegexInitializer : Library.ComponentInitializer(Component.Class("Regex"))
         "groups" to Type.LIST[Type.NULLABLE[Type.STRING]],
     )]
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.ANY)
+    }
 
+    override fun define() {
         function("",
             parameters = listOf("regex" to Type.STRING),
             returns = Type.REGEX,

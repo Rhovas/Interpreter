@@ -4,6 +4,8 @@ import dev.rhovas.interpreter.environment.Component
 
 object DynamicInitializer : Library.ComponentInitializer(Component.Interface("Dynamic")) {
 
-    override fun initialize() {}
+    override fun declare() {}
+
+    override fun define() {}
 
 }

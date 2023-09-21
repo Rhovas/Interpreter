@@ -13,10 +13,12 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasTokenType
 
 object StringInitializer : Library.ComponentInitializer(Component.Class("String")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.COMPARABLE[Type.STRING])
         inherits.add(Type.HASHABLE[Type.STRING])
+    }
 
+    override fun define() {
         method("size",
             parameters = listOf(),
             returns = Type.INTEGER,

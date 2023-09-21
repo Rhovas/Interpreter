@@ -5,9 +5,9 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
     val modifiers: Modifiers,
 ) {
 
-    val generics: MutableList<Type.Generic> = mutableListOf()
+    val generics: LinkedHashMap<String, Type.Generic> = linkedMapOf()
     val inherits: MutableList<Type> = mutableListOf()
-    val type = Type.Reference(this, generics)
+    val type get() = Type.Reference(this, generics.values.toList())
 
     val inherited = Scope.Declaration(null)
     val scope: S = when (modifiers.inheritance) {
@@ -25,7 +25,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
         type.component.scope.functions.collect()
             .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
             .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false }
-            .map { (name, function) -> Pair(name, function.bind(type.component.generics.zip(type.generics).associate { it.first.name to it.second })) }
+            .map { (name, function) -> Pair(name, function.bind(type.component.generics.keys.zip(type.generics).associate { it.first to it.second })) }
             .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
             .forEach { (name, function) ->
                 //require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)

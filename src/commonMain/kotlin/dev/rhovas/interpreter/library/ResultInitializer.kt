@@ -8,11 +8,13 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 
 object ResultInitializer : Library.ComponentInitializer(Component.Class("Result", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T"))
         generics.add(generic("E"))
         inherits.add(Type.HASHABLE[Type.RESULT[Type.EQUATABLE[generic("T", Type.EQUATABLE[generic("T")])], Type.EQUATABLE[generic("E", Type.EQUATABLE[generic("E")])]]])
+    }
 
+    override fun define() {
         method("value",
             parameters = listOf(),
             returns = Type.NULLABLE[generic("T")],

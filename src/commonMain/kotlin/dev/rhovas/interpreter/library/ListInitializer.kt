@@ -8,11 +8,13 @@ import dev.rhovas.interpreter.evaluator.Evaluator
 
 object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
         inherits.add(Type.EQUATABLE[Type.LIST.DYNAMIC])
+    }
 
+    override fun define() {
         method("size",
             parameters = listOf(),
             returns = Type.INTEGER,

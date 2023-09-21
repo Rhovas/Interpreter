@@ -17,6 +17,9 @@ object Library {
     val TYPES get() = SCOPE.types
 
     init {
+        // This list is intended to be in initialization order following DAG
+        // requirements for inheritance (aka, no type should inherit from a type
+        // defined later in the initialization order).
         val initializers = listOf(
             DynamicInitializer,
             AnyInitializer,
@@ -36,22 +39,29 @@ object Library {
             SetInitializer,
             MapInitializer,
             StructInitializer,
-            LambdaInitializer,
             TypeInitializer,
             ExceptionInitializer,
             ResultInitializer,
             NullableInitializer,
+            LambdaInitializer,
             RegexInitializer,
             KernelInitializer,
             MathInitializer,
         )
         initializers.forEach { initializer ->
-            TYPES.define(initializer.component.type)
+            // Hack to work around initialization issues with generics. Types
+            // need to be defined prior to generics being initialized, hence
+            // using a manual Type.Reference with initializer.generics allows
+            // later mutations to apply to the defined type.
+            TYPES.define(Type.Reference(initializer.component, initializer.generics))
         }
         initializers.forEach { initializer ->
-            initializer.initialize()
-            initializer.component.generics.addAll(initializer.generics)
+            initializer.declare()
+            initializer.generics.associateByTo(initializer.component.generics) { it.name }
+        }
+        initializers.forEach { initializer ->
             initializer.inherits.forEach { initializer.component.inherit(it) }
+            initializer.define()
         }
         (KernelInitializer.component.scope as Scope.Definition).functions.collect().values.flatten().forEach {
             SCOPE.functions.define(it)
@@ -70,7 +80,9 @@ object Library {
         val generics = mutableListOf<Type.Generic>()
         val inherits = mutableListOf<Type.Reference>()
 
-        abstract fun initialize()
+        abstract fun declare()
+
+        abstract fun define()
 
         fun variable(
             name: String,
@@ -91,7 +103,7 @@ object Library {
             throws: List<Type> = listOf(),
             crossinline implementation: Context.(T) -> Object,
         ) {
-            val declaration = Function.Declaration(name, modifiers, generics, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)
+            val declaration = Function.Declaration(name, modifiers, generics.associateByTo(linkedMapOf()) { it.name }, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)
             val function = Function.Definition(declaration) { arguments ->
                 val generics = mutableMapOf<String, Type>()
                 EVALUATOR.require(declaration.isResolvedBy(arguments.map { it.type }, generics))

@@ -120,7 +120,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     stmt(Name({field: 1}).field);
                 """.trimIndent()) {
                     val component = Component.Struct("Name")
-                    component.generics.add(Type.Generic("T", Type.ANY))
+                    component.generics["T"] = Type.Generic("T", Type.ANY)
                     component.inherit(Type.STRUCT[listOf("field" to Type.Generic("T", Type.ANY), "dummy" to Type.INTEGER)])
                     component.scope.functions.define(Function.Definition(Function.Declaration("",
                         generics = component.generics,
@@ -248,6 +248,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     struct Name {}
                     struct Name {}
                 """.trimIndent(), null),
+                "Redefined Generic" to Test("""
+                    struct Name<T, T> {}
+                """.trimIndent(), null),
                 "Invalid Modifier" to Test("""
                     virtual interface Name {}
                 """.trimIndent(), null),
@@ -277,7 +280,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     stmt(Name(1).field);
                 """.trimIndent()) {
                     val component = Component.Class("Name")
-                    component.generics.add(Type.Generic("T", Type.ANY))
+                    component.generics["T"] = Type.Generic("T", Type.ANY)
                     component.inherit(Type.ANY)
                     component.scope.functions.define(Function.Definition(Function.Declaration("",
                         generics = component.generics,
@@ -452,6 +455,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     class Name {}
                     class Name {}
                 """.trimIndent(), null),
+                "Redefined Generic" to Test("""
+                    class Name<T, T> {}
+                """.trimIndent(), null),
                 "Invalid Extends" to Test("""
                     class Parent {}
                     class Child: Parent {}
@@ -493,7 +499,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 """.trimIndent()) {
                     val parent = Component.Interface("Parent")
                     parent.inherit(Type.ANY)
-                    parent.generics.add(Type.Generic("T", Type.ANY))
+                    parent.generics["T"] = Type.Generic("T", Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration("field",
                         generics = parent.generics,
                         parameters = listOf(Variable.Declaration("this", parent.type)),
@@ -502,7 +508,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     val child = Component.Class("Child")
                     child.inherit(Type.ANY)
                     child.inherit(parent.type)
-                    child.generics.add(Type.Generic("T", Type.ANY))
+                    child.generics["T"] = Type.Generic("T", Type.ANY)
                     child.scope.functions.define(Function.Definition(Function.Declaration("",
                         generics = child.generics,
                         parameters = listOf(Variable.Declaration("field", Type.Generic("T", Type.ANY))),
@@ -600,6 +606,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Redefined" to Test("""
                     interface Name {}
                     interface Name {}
+                """.trimIndent(), null),
+                "Redefined Generic" to Test("""
+                    interface Name<T, T> {}
                 """.trimIndent(), null),
                 "Invalid Modifier" to Test("""
                     virtual interface Name {}
@@ -1228,7 +1237,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         val listT = Type.LIST[Type.Generic("T", Type.ANY)]
                         RhovasIr.Statement.Declaration.Function(
                             Function.Declaration("first",
-                                generics = listOf(Type.Generic("T", Type.ANY)),
+                                generics = linkedMapOf("T" to Type.Generic("T", Type.ANY)),
                                 parameters = listOf(Variable.Declaration("list", listT)),
                                 returns = Type.Generic("T", Type.ANY),
                             ),
@@ -1243,6 +1252,9 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     },
                     "Invalid Operator Overload" to Test("""
                         func op+ add() {}
+                    """.trimIndent(), null),
+                    "Redefined Generic" to Test("""
+                        func name<T, T>() {}
                     """.trimIndent(), null),
                     "Missing Parameter Type" to Test("""
                         func name(parameter) {}

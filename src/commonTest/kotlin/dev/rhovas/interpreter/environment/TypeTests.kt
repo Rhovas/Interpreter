@@ -9,12 +9,12 @@ class TypeTests : RhovasSpec() {
 
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
-        Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT)).type.also {
-            it.component.inherit(Type.COMPARABLE[it])
-            Library.SCOPE.types.define(it)
-            Type.INTEGER.component.inherits.add(0, it)
-            Type.DECIMAL.component.inherits.add(0, it)
-        }
+        val component = Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT))
+        component.inherit(Type.COMPARABLE[component.type])
+        Type.INTEGER.component.inherits.add(0, component.type)
+        Type.DECIMAL.component.inherits.add(0, component.type)
+        Library.SCOPE.types.define(component.type)
+        component.type
     }
 
     init {
@@ -44,7 +44,7 @@ class TypeTests : RhovasSpec() {
                     "Dynamic" to Test("get", listOf(Type.LIST[Type.DYNAMIC], Type.INTEGER), Type.DYNAMIC),
                 )) { test(it) {
                     it.functions.define(Function.Declaration("get",
-                        generics = listOf(generic("T")),
+                        generics = linkedMapOf("T" to generic("T")),
                         parameters = listOf(Variable.Declaration("list", Type.LIST[generic("T")]), Variable.Declaration("index", Type.INTEGER)),
                         returns = generic("T"),
                     ))
@@ -63,12 +63,12 @@ class TypeTests : RhovasSpec() {
                     "Dynamic Generic Primitive First" to Test("set2", listOf(Type.NUMBER, Type.INTEGER, Type.LIST[Type.DYNAMIC]), Type.DYNAMIC),
                 )) { test(it) {
                     it.functions.define(Function.Declaration("set",
-                        generics = listOf(generic("T")),
+                        generics = linkedMapOf("T" to generic("T")),
                         parameters = listOf(Variable.Declaration("list", Type.LIST[generic("T")]), Variable.Declaration("index", Type.INTEGER), Variable.Declaration("value", generic("T"))),
                         returns = generic("T"),
                     ))
                     it.functions.define(Function.Declaration("set2",
-                        generics = listOf(generic("T")),
+                        generics = linkedMapOf("T" to generic("T")),
                         parameters = listOf(Variable.Declaration("value", generic("T")), Variable.Declaration("index", Type.INTEGER), Variable.Declaration("list", Type.LIST[generic("T")])),
                         returns = generic("T"),
                     ))
@@ -79,6 +79,9 @@ class TypeTests : RhovasSpec() {
                 data class Test(val type: Type, val name: String, val arguments: List<Type>, val returns: Type?)
 
                 fun test(test: Test) {
+                    println(test)
+                    println(test.type.component)
+                    println(test.type.component.scope.functions.collect())
                     assertEquals(test.returns, test.type.methods[test.name, test.arguments]?.returns)
                     assertTrue(test.returns == null || test.type.functions[test.name, test.arguments.size + 1].isNotEmpty())
                 }

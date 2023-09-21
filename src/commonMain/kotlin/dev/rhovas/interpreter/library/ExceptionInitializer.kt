@@ -7,9 +7,11 @@ import dev.rhovas.interpreter.environment.Type
 
 object ExceptionInitializer : Library.ComponentInitializer(Component.Class("Exception", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.HASHABLE[Type.EXCEPTION])
+    }
 
+    override fun define() {
         function("",
             parameters = listOf("message" to Type.STRING),
             returns = Type.EXCEPTION,

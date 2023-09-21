@@ -7,11 +7,13 @@ import dev.rhovas.interpreter.environment.Type
 
 object MapInitializer : Library.ComponentInitializer(Component.Class("Map")) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("K", Type.HASHABLE[generic("K")]))
         generics.add(generic("V"))
         inherits.add(Type.EQUATABLE[Type.MAP.DYNAMIC])
+    }
 
+    override fun define() {
         function("",
             generics = listOf(generic("K", Type.HASHABLE[generic("K")]), generic("V")),
             parameters = listOf("initial" to Type.MAP[generic("K", Type.HASHABLE[generic("K")]), generic("V")]),

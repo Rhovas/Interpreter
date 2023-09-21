@@ -8,10 +8,12 @@ import dev.rhovas.interpreter.environment.Type
 
 object ComparableInitializer : Library.ComponentInitializer(Component.Interface("Comparable", Modifiers(Modifiers.Inheritance.ABSTRACT))) {
 
-    override fun initialize() {
+    override fun declare() {
         generics.add(generic("T", Type.COMPARABLE.DYNAMIC))
         inherits.add(Type.EQUATABLE[generic("T", Type.COMPARABLE.DYNAMIC)])
+    }
 
+    override fun define() {
         function("compare", operator = "<=>",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
             generics = listOf(generic("T", Type.COMPARABLE.DYNAMIC)),

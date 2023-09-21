@@ -8,10 +8,12 @@ import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object AtomInitializer : Library.ComponentInitializer(Component.Class("Atom")) {
 
-    override fun initialize() {
+    override fun declare() {
         inherits.add(Type.COMPARABLE[Type.ATOM])
         inherits.add(Type.HASHABLE[Type.ATOM])
+    }
 
+    override fun define() {
         method("name",
             parameters = listOf(),
             returns = Type.STRING,

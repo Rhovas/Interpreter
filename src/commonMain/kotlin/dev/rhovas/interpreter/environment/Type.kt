@@ -3,10 +3,8 @@ package dev.rhovas.interpreter.environment
 import dev.rhovas.interpreter.library.Library
 
 sealed class Type(
-    open val component: dev.rhovas.interpreter.environment.Component<*>,
+    open val component: Component<*>,
 ) {
-
-    enum class Component { STRUCT, CLASS, INTERFACE }
 
     companion object {
         val ANY get() = Library.type("Any")
@@ -67,7 +65,7 @@ sealed class Type(
 
     internal abstract fun getFunction(name: String, arguments: List<Type>): Function?
 
-    abstract fun bind(parameters: Map<String, Type>): Type
+    abstract fun bind(bindings: Map<String, Type>): Type
 
     abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean
 
@@ -117,7 +115,7 @@ sealed class Type(
     }
 
     data class Reference(
-        override val component: dev.rhovas.interpreter.environment.Component<*>,
+        override val component: Component<*>,
         val generics: List<Type>,
     ) : Type(component) {
 
@@ -152,8 +150,8 @@ sealed class Type(
             }
         }
 
-        override fun bind(parameters: Map<String, Type>): Reference {
-            return Reference(component, generics.map { it.bind(parameters) })
+        override fun bind(bindings: Map<String, Type>): Reference {
+            return Reference(component, generics.map { it.bind(bindings) })
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
@@ -172,7 +170,7 @@ sealed class Type(
                         }
                     }
                     else -> {
-                        val parameters = component.generics.zip(generics).associate { Pair(it.first.name, it.second) }
+                        val parameters = component.generics.keys.zip(generics).associate { Pair(it.first, it.second) }
                         component.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
                     }
                 }
@@ -196,7 +194,7 @@ sealed class Type(
                     else -> {
                         var top = other
                         while (!isSubtypeOf(top, bindings)) {
-                            top = top.component.inherits.first().bind(component.generics.zip(generics).associate { Pair(it.first.name, it.second) })
+                            top = top.component.inherits.first().bind(component.generics.keys.zip(generics).associate { Pair(it.first, it.second) })
                         }
                         top.unify(this, bindings)
                     }
@@ -260,8 +258,8 @@ sealed class Type(
             return scope.functions[name, arguments] ?: TUPLE.GENERIC.component.scope.functions[name, arguments]
         }
 
-        override fun bind(parameters: Map<String, Type>): Type {
-            return Tuple(elements.map { Variable.Declaration(it.name, it.type.bind(parameters), it.mutable) })
+        override fun bind(bindings: Map<String, Type>): Type {
+            return Tuple(elements.map { Variable.Declaration(it.name, it.type.bind(bindings), it.mutable) })
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
@@ -328,8 +326,8 @@ sealed class Type(
             return scope.functions[name, arguments] ?: STRUCT.GENERIC.component.scope.functions[name, arguments]
         }
 
-        override fun bind(parameters: Map<String, Type>): Type {
-            return Struct(fields.mapValues { Variable.Declaration(it.key, it.value.type.bind(parameters), it.value.mutable) })
+        override fun bind(bindings: Map<String, Type>): Type {
+            return Struct(fields.mapValues { Variable.Declaration(it.key, it.value.type.bind(bindings), it.value.mutable) })
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
@@ -373,8 +371,8 @@ sealed class Type(
             return bound.getFunction(name, arguments)
         }
 
-        override fun bind(parameters: Map<String, Type>): Type {
-            return parameters[name] ?: this
+        override fun bind(bindings: Map<String, Type>): Type {
+            return bindings[name] ?: this
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
@@ -411,8 +409,8 @@ sealed class Type(
             return (upper ?: ANY).getFunction(name, arguments)
         }
 
-        override fun bind(parameters: Map<String, Type>): Type {
-            return Variant(lower?.bind(parameters), upper?.bind(parameters))
+        override fun bind(bindings: Map<String, Type>): Type {
+            return Variant(lower?.bind(bindings), upper?.bind(bindings))
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
