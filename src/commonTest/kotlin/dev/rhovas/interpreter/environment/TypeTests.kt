@@ -133,7 +133,11 @@ class TypeTests : RhovasSpec() {
 
             fun test(test: Test, wrapper: Type? = null) {
                 assertEquals(test.expected, test.type.isSubtypeOf(test.other))
-                wrapper?.let { assertEquals(test.expected, Type.Reference(it.component, listOf(test.type)).isSubtypeOf(Type.Reference(it.component, listOf(test.other)))) }
+                wrapper?.let {
+                    val wrappedType = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.type))
+                    val wrappedOther = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.other))
+                    assertEquals(test.expected, wrappedType.isSubtypeOf(wrappedOther))
+                }
             }
 
             suite("Base", listOf(
@@ -247,8 +251,11 @@ class TypeTests : RhovasSpec() {
             fun test(type: Type, other: Type, expected: Type, wrapper: Component<*>) {
                 assertEquals(expected, type.unify(other))
                 assertEquals(expected, other.unify(type))
-                assertEquals(Type.Reference(wrapper, listOf(expected)), Type.Reference(wrapper, listOf(type)).unify(Type.Reference(wrapper, listOf(other))))
-                assertEquals(Type.Reference(wrapper, listOf(expected)), Type.Reference(wrapper, listOf(other)).unify(Type.Reference(wrapper, listOf(type))))
+                val wrappedType = Type.Reference(wrapper, mapOf(wrapper.generics.keys.single() to type))
+                val wrappedOther = Type.Reference(wrapper, mapOf(wrapper.generics.keys.single() to other))
+                val wrappedExpected = Type.Reference(wrapper, mapOf(wrapper.generics.keys.single() to expected))
+                assertEquals(wrappedExpected, wrappedType.unify(wrappedOther))
+                assertEquals(wrappedExpected, wrappedOther.unify(wrappedType))
             }
 
             suite("Reference", listOf(
@@ -288,11 +295,11 @@ class TypeTests : RhovasSpec() {
     }
 
     private fun tuple(vararg types: Type, mutable: Boolean = false): Type.Tuple {
-        return Type.TUPLE[types.toList(), mutable].generics[0] as Type.Tuple
+        return (Type.TUPLE[types.toList(), mutable].generics["T"]!! as Type.Tuple)
     }
 
     private fun struct(vararg entries: Pair<String, Type>, mutable: Boolean = false): Type.Struct {
-        return Type.STRUCT[entries.toList(), mutable].generics[0] as Type.Struct
+        return Type.STRUCT[entries.toList(), mutable].generics["T"]!! as Type.Struct
     }
 
     private fun generic(name: String, bound: Type = Type.ANY): Type.Generic {

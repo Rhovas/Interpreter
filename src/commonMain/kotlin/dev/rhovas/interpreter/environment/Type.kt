@@ -10,50 +10,50 @@ sealed class Type(
         val ANY get() = Library.type("Any")
         val ATOM get() = Library.type("Atom")
         val BOOLEAN get() = Library.type("Boolean")
-        val COMPARABLE get() = GenericDelegate("Comparable", 1)
+        val COMPARABLE get() = GenericDelegate("Comparable", listOf("T"))
         val DECIMAL get() = Library.type("Decimal")
         val DYNAMIC get() = Library.type("Dynamic")
-        val EQUATABLE get() = GenericDelegate("Equatable", 1)
+        val EQUATABLE get() = GenericDelegate("Equatable", listOf("T"))
         val EXCEPTION get() = Library.type("Exception")
-        val HASHABLE get() = GenericDelegate("Hashable", 1)
+        val HASHABLE get() = GenericDelegate("Hashable", listOf("T"))
         val INTEGER get() = Library.type("Integer")
-        val ITERABLE get() = GenericDelegate("Iterable", 1)
-        val ITERATOR get() = GenericDelegate("Iterator", 1)
-        val LAMBDA get() = GenericDelegate("Lambda", 3)
-        val LIST get() = GenericDelegate("List", 1)
-        val NULLABLE get() = GenericDelegate("Nullable", 1)
+        val ITERABLE get() = GenericDelegate("Iterable", listOf("T"))
+        val ITERATOR get() = GenericDelegate("Iterator", listOf("T"))
+        val LAMBDA get() = GenericDelegate("Lambda", listOf("T", "R", "E"))
+        val LIST get() = GenericDelegate("List", listOf("T"))
+        val NULLABLE get() = GenericDelegate("Nullable", listOf("T"))
         val REGEX get() = Library.type("Regex")
-        val RESULT get() = GenericDelegate("Result", 2)
-        val MAP get() = GenericDelegate("Map", 2)
-        val SET get() = GenericDelegate("Set", 1)
+        val RESULT get() = GenericDelegate("Result", listOf("T", "E"))
+        val MAP get() = GenericDelegate("Map", listOf("K", "V"))
+        val SET get() = GenericDelegate("Set", listOf("T"))
         val STRING get() = Library.type("String")
         val STRUCT get() = StructDelegate("Struct")
         val TUPLE get() = TupleDelegate("Tuple")
-        val TYPE get() = GenericDelegate("Type", 1)
+        val TYPE get() = GenericDelegate("Type", listOf("T"))
         val VOID get() = Library.type("Void")
 
-        class GenericDelegate(val name: String, val generics: Int) {
+        class GenericDelegate(val name: String, val generics: List<String>) {
             val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, *(1..generics).map { Type.DYNAMIC }.toTypedArray())
-            operator fun get(vararg generics: Type) = Library.type(name, *generics)
+            val DYNAMIC get() = Library.type(name, generics.associateWith { Type.DYNAMIC })
+            operator fun get(vararg generics: Type) = Library.type(name, this.generics.zip(generics).associate { it.first to it.second })
         }
 
         class TupleDelegate(val name: String) {
             val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, Type.DYNAMIC)
-            operator fun get(generic: Tuple) = Library.type(name, generic)
-            operator fun get(elements: List<Type>, mutable: Boolean = false) = Library.type(name, Tuple(elements.withIndex().map {
+            val DYNAMIC get() = Library.type(name, mapOf("T" to Type.DYNAMIC))
+            operator fun get(generic: Tuple) = Library.type(name, mapOf("T" to generic))
+            operator fun get(elements: List<Type>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Tuple(elements.withIndex().map {
                 Variable.Declaration(it.index.toString(), it.value, mutable)
-            }))
+            })))
         }
 
         class StructDelegate(val name: String) {
             val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, Type.DYNAMIC)
-            operator fun get(generic: Struct) = Library.type(name, generic)
-            operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Library.type(name, Struct(fields.associate {
+            val DYNAMIC get() = Library.type(name, mapOf("T" to Type.DYNAMIC))
+            operator fun get(generic: Struct) = Library.type(name, mapOf("T" to generic))
+            operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Struct(fields.associate {
                 it.first to Variable.Declaration(it.first, it.second, mutable)
-            }))
+            })))
         }
     }
 
@@ -116,7 +116,7 @@ sealed class Type(
 
     data class Reference(
         override val component: Component<*>,
-        val generics: List<Type>,
+        val generics: Map<String, Type>,
     ) : Type(component) {
 
         init {
@@ -138,27 +138,27 @@ sealed class Type(
                     parameters = arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC) },
                     returns = DYNAMIC,
                 )
-                "Tuple" -> when (generics[0].component.name) {
+                "Tuple" -> when (generics["T"]!!.component.name) {
                     "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
-                    else -> generics[0].getFunction(name, arguments)
+                    else -> generics["T"]!!.getFunction(name, arguments)
                 }
-                "Struct" -> when (generics[0].component.name) {
+                "Struct" -> when (generics["T"]!!.component.name) {
                     "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
-                    else -> generics[0].getFunction(name, arguments)
+                    else -> generics["T"]!!.getFunction(name, arguments)
                 }
                 else -> null
             }
         }
 
         override fun bind(bindings: Map<String, Type>): Reference {
-            return Reference(component, generics.map { it.bind(bindings) })
+            return Reference(component, generics.mapValues { it.value.bind(bindings) })
         }
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when (other) {
                 is Reference -> when {
                     component.name == "Dynamic" || other.component.name == "Dynamic" || other.component.name == "Any" -> true
-                    component.name == other.component.name -> generics.zip(other.generics).all { (type, other) ->
+                    component.name == other.component.name -> generics.values.zip(other.generics.values).all { (type, other) ->
                         when {
                             type is Reference && other is Reference -> when {
                                 type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
@@ -169,17 +169,14 @@ sealed class Type(
                             else -> type.isSubtypeOf(other, bindings)
                         }
                     }
-                    else -> {
-                        val parameters = component.generics.keys.zip(generics).associate { Pair(it.first, it.second) }
-                        component.inherits.any { it.bind(parameters).isSubtypeOf(other, bindings) }
-                    }
+                    else -> component.inherits.any { it.bind(generics).isSubtypeOf(other, bindings) }
                 }
                 is Tuple -> isSubtypeOf(TUPLE[other], bindings)
                 is Struct -> isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
                     component.name == "Dynamic" || other.component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    else -> isSubtypeOf(other.bound, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
+                    else -> (other.bound?.isSupertypeOf(this, bindings) ?: true).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
                 is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
             }
@@ -190,11 +187,11 @@ sealed class Type(
                 is Reference -> when {
                     component.name == "Any" || other.component.name == "Any" -> ANY
                     component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC
-                    component.name == other.component.name -> Reference(component, generics.zip(other.generics).map { (type, other) -> type.unify(other, bindings) })
+                    component.name == other.component.name -> Reference(component, generics.entries.zip(other.generics.values).associate { (entry, other) -> entry.key to entry.value.unify(other, bindings) })
                     else -> {
                         var top = other
                         while (!isSubtypeOf(top, bindings)) {
-                            top = top.component.inherits.first().bind(component.generics.keys.zip(generics).associate { Pair(it.first, it.second) })
+                            top = top.component.inherits.first().bind(generics)
                         }
                         top.unify(this, bindings)
                     }
@@ -204,7 +201,7 @@ sealed class Type(
                 is Generic -> when {
                     component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
-                    else -> unify(other.bound, bindings).also { bindings[other.name] = it }
+                    else -> unify(other.bound ?: ANY, bindings).also { bindings[other.name] = it }
                 }
                 is Variant -> unify(other.upper ?: ANY)
             }
@@ -217,7 +214,7 @@ sealed class Type(
         }
 
         override fun toString(): String {
-            return "${component.name}${generics.takeIf { it.isNotEmpty() }?.joinToString(", ", "<", ">") ?: ""}"
+            return "${component.name}${generics.takeIf { it.isNotEmpty() }?.values?.joinToString(", ", "<", ">") ?: ""}"
         }
 
     }

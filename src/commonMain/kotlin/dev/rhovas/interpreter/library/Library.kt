@@ -49,11 +49,7 @@ object Library {
             MathInitializer,
         )
         initializers.forEach { initializer ->
-            // Hack to work around initialization issues with generics. Types
-            // need to be defined prior to generics being initialized, hence
-            // using a manual Type.Reference with initializer.generics allows
-            // later mutations to apply to the defined type.
-            TYPES.define(Type.Reference(initializer.component, initializer.generics))
+            TYPES.define(initializer.component.type)
         }
         initializers.forEach { initializer ->
             initializer.declare()
@@ -68,9 +64,9 @@ object Library {
         }
     }
 
-    fun type(name: String, vararg generics: Type = arrayOf()): Type.Reference {
+    fun type(name: String, generics: Map<String, Type> = mapOf()): Type.Reference {
         val type = TYPES[name]!! as Type.Reference
-        return if (generics.isEmpty()) type else Type.Reference(type.component, generics.toList())
+        return if (generics.isEmpty()) type else Type.Reference(type.component, generics)
     }
 
     abstract class ComponentInitializer(

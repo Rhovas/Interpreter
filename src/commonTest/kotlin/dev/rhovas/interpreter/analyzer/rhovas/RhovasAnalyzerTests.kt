@@ -498,17 +498,17 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     stmt(Child(1).field);
                 """.trimIndent()) {
                     val parent = Component.Interface("Parent")
-                    parent.inherit(Type.ANY)
                     parent.generics["T"] = Type.Generic("T", Type.ANY)
+                    parent.inherit(Type.ANY)
                     parent.scope.functions.define(Function.Definition(Function.Declaration("field",
                         generics = parent.generics,
                         parameters = listOf(Variable.Declaration("this", parent.type)),
                         returns = Type.Generic("T", Type.ANY),
                     )))
                     val child = Component.Class("Child")
+                    child.generics["T"] = Type.Generic("T", Type.ANY)
                     child.inherit(Type.ANY)
                     child.inherit(parent.type)
-                    child.generics["T"] = Type.Generic("T", Type.ANY)
                     child.scope.functions.define(Function.Definition(Function.Declaration("",
                         generics = child.generics,
                         parameters = listOf(Variable.Declaration("field", Type.Generic("T", Type.ANY))),

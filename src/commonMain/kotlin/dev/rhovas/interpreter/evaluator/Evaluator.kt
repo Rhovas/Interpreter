@@ -44,14 +44,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
         (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }]) } as Function.Definition).implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val type = Type.Reference(ir.component, ir.component.generics.map { Type.DYNAMIC })
+                val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
                 val initial = arguments[0].value as Map<String, Object>
                 Object(type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null) })
             }
         }
         (ir.component.inherited.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } } as Function.Definition).implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val type = Type.Reference(ir.component, ir.component.generics.map { Type.DYNAMIC })
+                val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
                 Object(type, fields.keys.withIndex().associate { it.value to arguments[it.index] })
             }
         }
