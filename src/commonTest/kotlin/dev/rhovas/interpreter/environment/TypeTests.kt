@@ -57,7 +57,7 @@ class TypeTests : RhovasSpec() {
                     "Subtype Primitive First" to Test("set2", listOf(Type.INTEGER, Type.INTEGER, Type.LIST[Type.NUMBER]), Type.NUMBER),
                     "Supertype Variant First" to Test("set", listOf(Type.LIST[Type.NUMBER], Type.INTEGER, Type.ANY), null),
                     "Supertype Primitive First" to Test("set2", listOf(Type.ANY, Type.INTEGER, Type.LIST[Type.NUMBER]), null),
-                    //"Dynamic Variant First" to Test("set", listOf(Type.LIST[Type.NUMBER], Type.INTEGER, Type.DYNAMIC), Type.NUMBER),
+                    "Dynamic Variant First" to Test("set", listOf(Type.LIST[Type.NUMBER], Type.INTEGER, Type.DYNAMIC), Type.NUMBER),
                     "Dynamic Primitive First" to Test("set2", listOf(Type.DYNAMIC, Type.INTEGER, Type.LIST[Type.NUMBER]), Type.NUMBER),
                     "Dynamic Generic Variant First" to Test("set", listOf(Type.LIST[Type.DYNAMIC], Type.INTEGER, Type.NUMBER), Type.DYNAMIC),
                     "Dynamic Generic Primitive First" to Test("set2", listOf(Type.NUMBER, Type.INTEGER, Type.LIST[Type.DYNAMIC]), Type.DYNAMIC),
@@ -264,6 +264,7 @@ class TypeTests : RhovasSpec() {
                 "Supertype" to Test(Type.INTEGER, Type.NUMBER, Type.NUMBER),
                 "Common Supertype" to Test(Type.INTEGER, Type.DECIMAL, Type.NUMBER),
                 "Dynamic" to Test(Type.INTEGER, Type.DYNAMIC, Type.DYNAMIC),
+                "Dynamic Any" to Test(Type.DYNAMIC, Type.ANY, Type.DYNAMIC),
             )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
 
             suite("Tuple", listOf(

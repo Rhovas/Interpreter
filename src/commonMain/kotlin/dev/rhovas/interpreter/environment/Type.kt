@@ -174,9 +174,9 @@ sealed class Type(
                 is Tuple -> isSubtypeOf(TUPLE[other], bindings)
                 is Struct -> isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
-                    component.name == "Dynamic" || other.component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    else -> (other.bound?.isSupertypeOf(this, bindings) ?: true).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
+                    component.name == "Dynamic" || other.component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
+                    else -> other.bound.isSupertypeOf(this, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
                 is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
             }
@@ -185,8 +185,8 @@ sealed class Type(
         override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
             return when (other) {
                 is Reference -> when {
-                    component.name == "Any" || other.component.name == "Any" -> ANY
                     component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC
+                    component.name == "Any" || other.component.name == "Any" -> ANY
                     component.name == other.component.name -> Reference(component, generics.entries.zip(other.generics.values).associate { (entry, other) -> entry.key to entry.value.unify(other, bindings) })
                     else -> {
                         var top = other
@@ -199,9 +199,9 @@ sealed class Type(
                 is Tuple -> unify(TUPLE[other], bindings)
                 is Struct -> unify(STRUCT[other], bindings)
                 is Generic -> when {
-                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
                     bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
-                    else -> unify(other.bound ?: ANY, bindings).also { bindings[other.name] = it }
+                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
+                    else -> unify(other.bound, bindings).also { bindings[other.name] = it }
                 }
                 is Variant -> unify(other.upper ?: ANY)
             }
