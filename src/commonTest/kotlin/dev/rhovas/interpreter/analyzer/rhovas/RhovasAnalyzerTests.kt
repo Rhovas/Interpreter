@@ -1125,6 +1125,60 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             block(RhovasIr.Statement.Expression(RhovasIr.Expression.Invoke.Function(null, func, false, listOf(), Type.VOID))),
                         )
                     },
+                    "Generic" to Test("""
+                        func first<T>(list: List<T>): T {
+                            return list[0];
+                        }
+                    """.trimIndent()) {
+                        RhovasIr.Statement.Declaration.Function(
+                            Function.Declaration("first",
+                                generics = linkedMapOf("T" to Type.Generic("T", Type.ANY)),
+                                parameters = listOf(Variable.Declaration("list", Type.LIST[Type.Generic("T", Type.ANY)])),
+                                returns = Type.Generic("T", Type.ANY),
+                            ),
+                            block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Index(
+                                variable("list", Type.LIST[Type.Generic("T", Type.ANY)]),
+                                Type.LIST[Type.Generic("T", Type.ANY)].methods["[]", listOf(Type.INTEGER)]!!,
+                                false,
+                                listOf(literal(BigInteger.parseString("0"))),
+                                Type.Generic("T", Type.ANY),
+                            ), listOf())),
+                        )
+                    },
+                    "Component Generic" to Test("""
+                        class Name<T> {
+                            val field: T;
+                            func name(this): T {
+                                return this.field;
+                            }
+                        }
+                    """.trimIndent()) {
+                        val component = Component.Class("Name")
+                        component.generics["T"] = Type.Generic("T", Type.ANY)
+                        component.inherit(Type.ANY)
+                        component.scope.functions.define(Function.Definition(Function.Declaration("field",
+                            generics = component.generics,
+                            parameters = listOf(Variable.Declaration("this", component.type)),
+                            returns = Type.Generic("T", Type.ANY),
+                        )))
+                        component.scope.functions.define(Function.Definition(Function.Declaration("name",
+                            generics = component.generics,
+                            parameters = listOf(Variable.Declaration("this", component.type)),
+                            returns = Type.Generic("T", Type.ANY),
+                        )))
+                        RhovasIr.Statement.Component(RhovasIr.Component.Class(component, null, listOf(), listOf(
+                            RhovasIr.Member.Property(component.type.properties["field"]!!.getter.function as Function.Definition, null, null),
+                            RhovasIr.Member.Method(RhovasIr.Statement.Declaration.Function(component.type.methods["name", listOf()]!!.function as Function.Definition, block(
+                                RhovasIr.Statement.Return(RhovasIr.Expression.Access.Property(
+                                    variable("this", component.type),
+                                    component.type.properties["field"]!!,
+                                    false,
+                                    false,
+                                    Type.Generic("T", Type.ANY),
+                                ), listOf()),
+                            ))),
+                        )))
+                    },
                     "Parameter" to Test("""
                         func name(parameter: Integer) {
                             stmt(parameter);
@@ -1229,32 +1283,16 @@ class RhovasAnalyzerTests: RhovasSpec() {
                             ))),
                         )
                     },
-                    "Generic" to Test("""
-                        func first<T>(list: List<T>): T {
-                            return list[0];
-                        }
-                    """.trimIndent()) {
-                        val listT = Type.LIST[Type.Generic("T", Type.ANY)]
-                        RhovasIr.Statement.Declaration.Function(
-                            Function.Declaration("first",
-                                generics = linkedMapOf("T" to Type.Generic("T", Type.ANY)),
-                                parameters = listOf(Variable.Declaration("list", listT)),
-                                returns = Type.Generic("T", Type.ANY),
-                            ),
-                            block(RhovasIr.Statement.Return(RhovasIr.Expression.Access.Index(
-                                variable("list", listT),
-                                listT.methods["[]", listOf(Type.INTEGER)]!!,
-                                false,
-                                listOf(literal(BigInteger.parseString("0"))),
-                                Type.Generic("T", Type.ANY),
-                            ), listOf())),
-                        )
-                    },
                     "Invalid Operator Overload" to Test("""
                         func op+ add() {}
                     """.trimIndent(), null),
                     "Redefined Generic" to Test("""
                         func name<T, T>() {}
+                    """.trimIndent(), null),
+                    "Redefined Component Generic" to Test("""
+                        struct Name<T> {
+                            func name<T>() {}
+                        }
                     """.trimIndent(), null),
                     "Missing Parameter Type" to Test("""
                         func name(parameter) {}

@@ -1579,9 +1579,9 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 ) }
                 val generics = component?.generics?.toMap(linkedMapOf()) ?: linkedMapOf()
                 ast.generics.associateTo(generics) {
-                    require(!context.scope.types.isDefined(it.first, true)) { error(ast,
+                    require(generics[it.first] == null) { error(ast,
                         "Redefined generic type.",
-                        "The generic type ${it.first} is already defined in this component.",
+                        "The generic type ${it.first} is already defined in this ${component?.let { "component/" } ?: ""}function.",
                     ) }
                     val type = Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY)
                     context.scope.types.define(type, it.first)

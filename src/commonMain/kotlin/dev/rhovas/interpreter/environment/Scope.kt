@@ -50,7 +50,7 @@ sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
         operator fun get(name: String, arguments: List<Type>, current: Boolean = false): FO? {
             return get(name, arguments.size, current).firstNotNullOfOrNull { function ->
                 val generics = mutableMapOf<String, Type>()
-                function.takeIf { it.isResolvedBy(arguments, generics) }?.bind(generics).also { println("${it}, ${generics}") } as FO?
+                function.takeIf { it.isResolvedBy(arguments, generics) }?.bind(generics) as FO?
             }
         }
 

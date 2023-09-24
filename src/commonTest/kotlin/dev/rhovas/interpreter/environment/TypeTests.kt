@@ -79,9 +79,6 @@ class TypeTests : RhovasSpec() {
                 data class Test(val type: Type, val name: String, val arguments: List<Type>, val returns: Type?)
 
                 fun test(test: Test) {
-                    println(test)
-                    println(test.type.component)
-                    println(test.type.component.scope.functions.collect())
                     assertEquals(test.returns, test.type.methods[test.name, test.arguments]?.returns)
                     assertTrue(test.returns == null || test.type.functions[test.name, test.arguments.size + 1].isNotEmpty())
                 }
