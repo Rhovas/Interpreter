@@ -894,6 +894,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         func method(this) {}
                     }
                 """.trimIndent(), null),
+                "Inaccessible Component Generic" to Test("""
+                    class Name<T> {
+                        func name(generic: T) {}
+                    }
+                """.trimIndent(), null),
             )) { test("source", it.source, it.expected) }
         }
 
