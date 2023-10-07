@@ -1,0 +1,27 @@
+func isPalindromeReverse(string: String): Boolean {
+    return string == string.reverse();
+}
+
+func isPalindromeChars(chars: List<String>): Boolean {
+    match (chars) {
+        []: return true;
+        [elem]: return true;
+        [first, middle*, last]: return first == last && isPalindromeChars(middle);
+    }
+}
+
+func isPalindrome(string: String): Boolean {
+    return isPalindromeReverse(string) && isPalindromeChars(string.chars);
+}
+
+assert isPalindrome("");
+assert isPalindrome("f");
+assert isPalindrome("noon");
+assert isPalindrome("kayak");
+assert isPalindrome("step on no pets");
+assert !isPalindrome("palindrome");
+assert !isPalindrome("A man, a plan, a canal - Panama!"); //inexact
+
+assert isPalindrome("§★♖★§"); //single utf16 code points
+assert isPalindromeReverse("🗲"); //string reverse handles surrogates
+assert !isPalindromeChars("🗲".chars); //.chars splits surrogates into two chars

@@ -7,9 +7,13 @@ import kotlin.test.fail
 
 object ProgramTests {
 
-    fun test(input: Input, stdout: String) {
+    fun test(input: Input, stdin: String, stdout: String) {
+        val lines = stdin.lineSequence().iterator()
         val builder = StringBuilder()
-        val interpreter = Interpreter { builder.append(it).append('\n') }
+        val interpreter = Interpreter(
+            stdin = { lines.next() },
+            stdout = { builder.append(it).append('\n') },
+        )
         interpreter.eval(input)?.let { fail("Unexpected evaluation response: ${it}") }
         assertEquals(stdout, builder.toString())
     }

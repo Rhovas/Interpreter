@@ -7,17 +7,25 @@ import dev.rhovas.interpreter.parser.Input
 
 class RosettaCodeTests: RhovasSpec() {
 
-    init {
-        test("Factorial.rho")
-        test("Fibonacci.rho")
-        test("FizzBuzz.rho", "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n")
-        test("HelloWorld.rho", "Hello, World!\n")
-        test("Palindrome.rho")
-    }
+    data class Test(
+        val name: String,
+        val stdin: String = "",
+        val stdout: String = "",
+    )
 
-    private fun test(name: String, stdout: String = "") = spec(name) {
-        val input = Input(name, Platform.readFile("src/commonTest/resources/dev/rhovas/interpreter/programs/rosettacode/${name}"))
-        ProgramTests.test(input, stdout)
+    init {
+        listOf(
+            Test("Classes"),
+            Test("Factorial"),
+            Test("Fibonacci_sequence"),
+            Test("FizzBuzz", stdout = "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n"),
+            Test("Hello_world/Text", stdout = "Hello world!\n"),
+            Test("Palindrome_detection"),
+        ).forEach { spec(it.name) {
+            println("https://www.rosettacode.org/wiki/${it.name}#Rhovas")
+            val input = Input(it.name, Platform.readFile("src/commonTest/resources/dev/rhovas/interpreter/programs/rosettacode/${it.name}.rho"))
+            ProgramTests.test(input, it.stdin, it.stdout)
+        } }
     }
 
 }
