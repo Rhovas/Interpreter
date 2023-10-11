@@ -2,19 +2,25 @@ package dev.rhovas.interpreter.environment
 
 sealed interface Variable {
 
-    val name: String
-    val type: Type
-    val mutable: Boolean
+    val declaration: Declaration
+
+    val name get() = declaration.name
+    val type get() = declaration.type
+    val mutable get() = declaration.mutable
 
     data class Declaration(
         override val name: String,
         override val type: Type,
         override val mutable: Boolean = false,
-    ) : Variable
+    ) : Variable {
+
+        override val declaration = this
+
+    }
 
     data class Definition(
-        val declaration: Declaration,
-    ) : Variable by declaration {
+        override val declaration: Declaration,
+    ) : Variable {
 
         lateinit var value: Object
 

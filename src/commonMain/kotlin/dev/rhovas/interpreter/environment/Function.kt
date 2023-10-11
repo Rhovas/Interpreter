@@ -2,12 +2,14 @@ package dev.rhovas.interpreter.environment
 
 sealed interface Function {
 
-    val name: String
-    val modifiers: Modifiers
-    val generics: LinkedHashMap<String, Type.Generic>
-    val parameters: List<Variable.Declaration>
-    val returns: Type
-    val throws: List<Type>
+    val declaration: Declaration
+
+    val name get() = declaration.name
+    val modifiers get() = declaration.modifiers
+    val generics get() = declaration.generics
+    val parameters get() = declaration.parameters
+    val returns get() = declaration.returns
+    val throws get() = declaration.throws
 
     /**
      * Returns true if this function is resolved by [arguments], thus it can be
@@ -53,6 +55,8 @@ sealed interface Function {
         override val throws: List<Type> = listOf(),
     ) : Function {
 
+        override val declaration = this
+
         override fun bind(bindings: Map<String, Type>): Declaration {
             return Declaration(
                 name,
@@ -67,8 +71,8 @@ sealed interface Function {
     }
 
     data class Definition(
-        val declaration: Declaration,
-    ) : Function by declaration {
+        override val declaration: Declaration,
+    ) : Function {
 
         lateinit var implementation: (List<Object>) -> Object
 
