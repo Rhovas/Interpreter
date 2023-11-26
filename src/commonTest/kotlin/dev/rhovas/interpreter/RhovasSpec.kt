@@ -17,7 +17,8 @@ import io.kotest.core.test.TestScope
  *  - We delay test registration as [ContainerScope.registerJvm] must be a
  *    `suspend` function to register nested tests/contexts.
  */
-abstract class RhovasSpec : ShouldSpec() {
+// open, not abstract: https://youtrack.jetbrains.com/issue/KT-63399
+open class RhovasSpec : ShouldSpec() {
 
     fun spec(name: String, test: suspend TestScope.() -> Unit) = should(name, test)
 
