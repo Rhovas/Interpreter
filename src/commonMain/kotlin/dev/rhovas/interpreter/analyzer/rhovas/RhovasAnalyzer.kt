@@ -243,7 +243,33 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source = analyzeAst(ast) {
         val imports = ast.imports.map { visit(it) }
-        val statements = ast.statements.map { visit(it) }
+        // Not elegant, but holdover until analyzer phase refactor
+        val statements = ast.statements.map {
+            if (it is RhovasAst.Statement.Component) {
+                when (it.component) {
+                    is RhovasAst.Component.Struct -> declare.visit(it.component)
+                    is RhovasAst.Component.Class -> declare.visit(it.component)
+                    is RhovasAst.Component.Interface -> declare.visit(it.component)
+                }
+                it.component
+            } else it
+        }.map {
+            when (it) {
+                is RhovasAst.Component.Struct -> define.visit(it)
+                is RhovasAst.Component.Class -> define.visit(it)
+                is RhovasAst.Component.Interface -> define.visit(it)
+                is RhovasAst.Statement.Declaration.Function -> define.visit(it)
+                else -> it
+            }
+        }.map {
+            when (it) {
+                is RhovasIr.DefinitionPhase.Component.Struct -> RhovasIr.Statement.Component(visit(it))
+                is RhovasIr.DefinitionPhase.Component.Class -> RhovasIr.Statement.Component(visit(it))
+                is RhovasIr.DefinitionPhase.Component.Interface -> RhovasIr.Statement.Component(visit(it))
+                is RhovasIr.DefinitionPhase.Function -> visit(it)
+                else -> visit(it as RhovasAst.Statement)
+            }
+        }
         RhovasIr.Source(imports, statements)
     }
 

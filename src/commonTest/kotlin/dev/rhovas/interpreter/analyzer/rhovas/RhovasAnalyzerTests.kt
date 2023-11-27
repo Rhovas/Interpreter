@@ -51,6 +51,39 @@ class RhovasAnalyzerTests: RhovasSpec() {
             """.trimIndent()) {
                 RhovasIr.Source(listOf(), listOf(stmt(1), stmt(2), stmt(3)))
             },
+            "Component Hoisting" to Test("""
+                stmt(Name({}));
+                struct Name {}
+            """.trimIndent()) {
+                val component = Component.Struct("Name")
+                component.inherit(Type.STRUCT[listOf()])
+                component.scope.functions.define(Function.Definition(Function.Declaration("",
+                    parameters = listOf(Variable.Declaration("fields", component.inherits[0])),
+                    returns = component.type
+                )))
+                RhovasIr.Source(listOf(), listOf(
+                    stmt(RhovasIr.Expression.Invoke.Constructor(
+                        component.type,
+                        component.type.functions["", listOf(component.inherits[0])]!!,
+                        listOf(RhovasIr.Expression.Literal.Object(mapOf(), Type.STRUCT[listOf()])),
+                        component.type,
+                    )),
+                    RhovasIr.Statement.Component(RhovasIr.Component.Struct(component, listOf(), listOf())),
+                ))
+            },
+            "Function Hoisting" to Test("""
+                stmt(name());
+                func name() {}
+            """.trimIndent()) {
+                val function = Function.Declaration("name",
+                    parameters = listOf(),
+                    returns = Type.VOID,
+                )
+                RhovasIr.Source(listOf(), listOf(
+                    stmt(RhovasIr.Expression.Invoke.Function(null, function, false, listOf(), Type.VOID)),
+                    RhovasIr.Statement.Declaration.Function(function, block()),
+                ))
+            },
         )) { test("source", it.source, it.expected) }
 
         suite("Import", listOf(

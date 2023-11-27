@@ -37,6 +37,14 @@ class EvaluatorTests: RhovasSpec() {
                 log(2);
                 log(3);
             """.trimIndent(), "123"),
+            "Component Hoisting" to Test("""
+                log(Name({}));
+                struct Name {}
+            """.trimIndent(), "Name{}"),
+            "Function Hoisting" to Test("""
+                name();
+                func name() { log(1); }
+            """.trimIndent(), "1"),
             "Exception" to Test("""
                 throw Exception("message");
             """.trimIndent(), null),

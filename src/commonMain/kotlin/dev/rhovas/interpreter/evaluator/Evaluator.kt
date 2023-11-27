@@ -20,7 +20,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Source): Object {
         try {
-            ir.statements.forEach { visit(it) }
+            ir.statements.partition { it is RhovasIr.Statement.Component || it is RhovasIr.Statement.Declaration.Function }.also {
+                it.first.forEach { visit(it) }
+                it.second.forEach { visit(it) }
+            }
         } catch (e: Throw) {
             throw error(ir,
                 "Uncaught exception.",
