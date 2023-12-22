@@ -6,7 +6,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
 ) {
 
     val generics = linkedMapOf<String, Type.Generic>()
-    val inherits = mutableListOf<Type>()
+    val inherits = mutableListOf<Type.Reference>()
     val type = Type.Reference(this, generics)
 
     val inherited = Scope.Declaration(null)
@@ -16,12 +16,12 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
     }
 
     open fun inherit(type: Type.Reference) {
+        require(inherits.contains(type))
         when (this) {
             is Struct -> require(type.component == Type.STRUCT.GENERIC.component || type.component is Interface)
             is Class -> require(type.component.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT))
             is Interface -> require(type.component == Type.ANY.component || type.component is Interface)
         }
-        inherits.add(type)
         type.component.scope.functions.collect()
             .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
             .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false }

@@ -689,7 +689,8 @@ class EvaluatorTests: RhovasSpec() {
                 """.trimIndent(), "finally"),
             )) { test("source", it.source, it.log, it.expected) {
                 val component = Component.Class("SubtypeException")
-                component.inherit(Type.EXCEPTION)
+                component.inherits.add(Type.EXCEPTION)
+                component.inherits.forEach { component.inherit(it) }
                 component.scope.functions.define(Function.Definition(Function.Declaration("",
                     parameters = listOf(Variable.Declaration("message", Type.STRING)),
                     returns = component.type,
@@ -1155,7 +1156,8 @@ class EvaluatorTests: RhovasSpec() {
                         }
                     """.trimIndent(), "message") {
                         val component = Component.Class("SubtypeException")
-                        component.inherit(Type.EXCEPTION)
+                        component.inherits.add(Type.EXCEPTION)
+                        component.inherits.forEach { component.inherit(it) }
                         component.scope.functions.define(Function.Definition(Function.Declaration("",
                             parameters = listOf(Variable.Declaration("message", Type.STRING)),
                             returns = component.type,
@@ -1514,12 +1516,12 @@ class EvaluatorTests: RhovasSpec() {
             assertEquals(expected ?: log?.let { Object(Type.VOID, Unit) }, obj)
             assertEquals(log ?: expected?.let { "" }, builder.toString())
         } catch (e: ParseException) {
-            fail(input.diagnostic(e.summary, e.details, e.range, e.context))
+            fail(input.diagnostic(e.summary, e.details, e.range, e.context), e)
         } catch (e: AnalyzeException) {
-            fail(input.diagnostic(e.summary, e.details, e.range, e.context))
+            fail(input.diagnostic(e.summary, e.details, e.range, e.context), e)
         } catch (e: EvaluateException) {
             if (expected != null || e.summary == "Broken evaluator invariant.") {
-                fail(input.diagnostic(e.summary, e.details, e.range, e.context))
+                fail(input.diagnostic(e.summary, e.details, e.range, e.context), e)
             }
         }
     }

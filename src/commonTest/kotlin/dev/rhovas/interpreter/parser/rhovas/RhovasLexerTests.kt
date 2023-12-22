@@ -383,7 +383,7 @@ class RhovasLexerTests: RhovasSpec() {
             }
         } catch (e: ParseException) {
             if (success || e.summary == "Broken lexer invariant.") {
-                fail(input.diagnostic(e.summary, e.details, e.range, e.context))
+                fail(input.diagnostic(e.summary, e.details, e.range, e.context), e)
             }
         }
     }

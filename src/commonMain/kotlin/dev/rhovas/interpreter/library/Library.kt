@@ -56,6 +56,7 @@ object Library {
             initializer.generics.associateByTo(initializer.component.generics) { it.name }
         }
         initializers.forEach { initializer ->
+            initializer.component.inherits.addAll(initializer.inherits)
             initializer.inherits.forEach { initializer.component.inherit(it) }
             initializer.define()
         }

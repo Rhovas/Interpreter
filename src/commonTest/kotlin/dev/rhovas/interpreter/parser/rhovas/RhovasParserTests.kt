@@ -2194,7 +2194,7 @@ class RhovasParserTests: RhovasSpec() {
             assertTrue(ast.context.isNotEmpty() || source.isBlank())
         } catch (e: ParseException) {
             if (expected != null || e.summary == "Broken parser invariant.") {
-                fail(input.diagnostic(e.summary, e.details, e.range, e.context))
+                fail(input.diagnostic(e.summary, e.details, e.range, e.context), e)
             }
         }
     }

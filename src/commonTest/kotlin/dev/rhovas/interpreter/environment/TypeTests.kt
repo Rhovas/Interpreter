@@ -10,7 +10,8 @@ class TypeTests : RhovasSpec() {
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
         val component = Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT))
-        component.inherit(Type.COMPARABLE[component.type])
+        component.inherits.add(Type.COMPARABLE[component.type])
+        component.inherits.forEach { component.inherit(it) }
         Type.INTEGER.component.inherits.add(0, component.type)
         Type.DECIMAL.component.inherits.add(0, component.type)
         Library.SCOPE.types.define(component.type)

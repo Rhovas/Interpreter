@@ -28,8 +28,9 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     ).associateBy { it::class.simpleName!! })),
     RhovasIr.DefinitionPhase.Visitor<RhovasIr> {
 
-    private val declare = DeclarePhase()
-    private val define = DefinePhase()
+    private val register = RegistrationPhase(this)
+    private val declare = DeclarationPhase(this)
+    private val define = DefinitionPhase(this)
 
     private val Context.scope get() = this[ScopeContext::class]
     private val Context.inference get() = this[InferenceContext::class]
@@ -41,8 +42,8 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     private val Context.exceptions get() = this[ExceptionContext::class]
     private val Context.bindings get() = this[BindingContext::class]
 
-    private fun Context.forComponent(component: Component<*>, extends: Type?) = child().with(
-        ComponentContext(component.type, extends),
+    private fun Context.forComponent(component: Component<*>) = child().with(
+        ComponentContext(component.type, component.inherits.firstOrNull()?.takeIf { component is Component.Class && it != Type.ANY }),
         InferenceContext(Type.ANY),
         InitializationContext(mutableMapOf()),
         FunctionContext(null),
@@ -244,13 +245,10 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     override fun visit(ast: RhovasAst.Source): RhovasIr.Source = analyzeAst(ast) {
         val imports = ast.imports.map { visit(it) }
         // Not elegant, but holdover until analyzer phase refactor
+        register.visit(ast)
         val statements = ast.statements.map {
             if (it is RhovasAst.Statement.Component) {
-                when (it.component) {
-                    is RhovasAst.Component.Struct -> declare.visit(it.component)
-                    is RhovasAst.Component.Class -> declare.visit(it.component)
-                    is RhovasAst.Component.Interface -> declare.visit(it.component)
-                }
+                declare.visit(it.component)
                 it.component
             } else it
         }.map {
@@ -292,36 +290,45 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Component.Struct): RhovasIr.Component.Struct {
-        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+        register.visit(ast)
+        declare.visit(ast)
+        val ir = define.visit(ast) as RhovasIr.DefinitionPhase.Component.Struct
+        return visit(ir)
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Struct): RhovasIr.Component.Struct = analyzeAst(ir.ast) {
-        analyze(context.forComponent(ir.component, null)) {
+        analyze(context.forComponent(ir.component)) {
             val members = ir.members.map { visit(it) }
-            RhovasIr.Component.Struct(ir.component, ir.implements, members)
+            RhovasIr.Component.Struct(ir.component, members)
         }
     }
 
     override fun visit(ast: RhovasAst.Component.Class): RhovasIr.Component.Class {
-        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+        register.visit(ast)
+        declare.visit(ast)
+        val ir = define.visit(ast) as RhovasIr.DefinitionPhase.Component.Class
+        return visit(ir)
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Class): RhovasIr.Component.Class = analyzeAst(ir.ast) {
-        analyze(context.forComponent(ir.component, ir.extends)) {
+        analyze(context.forComponent(ir.component)) {
             val members = ir.members.map { visit(it) }
-            RhovasIr.Component.Class(ir.component, ir.extends, ir.implements, members)
+            RhovasIr.Component.Class(ir.component, members)
         }
     }
 
     override fun visit(ast: RhovasAst.Component.Interface): RhovasIr.Component.Interface {
-        return ast.also { declare.visit(it) }.let { define.visit(it) }.let { visit(it) }
+        register.visit(ast)
+        declare.visit(ast)
+        val ir = define.visit(ast) as RhovasIr.DefinitionPhase.Component.Interface
+        return visit(ir)
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Interface): RhovasIr.Component.Interface = analyzeAst(ir.ast) {
-        analyze(context.forComponent(ir.component, null)) {
+        analyze(context.forComponent(ir.component)) {
             ir.component.generics.forEach { context.scope.types.define(it.value, it.key) }
             val members = ir.members.map { visit(it) }
-            RhovasIr.Component.Interface(ir.component, ir.implements, members)
+            RhovasIr.Component.Interface(ir.component, members)
         }
     }
 
@@ -1386,265 +1393,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         RhovasIr.Type(Type.Variant(lower, upper))
     }
 
-    /**
-     * Analyzer phase to forward-declare types that may be referenced during
-     * type definition.
-     */
-    private inner class DeclarePhase {
-
-        fun visit(ast: RhovasAst.Component.Struct) = analyze(ast.context) {
-            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
-                "Redefined type.",
-                "The type ${ast.name} is already defined in this scope.",
-            ) }
-            require(ast.modifiers.inheritance == Modifiers.Inheritance.FINAL) { error(ast,
-                "Invalid inheritance modifier.",
-                "A struct cannot specify virtual/abstract modifiers as they cannot be inherited from.",
-            ) }
-            val component = Component.Struct(ast.name)
-            context.scope.types.define(component.type)
-            ast.generics.forEach {
-                require(component.generics[it.first] == null) { error(ast,
-                    "Redefined generic type.",
-                    "The generic type ${it.first} is already defined in this component.",
-                ) }
-                component.generics[it.first] = Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY)
-            }
-        }
-
-        fun visit(ast: RhovasAst.Component.Class) = analyze(ast.context) {
-            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
-                "Redefined type.",
-                "The type ${ast.name} is already defined in this scope.",
-            ) }
-            val component = Component.Class(ast.name, ast.modifiers)
-            context.scope.types.define(component.type)
-            ast.generics.forEach {
-                require(component.generics[it.first] == null) { error(ast,
-                    "Redefined generic type.",
-                    "The generic type ${it.first} is already defined in this component.",
-                ) }
-                component.generics[it.first] = Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY)
-            }
-        }
-
-        fun visit(ast: RhovasAst.Component.Interface) = analyze(ast.context) {
-            require(!context.scope.types.isDefined(ast.name, true)) { error(ast,
-                "Redefined type.",
-                "The type ${ast.name} is already defined in this scope.",
-            ) }
-            require(ast.modifiers.inheritance == Modifiers.Inheritance.FINAL) { error(ast,
-                "Invalid inheritance modifier.",
-                "An interface cannot specify virtual/abstract modifiers as they are always considered abstract.",
-            ) }
-            val component = Component.Interface(ast.name)
-            context.scope.types.define(component.type)
-            ast.generics.forEach {
-                require(component.generics[it.first] == null) { error(ast,
-                    "Redefined generic type.",
-                    "The generic type ${it.first} is already defined in this component.",
-                ) }
-                component.generics[it.first] = Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY)
-            }
-        }
-
-    }
-
-    /**
-     * Analyzer phase to forward-define types to ensure full type information
-     * is available during analysis.
-     */
-    private inner class DefinePhase {
-
-        fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyze(ast.context) {
-            val component = context.scope.types[ast.name]!!.component as Component.Struct
-            val (_, implements) = visitInherits(ast.inherits, component)
-            val fields = ast.members.filterIsInstance<RhovasAst.Member.Property>().map { visit(it, component) }
-            component.inherit(Type.STRUCT[Type.Struct(fields.associate { it.getter.name to Variable.Declaration(it.getter.name, it.getter.returns, it.setter != null) })])
-            component.inherited.functions.define(Function.Definition(Function.Declaration("",
-                generics = component.generics,
-                parameters = listOf(Variable.Declaration("fields", Type.STRUCT[fields.filter { it.ast.value == null }.map { it.getter.name to it.getter.returns }])),
-                returns = component.type,
-            )))
-            component.inherited.functions.define(Function.Definition(Function.Declaration("",
-                generics = component.generics,
-                parameters = fields.map { Variable.Declaration(it.getter.name, it.getter.returns) },
-                returns = component.type,
-            )))
-            implements.forEach { component.inherit(it) }
-            val members = fields + ast.members.filter { it !is RhovasAst.Member.Property }.map { visit(it, component) }
-            validateConcrete(ast, component)
-            RhovasIr.DefinitionPhase.Component.Struct(ast, component, implements, members)
-        }
-
-        fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyze(ast.context) {
-            val component = context.scope.types[ast.name]!!.component as Component.Class
-            val (extends, implements) = visitInherits(ast.inherits, component)
-            component.inherit(extends ?: Type.ANY)
-            implements.forEach { component.inherit(it) }
-            val members = ast.members.map { visit(it, component) }.toMutableList()
-            if (ast.modifiers.inheritance != Modifiers.Inheritance.ABSTRACT) {
-                validateConcrete(ast, component)
-            }
-            RhovasIr.DefinitionPhase.Component.Class(ast, component, extends, implements, members)
-        }
-
-        fun visit(ast: RhovasAst.Component.Interface): RhovasIr.DefinitionPhase.Component.Interface = analyze(ast.context) {
-            val component = context.scope.types[ast.name]!!.component as Component.Interface
-            val (_, implements) = visitInherits(ast.inherits, component)
-            implements.ifEmpty { listOf(Type.ANY) }.forEach { component.inherit(it) }
-            val members = ast.members.map { visit(it, component) }.toMutableList()
-            RhovasIr.DefinitionPhase.Component.Interface(ast, component, implements, members)
-        }
-
-        private fun visitInherits(inherits: List<RhovasAst.Type>, component: Component<*>): Pair<Type.Reference?, List<Type.Reference>> = analyze {
-            component.generics.forEach { context.scope.types.define(it.value, it.key) }
-            var extends: Type.Reference? = null
-            val implements = mutableListOf<Type.Reference>()
-            inherits.forEach {
-                val type = visit(it).type
-                require(type is Type.Reference) { error(it,
-                    "Invalid inheritance type.",
-                    "The type ${type} cannot be inherited from as it is not a reference type.",
-                ) }
-                if (component is Component.Class && extends == null && implements.isEmpty() && type.component is Component.Class) {
-                    require(type.component.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(it,
-                        "Invalid class inheritance.",
-                        "The type ${type} cannot be inherited from as it is not virtual/abstract.",
-                    ) }
-                    extends = type as Type.Reference
-                } else {
-                    require(type.component is Component.Interface) { error(it,
-                        "Invalid class inheritance.",
-                        "The type ${type} cannot be inherited from here as it is not an interface.",
-                    ) }
-                    implements.add(type as Type.Reference)
-                }
-            }
-            Pair(extends, implements)
-        }
-
-        private fun validateConcrete(ast: RhovasAst.Component, component: Component<*>) {
-            component.inherited.functions.collect().values.flatten()
-                .filter { it.modifiers.inheritance == Modifiers.Inheritance.ABSTRACT }
-                .forEach {
-                    require(component.scope.functions[it.name, listOf(component.type) + it.parameters.drop(1).map { it.type }, true] != null) { error(ast,
-                        "Missing override.",
-                        "The method ${it.name}/${it.parameters.size} is abstract and not overriden in ${component.name}, which requires a definition.",
-                    )
-                }
-            }
-        }
-
-        fun visit(ast: RhovasAst.Member, component: Component<*>): RhovasIr.DefinitionPhase.Member {
-            return when (ast) {
-                is RhovasAst.Member.Property -> visit(ast, component)
-                is RhovasAst.Member.Initializer -> visit(ast, component)
-                is RhovasAst.Member.Method -> visit(ast, component)
-            }
-        }
-
-        fun visit(ast: RhovasAst.Member.Property, component: Component<*>): RhovasIr.DefinitionPhase.Member.Property = analyze(ast.context) { analyze {
-            component.generics.forEach { context.scope.types.define(it.value, it.key) }
-            //TODO: Validate override constraints and check setter definitions
-            require(component.scope.functions[ast.name, 1, true].isEmpty()) { error(ast,
-                "Redefined property.",
-                "The property ${ast.name} is already defined in ${component.name}.",
-            ) }
-            val type = visit(ast.type).type
-            val getter = Function.Definition(Function.Declaration(ast.name,
-                generics = component.generics,
-                parameters = listOf(Variable.Declaration("this", component.type)),
-                returns = type,
-            ))
-            val setter = if (ast.mutable) Function.Definition(Function.Declaration(ast.name,
-                generics = component.generics,
-                parameters = listOf(Variable.Declaration("this", component.type), Variable.Declaration("value", type)),
-                returns = Type.VOID,
-            )) else null
-            component.scope.functions.define(getter)
-            setter?.let { component.scope.functions.define(it) }
-            RhovasIr.DefinitionPhase.Member.Property(ast, getter, setter)
-        } }
-
-        fun visit(ast: RhovasAst.Member.Initializer, component: Component<*>): RhovasIr.DefinitionPhase.Member.Initializer = analyze(ast.context) { analyze {
-            component.generics.forEach { context.scope.types.define(it.value, it.key) }
-            val parameters = ast.parameters.mapIndexed { index, parameter ->
-                val type = parameter.second?.let { visit(it).type } ?: throw error(ast,
-                    "Missing parameter type.",
-                    "The initializer init/${ast.parameters.size} requires parameter ${index} to have an defined type.",
-                )
-                Variable.Declaration(parameter.first, type)
-            }
-            val returns = ast.returns?.let { visit(it).type } ?: component.type
-            val throws = ast.throws.map { visit(it).type }
-            val initializer = Function.Definition(Function.Declaration("", ast.modifiers, component.generics, parameters, returns, throws))
-            require(component.scope.functions["", ast.parameters.size, true].all { it.isDisjointWith(initializer.declaration) }) { error(ast,
-                "Redefined initializer.",
-                "The initializer init/${ast.parameters.size} overlaps with an existing function in ${component.name}.",
-            ) }
-            component.scope.functions.define(initializer)
-            RhovasIr.DefinitionPhase.Member.Initializer(ast, initializer)
-        } }
-
-        fun visit(ast: RhovasAst.Member.Method, component: Component<*>): RhovasIr.DefinitionPhase.Member.Method {
-            val function = visit(ast.function, ast.modifiers, component)
-            return RhovasIr.DefinitionPhase.Member.Method(ast, function)
-        }
-
-        fun visit(ast: RhovasAst.Statement.Declaration.Function, modifiers: Modifiers? = null, component: Component<*>? = null): RhovasIr.DefinitionPhase.Function = analyze(ast.context) {
-            val scope = component?.scope ?: context.scope
-            analyze {
-                require(ast.operator == null || component != null) { error(ast,
-                    "Invalid operator overload.",
-                    "Operator overloading can only be used within component methods, not functions.",
-                ) }
-                val generics = component?.generics?.takeIf { ast.parameters.firstOrNull()?.second == null }?.toMap(linkedMapOf()) ?: linkedMapOf()
-                ast.generics.forEach {
-                    require(generics[it.first] == null) { error(ast,
-                        "Redefined generic type.",
-                        "The generic type ${it.first} is already defined in this ${component?.let { "component/" } ?: ""}function.",
-                    ) }
-                    generics[it.first] = Type.Generic(it.first, it.second?.let { visit(it).type } ?: Type.ANY)
-                }
-                generics.forEach { context.scope.types.define(it.value, it.key) }
-                val parameters = ast.parameters.mapIndexed { index, parameter ->
-                    val type = parameter.second?.let { visit(it).type } ?: component?.type?.takeIf { index == 0 } ?: throw error(ast,
-                        "Missing parameter type.",
-                        "The function ${ast.name}/${ast.parameters.size} requires parameter ${index} to have an explicit type.",
-                    )
-                    Variable.Declaration(parameter.first, type)
-                }
-                val returns = ast.returns?.let { visit(it).type } ?: Type.VOID
-                val throws = ast.throws.map { visit(it).type }
-                val declaration = Function.Declaration(ast.name, modifiers ?: Modifiers(), generics, parameters, returns, throws)
-                require(scope.functions[ast.name, ast.parameters.size, true].all { it.isDisjointWith(declaration) }) { error(ast,
-                    "Redefined function.",
-                    "The function ${ast.name}/${ast.parameters.size} overlaps with an existing function in ${component?.name ?: "this scope"}.",
-                ) }
-                val inherited = component?.inherited?.functions?.get(declaration.name, declaration.parameters.map { it.type })
-                require(inherited == null || inherited.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { error(ast,
-                    "Invalid override.",
-                    "The function ${ast.name}/${ast.parameters.size} overrides an inherited function that is final.",
-                ) }
-                require(inherited != null || !declaration.modifiers.override) { error(ast,
-                    "Invalid override modifier.",
-                    "The function ${ast.name}/${ast.parameters.size} does not override an inherited function but has an `override` modifier.",
-                ) }
-                require(inherited == null || declaration.modifiers.override) { error(ast,
-                    "Missing override modifier.",
-                    "The function ${ast.name}/${ast.parameters.size} overrides an inherited function and must have an `override` modifier.",
-                ) }
-                val method = if (component != null || scope is Scope.Definition) Function.Definition(declaration) else declaration
-                (scope as Scope<*, *, in Function, *>).functions.define(method)
-                ast.operator?.let { scope.functions.define(method, it) }
-                RhovasIr.DefinitionPhase.Function(ast, method)
-            }
-        }
-
-    }
-
-    private fun <T> analyze(context: List<Input.Range>, analyzer: () -> T): T {
+    internal fun <T> analyze(context: List<Input.Range>, analyzer: () -> T): T {
         context.firstOrNull()?.let { this.context.inputs.addLast(it) }
         return analyzer().also { context.firstOrNull()?.let { this.context.inputs.removeLast() } }
     }
