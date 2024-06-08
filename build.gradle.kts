@@ -3,8 +3,8 @@ import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 
 plugins {
-    kotlin("multiplatform") version "1.9.21"
-    id("io.kotest.multiplatform") version "5.8.0"
+    kotlin("multiplatform") version "2.0.0"
+    id("io.kotest.multiplatform") version "5.9.1"
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
