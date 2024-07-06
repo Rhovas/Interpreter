@@ -57,7 +57,7 @@ object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modif
                     else -> value.toString()
                 }
             }
-            val prefix = instance.type.component.name.takeIf { it != "Struct" && instance.value is Map<*, *> } ?: ""
+            val prefix = (instance.type as? Type.Reference)?.component?.name?.takeIf { it != "Struct" && instance.value is Map<*, *> } ?: ""
             Object(Type.STRING, prefix + toString(instance.value))
         }
     }

@@ -2,9 +2,7 @@ package dev.rhovas.interpreter.environment
 
 import dev.rhovas.interpreter.library.Library
 
-sealed class Type(
-    open val component: Component<*>,
-) {
+sealed class Type {
 
     companion object {
         val ANY get() = Library.type("Any")
@@ -115,9 +113,9 @@ sealed class Type(
     }
 
     data class Reference(
-        override val component: Component<*>,
+        val component: Component<*>,
         val generics: Map<String, Type>,
-    ) : Type(component) {
+    ) : Type() {
 
         init {
             //component.generics may be empty during initialization
@@ -138,11 +136,11 @@ sealed class Type(
                     parameters = arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC) },
                     returns = DYNAMIC,
                 )
-                "Tuple" -> when (generics["T"]!!.component.name) {
+                "Tuple" -> when ((generics["T"]!! as? Reference)?.component?.name) {
                     "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics["T"]!!.getFunction(name, arguments)
                 }
-                "Struct" -> when (generics["T"]!!.component.name) {
+                "Struct" -> when ((generics["T"]!! as? Reference)?.component?.name) {
                     "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics["T"]!!.getFunction(name, arguments)
                 }
@@ -175,7 +173,7 @@ sealed class Type(
                 is Struct -> isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" || other.component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
+                    component.name == "Dynamic" || (other as? Reference)?.component?.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
                     else -> other.bound.isSupertypeOf(this, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
                 }
                 is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
@@ -189,7 +187,7 @@ sealed class Type(
                     component.name == "Any" || other.component.name == "Any" -> ANY
                     component.name == other.component.name -> Reference(component, generics.entries.zip(other.generics.values).associate { (entry, other) -> entry.key to entry.value.unify(other, bindings) })
                     else -> {
-                        var top = other
+                        var top: Reference = other
                         while (!isSubtypeOf(top, bindings)) {
                             top = top.component.inherits.first().bind(generics)
                         }
@@ -200,7 +198,7 @@ sealed class Type(
                 is Struct -> unify(STRUCT[other], bindings)
                 is Generic -> when {
                     bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
+                    component.name == "Dynamic" || (other as? Reference)?.component?.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
                     else -> unify(other.bound, bindings).also { bindings[other.name] = it }
                 }
                 is Variant -> unify(other.upper ?: ANY)
@@ -221,7 +219,7 @@ sealed class Type(
 
     data class Tuple(
         val elements: List<Variable.Declaration>,
-    ) : Type(TUPLE.GENERIC.component) {
+    ) : Type() {
 
         val scope = Scope.Declaration(null)
 
@@ -289,7 +287,7 @@ sealed class Type(
 
     data class Struct(
         val fields: Map<String, Variable.Declaration>,
-    ) : Type(STRUCT.GENERIC.component) {
+    ) : Type() {
 
         val scope = Scope.Declaration(null)
 
@@ -358,7 +356,7 @@ sealed class Type(
     data class Generic(
         val name: String,
         val bound: Type,
-    ) : Type(bound.component) {
+    ) : Type() {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return bound.getFunction(name, arity)
@@ -396,7 +394,7 @@ sealed class Type(
     data class Variant(
         val lower: Type?,
         val upper: Type?,
-    ) : Type((upper ?: ANY).component) {
+    ) : Type() {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return (upper ?: ANY).getFunction(name, arity)

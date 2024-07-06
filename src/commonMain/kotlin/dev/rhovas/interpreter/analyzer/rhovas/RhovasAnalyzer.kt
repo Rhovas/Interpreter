@@ -281,7 +281,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             "Redefined type.",
             "The type ${ast.path.last()} is already defined in the current scope.",
         ) }
-        context.scope.types.define(type, alias)
+        context.scope.types.define(alias, type)
         RhovasIr.Import(type)
     }
 
@@ -326,7 +326,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Component.Interface): RhovasIr.Component.Interface = analyzeAst(ir.ast) {
         analyze(context.forComponent(ir.component)) {
-            ir.component.generics.forEach { context.scope.types.define(it.value, it.key) }
+            ir.component.generics.forEach { context.scope.types.define(it.key, it.value) }
             val members = ir.members.map { visit(it) }
             RhovasIr.Component.Interface(ir.component, members)
         }
@@ -337,7 +337,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Member.Property): RhovasIr.Member.Property = analyzeAst(ir.ast) { analyze {
-        ir.getter.generics.forEach { context.scope.types.define(it.value, it.key) }
+        ir.getter.generics.forEach { context.scope.types.define(it.key, it.value) }
         val value = ir.ast.value?.let { visit(it, ir.getter.returns) }
         require(value == null || value.type.isSubtypeOf(ir.getter.returns)) { error(ir.ast,
             "Invalid value type.",
@@ -348,7 +348,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Member.Initializer): RhovasIr.Member.Initializer = analyzeAst(ir.ast) {
         analyze(context.forFunction(ir.function)) {
-            ir.function.generics.forEach { context.scope.types.define(it.value, it.key) }
+            ir.function.generics.forEach { context.scope.types.define(it.key, it.value) }
             (context.scope as Scope.Declaration).variables.define(Variable.Declaration("this", ir.function.returns))
             context.initialization["this"] = InitializationContext.Data(false, RhovasAst.Statement.Declaration.Variable(false, "this", null, null).also { it.context = ir.ast.context }, mutableListOf())
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
@@ -451,7 +451,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ir: RhovasIr.DefinitionPhase.Function): RhovasIr.Statement.Declaration.Function = analyzeAst(ir.ast) {
         analyze(context.forFunction(ir.function)) {
-            ir.function.generics.forEach { context.scope.types.define(it.value, it.key) }
+            ir.function.generics.forEach { context.scope.types.define(it.key, it.value) }
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
             require(ir.function.returns.isSubtypeOf(Type.VOID) || context.jumps.contains("")) { error(ir.ast,
@@ -501,12 +501,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 val receiver = visit(ast.receiver)
                 require(receiver.property.mutable) { error(ast.receiver,
                     "Unassignable property.",
-                    "The property ${receiver.type.component}.${receiver.property.name} is not assignable.",
+                    "The property ${receiver.type}.${receiver.property.name} is not assignable.",
                 ) }
                 val value = visit(ast.value, receiver.property.type)
                 require(value.type.isSubtypeOf(receiver.property.type)) { error(ast.value,
                     "Invalid assignment value type.",
-                    "The property ${receiver.type.component.name}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
+                    "The property ${receiver.type}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
                 RhovasIr.Statement.Assignment.Property(receiver.receiver, receiver.property, value)
             }
@@ -829,7 +829,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
         //check base type to avoid subtype issues with Dynamic
-        val (elements, type) = if (context.inference.component == Type.TUPLE.GENERIC.component) {
+        val (elements, type) = if (context.inference.isSubtypeOf(Type.TUPLE.GENERIC)) {
             val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
             val type = Type.TUPLE[elements.map { it.type }, true]
@@ -844,7 +844,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
-        val (properties, type) = if (context.inference.component == Type.MAP.GENERIC.component) {
+        val (properties, type) = if (context.inference.isSubtypeOf(Type.MAP.GENERIC)) {
             val inferredKey = context.inference.generic("K", Type.MAP.GENERIC) ?: Type.ANY
             val inferredValue = context.inference.generic("V", Type.MAP.GENERIC) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
@@ -944,9 +944,13 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Expression.Access.Variable): RhovasIr.Expression.Access.Variable = analyzeAst(ast) {
         val qualifier = ast.qualifier?.let { visit(it) }
-        val variable = (qualifier?.type?.component?.scope ?: context.scope).variables[ast.name] ?: throw error(ast,
+        val component = qualifier?.let { (it.type as? Type.Reference)?.component ?: throw error(ast,
+            "Invalid variable qualifier.",
+            "Qualified variables require a reference type, but received a base type of Type.${it.type::class.simpleName} (${it.type}).",
+        ) }
+        val variable = (component?.scope ?: context.scope).variables[ast.name] ?: throw error(ast,
             "Undefined variable.",
-            "The variable ${ast.name} is not defined in ${qualifier?.type ?: "the current scope"}."
+            "The variable ${ast.name} is not defined in ${component?.name ?: "the current scope"}."
         )
         val initialization = context.initialization[ast.name]
         require(initialization == null || initialization.initialized) { analyze(initialization!!.declaration.context) { error(ast,
@@ -962,7 +966,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         val bang = ast.name.endsWith('!')
         val property = receiverType.properties[ast.name.removeSuffix("!")] ?: throw error(ast,
             "Undefined property.",
-            "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType.component.name}.",
+            "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType}.",
         )
         val returnsType = if (bang) {
             require(property.type.isSubtypeOf(Type.RESULT.DYNAMIC)) { error(ast,
@@ -1115,7 +1119,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         }
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
         val exceptions = function.throws + listOfNotNull(function.returns.generic("E", Type.RESULT.GENERIC)?.takeIf { name.endsWith('!') })
-        exceptions.filter { it.component !== Type.DYNAMIC.component }.forEach { exception ->
+        exceptions.filter { (it as? Type.Reference)?.component?.name != "Dynamic" }.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
@@ -1169,7 +1173,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference.component == Type.LAMBDA.GENERIC.component) {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if ((context.inference as? Type.Reference)?.component == Type.LAMBDA.GENERIC.component) {
             val parameters = (context.inference.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
@@ -1335,34 +1339,38 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Type.Reference): RhovasIr.Type = analyzeAst(ast) {
-        var type: Type = context.scope.types[ast.path.first()] ?: throw error(ast,
+        var type = context.scope.types[ast.path.first()] ?: throw error(ast,
             "Undefined type.",
-            "The type ${ast.path.first()} is not defined in the current scope."
+            "The type ${ast.path.first()} is not defined in the current scope.",
         )
         ast.path.drop(1).forEach {
-            type = type.component.scope.types[it] ?: throw error(ast,
+            val component = (type as? Type.Reference)?.component ?: throw error(ast,
+                "Invalid type qualifier.",
+                "Qualified types require a reference type, but received a base type of Type.${type::class.simpleName} (${type}).",
+            )
+            type = component.scope.types[it] ?: throw error(ast,
                 "Undefined type.",
-                "The type ${it} is not defined in ${type}."
+                "The type ${it} is not defined in ${type}.",
             )
         }
         if (ast.generics != null) {
-            require(type is Type.Reference) { error(ast,
+            val component = (type as? Type.Reference)?.component ?: throw error(ast,
+                "Invalid generic type.",
+                "Generic types require a reference type, but received a base type of Type.${type::class.simpleName} (${type}).",
+            )
+            require(ast.generics.size == component.generics.size) { error(ast,
                 "Invalid generic parameters.",
-                "Generic type require a reference type, but received a base type of Type.${type::class.simpleName} (${type}).",
+                "The type ${type} requires ${component.generics.size} generic parameters, but received ${ast.generics.size}.",
             ) }
-            require(ast.generics.size == type.component.generics.size) { error(ast,
-                "Invalid generic parameters.",
-                "The type ${type.component.name} requires ${type.component.generics.size} generic parameters, but received ${ast.generics.size}.",
-            ) }
-            val generics = type.component.generics.values.withIndex().associate {
+            val generics = component.generics.values.withIndex().associate {
                 val generic = visit(ast.generics[it.index]).type
                 require(generic.isSubtypeOf(it.value.bound)) { error(ast.generics[it.index],
                     "Invalid generic parameter.",
-                    "The type ${type.component.name} requires generic parameter ${it.index} to be type ${it.value.bound}, but received ${generic}.",
+                    "The type ${type} requires generic parameter ${it.index} to be type ${it.value.bound}, but received ${generic}.",
                 ) }
                 it.value.name to generic
             }
-            type = Type.Reference(type.component, generics)
+            type = Type.Reference(component, generics)
         }
         if (ast.nullable) {
             type = Type.NULLABLE[type]

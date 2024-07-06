@@ -49,7 +49,7 @@ object Library {
             MathInitializer,
         )
         initializers.forEach { initializer ->
-            TYPES.define(initializer.component.type)
+            TYPES.define(initializer.component.name, initializer.component.type)
         }
         initializers.forEach { initializer ->
             initializer.declare()

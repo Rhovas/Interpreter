@@ -30,7 +30,7 @@ class DefinitionPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Struct): RhovasIr.DefinitionPhase.Component.Struct = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Struct
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Struct
         val fields = ast.members.filterIsInstance<RhovasAst.Member.Property>().map { visit(it, component) }
         component.inherits.forEach { component.inherit(it) }
         component.inherited.functions.define(Function.Definition(Function.Declaration("",
@@ -49,7 +49,7 @@ class DefinitionPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Class): RhovasIr.DefinitionPhase.Component.Class = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Class
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Class
         component.inherits.forEach { component.inherit(it) }
         val members = ast.members.map { visit(it, component) }.toMutableList()
         if (ast.modifiers.inheritance != Modifiers.Inheritance.ABSTRACT) {
@@ -59,7 +59,7 @@ class DefinitionPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Interface): RhovasIr.DefinitionPhase.Component.Interface = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Interface
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Interface
         component.inherits.forEach { component.inherit(it) }
         val members = ast.members.map { visit(it, component) }.toMutableList()
         RhovasIr.DefinitionPhase.Component.Interface(ast, component, members)
@@ -85,7 +85,7 @@ class DefinitionPhase(
     }
 
     fun visit(ast: RhovasAst.Member.Property, component: Component<*>): RhovasIr.DefinitionPhase.Member.Property = analyzer.analyze(ast.context) { analyzer.analyze {
-        component.generics.forEach { context.scope.types.define(it.value, it.key) }
+        component.generics.forEach { context.scope.types.define(it.key, it.value) }
         //TODO: Validate override constraints and check setter definitions
         analyzer.require(component.scope.functions[ast.name, 1, true].isEmpty()) { analyzer.error(ast,
             "Redefined property.",
@@ -108,7 +108,7 @@ class DefinitionPhase(
     } }
 
     fun visit(ast: RhovasAst.Member.Initializer, component: Component<*>): RhovasIr.DefinitionPhase.Member.Initializer = analyzer.analyze(ast.context) { analyzer.analyze {
-        component.generics.forEach { context.scope.types.define(it.value, it.key) }
+        component.generics.forEach { context.scope.types.define(it.key, it.value) }
         val parameters = ast.parameters.mapIndexed { index, parameter ->
             val type = parameter.second?.let { analyzer.visit(it).type } ?: throw analyzer.error(ast,
                 "Missing parameter type.",
@@ -147,7 +147,7 @@ class DefinitionPhase(
                 ) }
                 generics[it.first] = Type.Generic(it.first, it.second?.let { analyzer.visit(it).type } ?: Type.ANY)
             }
-            generics.forEach { context.scope.types.define(it.value, it.key) }
+            generics.forEach { context.scope.types.define(it.key, it.value) }
             val parameters = ast.parameters.mapIndexed { index, parameter ->
                 val type = parameter.second?.let { analyzer.visit(it).type } ?: component?.type?.takeIf { index == 0 } ?: throw analyzer.error(ast,
                     "Missing parameter type.",

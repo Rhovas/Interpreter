@@ -31,7 +31,7 @@ class DeclarationPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Struct) = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Struct
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Struct
         ast.generics.forEach {
             analyzer.require(component.generics[it.first] == null) { analyzer.error(ast,
                 "Redefined generic type.",
@@ -41,7 +41,7 @@ class DeclarationPhase(
         }
         val fields = mutableMapOf<String, Variable.Declaration>()
         analyzer.analyze {
-            component.generics.forEach { context.scope.types.define(it.value, it.key) }
+            component.generics.forEach { context.scope.types.define(it.key, it.value) }
             ast.members.filterIsInstance<RhovasAst.Member.Property>().map {
                 analyzer.require(fields[it.name] == null) { analyzer.error(ast,
                     "Redefined field.",
@@ -56,7 +56,7 @@ class DeclarationPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Class) = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Class
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Class
         ast.generics.forEach {
             analyzer.require(component.generics[it.first] == null) { analyzer.error(ast,
                 "Redefined generic type.",
@@ -70,7 +70,7 @@ class DeclarationPhase(
     }
 
     private fun visit(ast: RhovasAst.Component.Interface) = analyzer.analyze(ast.context) {
-        val component = context.scope.types[ast.name]!!.component as Component.Interface
+        val component = (context.scope.types[ast.name]!! as Type.Reference).component as Component.Interface
         ast.generics.forEach {
             analyzer.require(component.generics[it.first] == null) { analyzer.error(ast,
                 "Redefined generic type.",
@@ -83,15 +83,16 @@ class DeclarationPhase(
     }
 
     private fun visitInherits(inherits: List<RhovasAst.Type>, component: Component<*>): Pair<Type.Reference?, List<Type.Reference>> = analyzer.analyze {
-        component.generics.forEach { context.scope.types.define(it.value, it.key) }
+        component.generics.forEach { context.scope.types.define(it.key, it.value) }
         var extends: Type.Reference? = null
         val implements = mutableListOf<Type.Reference>()
         inherits.forEach {
-            val type = analyzer.visit(it).type
-            analyzer.require(type is Type.Reference) { analyzer.error(it,
-                "Invalid inheritance type.",
-                "The type ${type} cannot be inherited from as it is not a reference type.",
-            ) }
+            val type = analyzer.visit(it).type.let { type ->
+                type as? Type.Reference ?: throw analyzer.error(it,
+                    "Invalid inheritance type.",
+                    "The type ${type} cannot be inherited from as it is not a reference type.",
+                )
+            }
             if (component is Component.Class && extends == null && implements.isEmpty() && type.component is Component.Class) {
                 analyzer.require(type.component.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT)) { analyzer.error(it,
                     "Invalid class inheritance.",

@@ -7,7 +7,6 @@ import dev.rhovas.interpreter.analyzer.AnalyzeException
 import dev.rhovas.interpreter.analyzer.rhovas.RhovasAnalyzer
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.Type
@@ -697,7 +696,7 @@ class EvaluatorTests: RhovasSpec() {
                 )) { arguments ->
                     Object(component.type, arguments[0].value as String)
                 })
-                it.types.define(component.type)
+                it.types.define(component.name, component.type)
             } }
 
             suite("With", listOf(
@@ -1164,7 +1163,7 @@ class EvaluatorTests: RhovasSpec() {
                         )) { arguments ->
                             Object(component.type, arguments[0].value as String)
                         })
-                        it.types.define(component.type)
+                        it.types.define(component.name, component.type)
                         null
                     },
                     "Result to Exception" to Test("""

@@ -8,6 +8,7 @@ data class Object(
 ) {
 
     init {
+        require(type is Type.Reference)
         require(type.component.scope is Scope.Definition)
     }
 

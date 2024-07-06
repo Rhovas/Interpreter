@@ -37,7 +37,7 @@ class RegistrationPhase(
             "A struct cannot specify virtual/abstract modifiers as they cannot be inherited from.",
         ) }
         val component = Component.Struct(ast.name)
-        context.scope.types.define(component.type)
+        context.scope.types.define(component.name, component.type)
     }
 
     private fun visit(ast: RhovasAst.Component.Class) = analyzer.analyze(ast.context) {
@@ -46,7 +46,7 @@ class RegistrationPhase(
             "The type ${ast.name} is already defined in this scope.",
         ) }
         val component = Component.Class(ast.name, ast.modifiers)
-        context.scope.types.define(component.type)
+        context.scope.types.define(component.name, component.type)
     }
 
     private fun visit(ast: RhovasAst.Component.Interface) = analyzer.analyze(ast.context) {
@@ -59,7 +59,7 @@ class RegistrationPhase(
             "An interface cannot specify virtual/abstract modifiers as they are always considered abstract.",
         ) }
         val component = Component.Interface(ast.name)
-        context.scope.types.define(component.type)
+        context.scope.types.define(component.name, component.type)
     }
 
 }

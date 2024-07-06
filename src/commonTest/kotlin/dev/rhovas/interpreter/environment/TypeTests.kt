@@ -14,7 +14,7 @@ class TypeTests : RhovasSpec() {
         component.inherits.forEach { component.inherit(it) }
         Type.INTEGER.component.inherits.add(0, component.type)
         Type.DECIMAL.component.inherits.add(0, component.type)
-        Library.SCOPE.types.define(component.type)
+        Library.SCOPE.types.define(component.name, component.type)
         component.type
     }
 
@@ -129,7 +129,7 @@ class TypeTests : RhovasSpec() {
         suite("Subtype") {
             data class Test(val type: Type, val other: Type, val expected: Boolean)
 
-            fun test(test: Test, wrapper: Type? = null) {
+            fun test(test: Test, wrapper: Type.Reference? = null) {
                 assertEquals(test.expected, test.type.isSubtypeOf(test.other))
                 wrapper?.let {
                     val wrappedType = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.type))

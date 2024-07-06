@@ -40,7 +40,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Component.Struct): Object {
         //TODO(#11): Component declaration/definition handling
         if (!scope.types.isDefined(ir.component.name, true)) {
-            scope.types.define(ir.component.type)
+            scope.types.define(ir.component.name, ir.component.type)
         }
         ir.members.forEach { visit(it) }
         val current = scope
@@ -64,7 +64,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Component.Class): Object {
         //TODO(#11): Component declaration/definition handling
         if (!scope.types.isDefined(ir.component.name, true)) {
-            scope.types.define(ir.component.type)
+            scope.types.define(ir.component.name, ir.component.type)
         }
         ir.members.forEach { visit(it) }
         return Object(Type.VOID, Unit)
@@ -72,7 +72,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Component.Interface): Object {
         if (!scope.types.isDefined(ir.component.name, true)) {
-            scope.types.define(ir.component.type)
+            scope.types.define(ir.component.name, ir.component.type)
         }
         ir.members.forEach { visit(it) }
         return Object(Type.VOID, Unit)
@@ -179,17 +179,17 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val value = visit(ir.value)
         val property = receiver[ir.property] ?: throw error(ir,
             "Undefined property.",
-            "The property ${ir.property.name} is not defined in ${receiver.type.component.name}.",
+            "The property ${ir.property.name} is not defined in ${receiver.type}.",
         )
         val method = property.setter ?: throw error(ir,
             "Unassignable property.",
-            "The property ${receiver.type.component.name}.${ir.property.name} does not support assignment.",
+            "The property ${receiver.type}.${ir.property.name} does not support assignment.",
         )
         require(value.type.isSubtypeOf(method.parameters[0].type)) { error(ir.value,
             "Invalid property value type.",
-            "The property ${receiver.type.component.name}.${method.name} requires the value to be type ${method.parameters[0].type}, but received ${value.type}.",
+            "The property ${receiver.type}.${method.name} requires the value to be type ${method.parameters[0].type}, but received ${value.type}.",
         ) }
-        trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(listOf(value))
         }
         return Object(Type.VOID, Unit)
@@ -200,15 +200,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val arguments = ir.arguments.map { visit(it) } + listOf(visit(ir.value))
         val method = receiver[ir.method]  ?: throw error(ir,
             "Undefined method.",
-            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.component.name}.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments.getOrNull(i) ?: ir.value,
                 "Invalid method argument type.",
-                "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
+                "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
         return Object(Type.VOID, Unit)
@@ -435,7 +435,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Expression.Literal.List): Object {
         val value = ir.elements.map { visit(it) }
-        return if (ir.type.component == Type.TUPLE.GENERIC.component) {
+        return if ((ir.type as? Type.Reference)?.component == Type.TUPLE.GENERIC.component) {
             Object(Type.TUPLE.DYNAMIC, value)
         } else {
             Object(Type.LIST.DYNAMIC, value)
@@ -443,7 +443,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
-        return if (ir.type.component == Type.MAP.GENERIC.component) {
+        return if ((ir.type as? Type.Reference)?.component == Type.MAP.GENERIC.component) {
             val value = ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
             Object(Type.MAP[Type.ATOM, Type.DYNAMIC], value)
         } else {
@@ -465,9 +465,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val expression = visit(ir.expression)
         val method = expression[ir.method] ?: throw error(ir,
             "Undefined method.",
-            "The method op${ir.operator}() is not defined in ${expression.type.component.name}.",
+            "The method op${ir.operator}() is not defined in ${expression.type}.",
         )
-        return trace(ir, "${expression.type.component.name}.${ir.operator}()", ir.context.firstOrNull()) {
+        return trace(ir, "${expression.type}.${ir.operator}()", ir.context.firstOrNull()) {
             method.invoke(listOf())
         }
     }
@@ -484,7 +484,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             }
             "===", "!==" -> {
                 val right = visit(ir.right)
-                val result = left.type == right.type && when (left.type.component.name) {
+                val result = left.type == right.type && when ((left.type as? Type.Reference)?.component?.name) {
                     in listOf("Integer", "Decimal", "Atom") -> left.value == right.value
                     else -> left.value === right.value
                 }
@@ -494,14 +494,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "<", ">", "<=", ">=" -> {
                 val method = left[ir.method!!] ?: throw error(ir,
                     "Undefined method.",
-                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type.component.name}.",
+                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type}.",
                 )
                 val right = visit(ir.right)
                 require(right.type.isSubtypeOf(method.parameters[0].type)) { error(ir.right,
                     "Invalid method argument type.",
-                    "The method ${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].type}, but received ${right.type}."
+                    "The method ${left.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].type}, but received ${right.type}."
                 ) }
-                val result = trace(ir, "${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+                val result = trace(ir, "${left.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right)).value as BigInteger
                 }
                 val value = when (ir.operator) {
@@ -516,10 +516,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "+", "-", "*", "/" -> {
                 val method = left[ir.method!!] ?: throw error(ir,
                     "Undefined method.",
-                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type.component.name}.",
+                    "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type}.",
                 )
                 val right = visit(ir.right)
-                trace(ir, "${left.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+                trace(ir, "${left.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
                     method.invoke(listOf(right))
                 }
             }
@@ -537,9 +537,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
         val method = receiver[ir.property]?.getter ?: throw error(ir,
             "Undefined property.",
-            "The property ${ir.property.name} is not defined in ${receiver.type.component.name}.",
+            "The property ${ir.property.name} is not defined in ${receiver.type}.",
         )
-        val returns = trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val returns = trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, method.throws) { method.invoke(listOf()) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, false)
@@ -551,21 +551,21 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val arguments = ir.arguments.map { visit(it) }
         val method = receiver[ir.method] ?: throw error(ir,
             "Undefined method.",
-            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.component.name}.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
+                "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             method.invoke(arguments)
         }
     }
 
     override fun visit(ir: RhovasIr.Expression.Invoke.Constructor): Object {
-        val function = ir.function as? Function.Definition ?: scope.types[ir.type.component.name]!!.functions[ir.function.name, ir.function.parameters.map { it.type }]!! as Function.Definition
+        val function = ir.function as? Function.Definition ?: scope.types[ir.qualifier.component.name]!!.functions[ir.function.name, ir.function.parameters.map { it.type }]!! as Function.Definition
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(ir.arguments[i],
@@ -573,7 +573,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        return trace(ir, "${ir.type.component.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        return trace(ir, "${ir.type}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             function.invoke(arguments)
         }
     }
@@ -598,15 +598,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val arguments = ir.arguments.map { visit(it) }
         val method = receiver[ir.method]  ?: throw error(ir,
             "Undefined method.",
-            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type.component.name}.",
+            "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid method argument type.",
-                "The method ${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
+                "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
-        val returns = trace(ir, "${receiver.type.component.name}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
+        val returns = trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
             invokeBang(ir.bang, method.throws) { method.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)

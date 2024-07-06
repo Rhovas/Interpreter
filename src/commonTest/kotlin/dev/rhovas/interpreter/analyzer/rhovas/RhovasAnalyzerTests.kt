@@ -23,8 +23,11 @@ class RhovasAnalyzerTests: RhovasSpec() {
 
     data class Test<T : RhovasIr>(val source: String, val expected: ((Scope.Declaration) -> T?)?)
 
-    private val MODULE = Component.Class("Module").type.also(Library.SCOPE.types::define)
-    private val SUBMODULE = Component.Class("Module.Type").type.also(Library.SCOPE.types::define).also { MODULE.component.scope.types.define(it, "Type") }
+    private val MODULE = Component.Class("Module").also { Library.SCOPE.types.define(it.name, it.type) }.type
+    private val SUBMODULE = Component.Class("Module.Type").also { Library.SCOPE.types.define(it.name, it.type) }.also { MODULE.component.scope.types.define(
+        "Type",
+        it.type
+    ) }.type
     private val STMT_0 = Function.Definition(Function.Declaration("stmt",
         parameters = listOf(),
         returns = Type.VOID,
@@ -2580,7 +2583,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     "Unconstructable" to Test("""
                         Unconstructable()
                     """.trimIndent()) {
-                        it.types.define(Type.Generic("T", Type.ANY), "Unconstructable")
+                        it.types.define("Unconstructable", Type.Generic("T", Type.ANY))
                         null
                     },
                     "Undefined" to Test("""
@@ -3387,7 +3390,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Invalid Generic Receiver" to Test("""
                     Invalid<String>
                 """.trimIndent()) {
-                    it.types.define(Type.Generic("T", Type.ANY), "Invalid")
+                    it.types.define("Invalid", Type.Generic("T", Type.ANY))
                     null
                 },
                 "Invalid Generic Arity" to Test("""

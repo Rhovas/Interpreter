@@ -2,6 +2,8 @@ package dev.rhovas.interpreter.analyzer
 
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 import kotlin.reflect.KClass
 
 abstract class Analyzer(internal var context: Context) {

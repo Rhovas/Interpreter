@@ -80,9 +80,9 @@ sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
             return types.containsKey(name) || !current && parent?.types?.isDefined(name, current) ?: false
         }
 
-        fun define(type: Type, alias: String = type.component.name) {
-            require(!types.containsKey(alias))
-            types[alias] = type
+        fun define(name: String, type: Type) {
+            require(!types.containsKey(name))
+            types[name] = type
         }
 
         internal fun collect(): MutableMap<String, Type> {
