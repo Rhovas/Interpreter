@@ -828,7 +828,6 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
-        //check base type to avoid subtype issues with Dynamic
         val (elements, type) = if (context.inference.isSubtypeOf(Type.TUPLE.GENERIC)) {
             val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
@@ -844,7 +843,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
-        val (properties, type) = if (context.inference.isSubtypeOf(Type.MAP.GENERIC)) {
+        val (properties, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.MAP.GENERIC)) {
             val inferredKey = context.inference.generic("K", Type.MAP.GENERIC) ?: Type.ANY
             val inferredValue = context.inference.generic("V", Type.MAP.GENERIC) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
@@ -1173,7 +1172,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if ((context.inference as? Type.Reference)?.component == Type.LAMBDA.GENERIC.component) {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.LAMBDA.GENERIC)) {
             val parameters = (context.inference.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
