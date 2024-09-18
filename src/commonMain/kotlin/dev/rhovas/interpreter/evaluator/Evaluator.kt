@@ -95,7 +95,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         ir.function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                scope.variables.define(Variable.Definition(Variable.Declaration("this", ir.function.returns), Object(ir.function.returns, mutableMapOf<String, Object>())))
+                val generics = mutableMapOf<String, Type>()
+                require(ir.function.isResolvedBy(arguments.map { it.type }, generics))
+                val instance = Object(ir.function.returns.bind(generics), mutableMapOf<String, Object>())
+                scope.variables.define(Variable.Definition(Variable.Declaration("this", instance.type), instance))
                 for (i in ir.function.parameters.indices) {
                     scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
                 }
@@ -569,8 +572,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
             require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(ir.arguments[i],
-                "Invalid function argument type.",
-                "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
+                "Invalid initializer argument type.",
+                "The initializer ${ir.type}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
         }
         return trace(ir, "${ir.type}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
