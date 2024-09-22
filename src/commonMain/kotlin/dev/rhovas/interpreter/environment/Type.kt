@@ -372,6 +372,7 @@ sealed class Type {
 
         override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
             return when {
+                this === other -> true //short-circuit for recursive generics
                 bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other, bindings)
                 other is Generic -> name == other.name
                 else -> bound.isSubtypeOf(other, bindings).takeIf { it }?.also { bindings[name] = other } ?: false
@@ -380,6 +381,7 @@ sealed class Type {
 
         override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
             return when {
+                this === other -> this //short-circuit for recursive generics
                 bindings.containsKey(name) -> bindings[name]!!.unify(other, bindings)
                 other is Generic -> if (name == other.name) this else bound.unify(other.bound)
                 else -> bound.unify(other, bindings).also { bindings[name] = other }
