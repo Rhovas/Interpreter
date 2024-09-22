@@ -72,6 +72,13 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
             }.joinToString("").trim(' ').removeSurrounding("/")
             Object(Type.REGEX, Regex(pattern))
         }
+
+        function("typeof",
+            parameters = listOf("element" to Type.ANY),
+            returns = Type.TYPE.DYNAMIC,
+        ) { (element): T1<Object> ->
+            Object(Type.TYPE[element.type], element.type)
+        }
     }
 
 }

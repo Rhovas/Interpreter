@@ -1147,6 +1147,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Invoke.Macro): RhovasIr.Expression = analyzeAst(ast) {
+        //Hardcoded #typeof macro for manual debugging
+        if (ast.name == "typeof" && ast.arguments.size == 1) {
+            val expression = visit(ast.arguments.single())
+            return@analyzeAst RhovasIr.Expression.Literal.Type(expression.type, Type.TYPE[expression.type])
+        }
         require(ast.dsl != null) { error(ast,
             "Unsupported Macro",
             "Macros without DSLs are not currently supported.",
