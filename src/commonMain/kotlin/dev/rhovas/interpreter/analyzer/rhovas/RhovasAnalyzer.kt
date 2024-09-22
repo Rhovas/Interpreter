@@ -828,7 +828,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
-        val (elements, type) = if (context.inference.isSubtypeOf(Type.TUPLE.GENERIC)) {
+        val (elements, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.TUPLE.GENERIC)) {
             val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
             val type = Type.TUPLE[elements.map { it.type }, true]
