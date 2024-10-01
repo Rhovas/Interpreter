@@ -447,8 +447,9 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
         return if ((ir.type as? Type.Reference)?.component == Type.MAP.GENERIC.component) {
+            val keyType = if (ir.properties.keys.isNotEmpty()) Type.ATOM else Type.DYNAMIC
             val value = ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
-            Object(Type.MAP[Type.ATOM, Type.DYNAMIC], value)
+            Object(Type.MAP[keyType, Type.DYNAMIC], value)
         } else {
             val value = ir.properties.mapValues { visit(it.value) }
             Object(Type.STRUCT.DYNAMIC, value)
