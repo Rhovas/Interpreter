@@ -8,15 +8,14 @@ import dev.rhovas.interpreter.environment.Type
 object EquatableInitializer : Library.ComponentInitializer(Component.Interface("Equatable")) {
 
     override fun declare() {
-        generics.add(generic("T", Type.EQUATABLE.DYNAMIC))
+        generics.add(Type.Generic("T") { Type.EQUATABLE[it] })
         inherits.add(Type.ANY)
     }
 
     override fun define() {
-        function("equals", operator = "==",
+        method("equals", operator = "==",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
-            generics = listOf(generic("T", Type.EQUATABLE.DYNAMIC)),
-            parameters = listOf("instance" to generic("T"), "other" to generic("T")),
+            parameters = listOf("other" to Type.EQUATABLE.DYNAMIC),
             returns = Type.BOOLEAN,
         ) { (instance, other): T2<Any?, Any?> ->
             fun equals(value: Any?, other: Any?): Boolean {

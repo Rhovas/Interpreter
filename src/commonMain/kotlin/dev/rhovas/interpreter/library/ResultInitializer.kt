@@ -11,7 +11,7 @@ object ResultInitializer : Library.ComponentInitializer(Component.Class("Result"
     override fun declare() {
         generics.add(generic("T"))
         generics.add(generic("E"))
-        inherits.add(Type.HASHABLE[Type.RESULT[Type.EQUATABLE[generic("T", Type.EQUATABLE[generic("T")])], Type.EQUATABLE[generic("E", Type.EQUATABLE[generic("E")])]]])
+        inherits.add(Type.HASHABLE[Type.RESULT[Type.EQUATABLE[Type.Generic("T") { Type.EQUATABLE[it] }], Type.EQUATABLE[Type.Generic("E") { Type.EQUATABLE[it] }]]])
     }
 
     override fun define() {

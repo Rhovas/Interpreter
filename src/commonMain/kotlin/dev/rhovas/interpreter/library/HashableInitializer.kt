@@ -9,15 +9,14 @@ import dev.rhovas.interpreter.environment.Type
 object HashableInitializer : Library.ComponentInitializer(Component.Interface("Hashable")) {
 
     override fun declare() {
-        generics.add(generic("T", Type.HASHABLE.DYNAMIC))
-        inherits.add(Type.EQUATABLE[generic("T", Type.HASHABLE.DYNAMIC)])
+        generics.add(Type.Generic("T") { Type.HASHABLE[it] })
+        inherits.add(Type.EQUATABLE[Type.Generic("T") { Type.HASHABLE[it] }])
     }
 
     override fun define() {
-        function("hash",
+        method("hash",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
-            generics = listOf(generic("T", Type.HASHABLE.DYNAMIC)),
-            parameters = listOf("instance" to generic("T")),
+            parameters = listOf(),
             returns = Type.INTEGER,
         ) { (instance): T1<Any?> ->
             Object(Type.INTEGER, BigInteger.fromInt(instance.hashCode()))

@@ -163,7 +163,10 @@ sealed class Type {
                                 else -> type.component == other.component && type.isSubtypeOf(other, bindings)
                             }
                             type is Generic -> type.isSubtypeOf(other, bindings)
-                            other is Generic -> type.isSubtypeOf(other, bindings).takeIf { it }.also { bindings[other.name] = type } ?: false
+                            other is Generic -> when {
+                                bindings.containsKey(other.name) -> type.isSubtypeOf(other, bindings).also { bindings[other.name] = type }
+                                else -> type.isSubtypeOf(other.bound, bindings.also { it[other.name] = type })
+                            }
                             else -> type.isSubtypeOf(other, bindings)
                         }
                     }
@@ -173,8 +176,8 @@ sealed class Type {
                 is Struct -> isSubtypeOf(STRUCT[other], bindings)
                 is Generic -> when {
                     bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" || (other as? Reference)?.component?.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
-                    else -> other.bound.isSupertypeOf(this, bindings).takeIf { it }?.also { bindings[other.name] = Variant(this, null) } ?: false
+                    component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
+                    else -> isSubtypeOf(other.bound, bindings.also { it[other.name] = Variant(this, null) })
                 }
                 is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
             }
@@ -198,7 +201,7 @@ sealed class Type {
                 is Struct -> unify(STRUCT[other], bindings)
                 is Generic -> when {
                     bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" || (other as? Reference)?.component?.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
+                    component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
                     else -> unify(other.bound, bindings).also { bindings[other.name] = it }
                 }
                 is Variant -> unify(other.upper ?: ANY)
@@ -353,10 +356,14 @@ sealed class Type {
 
     }
 
-    data class Generic(
+    class Generic private constructor(
         val name: String,
-        val bound: Type,
     ) : Type() {
+
+        lateinit var bound: Type
+
+        constructor(name: String, bound: Type) : this(name) { this.bound = bound }
+        constructor(name: String, bound: (Type) -> Type) : this(name) { this.bound = bound(this) }
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return bound.getFunction(name, arity)
@@ -375,7 +382,7 @@ sealed class Type {
                 this === other -> true //short-circuit for recursive generics
                 bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other, bindings)
                 other is Generic -> name == other.name
-                else -> bound.isSubtypeOf(other, bindings).takeIf { it }?.also { bindings[name] = other } ?: false
+                else -> bindings.put(name, other).let { bound.isSubtypeOf(other, bindings) }
             }
         }
 
@@ -388,8 +395,15 @@ sealed class Type {
             }
         }
 
+        override fun equals(other: Any?): Boolean {
+            return other is Generic && name == other.name && bound == other.bound
+        }
+
         override fun toString(): String {
-            return "${name}: ${bound}"
+            return when {
+                ::bound.isInitialized -> "${name}: ${bound.bind(mapOf(name to Generic(name)))}"
+                else -> name //special case for recursive generics within toString
+            }
         }
     }
 
