@@ -11,17 +11,9 @@ fun isSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Bo
 private fun isSubtypeOf(type: Type.Reference, other: Type, bindings: MutableMap<String, Type>): Boolean = when (other) {
     is Type.Reference -> when {
         type.component.name == "Dynamic" || other.component.name == "Dynamic" || other.component.name == "Any" -> true
-        type.component.name == other.component.name -> type.generics.values.zip(other.generics.values).all { (type, other) -> when {
-            type is Type.Reference && other is Type.Reference -> when {
-                type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
-                else -> type.component == other.component && isSubtypeOf(type, other, bindings)
-            }
-            type is Type.Generic -> isSubtypeOf(type, other, bindings)
-            other is Type.Generic -> when {
-                bindings.containsKey(other.name) -> isSubtypeOf(type, other, bindings).also { bindings[other.name] = type }
-                else -> isSubtypeOf(type, other.bound, bindings.also { it[other.name] = type })
-            }
-            else -> isSubtypeOf(type, other, bindings)
+        type.component.name == other.component.name -> type.generics.values.zip(other.generics.values).all { when {
+            type.component.name == "Tuple" || type.component.name == "Struct" -> it.first.isSubtypeOf(it.second, bindings)
+            else -> isInvariantSubtypeOf(it.first, it.second, bindings)
         } }
         else -> type.component.inherits.any { isSubtypeOf(it.bind(type.generics), other, bindings) }
     }
