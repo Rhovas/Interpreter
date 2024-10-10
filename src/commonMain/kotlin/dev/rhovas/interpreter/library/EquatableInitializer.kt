@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.library
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 
 object EquatableInitializer : Library.ComponentInitializer(Component.Interface("Equatable")) {
 

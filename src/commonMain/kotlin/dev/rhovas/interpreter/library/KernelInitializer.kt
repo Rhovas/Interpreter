@@ -4,7 +4,7 @@ import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.INTERPRETER
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 
 object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")) {

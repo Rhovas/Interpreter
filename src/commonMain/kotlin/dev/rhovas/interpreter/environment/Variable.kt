@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Type
+
 sealed interface Variable {
 
     val declaration: Declaration

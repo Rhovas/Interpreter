@@ -9,7 +9,7 @@ import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Object
 import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input

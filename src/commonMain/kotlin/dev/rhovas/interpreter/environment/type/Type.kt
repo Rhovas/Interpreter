@@ -1,5 +1,12 @@
-package dev.rhovas.interpreter.environment
+package dev.rhovas.interpreter.environment.type
 
+import dev.rhovas.interpreter.environment.Component
+import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Method
+import dev.rhovas.interpreter.environment.Object
+import dev.rhovas.interpreter.environment.Property
+import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 
 sealed class Type {
@@ -65,10 +72,12 @@ sealed class Type {
 
     abstract fun bind(bindings: Map<String, Type>): Type
 
-    abstract fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean
+    fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
+        return isSubtypeOf(this, other, bindings)
+    }
 
     fun isSupertypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        return other.isSubtypeOf(this, bindings)
+        return isSubtypeOf(other, this, bindings)
     }
 
     fun generic(name: String, projection: Type): Type? {
@@ -78,7 +87,9 @@ sealed class Type {
         }
     }
 
-    abstract fun unify(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Type
+    fun unify(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Type {
+        return unify(this, other, bindings)
+    }
 
     inner class FunctionsDelegate {
 
@@ -152,62 +163,6 @@ sealed class Type {
             return Reference(component, generics.mapValues { it.value.bind(bindings) })
         }
 
-        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when (other) {
-                is Reference -> when {
-                    component.name == "Dynamic" || other.component.name == "Dynamic" || other.component.name == "Any" -> true
-                    component.name == other.component.name -> generics.values.zip(other.generics.values).all { (type, other) ->
-                        when {
-                            type is Reference && other is Reference -> when {
-                                type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
-                                else -> type.component == other.component && type.isSubtypeOf(other, bindings)
-                            }
-                            type is Generic -> type.isSubtypeOf(other, bindings)
-                            other is Generic -> when {
-                                bindings.containsKey(other.name) -> type.isSubtypeOf(other, bindings).also { bindings[other.name] = type }
-                                else -> type.isSubtypeOf(other.bound, bindings.also { it[other.name] = type })
-                            }
-                            else -> type.isSubtypeOf(other, bindings)
-                        }
-                    }
-                    else -> component.inherits.any { it.bind(generics).isSubtypeOf(other, bindings) }
-                }
-                is Tuple -> isSubtypeOf(TUPLE[other], bindings)
-                is Struct -> isSubtypeOf(STRUCT[other], bindings)
-                is Generic -> when {
-                    bindings.containsKey(other.name) -> isSubtypeOf(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" -> true.also { bindings[other.name] = DYNAMIC }
-                    else -> isSubtypeOf(other.bound, bindings.also { it[other.name] = Variant(this, null) })
-                }
-                is Variant -> (other.lower?.isSubtypeOf(this, bindings) ?: true) && (other.upper?.isSupertypeOf(this, bindings) ?: true)
-            }
-        }
-
-        override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when (other) {
-                is Reference -> when {
-                    component.name == "Dynamic" || other.component.name == "Dynamic" -> DYNAMIC
-                    component.name == "Any" || other.component.name == "Any" -> ANY
-                    component.name == other.component.name -> Reference(component, generics.entries.zip(other.generics.values).associate { (entry, other) -> entry.key to entry.value.unify(other, bindings) })
-                    else -> {
-                        var top: Reference = other
-                        while (!isSubtypeOf(top, bindings)) {
-                            top = top.component.inherits.first().bind(generics)
-                        }
-                        top.unify(this, bindings)
-                    }
-                }
-                is Tuple -> unify(TUPLE[other], bindings)
-                is Struct -> unify(STRUCT[other], bindings)
-                is Generic -> when {
-                    bindings.containsKey(other.name) -> unify(bindings[other.name]!!, bindings)
-                    component.name == "Dynamic" -> DYNAMIC.also { bindings[other.name] = DYNAMIC }
-                    else -> unify(other.bound, bindings).also { bindings[other.name] = it }
-                }
-                is Variant -> unify(other.upper ?: ANY)
-            }
-        }
-
         override fun equals(other: Any?): Boolean {
             return (other is Reference && this.component == other.component && this.generics == other.generics).also {
                 require(it || toString() != other.toString())
@@ -260,28 +215,6 @@ sealed class Type {
             return Tuple(elements.map { Variable.Declaration(it.name, it.type.bind(bindings), it.mutable) })
         }
 
-        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when (other) {
-                is Tuple -> other.elements.withIndex().all { (index, other) ->
-                    elements.getOrNull(index)?.let {
-                        val typeSubtype = it.type.isSubtypeOf(other.type, bindings)
-                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
-                        typeSubtype && mutableSubtype
-                    } ?: false
-                }
-                else -> TUPLE[this].isSubtypeOf(other, bindings)
-            }
-        }
-
-        override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when (other) {
-                is Tuple -> Tuple(elements.zip(other.elements).mapIndexed { index, pair ->
-                    Variable.Declaration(index.toString(), pair.first.type.unify(pair.second.type, bindings), pair.first.mutable && pair.second.mutable)
-                })
-                else -> TUPLE[this].unify(other, bindings)
-            }
-        }
-
         override fun toString(): String {
             return elements.joinToString(", ", "[", "]") { "${if (it.mutable) "var" else "val"} ${it.name}: ${it.type}" }
         }
@@ -328,28 +261,6 @@ sealed class Type {
             return Struct(fields.mapValues { Variable.Declaration(it.key, it.value.type.bind(bindings), it.value.mutable) })
         }
 
-        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when (other) {
-                is Struct -> other.fields.all { (key, other) ->
-                    fields[key]?.let {
-                        val typeSubtype = it.type.isSubtypeOf(other.type, bindings)
-                        val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
-                        typeSubtype && mutableSubtype
-                    } ?: false
-                }
-                else -> STRUCT[this].isSubtypeOf(other, bindings)
-            }
-        }
-
-        override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when (other) {
-                is Struct -> Struct(fields.keys.intersect(other.fields.keys).map { Pair(fields[it]!!, other.fields[it]!!) }.associate { pair ->
-                    pair.first.name to Variable.Declaration(pair.first.name, pair.first.type.unify(pair.second.type, bindings), pair.first.mutable && pair.second.mutable)
-                })
-                else -> STRUCT[this].unify(other, bindings)
-            }
-        }
-
         override fun toString(): String {
             return fields.values.joinToString(", ", "{", "}") { "${if (it.mutable) "var" else "val"} ${it.name}: ${it.type}" }
         }
@@ -375,24 +286,6 @@ sealed class Type {
 
         override fun bind(bindings: Map<String, Type>): Type {
             return bindings[name] ?: this
-        }
-
-        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when {
-                this === other -> true //short-circuit for recursive generics
-                bindings.containsKey(name) -> bindings[name]!!.isSubtypeOf(other, bindings)
-                other is Generic -> name == other.name
-                else -> bindings.put(name, other).let { bound.isSubtypeOf(other, bindings) }
-            }
-        }
-
-        override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when {
-                this === other -> this //short-circuit for recursive generics
-                bindings.containsKey(name) -> bindings[name]!!.unify(other, bindings)
-                other is Generic -> if (name == other.name) this else bound.unify(other.bound)
-                else -> bound.unify(other, bindings).also { bindings[name] = other }
-            }
         }
 
         override fun equals(other: Any?): Boolean {
@@ -422,24 +315,6 @@ sealed class Type {
 
         override fun bind(bindings: Map<String, Type>): Type {
             return Variant(lower?.bind(bindings), upper?.bind(bindings))
-        }
-
-        override fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type>): Boolean {
-            return when (other) {
-                is Variant -> {
-                    val lowerSubtype = lower?.isSupertypeOf(other.lower ?: DYNAMIC, bindings) ?: (other.lower == null)
-                    val upperSubtype = (upper ?: ANY).isSubtypeOf(other.upper ?: DYNAMIC, bindings)
-                    lowerSubtype && upperSubtype
-                }
-                else -> (upper ?: ANY).isSubtypeOf(other, bindings)
-            }
-        }
-
-        override fun unify(other: Type, bindings: MutableMap<String, Type>): Type {
-            return when (other) {
-                is Variant -> Variant(other.lower?.let { lower?.unify(it, bindings) } ?: lower, (upper ?: ANY).unify(other.upper ?: ANY, bindings))
-                else -> (upper ?: ANY).unify(other, bindings)
-            }
         }
 
         override fun toString(): String {

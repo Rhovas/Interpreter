@@ -1,6 +1,11 @@
-package dev.rhovas.interpreter.environment
+package dev.rhovas.interpreter.environment.type
 
 import dev.rhovas.interpreter.RhovasSpec
+import dev.rhovas.interpreter.environment.Component
+import dev.rhovas.interpreter.environment.Function
+import dev.rhovas.interpreter.environment.Modifiers
+import dev.rhovas.interpreter.environment.Scope
+import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

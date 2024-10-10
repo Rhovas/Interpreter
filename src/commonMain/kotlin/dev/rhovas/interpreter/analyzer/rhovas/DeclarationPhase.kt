@@ -3,7 +3,7 @@ package dev.rhovas.interpreter.analyzer.rhovas
 import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Modifiers
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
 

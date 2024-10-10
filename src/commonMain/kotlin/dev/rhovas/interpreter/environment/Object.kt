@@ -1,6 +1,7 @@
 package dev.rhovas.interpreter.environment
 
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.rhovas.interpreter.environment.type.Type
 
 data class Object(
     val type: Type,

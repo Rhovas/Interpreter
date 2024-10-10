@@ -15,7 +15,7 @@ sealed class RhovasIr {
     ) : RhovasIr()
 
     data class Import(
-        val type: dev.rhovas.interpreter.environment.Type,
+        val type: dev.rhovas.interpreter.environment.type.Type,
     ) : RhovasIr()
 
     sealed class Component : RhovasIr() {
@@ -200,43 +200,43 @@ sealed class RhovasIr {
     }
 
     sealed class Expression(
-        open val type: dev.rhovas.interpreter.environment.Type,
+        open val type: dev.rhovas.interpreter.environment.type.Type,
     ) : RhovasIr() {
 
         data class Block(
             val statements: List<Statement>,
             val expression: Expression?,
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type)
 
         sealed class Literal(
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type) {
 
             data class Scalar(
                 val value: Any?,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Literal(type)
 
             data class String(
                 val literals: kotlin.collections.List<kotlin.String>,
                 val arguments: kotlin.collections.List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Literal(type)
 
             data class List(
                 val elements: kotlin.collections.List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Literal(type)
 
             data class Object(
                 val properties: Map<kotlin.String, Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Literal(type)
 
             data class Type(
-                val literal: dev.rhovas.interpreter.environment.Type,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                val literal: dev.rhovas.interpreter.environment.type.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Literal(type)
 
         }
@@ -256,11 +256,11 @@ sealed class RhovasIr {
             val left: Expression,
             val right: Expression,
             val method: dev.rhovas.interpreter.environment.Method?,
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type)
 
         sealed class Access(
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type) {
 
             data class Variable(
@@ -273,7 +273,7 @@ sealed class RhovasIr {
                 val property: dev.rhovas.interpreter.environment.Property,
                 val bang: Boolean,
                 val coalesce: Boolean,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Access(type)
 
             data class Index(
@@ -281,28 +281,28 @@ sealed class RhovasIr {
                 val method: dev.rhovas.interpreter.environment.Method,
                 val coalesce: Boolean,
                 val arguments: List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Access(type)
 
         }
 
         sealed class Invoke(
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type) {
 
             data class Constructor(
-                val qualifier: dev.rhovas.interpreter.environment.Type.Reference,
+                val qualifier: dev.rhovas.interpreter.environment.type.Type.Reference,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val arguments: List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Invoke(type)
 
             data class Function(
-                val qualifier: dev.rhovas.interpreter.environment.Type?,
+                val qualifier: dev.rhovas.interpreter.environment.type.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val bang: Boolean,
                 val arguments: List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Invoke(type)
 
             data class Method(
@@ -312,18 +312,18 @@ sealed class RhovasIr {
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Invoke(type)
 
             data class Pipeline(
                 val receiver: Expression,
-                val qualifier: dev.rhovas.interpreter.environment.Type?,
+                val qualifier: dev.rhovas.interpreter.environment.type.Type?,
                 val function: dev.rhovas.interpreter.environment.Function,
                 val bang: Boolean,
                 val coalesce: Boolean,
                 val cascade: Boolean,
                 val arguments: List<Expression>,
-                override val type: dev.rhovas.interpreter.environment.Type,
+                override val type: dev.rhovas.interpreter.environment.type.Type,
             ) : Invoke(type)
 
         }
@@ -331,7 +331,7 @@ sealed class RhovasIr {
         data class Lambda(
             val parameters: List<dev.rhovas.interpreter.environment.Variable.Declaration>,
             val body: Block,
-            override val type: dev.rhovas.interpreter.environment.Type,
+            override val type: dev.rhovas.interpreter.environment.type.Type,
         ) : Expression(type)
 
     }
@@ -362,7 +362,7 @@ sealed class RhovasIr {
         ) : Pattern(patterns.flatMap { it.second.bindings.entries }.associate { it.key to it.value })
 
         data class TypedDestructure(
-            val type: dev.rhovas.interpreter.environment.Type,
+            val type: dev.rhovas.interpreter.environment.type.Type,
             val pattern: Pattern?,
         ) : Pattern(pattern?.bindings ?: mapOf())
 
@@ -375,7 +375,7 @@ sealed class RhovasIr {
     }
 
     data class Type(
-        val type: dev.rhovas.interpreter.environment.Type
+        val type: dev.rhovas.interpreter.environment.type.Type
     ) : RhovasIr()
 
     interface Visitor<T> {
@@ -527,7 +527,7 @@ sealed class RhovasIr {
             data class Class(
                 val ast: RhovasAst.Component.Class,
                 val component: dev.rhovas.interpreter.environment.Component.Class,
-                val extends: dev.rhovas.interpreter.environment.Type.Reference?,
+                val extends: dev.rhovas.interpreter.environment.type.Type.Reference?,
                 val members: List<Member>,
             ) : Component()
 

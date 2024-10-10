@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Type
+
 sealed class Component<S: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(
     val name: String,
     val modifiers: Modifiers,

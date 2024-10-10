@@ -8,7 +8,7 @@ import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.environment.Variable
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
@@ -1676,7 +1676,7 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 """.trimIndent()) {
                     RhovasIr.Statement.For(
                         Variable.Declaration("element", Type.DYNAMIC),
-                        RhovasIr.Expression.Literal.List(listOf(),Type.LIST[Type.DYNAMIC]),
+                        RhovasIr.Expression.Literal.List(listOf(), Type.LIST[Type.DYNAMIC]),
                         block(stmt()),
                     )
                 },

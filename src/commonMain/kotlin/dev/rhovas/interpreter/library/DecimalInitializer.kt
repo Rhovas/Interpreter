@@ -3,10 +3,9 @@ package dev.rhovas.interpreter.library
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.DecimalMode
 import com.ionspin.kotlin.bignum.decimal.RoundingMode
-import com.ionspin.kotlin.bignum.integer.BigInteger
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 
 object DecimalInitializer : Library.ComponentInitializer(Component.Class("Decimal")) {
 

@@ -2,7 +2,7 @@ package dev.rhovas.interpreter.library
 
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Object
-import dev.rhovas.interpreter.environment.Type
+import dev.rhovas.interpreter.environment.type.Type
 
 object VoidInitializer : Library.ComponentInitializer(Component.Class("Void")) {
 

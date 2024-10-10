@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Type
+
 sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
     private val parent: Scope<*, out VO, *, out FO>?,
 ) {
