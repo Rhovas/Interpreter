@@ -43,10 +43,11 @@ private fun isInvariantSubtypeOf(type: Type.Struct, other: Type, bindings: Mutab
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type, bindings: MutableMap<String, Type>): Boolean = when {
-    type === other -> true //short-circuit for recursive generics
-    bindings.containsKey(type.name) -> isInvariantSubtypeOf(bindings[type.name]!!, other, bindings)
-    other is Type.Generic -> type.name == other.name
-    else -> isInvariantSubtypeOf(type.bound, other, bindings.also { it[type.name] = other })
+    other is Type.Generic -> when {
+        bindings.containsKey(other.name) -> isInvariantSubtypeOf(type, bindings[other.name]!!, bindings.also { it[other.name] = type })
+        else -> type.name == other.name
+    }
+    else -> isInvariantSubtypeOf(type.bound, other, bindings)
 }
 
 private fun isInvariantSubtypeOf(type: Type.Variant, other: Type, bindings: MutableMap<String, Type>): Boolean = when (other) {

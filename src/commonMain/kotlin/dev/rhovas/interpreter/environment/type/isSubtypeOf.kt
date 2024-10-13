@@ -20,7 +20,7 @@ private fun isSubtypeOf(type: Type.Reference, other: Type, bindings: MutableMap<
     is Type.Tuple -> isSubtypeOf(type, Type.TUPLE[other], bindings)
     is Type.Struct -> isSubtypeOf(type, Type.STRUCT[other], bindings)
     is Type.Generic -> when {
-        bindings.containsKey(other.name) -> isSubtypeOf(type, bindings[other.name]!!, bindings)
+        bindings.containsKey(other.name) -> isSubtypeOfBinding(type, other.name, bindings)
         type.component.name == "Dynamic" -> true.also { bindings[other.name] = Type.DYNAMIC }
         else -> isSubtypeOf(type, other.bound, bindings.also { it[other.name] = Type.Variant(type, null) })
     }
@@ -53,10 +53,11 @@ private fun isSubtypeOf(type: Type.Struct, other: Type, bindings: MutableMap<Str
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type, bindings: MutableMap<String, Type>): Boolean = when {
-    type === other -> true //short-circuit for recursive generics
-    bindings.containsKey(type.name) -> isSubtypeOf(bindings[type.name]!!, other, bindings)
-    other is Type.Generic -> type.name == other.name
-    else -> isSubtypeOf(type.bound, other, bindings.also { it[type.name] = other })
+    other is Type.Generic -> when {
+        bindings.containsKey(other.name) -> isSubtypeOfBinding(type, other.name, bindings)
+        else -> type.name == other.name
+    }
+    else -> isSubtypeOf(type.bound, other, bindings)
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type, bindings: MutableMap<String, Type>): Boolean = when (other) {
@@ -65,4 +66,12 @@ private fun isSubtypeOf(type: Type.Variant, other: Type, bindings: MutableMap<St
         isSubtypeOf(type.upper ?: Type.ANY, other.upper ?: Type.DYNAMIC, bindings)
     )
     else -> isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
+}
+
+private fun isSubtypeOfBinding(type: Type, name: String, bindings: MutableMap<String, Type>): Boolean {
+    val subtype = isSubtypeOf(type, bindings[name]!!, bindings)
+    if (subtype && bindings[name] is Type.Variant) {
+        bindings[name] = Type.Variant(type, (bindings[name]!! as Type.Variant).upper)
+    }
+    return subtype
 }
