@@ -14,9 +14,9 @@ class SubtypeTests : RhovasSpec() {
 
     enum class Subtype { TRUE, FALSE, INVARIANT }
 
-    init {
-        println(Library.type("Any"))
-    }
+    private val SUPERTYPE = reference("Supertype", linkedMapOf(), listOf(Type.ANY))
+    private val TYPE = reference("Type", linkedMapOf(), listOf(SUPERTYPE))
+    private val SUBTYPE = reference("Subtype", linkedMapOf(), listOf(TYPE))
 
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
@@ -29,28 +29,64 @@ class SubtypeTests : RhovasSpec() {
         component.type
     }
 
-    init {
-        data class Test(val type: Type, val other: Type, val subtype: Subtype)
+    data class Test(
+        val type: Type,
+        val other: Type,
+        val expected: Any, // Boolean | Map<String, Type>
+    )
 
-        fun test(test: Test, wrapper: Type.Reference? = null) {
-            assertEquals(test.subtype != Subtype.FALSE, test.type.isSubtypeOf(test.other))
-            assertEquals(test.subtype == Subtype.INVARIANT, Type.LIST[test.type].isSubtypeOf(Type.LIST[test.other]))
+    private fun test(test: Test, wrapper: Type.Reference? = null) {
+        fun test(type: Type, other: Type, expected: Any) {
+            val bindings = mutableMapOf<String, Type>()
+            val subtype = isSubtypeOf(type, other, bindings)
+            when (expected) {
+                is Boolean -> assertEquals(expected, subtype)
+                is Map<*, *> -> assertEquals(expected, if (subtype) bindings else false)
+                else -> throw AssertionError(expected::class)
+            }
+        }
+        if (test.expected !is Subtype) {
+            test(test.type, test.other, test.expected)
+        } else {
+            // Stub for existing tests
+            test(test.type, test.other, test.expected != Subtype.FALSE)
+            test(Type.LIST[test.type], Type.LIST[test.other], test.expected == Subtype.INVARIANT)
             wrapper?.let {
                 val wrappedType = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.type))
                 val wrappedOther = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.other))
-                assertEquals(test.subtype != Subtype.FALSE, wrappedType.isSubtypeOf(wrappedOther))
-                assertEquals(test.subtype == Subtype.INVARIANT, Type.LIST[wrappedType].isSubtypeOf(Type.LIST[wrappedOther]))
+                test(wrappedType, wrappedOther, test.expected != Subtype.FALSE)
+                test(Type.LIST[wrappedType], Type.LIST[wrappedOther], test.expected == Subtype.INVARIANT)
             }
         }
+    }
 
-        suite("Base", listOf(
-            "Equal" to Test(Type.NUMBER, Type.NUMBER, Subtype.INVARIANT),
-            "Subtype" to Test(Type.INTEGER, Type.NUMBER, Subtype.TRUE),
-            "Supertype" to Test(Type.NUMBER, Type.INTEGER, Subtype.FALSE),
-            "Grandchild" to Test(Type.INTEGER, Type.ANY, Subtype.TRUE),
-            "Dynamic Subtype" to Test(Type.DYNAMIC, Type.NUMBER, Subtype.INVARIANT),
-            "Dynamic Supertype" to Test(Type.NUMBER, Type.DYNAMIC, Subtype.INVARIANT),
-        )) { test(it) }
+    init {
+        suite("Reference <: Reference") {
+
+            suite("Base", listOf(
+                "Equal" to Test(TYPE, TYPE, true),
+                "Disjoint" to Test(TYPE, Type.VOID, false),
+                "Subtype" to Test(SUBTYPE, TYPE, true),
+                "Supertype" to Test(SUPERTYPE, TYPE, false),
+                "Grandchild" to Test(SUBTYPE, SUPERTYPE, true),
+                "Grandparent" to Test(SUPERTYPE, SUBTYPE, false),
+                "Any Subtype" to Test(Type.ANY, TYPE, false),
+                "Any Supertype" to Test(TYPE, Type.ANY, true),
+                "Dynamic Subtype" to Test(Type.DYNAMIC, TYPE, true),
+                "Dynamic Supertype" to Test(TYPE, Type.DYNAMIC, true),
+            )) { test(it) }
+
+            suite("Generics", listOf(
+                "Equal" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Base Subtype" to Test(Type.LIST[TYPE], Type.ITERABLE[TYPE], true),
+                "Base Supertype" to Test(Type.ITERABLE[TYPE], Type.LIST[TYPE], false),
+                "Generic Subtype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Generic Supertype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Generic Dynamic Subtype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+            )) { test(it) }
+
+        }
 
         suite("Tuple", listOf(
             "Empty" to Test(tuple(), tuple(), Subtype.INVARIANT),
@@ -148,6 +184,14 @@ class SubtypeTests : RhovasSpec() {
         }
     }
 
+    private fun reference(name: String, generics: LinkedHashMap<String, Type.Generic>, inherits: List<Type.Reference>): Type.Reference {
+        val component = Component.Interface(name)
+        component.generics.putAll(generics)
+        component.inherits.addAll(inherits)
+        component.inherits.forEach { component.inherit(it) }
+        return component.type
+    }
+
     private fun tuple(vararg types: Type, mutable: Boolean = false): Type.Tuple {
         return (Type.TUPLE[types.toList(), mutable].generics["T"]!! as Type.Tuple)
     }
@@ -158,6 +202,10 @@ class SubtypeTests : RhovasSpec() {
 
     private fun generic(name: String, bound: Type = Type.ANY): Type.Generic {
         return Type.Generic(name, bound)
+    }
+
+    private fun variant(lower: Type? = null, upper: Type? = null): Type.Variant {
+        return Type.Variant(lower, upper)
     }
 
 }

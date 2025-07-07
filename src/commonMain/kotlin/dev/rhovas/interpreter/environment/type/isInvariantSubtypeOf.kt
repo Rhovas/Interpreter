@@ -34,9 +34,14 @@ fun isInvariantSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, T
 
 private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
     return when {
+        // TODO: Dynamic should ensure generics are still bound.
         type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
-        type.component.name == other.component.name -> type.generics.values.zip(other.generics.values).all { isInvariantSubtypeOf(it.first, it.second, bindings) }
-        else -> false
+        type.component.name == other.component.name -> {
+            type.generics.values.zip(other.generics.values).all { (type, other) ->
+                isInvariantSubtypeOf(type, other, bindings)
+            }
+        }
+        else -> false // no subtyping via inheritance for invariants
     }
 }
 

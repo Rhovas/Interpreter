@@ -34,12 +34,26 @@ fun isSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Bo
 
 private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
     return when {
-        type.component.name == "Dynamic" || other.component.name == "Dynamic" || other.component.name == "Any" -> true
-        type.component.name == other.component.name -> type.generics.values.zip(other.generics.values).all { when {
-            type.component.name == "Tuple" || type.component.name == "Struct" -> it.first.isSubtypeOf(it.second, bindings)
-            else -> isInvariantSubtypeOf(it.first, it.second, bindings)
-        } }
-        else -> type.component.inherits.any { isSubtypeOf(it.bind(type.generics), other, bindings) }
+        // TODO: Dynamic should ensure generics are still bound.
+        type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
+        type.component.name == other.component.name -> when {
+            type.component.name in listOf("Tuple", "Struct") -> {
+                // TODO: Fix Tuple<Dynamic>/Struct<Dynamic> behavior.
+                isSubtypeOf(type.generics.values.single(), other.generics.values.single(), bindings)
+            }
+            else -> {
+                type.generics.values.zip(other.generics.values).all { (type, other) ->
+                    isInvariantSubtypeOf(type, other, bindings)
+                }
+            }
+        }
+        else -> {
+            type.component.inherits.any { inherited ->
+                // TODO: Review accuracy of inherited.bind(type.generics).
+                // TODO: Review binding behavior for false isSubtypeOf calls.
+                isSubtypeOf(inherited.bind(type.generics), other, bindings)
+            }
+        }
     }
 }
 
