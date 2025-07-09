@@ -2,13 +2,8 @@ package dev.rhovas.interpreter.environment.type
 
 import dev.rhovas.interpreter.RhovasSpec
 import dev.rhovas.interpreter.environment.Component
-import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Modifiers
-import dev.rhovas.interpreter.environment.Scope
-import dev.rhovas.interpreter.environment.Variable
-import dev.rhovas.interpreter.library.Library
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class SubtypeTests : RhovasSpec() {
 
@@ -34,6 +29,7 @@ class SubtypeTests : RhovasSpec() {
         val type: Type,
         val other: Type,
         val expected: Any, // Boolean | Map<String, Type>
+        val invariant: Any = false, // Boolean | Map<String, Type>
     )
 
     private fun test(test: Test, wrapper: Type.Reference? = null) {
@@ -41,13 +37,14 @@ class SubtypeTests : RhovasSpec() {
             val bindings = mutableMapOf<String, Type>()
             val subtype = isSubtypeOf(type, other, bindings)
             when (expected) {
-                is Boolean -> assertEquals(expected, subtype)
-                is Map<*, *> -> assertEquals(expected, if (subtype) bindings else false)
+                is Boolean -> assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
+                is Map<*, *> -> assertEquals(expected, if (subtype) bindings else false, "isSubtypeOf(${type}, ${other}) bindings:")
                 else -> throw AssertionError(expected::class)
             }
         }
         if (test.expected !is Subtype) {
             test(test.type, test.other, test.expected)
+            test(Type.LIST[test.type], Type.LIST[test.other], test.invariant)
         } else {
             // Stub for existing tests
             test(test.type, test.other, test.expected != Subtype.FALSE)
@@ -65,7 +62,7 @@ class SubtypeTests : RhovasSpec() {
         suite("Reference <: Reference") {
 
             suite("Base", listOf(
-                "Equal" to Test(TYPE, TYPE, true),
+                "Equal" to Test(TYPE, TYPE, true, invariant = true),
                 "Disjoint" to Test(TYPE, Type.VOID, false),
                 "Subtype" to Test(SUBTYPE, TYPE, true),
                 "Supertype" to Test(SUPERTYPE, TYPE, false),
@@ -73,54 +70,54 @@ class SubtypeTests : RhovasSpec() {
                 "Grandparent" to Test(SUPERTYPE, SUBTYPE, false),
                 "Any Subtype" to Test(Type.ANY, TYPE, false),
                 "Any Supertype" to Test(TYPE, Type.ANY, true),
-                "Dynamic Subtype" to Test(Type.DYNAMIC, TYPE, true),
-                "Dynamic Supertype" to Test(TYPE, Type.DYNAMIC, true),
+                "Dynamic Subtype" to Test(Type.DYNAMIC, TYPE, true, invariant = true),
+                "Dynamic Supertype" to Test(TYPE, Type.DYNAMIC, true, invariant = true),
             )) { test(it) }
 
             suite("Generics", listOf(
-                "Equal" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Equal" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true, invariant = true),
                 "Base Subtype" to Test(Type.LIST[TYPE], Type.ITERABLE[TYPE], true),
                 "Base Supertype" to Test(Type.ITERABLE[TYPE], Type.LIST[TYPE], false),
-                "Generic Subtype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
-                "Generic Supertype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
-                "Generic Dynamic Subtype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
-                "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[TYPE], true),
+                "Generic Subtype" to Test(Type.LIST[SUBTYPE], Type.LIST[TYPE], false),
+                "Generic Supertype" to Test(Type.LIST[SUPERTYPE], Type.LIST[TYPE], false),
+                "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST[TYPE], true, invariant = true),
+                "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[Type.DYNAMIC], true, invariant = true),
             )) { test(it) }
 
         }
 
         suite("Reference <: Tuple", listOf(
-            "Equal" to Test(Type.TUPLE[tuple(TYPE)], tuple(TYPE), true),
+            "Equal" to Test(Type.TUPLE[tuple(TYPE)], tuple(TYPE), true, invariant = true),
             // Note: Unlike Struct, Tuple is a final class hence no subtypes.
             "Base Supertype" to Test(Type.ANY, tuple(TYPE), false),
-            "Base Dynamic" to Test(Type.DYNAMIC, tuple(TYPE), true),
+            "Base Dynamic" to Test(Type.DYNAMIC, tuple(TYPE), true, invariant = true),
             "Field Subtype" to Test(Type.TUPLE[tuple(SUBTYPE)], tuple(TYPE), true),
             "Field Supertype" to Test(Type.TUPLE[tuple(SUPERTYPE)], tuple(TYPE), false),
-            "Field Dynamic" to Test(Type.TUPLE.DYNAMIC, tuple(TYPE), true),
+            "Field Dynamic" to Test(Type.TUPLE.DYNAMIC, tuple(TYPE), true, invariant = true),
         )) { test(it) }
 
         suite("Reference <: Struct", listOf(
-            "Equal" to Test(Type.STRUCT[struct("x" to TYPE)], struct("x" to TYPE), true),
+            "Equal" to Test(Type.STRUCT[struct("x" to TYPE)], struct("x" to TYPE), true, invariant = true),
             "Base Subtype" to Test(STRUCT_SUBTYPE, struct("x" to TYPE), true),
             "Base Supertype" to Test(Type.ANY, struct("x" to TYPE), false),
-            "Base Dynamic" to Test(Type.DYNAMIC, struct("x" to TYPE), true),
+            "Base Dynamic" to Test(Type.DYNAMIC, struct("x" to TYPE), true, invariant = true),
             "Field Subtype" to Test(Type.STRUCT[struct("x" to SUBTYPE)], struct("x" to TYPE), true),
             "Field Supertype" to Test(Type.STRUCT[struct("x" to SUPERTYPE)], struct("x" to TYPE), false),
-            "Field Dynamic" to Test(Type.STRUCT.DYNAMIC, struct("x" to TYPE), true),
+            "Field Dynamic" to Test(Type.STRUCT.DYNAMIC, struct("x" to TYPE), true, invariant = true),
         )) { test(it) }
 
         suite("Tuple <: Reference", listOf(
-            "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true),
+            "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true, invariant = true),
             "Supertype" to Test(tuple(TYPE), Type.ANY, true),
-            "Dynamic" to Test(tuple(TYPE), Type.DYNAMIC, true),
+            "Dynamic" to Test(tuple(TYPE), Type.DYNAMIC, true, invariant = true),
         )) { test(it) }
 
         suite("Tuple <: Tuple") {
 
             suite("Fields", listOf(
-                "Empty" to Test(tuple(), tuple(), true),
-                "Single" to Test(tuple(TYPE), tuple(TYPE), true),
-                "Multiple" to Test(tuple(TYPE, TYPE, TYPE), tuple(TYPE, TYPE, TYPE), true),
+                "Empty" to Test(tuple(), tuple(), true, invariant = true),
+                "Single" to Test(tuple(TYPE), tuple(TYPE), true, invariant = true),
+                "Multiple" to Test(tuple(TYPE, TYPE, TYPE), tuple(TYPE, TYPE, TYPE), true, invariant = true),
                 "Extra" to Test(tuple(TYPE, TYPE), tuple(TYPE), true),
                 "Missing" to Test(tuple(), tuple(TYPE), false),
             )) { test(it) }
@@ -134,7 +131,7 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it) }
 
             suite("Mutability", listOf(
-                "Mutable Field Equal" to Test(tuple(TYPE, mutable = true), tuple(TYPE, mutable = true), true),
+                "Mutable Field Equal" to Test(tuple(TYPE, mutable = true), tuple(TYPE, mutable = true), true, invariant = true),
                 "Mutable Field Subtype" to Test(tuple(SUBTYPE, mutable = true), tuple(TYPE, mutable = true), false),
                 "Mutable Field Supertype" to Test(tuple(SUPERTYPE, mutable = true), tuple(TYPE, mutable = true), false),
                 "Mutable Subtype Field Equal" to Test(tuple(TYPE, mutable = true), tuple(TYPE), true),
@@ -154,9 +151,9 @@ class SubtypeTests : RhovasSpec() {
         suite("Struct <: Struct") {
 
             suite("Fields", listOf(
-                "Empty" to Test(struct(), struct(), true),
-                "Single" to Test(struct("x" to TYPE), struct("x" to TYPE), true),
-                "Multiple" to Test(struct("x" to TYPE, "y" to TYPE, "z" to TYPE), struct("x" to TYPE, "y" to TYPE, "z" to TYPE), true),
+                "Empty" to Test(struct(), struct(), true, invariant = true),
+                "Single" to Test(struct("x" to TYPE), struct("x" to TYPE), true, invariant = true),
+                "Multiple" to Test(struct("x" to TYPE, "y" to TYPE, "z" to TYPE), struct("x" to TYPE, "y" to TYPE, "z" to TYPE), true, invariant = true),
                 "Extra" to Test(struct("x" to TYPE, "y" to TYPE), struct("x" to TYPE), true),
                 "Missing" to Test(struct(), struct("x" to TYPE), false),
                 "Different" to Test(struct("x" to TYPE, "y" to TYPE), struct("x" to TYPE, "z" to TYPE), false),
@@ -171,7 +168,7 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it) }
 
             suite("Mutability", listOf(
-                "Mutable Field Equal" to Test(struct("x" to TYPE, mutable = true), struct("x" to TYPE, mutable = true), true),
+                "Mutable Field Equal" to Test(struct("x" to TYPE, mutable = true), struct("x" to TYPE, mutable = true), true, invariant = true),
                 "Mutable Field Subtype" to Test(struct("x" to SUBTYPE, mutable = true), struct("x" to TYPE, mutable = true), false),
                 "Mutable Field Supertype" to Test(struct("x" to SUPERTYPE, mutable = true), struct("x" to TYPE, mutable = true), false),
                 "Mutable Subtype Field Equal" to Test(struct("x" to TYPE, mutable = true), struct("x" to TYPE), true),

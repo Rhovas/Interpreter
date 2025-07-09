@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment.type
 
+import dev.rhovas.interpreter.environment.Variable
+
 fun isInvariantSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Boolean = when(type) {
     is Type.Reference -> when (other) {
         is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
@@ -58,19 +60,17 @@ private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Variant, bind
 }
 
 private fun isInvariantSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: MutableMap<String, Type>): Boolean {
-    return type.elements.size == other.elements.size && type.elements.zip(other.elements).all {
-        val typeInvariantSubtype = isInvariantSubtypeOf(it.first.type, it.second.type, bindings)
-        val mutableInvariantSubtype = it.first.mutable == it.second.mutable
-        typeInvariantSubtype && mutableInvariantSubtype
-    }
+    return type.elements.size == other.elements.size
+        && type.elements.zip(other.elements).all { (field, other) ->
+            isInvariantSubtypeOf(field, other, bindings)
+        }
 }
 
 private fun isInvariantSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: MutableMap<String, Type>): Boolean {
-    return type.fields.keys == other.fields.keys && type.fields.map { it.value to other.fields[it.key]!! }.all {
-        val typeInvariantSubtype = isInvariantSubtypeOf(it.first.type, it.second.type, bindings)
-        val mutableInvariantSubtype = it.first.mutable == it.second.mutable
-        typeInvariantSubtype && mutableInvariantSubtype
-    }
+    return type.fields.keys == other.fields.keys
+        && type.fields.map { it.value to other.fields[it.key]!! }.all { (field, other) ->
+            isInvariantSubtypeOf(field, other, bindings)
+        }
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
@@ -98,4 +98,8 @@ private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindin
 
 private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
     return isSubtypeOf(type, other, bindings)
+}
+
+private fun isInvariantSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: MutableMap<String, Type>): Boolean {
+    return field.mutable == other.mutable && isInvariantSubtypeOf(field.type, other.type, bindings)
 }

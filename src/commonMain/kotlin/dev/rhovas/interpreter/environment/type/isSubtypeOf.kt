@@ -75,17 +75,17 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Mut
 }
 
 private fun isSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: MutableMap<String, Type>): Boolean {
-    return other.elements.withIndex().all { (index, other) ->
-        val type = type.elements.getOrNull(index) ?: return false
-        isSubtypeOf(type, other, bindings)
-    }
+    return type.elements.size >= other.elements.size
+        && type.elements.zip(other.elements).all { (field, other) ->
+            isSubtypeOf(field, other, bindings)
+        }
 }
 
 private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: MutableMap<String, Type>): Boolean {
-    return other.fields.all { (key, other) ->
-        val type = type.fields[key] ?: return false
-        isSubtypeOf(type, other, bindings)
-    }
+    return type.fields.keys.containsAll(other.fields.keys)
+        && other.fields.map { type.fields[it.key]!! to it.value }.all { (field, other) ->
+            isSubtypeOf(field, other, bindings)
+        }
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
