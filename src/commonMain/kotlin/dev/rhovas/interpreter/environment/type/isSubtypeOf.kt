@@ -1,5 +1,7 @@
 package dev.rhovas.interpreter.environment.type
 
+import dev.rhovas.interpreter.environment.Variable
+
 fun isSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Boolean = when(type) {
     is Type.Reference -> when (other) {
         is Type.Reference -> isSubtypeOf(type, other, bindings)
@@ -74,21 +76,15 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Mut
 
 private fun isSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: MutableMap<String, Type>): Boolean {
     return other.elements.withIndex().all { (index, other) ->
-        type.elements.getOrNull(index)?.let {
-            val typeSubtype = isSubtypeOf(it.type, other.type, bindings)
-            val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
-            typeSubtype && mutableSubtype
-        } ?: false
+        val type = type.elements.getOrNull(index) ?: return false
+        isSubtypeOf(type, other, bindings)
     }
 }
 
 private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: MutableMap<String, Type>): Boolean {
     return other.fields.all { (key, other) ->
-        type.fields[key]?.let {
-            val typeSubtype = isSubtypeOf(it.type, other.type, bindings)
-            val mutableSubtype = !other.mutable || it.mutable && it.type.isSupertypeOf(other.type, bindings)
-            typeSubtype && mutableSubtype
-        } ?: false
+        val type = type.fields[key] ?: return false
+        isSubtypeOf(type, other, bindings)
     }
 }
 
@@ -120,6 +116,16 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Mutab
         type.lower?.isSupertypeOf(other.lower ?: Type.DYNAMIC, bindings) ?: (other.lower == null) &&
         isSubtypeOf(type.upper ?: Type.ANY, other.upper ?: Type.DYNAMIC, bindings)
     )
+}
+
+private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: MutableMap<String, Type>): Boolean {
+    return when {
+        // When other is immutable (read-only), field can be any subtype.
+        !other.mutable -> isSubtypeOf(field.type, other.type, bindings)
+        // Otherwise, field must be mutable and invariant to support writes.
+        field.mutable -> isInvariantSubtypeOf(field.type, other.type, bindings)
+        else -> false
+    }
 }
 
 private fun isSubtypeOfBinding(type: Type, name: String, bindings: MutableMap<String, Type>): Boolean {

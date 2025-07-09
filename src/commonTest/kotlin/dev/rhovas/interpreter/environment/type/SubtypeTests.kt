@@ -17,6 +17,7 @@ class SubtypeTests : RhovasSpec() {
     private val SUPERTYPE = reference("Supertype", linkedMapOf(), listOf(Type.ANY))
     private val TYPE = reference("Type", linkedMapOf(), listOf(SUPERTYPE))
     private val SUBTYPE = reference("Subtype", linkedMapOf(), listOf(TYPE))
+    private val STRUCT_SUBTYPE = reference("StructSubtype", linkedMapOf(), listOf(Type.STRUCT[struct("x" to TYPE)]))
 
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
@@ -88,37 +89,100 @@ class SubtypeTests : RhovasSpec() {
 
         }
 
-        suite("Tuple", listOf(
-            "Empty" to Test(tuple(), tuple(), Subtype.INVARIANT),
-            "Equal" to Test(tuple(Type.INTEGER), tuple(Type.INTEGER), Subtype.INVARIANT),
-            "Extra Field" to Test(tuple(Type.INTEGER, Type.INTEGER), tuple(Type.INTEGER), Subtype.TRUE),
-            "Missing Field" to Test(tuple(Type.INTEGER), tuple(Type.INTEGER, Type.INTEGER), Subtype.FALSE),
-            "Field Subtype" to Test(tuple(Type.INTEGER), tuple(Type.NUMBER), Subtype.TRUE),
-            "Field Supertype" to Test(tuple(Type.NUMBER), tuple(Type.INTEGER), Subtype.FALSE),
-            "Field Generic" to Test(tuple(Type.INTEGER), tuple(generic("T", Type.NUMBER)), Subtype.INVARIANT),
-            "Field Variant" to Test(tuple(Type.INTEGER), tuple(Type.Variant(null, Type.NUMBER)), Subtype.INVARIANT),
-            "Mutable Subtype" to Test(tuple(Type.INTEGER, mutable = true), tuple(Type.INTEGER), Subtype.TRUE),
-            "Mutable Supertype" to Test(tuple(Type.INTEGER), tuple(Type.INTEGER, mutable = true), Subtype.FALSE),
-            "Both Mutable Equal" to Test(tuple(Type.INTEGER, mutable = true), tuple(Type.INTEGER, mutable = true), Subtype.INVARIANT),
-            "Both Mutable Supertype" to Test(tuple(Type.INTEGER, mutable = true), tuple(Type.NUMBER, mutable = true), Subtype.FALSE),
-            "Reference" to Test(tuple(Type.INTEGER), Type.TUPLE.GENERIC, Subtype.INVARIANT),
-        )) { test(it, Type.TUPLE.GENERIC) }
+        suite("Reference <: Tuple", listOf(
+            "Equal" to Test(Type.TUPLE[tuple(TYPE)], tuple(TYPE), true),
+            // Note: Unlike Struct, Tuple is a final class hence no subtypes.
+            "Base Supertype" to Test(Type.ANY, tuple(TYPE), false),
+            "Base Dynamic" to Test(Type.DYNAMIC, tuple(TYPE), true),
+            "Field Subtype" to Test(Type.TUPLE[tuple(SUBTYPE)], tuple(TYPE), true),
+            "Field Supertype" to Test(Type.TUPLE[tuple(SUPERTYPE)], tuple(TYPE), false),
+            "Field Dynamic" to Test(Type.TUPLE.DYNAMIC, tuple(TYPE), true),
+        )) { test(it) }
 
-        suite("Struct", listOf(
-            "Empty" to Test(struct(), struct(), Subtype.INVARIANT),
-            "Equal" to Test(struct("x" to Type.INTEGER), struct("x" to Type.INTEGER), Subtype.INVARIANT),
-            "Extra Field" to Test(struct("x" to Type.INTEGER, "y" to Type.INTEGER), struct("x" to Type.INTEGER), Subtype.TRUE),
-            "Missing Field" to Test(struct("x" to Type.INTEGER), struct("x" to Type.INTEGER, "y" to Type.INTEGER), Subtype.FALSE),
-            "Field Subtype" to Test(struct("x" to Type.INTEGER), struct("x" to Type.NUMBER), Subtype.TRUE),
-            "Field Supertype" to Test(struct("x" to Type.NUMBER), struct("x" to Type.INTEGER), Subtype.FALSE),
-            "Field Generic" to Test(struct("x" to Type.INTEGER), struct("x" to generic("T", Type.NUMBER)), Subtype.INVARIANT),
-            "Field Variant" to Test(struct("x" to Type.INTEGER), struct("x" to Type.Variant(null, Type.NUMBER)), Subtype.INVARIANT),
-            "Mutable Subtype" to Test(struct("x" to Type.INTEGER, mutable = true), struct("x" to Type.INTEGER), Subtype.TRUE),
-            "Mutable Supertype" to Test(struct("x" to Type.INTEGER), struct("x" to Type.INTEGER, mutable = true), Subtype.FALSE),
-            "Both Mutable Equal" to Test(struct("x" to Type.INTEGER, mutable = true), struct("x" to Type.INTEGER, mutable = true), Subtype.INVARIANT),
-            "Both Mutable Supertype" to Test(struct("x" to Type.INTEGER, mutable = true), struct("x" to Type.NUMBER, mutable = true), Subtype.FALSE),
-            "Reference" to Test(struct("x" to Type.INTEGER), Type.STRUCT.GENERIC, Subtype.INVARIANT),
-        )) { test(it, Type.STRUCT.GENERIC) }
+        suite("Reference <: Struct", listOf(
+            "Equal" to Test(Type.STRUCT[struct("x" to TYPE)], struct("x" to TYPE), true),
+            "Base Subtype" to Test(STRUCT_SUBTYPE, struct("x" to TYPE), true),
+            "Base Supertype" to Test(Type.ANY, struct("x" to TYPE), false),
+            "Base Dynamic" to Test(Type.DYNAMIC, struct("x" to TYPE), true),
+            "Field Subtype" to Test(Type.STRUCT[struct("x" to SUBTYPE)], struct("x" to TYPE), true),
+            "Field Supertype" to Test(Type.STRUCT[struct("x" to SUPERTYPE)], struct("x" to TYPE), false),
+            "Field Dynamic" to Test(Type.STRUCT.DYNAMIC, struct("x" to TYPE), true),
+        )) { test(it) }
+
+        suite("Tuple <: Reference", listOf(
+            "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true),
+            "Supertype" to Test(tuple(TYPE), Type.ANY, true),
+            "Dynamic" to Test(tuple(TYPE), Type.DYNAMIC, true),
+        )) { test(it) }
+
+        suite("Tuple <: Tuple") {
+
+            suite("Fields", listOf(
+                "Empty" to Test(tuple(), tuple(), true),
+                "Single" to Test(tuple(TYPE), tuple(TYPE), true),
+                "Multiple" to Test(tuple(TYPE, TYPE, TYPE), tuple(TYPE, TYPE, TYPE), true),
+                "Extra" to Test(tuple(TYPE, TYPE), tuple(TYPE), true),
+                "Missing" to Test(tuple(), tuple(TYPE), false),
+            )) { test(it) }
+
+            suite("Types", listOf(
+                "Subtype" to Test(tuple(SUBTYPE), tuple(TYPE), true),
+                "Supertype" to Test(tuple(SUPERTYPE), tuple(TYPE), false),
+                "Multiple Subtype" to Test(tuple(SUBTYPE, SUBTYPE), tuple(TYPE, TYPE), true),
+                "Multiple Supertype First" to Test(tuple(SUPERTYPE, TYPE), tuple(TYPE, TYPE), false),
+                "Multiple Supertype Second" to Test(tuple(TYPE, SUPERTYPE), tuple(TYPE, TYPE), false),
+            )) { test(it) }
+
+            suite("Mutability", listOf(
+                "Mutable Field Equal" to Test(tuple(TYPE, mutable = true), tuple(TYPE, mutable = true), true),
+                "Mutable Field Subtype" to Test(tuple(SUBTYPE, mutable = true), tuple(TYPE, mutable = true), false),
+                "Mutable Field Supertype" to Test(tuple(SUPERTYPE, mutable = true), tuple(TYPE, mutable = true), false),
+                "Mutable Subtype Field Equal" to Test(tuple(TYPE, mutable = true), tuple(TYPE), true),
+                "Mutable Subtype Field Subtype" to Test(tuple(SUBTYPE, mutable = true), tuple(TYPE), true),
+                "Mutable Subtype Field Supertype" to Test(tuple(SUPERTYPE, mutable = true), tuple(TYPE), false),
+                "Mutable Supertype Field Equal" to Test(tuple(TYPE), tuple(TYPE, mutable = true), false),
+                "Mutable Supertype Field Subtype" to Test(tuple(SUBTYPE), tuple(TYPE, mutable = true), false),
+                "Mutable Supertype Field Supertype" to Test(tuple(SUPERTYPE), tuple(TYPE, mutable = true), false),
+            )) { test(it) }
+
+        }
+
+        suite("Tuple <: Struct", listOf(
+            "Struct" to Test(tuple(TYPE), Type.STRUCT[struct("0" to TYPE)], false),
+        )) { test(it) }
+
+        suite("Struct <: Struct") {
+
+            suite("Fields", listOf(
+                "Empty" to Test(struct(), struct(), true),
+                "Single" to Test(struct("x" to TYPE), struct("x" to TYPE), true),
+                "Multiple" to Test(struct("x" to TYPE, "y" to TYPE, "z" to TYPE), struct("x" to TYPE, "y" to TYPE, "z" to TYPE), true),
+                "Extra" to Test(struct("x" to TYPE, "y" to TYPE), struct("x" to TYPE), true),
+                "Missing" to Test(struct(), struct("x" to TYPE), false),
+                "Different" to Test(struct("x" to TYPE, "y" to TYPE), struct("x" to TYPE, "z" to TYPE), false),
+            )) { test(it) }
+
+            suite("Types", listOf(
+                "Subtype" to Test(struct("x" to SUBTYPE), struct("x" to TYPE), true),
+                "Supertype" to Test(struct("x" to SUPERTYPE), struct("x" to TYPE), false),
+                "Multiple Subtype" to Test(struct("x" to SUBTYPE, "y" to SUBTYPE), struct("x" to TYPE, "y" to TYPE), true),
+                "Multiple Supertype First" to Test(struct("x" to SUPERTYPE, "y" to TYPE), struct("x" to TYPE, "y" to TYPE), false),
+                "Multiple Supertype Second" to Test(struct("x" to TYPE, "y" to SUPERTYPE), struct("x" to TYPE, "y" to TYPE), false),
+            )) { test(it) }
+
+            suite("Mutability", listOf(
+                "Mutable Field Equal" to Test(struct("x" to TYPE, mutable = true), struct("x" to TYPE, mutable = true), true),
+                "Mutable Field Subtype" to Test(struct("x" to SUBTYPE, mutable = true), struct("x" to TYPE, mutable = true), false),
+                "Mutable Field Supertype" to Test(struct("x" to SUPERTYPE, mutable = true), struct("x" to TYPE, mutable = true), false),
+                "Mutable Subtype Field Equal" to Test(struct("x" to TYPE, mutable = true), struct("x" to TYPE), true),
+                "Mutable Subtype Field Subtype" to Test(struct("x" to SUBTYPE, mutable = true), struct("x" to TYPE), true),
+                "Mutable Subtype Field Supertype" to Test(struct("x" to SUPERTYPE, mutable = true), struct("x" to TYPE), false),
+                "Mutable Supertype Field Equal" to Test(struct("x" to TYPE), struct("x" to TYPE, mutable = true), false),
+                "Mutable Supertype Field Subtype" to Test(struct("x" to SUBTYPE), struct("x" to TYPE, mutable = true), false),
+                "Mutable Supertype Field Supertype" to Test(struct("x" to SUPERTYPE), struct("x" to TYPE, mutable = true), false),
+            )) { test(it) }
+
+        }
 
         suite("Generic") {
             suite("Raw", listOf(
@@ -185,7 +249,7 @@ class SubtypeTests : RhovasSpec() {
     }
 
     private fun reference(name: String, generics: LinkedHashMap<String, Type.Generic>, inherits: List<Type.Reference>): Type.Reference {
-        val component = Component.Interface(name)
+        val component = Component.Class(name, modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL))
         component.generics.putAll(generics)
         component.inherits.addAll(inherits)
         component.inherits.forEach { component.inherit(it) }
