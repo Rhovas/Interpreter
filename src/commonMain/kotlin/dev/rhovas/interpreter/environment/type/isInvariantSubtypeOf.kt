@@ -2,7 +2,7 @@ package dev.rhovas.interpreter.environment.type
 
 import dev.rhovas.interpreter.environment.Variable
 
-fun isInvariantSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Boolean = when(type) {
+fun isInvariantSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean = when(type) {
     is Type.Reference -> when (other) {
         is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Tuple -> isInvariantSubtypeOf(type, Type.TUPLE[other], bindings)
@@ -34,7 +34,7 @@ fun isInvariantSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, T
     }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: Bindings): Boolean {
     return when {
         // TODO: Dynamic should ensure generics are still bound.
         type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
@@ -47,59 +47,59 @@ private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bi
     }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
     return when {
-        bindings.containsKey(other.name) -> isInvariantSubtypeOf(type, bindings[other.name]!!, bindings).also { bindings[other.name] = type }
-        type.component.name == "Dynamic" -> true.also { bindings[other.name] = Type.DYNAMIC }
-        else -> isSubtypeOf(type, other.bound, bindings.also { it[other.name] = type })
+        bindings.other?.containsKey(other.name) == true -> isInvariantSubtypeOf(type, bindings.other!![other.name]!!, bindings).also { bindings.other!![other.name] = type }
+        type.component.name == "Dynamic" -> true.also { bindings.other?.set(other.name, Type.DYNAMIC) }
+        else -> isSubtypeOf(type, other.bound, bindings.also { it.other?.set(other.name, type) })
     }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Bindings): Boolean {
     return isSubtypeOf(type, other, bindings)
 }
 
-private fun isInvariantSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: Bindings): Boolean {
     return type.elements.size == other.elements.size
         && type.elements.zip(other.elements).all { (field, other) ->
             isInvariantSubtypeOf(field, other, bindings)
         }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: Bindings): Boolean {
     return type.fields.keys == other.fields.keys
         && type.fields.map { it.value to other.fields[it.key]!! }.all { (field, other) ->
             isInvariantSubtypeOf(field, other, bindings)
         }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
     return isInvariantSubtypeOf(type.bound, other, bindings)
 }
 
-private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
     return when {
-        bindings.containsKey(other.name) -> isInvariantSubtypeOf(type, bindings[other.name]!!, bindings.also { it[other.name] = type })
+        bindings.other?.containsKey(other.name) == true -> isInvariantSubtypeOf(type, bindings.other?.get(other.name)!!, bindings.also { it.other?.set(other.name, type) })
         else -> type.name == other.name
     }
 }
 
-private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
     return isInvariantSubtypeOf(type.bound, other, bindings)
 }
 
-private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: Bindings): Boolean {
     return false
 }
 
-private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindings): Boolean {
     return false
 }
 
-private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {
     return isSubtypeOf(type, other, bindings)
 }
 
-private fun isInvariantSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: MutableMap<String, Type>): Boolean {
+private fun isInvariantSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: Bindings): Boolean {
     return field.mutable == other.mutable && isInvariantSubtypeOf(field.type, other.type, bindings)
 }

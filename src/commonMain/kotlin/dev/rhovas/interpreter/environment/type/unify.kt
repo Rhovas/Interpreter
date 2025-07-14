@@ -17,7 +17,7 @@ private fun unify(type: Type.Reference, other: Type, bindings: MutableMap<String
         type.component.name == other.component.name -> Type.Reference(type.component, type.generics.keys.associateWith { unify(type.generics[it]!!, other.generics[it]!!, bindings) })
         else -> {
             var top: Type.Reference = other
-            while (!isSubtypeOf(type, top, bindings)) {
+            while (!isSubtypeOf(type, top, Bindings.Both(bindings, bindings))) {
                 top = top.component.inherits.first().bind(type.generics)
             }
             unify(top, type, bindings)

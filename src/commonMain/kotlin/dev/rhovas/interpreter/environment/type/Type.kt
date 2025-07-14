@@ -73,11 +73,11 @@ sealed class Type {
     abstract fun bind(bindings: Map<String, Type>): Type
 
     fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        return isSubtypeOf(this, other, bindings)
+        return isSubtypeOf(this, other, Bindings.Both(bindings, bindings))
     }
 
     fun isSupertypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        return isSubtypeOf(other, this, bindings)
+        return isSubtypeOf(other, this, Bindings.Both(bindings, bindings)) //TODO: Stub
     }
 
     fun generic(name: String, projection: Type): Type? {

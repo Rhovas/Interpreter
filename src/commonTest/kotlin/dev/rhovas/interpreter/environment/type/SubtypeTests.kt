@@ -35,7 +35,7 @@ class SubtypeTests : RhovasSpec() {
     private fun test(test: Test, wrapper: Type.Reference? = null) {
         fun test(type: Type, other: Type, expected: Any) {
             val bindings = mutableMapOf<String, Type>()
-            val subtype = isSubtypeOf(type, other, bindings)
+            val subtype = isSubtypeOf(type, other, Bindings.Supertype(bindings))
             when (expected) {
                 is Boolean -> assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
                 is Map<*, *> -> assertEquals(expected, if (subtype) bindings else false, "isSubtypeOf(${type}, ${other}) bindings:")

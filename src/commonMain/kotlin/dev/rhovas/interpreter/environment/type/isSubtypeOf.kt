@@ -2,7 +2,7 @@ package dev.rhovas.interpreter.environment.type
 
 import dev.rhovas.interpreter.environment.Variable
 
-fun isSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Boolean = when(type) {
+fun isSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean = when(type) {
     is Type.Reference -> when (other) {
         is Type.Reference -> isSubtypeOf(type, other, bindings)
         is Type.Tuple -> isSubtypeOf(type, Type.TUPLE[other], bindings)
@@ -34,7 +34,7 @@ fun isSubtypeOf(type: Type, other: Type, bindings: MutableMap<String, Type>): Bo
     }
 }
 
-private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: Bindings): Boolean {
     return when {
         // TODO: Dynamic should ensure generics are still bound.
         type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
@@ -59,66 +59,66 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: M
     }
 }
 
-private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
     return when {
-        bindings.containsKey(other.name) -> isSubtypeOfBinding(type, other.name, bindings)
-        type.component.name == "Dynamic" -> true.also { bindings[other.name] = Type.DYNAMIC }
-        else -> isSubtypeOf(type, other.bound, bindings.also { it[other.name] = Type.Variant(type, null) })
+        bindings.other?.containsKey(other.name) == true -> isSubtypeOfBinding(type, other.name, bindings)
+        type.component.name == "Dynamic" -> true.also { bindings.other?.set(other.name, Type.DYNAMIC) }
+        else -> isSubtypeOf(type, other.bound, bindings.also { it.other?.set(other.name, Type.Variant(type, null)) })
     }
 }
 
-private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Bindings): Boolean {
     return (
         isSubtypeOf(other.lower ?: Type.DYNAMIC, type, bindings) &&
         isSubtypeOf(type, other.upper ?: Type.DYNAMIC, bindings)
     )
 }
 
-private fun isSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: Bindings): Boolean {
     return type.elements.size >= other.elements.size
         && type.elements.zip(other.elements).all { (field, other) ->
             isSubtypeOf(field, other, bindings)
         }
 }
 
-private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: Bindings): Boolean {
     return type.fields.keys.containsAll(other.fields.keys)
         && other.fields.map { type.fields[it.key]!! to it.value }.all { (field, other) ->
             isSubtypeOf(field, other, bindings)
         }
 }
 
-private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
     return isSubtypeOf(type.bound, other, bindings)
 }
 
-private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
     return when {
-        bindings.containsKey(other.name) -> isSubtypeOfBinding(type, other.name, bindings)
+        bindings.other?.containsKey(other.name) == true -> isSubtypeOfBinding(type, other.name, bindings)
         else -> type.name == other.name
     }
 }
 
-private fun isSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
     return isSubtypeOf(type.bound, other, bindings)
 }
 
-private fun isSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: Bindings): Boolean {
     return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
 }
 
-private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindings): Boolean {
     return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
 }
 
-private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {
     return (
-        type.lower?.isSupertypeOf(other.lower ?: Type.DYNAMIC, bindings) ?: (other.lower == null) &&
+        (if (type.lower != null) isSubtypeOf(other.lower ?: Type.DYNAMIC, type.lower, bindings) else other.lower == null) &&
         isSubtypeOf(type.upper ?: Type.ANY, other.upper ?: Type.DYNAMIC, bindings)
     )
 }
 
-private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: MutableMap<String, Type>): Boolean {
+private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: Bindings): Boolean {
     return when {
         // When other is immutable (read-only), field can be any subtype.
         !other.mutable -> isSubtypeOf(field.type, other.type, bindings)
@@ -128,10 +128,10 @@ private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration
     }
 }
 
-private fun isSubtypeOfBinding(type: Type, name: String, bindings: MutableMap<String, Type>): Boolean {
-    val subtype = isSubtypeOf(type, bindings[name]!!, bindings)
-    if (subtype && bindings[name] is Type.Variant) {
-        bindings[name] = Type.Variant(type, (bindings[name]!! as Type.Variant).upper)
+private fun isSubtypeOfBinding(type: Type, name: String, bindings: Bindings): Boolean {
+    val subtype = isSubtypeOf(type, bindings.other?.get(name)!!, bindings)
+    if (subtype && bindings.other?.get(name) is Type.Variant) {
+        bindings.other?.set(name, Type.Variant(type, (bindings.other?.get(name)!! as Type.Variant).upper))
     }
     return subtype
 }
