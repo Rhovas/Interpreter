@@ -14,6 +14,12 @@ class SubtypeTests : RhovasSpec() {
     private val SUBTYPE = reference("Subtype", linkedMapOf(), listOf(TYPE))
     private val STRUCT_SUBTYPE = reference("StructSubtype", linkedMapOf(), listOf(Type.STRUCT[struct("x" to TYPE)]))
 
+    private val T = generic("T", TYPE)
+    private val T_SUBTYPE = generic("T", SUBTYPE)
+    private val T_SUPERTYPE = generic("T", SUPERTYPE)
+    private val T_ANY = generic("T", Type.ANY)
+    private val R = generic("R", Type.ANY)
+
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
         val component = Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT))
@@ -28,32 +34,42 @@ class SubtypeTests : RhovasSpec() {
     data class Test(
         val type: Type,
         val other: Type,
+        val bindings: Map<String, Type>?,
         val expected: Any, // Boolean | Map<String, Type>
         val invariant: Any = false, // Boolean | Map<String, Type>
-    )
+    ) {
+        constructor(type: Type, other: Type, expected: Subtype) : this(type, other, null, expected, expected == Subtype.INVARIANT)
+        constructor(type: Type, other: Type, expected: Boolean, invariant: Boolean = false) : this(type, other, null, expected, invariant)
+        //constructor(type: Type, other: Type, bindings: Map<String, Type>, expected: Any, invariant: Any = false) : this(type, other, bindings, expected, invariant)
+    }
 
     private fun test(test: Test, wrapper: Type.Reference? = null) {
-        fun test(type: Type, other: Type, expected: Any) {
-            val bindings = mutableMapOf<String, Type>()
-            val subtype = isSubtypeOf(type, other, Bindings.Supertype(bindings))
-            when (expected) {
-                is Boolean -> assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
-                is Map<*, *> -> assertEquals(expected, if (subtype) bindings else false, "isSubtypeOf(${type}, ${other}) bindings:")
-                else -> throw AssertionError(expected::class)
+        fun test(type: Type, other: Type, initialBindings: Map<String, Type>?, expected: Any) {
+            if (initialBindings == null) {
+                val subtype = isSubtypeOf(type, other, Bindings.None)
+                assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
+            } else {
+                val finalBindings = initialBindings.toMutableMap()
+                val subtype = isSubtypeOf(type, other, Bindings.Supertype(finalBindings))
+                assertEquals(
+                    Pair(expected != false, expected as? Map<*, *> ?: finalBindings),
+                    Pair(subtype, finalBindings),
+                    "isSubtypeOf(${type}, ${other}, ${initialBindings}):"
+                )
             }
         }
         if (test.expected !is Subtype) {
-            test(test.type, test.other, test.expected)
-            test(Type.LIST[test.type], Type.LIST[test.other], test.invariant)
+            test(test.type, test.other, test.bindings, test.expected)
+            test(Type.LIST[test.type], Type.LIST[test.other], test.bindings, test.invariant)
         } else {
             // Stub for existing tests
-            test(test.type, test.other, test.expected != Subtype.FALSE)
-            test(Type.LIST[test.type], Type.LIST[test.other], test.expected == Subtype.INVARIANT)
+            test(test.type, test.other, mapOf(), test.expected != Subtype.FALSE)
+            test(Type.LIST[test.type], Type.LIST[test.other], mapOf(), test.expected == Subtype.INVARIANT)
             wrapper?.let {
                 val wrappedType = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.type))
                 val wrappedOther = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.other))
-                test(wrappedType, wrappedOther, test.expected != Subtype.FALSE)
-                test(Type.LIST[wrappedType], Type.LIST[wrappedOther], test.expected == Subtype.INVARIANT)
+                test(wrappedType, wrappedOther, mapOf(), test.expected != Subtype.FALSE)
+                test(Type.LIST[wrappedType], Type.LIST[wrappedOther], mapOf(), test.expected == Subtype.INVARIANT)
             }
         }
     }
@@ -106,6 +122,25 @@ class SubtypeTests : RhovasSpec() {
             "Field Dynamic" to Test(Type.STRUCT.DYNAMIC, struct("x" to TYPE), true, invariant = true),
         )) { test(it) }
 
+        suite("Reference <: Generic") {
+
+            suite("Unbound", listOf(
+                "Equal" to Test(TYPE, T, false),
+                "Subtype" to Test(SUBTYPE, T, false),
+                "Supertype" to Test(SUPERTYPE, T, false),
+                "Dynamic" to Test(Type.DYNAMIC, T, true, invariant = true),
+            )) { test(it) }
+
+            suite("Bound", listOf(
+                "Equal" to Test(TYPE, T, mapOf("T" to TYPE), true, invariant = true),
+                "Subtype" to Test(SUBTYPE, T, mapOf("T" to TYPE), true),
+                "Supertype" to Test(SUPERTYPE, T, mapOf("T" to TYPE), false),
+                "Dynamic" to Test(Type.DYNAMIC, T, mapOf("T" to TYPE), true, invariant = true),
+                "Bound Dynamic" to Test(TYPE, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
+            )) { test(it) }
+
+        }
+
         suite("Tuple <: Reference", listOf(
             "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true, invariant = true),
             "Supertype" to Test(tuple(TYPE), Type.ANY, true),
@@ -148,6 +183,11 @@ class SubtypeTests : RhovasSpec() {
             "Struct" to Test(tuple(TYPE), Type.STRUCT[struct("0" to TYPE)], false),
         )) { test(it) }
 
+        suite("Tuple <: Generic", listOf(
+            "Unbound" to Test(tuple(TYPE), generic("T", tuple(TYPE)), false),
+            "Bound" to Test(tuple(TYPE), T_ANY, mapOf("T" to tuple(TYPE)), true, invariant = true),
+        )) { test(it) }
+
         suite("Struct <: Struct") {
 
             suite("Fields", listOf(
@@ -180,6 +220,11 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it) }
 
         }
+
+        suite("Struct <: Generic", listOf(
+            "Unbound" to Test(struct("x" to TYPE), generic("T", struct("x" to TYPE)), false),
+            "Bound" to Test(struct("x" to TYPE), T_ANY, mapOf("T" to struct("x" to TYPE)), true, invariant = true),
+        )) { test(it) }
 
         suite("Generic") {
             suite("Raw", listOf(

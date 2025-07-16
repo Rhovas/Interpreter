@@ -60,10 +60,14 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: B
 }
 
 private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
-    return when {
-        bindings.other?.containsKey(other.name) == true -> isSubtypeOfBinding(type, other.name, bindings)
-        type.component.name == "Dynamic" -> true.also { bindings.other?.set(other.name, Type.DYNAMIC) }
-        else -> isSubtypeOf(type, other.bound, bindings.also { it.other?.set(other.name, Type.Variant(type, null)) })
+    if (bindings.other == null) {
+        return type.component.name == "Dynamic"
+    } else if (bindings.other!!.containsKey(other.name)) {
+        val binding = bindings.other!![other.name]!!
+        return isSubtypeOf(type, binding, bindings)
+    } else {
+        bindings.other!![other.name] = Type.Variant(type, null)
+        return isSubtypeOf(type, other.bound, bindings)
     }
 }
 

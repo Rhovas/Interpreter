@@ -48,10 +48,18 @@ private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bi
 }
 
 private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
-    return when {
-        bindings.other?.containsKey(other.name) == true -> isInvariantSubtypeOf(type, bindings.other!![other.name]!!, bindings).also { bindings.other!![other.name] = type }
-        type.component.name == "Dynamic" -> true.also { bindings.other?.set(other.name, Type.DYNAMIC) }
-        else -> isSubtypeOf(type, other.bound, bindings.also { it.other?.set(other.name, type) })
+    if (bindings.other == null) {
+        return type.component.name == "Dynamic"
+    } else if (bindings.other!!.containsKey(other.name)) {
+        val binding = bindings.other!![other.name]!!
+        val result = isInvariantSubtypeOf(type, binding, bindings)
+        if (result) {
+            bindings.other!![other.name] = type
+        }
+        return result
+    } else {
+        bindings.other!![other.name] = type
+        return isSubtypeOf(type, other.bound, bindings)
     }
 }
 
