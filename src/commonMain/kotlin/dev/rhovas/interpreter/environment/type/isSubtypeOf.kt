@@ -72,10 +72,8 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bin
 }
 
 private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Bindings): Boolean {
-    return (
-        isSubtypeOf(other.lower ?: Type.DYNAMIC, type, bindings) &&
-        isSubtypeOf(type, other.upper ?: Type.DYNAMIC, bindings)
-    )
+    return (other.lower == null || isSubtypeOf(other.lower, type, bindings))
+        && (other.upper == null || isSubtypeOf(type, other.upper, bindings))
 }
 
 private fun isSubtypeOf(type: Type.Tuple, other: Type.Tuple, bindings: Bindings): Boolean {
@@ -133,10 +131,8 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindi
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {
-    return (
-        (if (type.lower != null) isSubtypeOf(other.lower ?: Type.DYNAMIC, type.lower, bindings) else other.lower == null) &&
-        isSubtypeOf(type.upper ?: Type.ANY, other.upper ?: Type.DYNAMIC, bindings)
-    )
+    return (other.lower == null || type.lower != null && isSubtypeOf(other.lower, type.lower, bindings))
+        && (other.upper == null || isSubtypeOf(type, other.upper, bindings))
 }
 
 private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration, bindings: Bindings): Boolean {

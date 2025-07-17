@@ -141,6 +141,14 @@ class SubtypeTests : RhovasSpec() {
 
         }
 
+        suite("Reference <: Variant", listOf(
+            "Unbound" to Test(TYPE, variant(), true, invariant = true),
+            "Upper Subtype" to Test(TYPE, variant(upper = SUBTYPE), false),
+            "Upper Supertype" to Test(TYPE, variant(upper = SUPERTYPE), true, invariant = true),
+            "Lower Subtype" to Test(TYPE, variant(lower = SUBTYPE), true, invariant = true),
+            "Lower Supertype" to Test(TYPE, variant(lower = SUPERTYPE), false),
+        )) { test(it) }
+
         suite("Tuple <: Reference", listOf(
             "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true, invariant = true),
             "Supertype" to Test(tuple(TYPE), Type.ANY, true),
@@ -188,6 +196,14 @@ class SubtypeTests : RhovasSpec() {
             "Bound" to Test(tuple(TYPE), T_ANY, mapOf("T" to tuple(TYPE)), true, invariant = true),
         )) { test(it) }
 
+        suite("Tuple <: Variant", listOf(
+            "Unbound" to Test(tuple(TYPE), variant(), true, invariant = true),
+            "Upper Subtype" to Test(tuple(TYPE), variant(upper = tuple(SUBTYPE)), false),
+            "Upper Supertype" to Test(tuple(TYPE), variant(upper = tuple(SUPERTYPE)), true, invariant = true),
+            "Lower Subtype" to Test(tuple(TYPE), variant(lower = tuple(SUBTYPE)), true, invariant = true),
+            "Lower Supertype" to Test(tuple(TYPE), variant(lower = tuple(SUPERTYPE)), false),
+        )) { test(it) }
+
         suite("Struct <: Struct") {
 
             suite("Fields", listOf(
@@ -226,6 +242,14 @@ class SubtypeTests : RhovasSpec() {
             "Bound" to Test(struct("x" to TYPE), T_ANY, mapOf("T" to struct("x" to TYPE)), true, invariant = true),
         )) { test(it) }
 
+        suite("Struct <: Variant", listOf(
+            "Unbound" to Test(struct("x" to TYPE), variant(), true, invariant = true),
+            "Upper Subtype" to Test(struct("x" to TYPE), variant(upper = struct("x" to SUBTYPE)), false),
+            "Upper Supertype" to Test(struct("x" to TYPE), variant(upper = struct("x" to SUPERTYPE)), true, invariant = true),
+            "Lower Subtype" to Test(struct("x" to TYPE), variant(lower = struct("x" to SUBTYPE)), true, invariant = true),
+            "Lower Supertype" to Test(struct("x" to TYPE), variant(lower = struct("x" to SUPERTYPE)), false),
+        )) { test(it) }
+
         suite("Generic <: Generic") {
 
             suite("Unbound", listOf(
@@ -251,34 +275,63 @@ class SubtypeTests : RhovasSpec() {
 
         }
 
-        suite("Variant") {
-            suite("Covariant", listOf(
-                "Subtype" to Test(Type.INTEGER, Type.Variant(null, Type.NUMBER), Subtype.INVARIANT),
-                "Supertype" to Test(Type.ANY, Type.Variant(null, Type.NUMBER), Subtype.FALSE),
-                "Inverse Subtype" to Test(Type.Variant(null, Type.NUMBER), Type.INTEGER, Subtype.FALSE),
-                "Inverse Supertype" to Test(Type.Variant(null, Type.NUMBER), Type.ANY, Subtype.TRUE),
-                "Variant Subtype" to Test(Type.Variant(null, Type.NUMBER), Type.Variant(null, Type.INTEGER), Subtype.FALSE),
-                "Variant Supertype" to Test(Type.Variant(null, Type.NUMBER), Type.Variant(null, Type.ANY), Subtype.INVARIANT),
-                "Reference" to Test(Type.Variant(null, Type.NUMBER), Type.ANY, Subtype.TRUE),
-            )) { test(it) }
+        //List<*> <: List<Any>
 
-            suite("Contravariant", listOf(
-                "Subtype" to Test(Type.INTEGER, Type.Variant(Type.NUMBER, null), Subtype.FALSE),
-                "Supertype" to Test(Type.ANY, Type.Variant(Type.NUMBER, null), Subtype.INVARIANT),
-                "Inverse Subtype" to Test(Type.Variant(Type.NUMBER, null), Type.INTEGER, Subtype.FALSE),
-                "Inverse Supertype" to Test(Type.Variant(Type.NUMBER, null), Type.ANY, Subtype.TRUE),
-                "Variant Subtype" to Test(Type.Variant(Type.NUMBER, null), Type.Variant(Type.INTEGER, null), Subtype.INVARIANT),
-                "Variant Supertype" to Test(Type.Variant(Type.NUMBER, null), Type.Variant(Type.ANY, null), Subtype.FALSE),
-                "Reference" to Test(Type.Variant(Type.NUMBER, null), Type.ANY, Subtype.TRUE),
-            )) { test(it) }
+        suite("Variant <: Reference", listOf(
+            "Unbound" to Test(variant(), TYPE, false),
+            "Unbound Any" to Test(variant(), Type.ANY, true),
+            "Upper Equal" to Test(variant(upper = TYPE), TYPE, true),
+            "Upper Subtype" to Test(variant(upper = SUBTYPE), TYPE, true),
+            "Upper Supertype" to Test(variant(upper = SUPERTYPE), TYPE, false),
+            "Lower Equal" to Test(variant(lower = TYPE), TYPE, false),
+            "Lower Subtype" to Test(variant(lower = SUBTYPE), TYPE, false),
+            "Lower Supertype" to Test(variant(lower = SUPERTYPE), TYPE, false),
+        )) { test(it) }
+
+        suite("Variant <: Tuple", listOf(
+            "Unbound" to Test(variant(), tuple(TYPE), false),
+            "Upper Subtype" to Test(variant(upper = tuple(SUBTYPE)), tuple(TYPE), true),
+            "Upper Supertype" to Test(variant(upper = tuple(SUPERTYPE)), tuple(TYPE), false),
+            "Lower Subtype" to Test(variant(lower = tuple(SUBTYPE)), tuple(TYPE), false),
+            "Lower Supertype" to Test(variant(lower = tuple(SUPERTYPE)), tuple(TYPE), false),
+        )) { test(it) }
+
+        suite("Variant <: Struct", listOf(
+            "Unbound" to Test(variant(), struct("x" to TYPE), false),
+            "Upper Subtype" to Test(variant(upper = struct("x" to SUBTYPE)), struct("x" to TYPE), true),
+            "Upper Supertype" to Test(variant(upper = struct("x" to SUPERTYPE)), struct("x" to TYPE), false),
+            "Lower Subtype" to Test(variant(lower = struct("x" to SUBTYPE)), struct("x" to TYPE), false),
+            "Lower Supertype" to Test(variant(lower = struct("x" to SUPERTYPE)), struct("x" to TYPE), false),
+        )) { test(it) }
+
+        suite("Variant <: Variant") {
 
             suite("Unbound", listOf(
-                "Type" to Test(Type.NUMBER, Type.Variant(null, null), Subtype.INVARIANT),
-                "Inverse Type" to Test(Type.Variant(null, null), Type.NUMBER, Subtype.FALSE),
-                "Variant Subtype" to Test(Type.Variant(Type.INTEGER, Type.ANY), Type.Variant(null, null), Subtype.INVARIANT),
-                "Variant Supertype" to Test(Type.Variant(null, null), Type.Variant(Type.INTEGER, Type.ANY), Subtype.FALSE),
-                "Reference" to Test(Type.Variant(null, null), Type.ANY, Subtype.TRUE),
+                "Equal" to Test(variant(), variant(), true, invariant = true),
+                "Subtype Upper" to Test(variant(upper = TYPE), variant(), true, invariant = true),
+                "Subtype Lower" to Test(variant(lower = TYPE), variant(), true, invariant = true),
+                "Supertype Upper" to Test(variant(), variant(upper = TYPE), false),
+                "Supertype Lower" to Test(variant(), variant(lower = TYPE), false),
             )) { test(it) }
+
+            suite("Upper Bound", listOf(
+                "Upper Equal" to Test(variant(upper = TYPE), variant(upper = TYPE), true, invariant = true),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), variant(upper = TYPE), true, invariant = true),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), variant(upper = TYPE), false),
+                "Lower Equal" to Test(variant(lower = TYPE), variant(upper = TYPE), false),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), variant(upper = TYPE), false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), variant(upper = TYPE), false),
+            )) { test(it) }
+
+            suite("Lower Bound", listOf(
+                "Upper Equal" to Test(variant(upper = TYPE), variant(lower = TYPE), false),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), variant(lower = TYPE), false),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), variant(lower = TYPE), false),
+                "Lower Equal" to Test(variant(lower = TYPE), variant(lower = TYPE), true, invariant = true),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), variant(lower = TYPE), false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), variant(lower = TYPE), true, invariant = true),
+            )) { test(it) }
+
         }
     }
 
