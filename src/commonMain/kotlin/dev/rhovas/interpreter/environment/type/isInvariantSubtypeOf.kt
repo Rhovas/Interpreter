@@ -86,9 +86,26 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bind
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
-    return when {
-        bindings.other?.containsKey(other.name) == true -> isInvariantSubtypeOf(type, bindings.other?.get(other.name)!!, bindings.also { it.other?.set(other.name, type) })
-        else -> type.name == other.name
+    return when (bindings) {
+        is Bindings.None -> type.name == other.name
+        is Bindings.Supertype -> when (val binding = bindings.other[other.name]) {
+            null -> {
+                isSubtypeOf(type.bound, other.bound, bindings).also {
+                    if (it) bindings.other[other.name] = type
+                }
+            }
+            else -> {
+                isInvariantSubtypeOf(type, binding, Bindings.None)
+            }
+        }
+        else -> {
+            //TODO: Stub
+            val binding = bindings.other?.get(other.name)
+            return when {
+                binding == null -> type.name == other.name
+                else -> isInvariantSubtypeOf(type, binding, bindings.also { it.other?.set(other.name, type) })
+            }
+        }
     }
 }
 

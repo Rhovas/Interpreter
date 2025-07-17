@@ -226,37 +226,29 @@ class SubtypeTests : RhovasSpec() {
             "Bound" to Test(struct("x" to TYPE), T_ANY, mapOf("T" to struct("x" to TYPE)), true, invariant = true),
         )) { test(it) }
 
-        suite("Generic") {
-            suite("Raw", listOf(
-                "Equal" to Test(generic("T", Type.NUMBER), generic("T", Type.NUMBER), Subtype.INVARIANT),
-                "Unequal" to Test(generic("T", Type.NUMBER), generic("R", Type.NUMBER), Subtype.FALSE),
-                "Bound Subtype" to Test(generic("T", Type.INTEGER), Type.NUMBER, Subtype.TRUE),
-                "Bound Supertype" to Test(generic("T", Type.NUMBER), Type.INTEGER, Subtype.FALSE),
-                "Bound Dynamic Subtype" to Test(generic("T", Type.DYNAMIC), Type.NUMBER, Subtype.INVARIANT),
-                "Bound Dynamic Supertype" to Test(generic("T", Type.NUMBER), Type.DYNAMIC, Subtype.INVARIANT),
-            )) { test(it) }
+        suite("Generic <: Generic") {
 
             suite("Unbound", listOf(
-                "Equal" to Test(Type.LIST.GENERIC, Type.LIST.GENERIC, Subtype.INVARIANT),
-                "Subtype" to Test(Type.LIST.GENERIC, Type.ITERABLE.GENERIC, Subtype.TRUE),
-                "Supertype" to Test(Type.ITERABLE.GENERIC, Type.LIST.GENERIC, Subtype.FALSE),
-                "Grandchild" to Test(Type.LIST.GENERIC, Type.ANY, Subtype.TRUE),
-                "Generic Subtype" to Test(Type.LIST[Type.INTEGER], Type.LIST.GENERIC, Subtype.INVARIANT),
-                "Generic Supertype" to Test(Type.LIST.GENERIC, Type.LIST[Type.INTEGER], Subtype.FALSE),
-                "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST.GENERIC, Subtype.INVARIANT),
-                "Generic Dynamic Supertype" to Test(Type.LIST.GENERIC, Type.LIST[Type.DYNAMIC], Subtype.INVARIANT),
+                "Name Equal" to Test(T, T, true, invariant = true),
+                "Name Unequal" to Test(T, R, false),
             )) { test(it) }
 
-            suite("Bound", listOf(
-                "Equal" to Test(Type.LIST[Type.NUMBER], Type.LIST[Type.NUMBER], Subtype.INVARIANT),
-                "Base Subtype" to Test(Type.LIST[Type.NUMBER], Type.ITERABLE[Type.NUMBER], Subtype.TRUE),
-                "Base Supertype" to Test(Type.ITERABLE[Type.NUMBER], Type.LIST[Type.NUMBER], Subtype.FALSE),
-                "Base Grandchild" to Test(Type.LIST[Type.NUMBER], Type.ANY, Subtype.TRUE),
-                "Generic Subtype" to Test(Type.LIST[Type.INTEGER], Type.LIST[Type.NUMBER], Subtype.FALSE),
-                "Generic Supertype" to Test(Type.LIST[Type.NUMBER], Type.LIST[Type.INTEGER], Subtype.FALSE),
-                "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST[Type.NUMBER], Subtype.INVARIANT),
-                "Generic Dynamic Supertype" to Test(Type.LIST[Type.NUMBER], Type.LIST[Type.DYNAMIC], Subtype.INVARIANT),
+            //TODO: Subtype Binding
+
+            suite("Supertype Bindable", listOf(
+                "Equal" to Test(T, T, mapOf(), mapOf("T" to variant(lower=T)), invariant = mapOf("T" to T)),
+                "Subtype" to Test(T_SUBTYPE, T, mapOf(), mapOf("T" to variant(lower=T_SUBTYPE)), invariant = mapOf("T" to T_SUBTYPE)),
+                "Supertype" to Test(T_SUPERTYPE, T, mapOf(), false),
             )) { test(it) }
+
+            suite("Supertype Bound", listOf(
+                "Equal" to Test(T, T, mapOf("T" to TYPE), true, invariant = true),
+                "Subtype" to Test(T_SUBTYPE, T, mapOf("T" to TYPE), true),
+                "Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to TYPE), false),
+                "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
+                "Generic" to Test(T, T, mapOf("T" to T), true, invariant = true),
+            )) { test(it) }
+
         }
 
         suite("Variant") {
