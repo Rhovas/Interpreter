@@ -190,11 +190,12 @@ class SubtypeTests : RhovasSpec() {
         }
 
         suite("Tuple <: Struct", listOf(
-            "Struct" to Test(tuple(TYPE), Type.STRUCT[struct("0" to TYPE)], false),
+            "Struct" to Test(tuple(TYPE), struct("0" to TYPE), false),
         )) { test(it) }
 
         suite("Tuple <: Generic", listOf(
             "Unbound" to Test(tuple(TYPE), generic("T", tuple(TYPE)), false),
+            "Bindable" to Test(tuple(TYPE), T, mapOf(), mapOf("T" to variant(lower = Type.TUPLE[tuple(TYPE)])), mapOf("T" to Type.TUPLE[tuple(TYPE)])),
             "Bound" to Test(tuple(TYPE), T, mapOf("T" to tuple(TYPE)), true, invariant = true),
         )) { test(it) }
 
@@ -204,6 +205,16 @@ class SubtypeTests : RhovasSpec() {
             "Upper Supertype" to Test(tuple(TYPE), variant(upper = tuple(SUPERTYPE)), true, invariant = true),
             "Lower Subtype" to Test(tuple(TYPE), variant(lower = tuple(SUBTYPE)), true, invariant = true),
             "Lower Supertype" to Test(tuple(TYPE), variant(lower = tuple(SUPERTYPE)), false),
+        )) { test(it) }
+
+        suite("Struct <: Reference", listOf(
+            "Equal" to Test(struct("x" to TYPE), Type.STRUCT[struct("x" to TYPE)], true, invariant = true),
+            "Supertype" to Test(struct("x" to TYPE), Type.ANY, true),
+            "Dynamic" to Test(struct("x" to TYPE), Type.DYNAMIC, true, invariant = true),
+        )) { test(it) }
+
+        suite("Struct <: Tuple", listOf(
+            "Struct" to Test(struct("0" to TYPE), tuple(TYPE), false),
         )) { test(it) }
 
         suite("Struct <: Struct") {
@@ -241,6 +252,7 @@ class SubtypeTests : RhovasSpec() {
 
         suite("Struct <: Generic", listOf(
             "Unbound" to Test(struct("x" to TYPE), generic("T", struct("x" to TYPE)), false),
+            "Bindable" to Test(struct("x" to TYPE), T, mapOf(), mapOf("T" to variant(lower = Type.STRUCT[struct("x" to TYPE)])), mapOf("T" to Type.STRUCT[struct("x" to TYPE)])),
             "Bound" to Test(struct("x" to TYPE), T, mapOf("T" to struct("x" to TYPE)), true, invariant = true),
         )) { test(it) }
 
@@ -277,6 +289,18 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it, subtype = true) }
 
         }
+
+        suite("Generic <: Tuple", listOf(
+            "Unbound" to Test(generic("T", tuple(TYPE)), tuple(TYPE), true),
+            "Bindable" to Test(T, tuple(TYPE), mapOf(), mapOf("T" to variant(upper = Type.TUPLE[tuple(TYPE)])), invariant = mapOf("T" to Type.TUPLE[tuple(TYPE)])),
+            "Bound" to Test(T, tuple(TYPE), mapOf("T" to tuple(TYPE)), true, invariant = true),
+        )) { test(it, subtype = true) }
+
+        suite("Generic <: Struct", listOf(
+            "Unbound" to Test(generic("T", struct("x" to TYPE)), struct("x" to TYPE), true),
+            "Bindable" to Test(T, struct("x" to TYPE), mapOf(), mapOf("T" to variant(upper = Type.STRUCT[struct("x" to TYPE)])), invariant = mapOf("T" to Type.STRUCT[struct("x" to TYPE)])),
+            "Bound" to Test(T, struct("x" to TYPE), mapOf("T" to struct("x" to TYPE)), true, invariant = true),
+        )) { test(it, subtype = true) }
 
         suite("Generic <: Generic") {
 
