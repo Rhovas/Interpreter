@@ -7,29 +7,18 @@ import kotlin.test.assertEquals
 
 class SubtypeTests : RhovasSpec() {
 
-    enum class Subtype { TRUE, FALSE, INVARIANT }
-
     private val SUPERTYPE = reference("Supertype", linkedMapOf(), listOf(Type.ANY))
     private val TYPE = reference("Type", linkedMapOf(), listOf(SUPERTYPE))
     private val SUBTYPE = reference("Subtype", linkedMapOf(), listOf(TYPE))
+    private val DISJOINT = reference("Disjoint", linkedMapOf(), listOf(Type.ANY))
     private val STRUCT_SUBTYPE = reference("StructSubtype", linkedMapOf(), listOf(Type.STRUCT[struct("x" to TYPE)]))
 
     private val T = generic("T")
     private val T_TYPE = generic("T", TYPE)
     private val T_SUBTYPE = generic("T", SUBTYPE)
     private val T_SUPERTYPE = generic("T", SUPERTYPE)
+    private val T_DISJOINT = generic("T", DISJOINT)
     private val R = generic("R")
-
-    //Not ideal, but based on the old tests and can't be trivially updated.
-    private val Type.Companion.NUMBER by lazy {
-        val component = Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT))
-        component.inherits.add(Type.COMPARABLE[component.type])
-        component.inherits.forEach { component.inherit(it) }
-        Type.INTEGER.component.inherits.add(0, component.type)
-        Type.DECIMAL.component.inherits.add(0, component.type)
-        //Library.SCOPE.types.define(component.name, component.type)
-        component.type
-    }
 
     data class Test(
         val type: Type,
@@ -38,12 +27,10 @@ class SubtypeTests : RhovasSpec() {
         val expected: Any, // Boolean | Map<String, Type>
         val invariant: Any = false, // Boolean | Map<String, Type>
     ) {
-        constructor(type: Type, other: Type, expected: Subtype) : this(type, other, null, expected, expected == Subtype.INVARIANT)
         constructor(type: Type, other: Type, expected: Boolean, invariant: Boolean = false) : this(type, other, null, expected, invariant)
-        //constructor(type: Type, other: Type, bindings: Map<String, Type>, expected: Any, invariant: Any = false) : this(type, other, bindings, expected, invariant)
     }
 
-    private fun test(test: Test, wrapper: Type.Reference? = null, subtype: Boolean = false) {
+    private fun test(test: Test, subtype: Boolean = false) {
         fun test(type: Type, other: Type, initialBindings: Map<String, Type>?, expected: Any) {
             if (initialBindings == null) {
                 val subtype = isSubtypeOf(type, other, Bindings.None)
@@ -58,20 +45,8 @@ class SubtypeTests : RhovasSpec() {
                 )
             }
         }
-        if (test.expected !is Subtype) {
-            test(test.type, test.other, test.bindings, test.expected)
-            test(Type.LIST[test.type], Type.LIST[test.other], test.bindings, test.invariant)
-        } else {
-            // Stub for existing tests
-            test(test.type, test.other, mapOf(), test.expected != Subtype.FALSE)
-            test(Type.LIST[test.type], Type.LIST[test.other], mapOf(), test.expected == Subtype.INVARIANT)
-            wrapper?.let {
-                val wrappedType = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.type))
-                val wrappedOther = Type.Reference(it.component, mapOf(it.component.generics.keys.single() to test.other))
-                test(wrappedType, wrappedOther, mapOf(), test.expected != Subtype.FALSE)
-                test(Type.LIST[wrappedType], Type.LIST[wrappedOther], mapOf(), test.expected == Subtype.INVARIANT)
-            }
-        }
+        test(test.type, test.other, test.bindings, test.expected)
+        test(Type.LIST[test.type], Type.LIST[test.other], test.bindings, test.invariant)
     }
 
     init {
@@ -79,11 +54,11 @@ class SubtypeTests : RhovasSpec() {
 
             suite("Base", listOf(
                 "Equal" to Test(TYPE, TYPE, true, invariant = true),
-                "Disjoint" to Test(TYPE, Type.VOID, false),
                 "Subtype" to Test(SUBTYPE, TYPE, true),
                 "Supertype" to Test(SUPERTYPE, TYPE, false),
                 "Grandchild" to Test(SUBTYPE, SUPERTYPE, true),
                 "Grandparent" to Test(SUPERTYPE, SUBTYPE, false),
+                "Disjoint" to Test(DISJOINT, TYPE, false),
                 "Any Subtype" to Test(Type.ANY, TYPE, false),
                 "Any Supertype" to Test(TYPE, Type.ANY, true),
                 "Dynamic Subtype" to Test(Type.DYNAMIC, TYPE, true, invariant = true),
@@ -315,7 +290,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T_TYPE, T_TYPE, mapOf(), mapOf("T" to variant(upper=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
                 "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), false),
                 "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), mapOf("T" to variant(upper=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
-                "Disjoint" to Test(generic("T", Type.STRING), T_TYPE, mapOf(), false),
+                "Disjoint" to Test(T_DISJOINT, T_TYPE, mapOf(), false),
             )) { test(it, subtype = true) }
 
             suite("Subtype Bound", listOf(
@@ -330,6 +305,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T_TYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
                 "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower=T_SUBTYPE)), invariant = mapOf("T" to T_SUBTYPE)),
                 "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), false),
+                "Disjoint" to Test(T_DISJOINT, T_TYPE, mapOf(), false),
             )) { test(it) }
 
             suite("Supertype Bound", listOf(
@@ -359,11 +335,11 @@ class SubtypeTests : RhovasSpec() {
                 "Wildcard Generic Bound" to Test(T_TYPE, variant(), mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = true),
                 "Upper Subtype" to Test(T_SUBTYPE, variant(upper = TYPE), mapOf(), mapOf("T" to variant(upper = SUBTYPE)), invariant = true),
                 "Upper Supertype" to Test(T_SUPERTYPE, variant(upper = TYPE), mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = true),
-                "Upper Disjoint" to Test(generic("T", Type.STRING), variant(upper = TYPE), mapOf(), false),
+                "Upper Disjoint" to Test(T_DISJOINT, variant(upper = TYPE), mapOf(), false),
                 "Upper Dynamic" to Test(T, variant(upper = Type.DYNAMIC), mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = true),
                 "Lower Subtype" to Test(T_SUBTYPE, variant(lower = TYPE), mapOf(), false),
                 "Lower Supertype" to Test(T_SUPERTYPE, variant(lower = TYPE), mapOf(), mapOf("T" to variant(lower = TYPE, upper = SUPERTYPE)), invariant = true),
-                "Lower Disjoint" to Test(generic("T", Type.STRING), variant(lower = TYPE), mapOf(), false),
+                "Lower Disjoint" to Test(T_DISJOINT, variant(lower = TYPE), mapOf(), false),
                 "Lower Dynamic" to Test(T, variant(lower = Type.DYNAMIC), mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = true),
             )) { test(it, subtype = true) }
 
@@ -423,11 +399,11 @@ class SubtypeTests : RhovasSpec() {
                 "Wildcard Generic Bound" to Test(variant(), T_TYPE, mapOf(), false),
                 "Upper Subtype" to Test(variant(upper = SUBTYPE), T_TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE)), invariant = true),
                 "Upper Supertype" to Test(variant(upper = SUPERTYPE), T_TYPE, mapOf(), false),
-                "Upper Disjoint" to Test(variant(upper = Type.STRING), T_TYPE, mapOf(), false),
+                "Upper Disjoint" to Test(variant(upper = DISJOINT), T_TYPE, mapOf(), false),
                 "Upper Dynamic" to Test(variant(upper = Type.DYNAMIC), T_TYPE, mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = true),
                 "Lower Subtype" to Test(variant(lower = SUBTYPE), T_TYPE, mapOf(), false),
                 "Lower Supertype" to Test(variant(lower = SUPERTYPE), T_TYPE, mapOf(), false),
-                "Lower Disjoint" to Test(variant(lower = Type.STRING), T_TYPE, mapOf(), false),
+                "Lower Disjoint" to Test(variant(lower = DISJOINT), T_TYPE, mapOf(), false),
                 "Lower Dynamic" to Test(variant(lower = Type.DYNAMIC), T_TYPE, mapOf(), false),
             )) { test(it) }
 
