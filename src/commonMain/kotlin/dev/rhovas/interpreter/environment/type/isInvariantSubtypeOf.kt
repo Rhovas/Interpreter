@@ -52,7 +52,7 @@ private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Generic, bind
         return type.component.name == "Dynamic"
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        val result = isInvariantSubtypeOf(type, binding, bindings)
+        val result = isInvariantSubtypeOf(type, binding, Bindings.None)
         if (result) {
             bindings.other!![other.name] = type
         }
@@ -86,7 +86,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bind
         return other.component.name == "Dynamic"
     } else if (bindings.type!!.containsKey(type.name)) {
         val binding = bindings.type!![type.name]!!
-        return isInvariantSubtypeOf(binding, other, Bindings.None) //TODO: Audit
+        return isInvariantSubtypeOf(binding, other, Bindings.None)
     } else {
         bindings.type!![type.name] = other
         return isSupertypeOf(type.bound, other, bindings)
@@ -144,7 +144,7 @@ private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindin
         return false
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isInvariantSubtypeOf(type, binding, bindings)
+        return isInvariantSubtypeOf(type, binding, Bindings.None)
     } else {
         //TODO: Audit contextualized use cases
         bindings.other!![other.name] = type

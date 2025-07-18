@@ -64,7 +64,7 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bin
         return type.component.name == "Dynamic"
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isSubtypeOf(type, binding, bindings)
+        return isSubtypeOf(type, binding, Bindings.None)
     } else {
         bindings.other!![other.name] = Type.Variant(type, null)
         return isSubtypeOf(type, other.bound, bindings)
@@ -95,7 +95,7 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bin
         return isSubtypeOf(type.bound, other, bindings)
     } else if (bindings.type!!.containsKey(type.name)) {
         val binding = bindings.type!![type.name]!!
-        return isSubtypeOf(binding, other, bindings)
+        return isSubtypeOf(binding, other, Bindings.None)
     } else if (other.component.name == "Dynamic") {
         bindings.type!![type.name] = other
         return true
@@ -149,10 +149,10 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindi
 private fun isSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
     if (bindings.type == null) {
         return (other.lower == null || isSupertypeOf(type, other.lower, bindings))
-            && isSubtypeOf(type.bound, other.upper ?: Type.ANY, bindings)
+            && isSubtypeOf(type, other.upper ?: Type.ANY, bindings)
     } else if (bindings.type!!.containsKey(type.name)) {
         val binding = bindings.type!![type.name]!!
-        return isSubtypeOf(binding, other, bindings)
+        return isSubtypeOf(binding, other, Bindings.None)
     } else {
         val upper = when {
             isSupertypeOf(type.bound, other.upper ?: Type.ANY, bindings) -> other.upper
@@ -177,7 +177,7 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindi
         return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isSubtypeOf(type, binding, bindings)
+        return isSubtypeOf(type, binding, Bindings.None)
     } else {
         //TODO: Audit contextualized use cases
         bindings.other!![other.name] = type
