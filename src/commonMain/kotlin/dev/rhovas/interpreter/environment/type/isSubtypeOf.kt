@@ -111,14 +111,28 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bin
 private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
     return when (bindings) {
         is Bindings.None -> type.name == other.name
-        is Bindings.Supertype -> when (val binding = bindings.other[other.name]) {
-            null -> {
-                isSubtypeOf(type.bound, other.bound, bindings).also {
-                    if (it) bindings.other[other.name] = Type.Variant(type, null)
+        is Bindings.Subtype -> {
+            val binding = bindings.type[type.name]
+            if (binding != null) {
+                isSubtypeOf(binding, other, Bindings.None)
+            } else {
+                val result = isSupertypeOf(type.bound, other.bound, bindings)
+                if (result) {
+                    bindings.type[type.name] = Type.Variant(null, other)
                 }
+                return result
             }
-            else -> {
+        }
+        is Bindings.Supertype -> {
+            val binding = bindings.other[other.name]
+            if (binding != null) {
                 isSubtypeOf(type, binding, Bindings.None)
+            } else {
+                val result = isSubtypeOf(type.bound, other.bound, bindings)
+                if (result) {
+                    bindings.other[other.name] = Type.Variant(type, null)
+                }
+                return result
             }
         }
         else -> {

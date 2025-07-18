@@ -309,10 +309,23 @@ class SubtypeTests : RhovasSpec() {
                 "Name Unequal" to Test(T, R, false),
             )) { test(it) }
 
-            //TODO: Subtype Binding
+            suite("Subtype Bindable", listOf(
+                "Equal" to Test(T_TYPE, T_TYPE, mapOf(), mapOf("T" to variant(upper=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), false),
+                "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), mapOf("T" to variant(upper=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Disjoint" to Test(generic("T", Type.STRING), T_TYPE, mapOf(), false),
+            )) { test(it, subtype = true) }
+
+            suite("Subtype Bound", listOf(
+                "Equal" to Test(T, T_TYPE, mapOf("T" to TYPE), false),
+                "Subtype" to Test(T, T_TYPE, mapOf("T" to SUBTYPE), false),
+                "Supertype" to Test(T, T_TYPE, mapOf("T" to SUPERTYPE), false),
+                "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
+                "Generic" to Test(T, T, mapOf("T" to T), true, invariant = true),
+            )) { test(it, subtype = true) }
 
             suite("Supertype Bindable", listOf(
-                "Equal" to Test(T_TYPE, T, mapOf(), mapOf("T" to variant(lower=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Equal" to Test(T_TYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower=T_TYPE)), invariant = mapOf("T" to T_TYPE)),
                 "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower=T_SUBTYPE)), invariant = mapOf("T" to T_SUBTYPE)),
                 "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), false),
             )) { test(it) }

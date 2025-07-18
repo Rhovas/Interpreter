@@ -96,14 +96,28 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bind
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
     return when (bindings) {
         is Bindings.None -> type.name == other.name
-        is Bindings.Supertype -> when (val binding = bindings.other[other.name]) {
-            null -> {
-                isSubtypeOf(type.bound, other.bound, bindings).also {
-                    if (it) bindings.other[other.name] = type
+        is Bindings.Subtype -> {
+            val binding = bindings.type[type.name]
+            if (binding != null) {
+                isInvariantSubtypeOf(binding, other, Bindings.None)
+            } else {
+                val result = isSupertypeOf(type.bound, other.bound, bindings)
+                if (result) {
+                    bindings.type[type.name] = other
                 }
+                return result
             }
-            else -> {
+        }
+        is Bindings.Supertype -> {
+            val binding = bindings.other[other.name]
+            if (binding != null) {
                 isInvariantSubtypeOf(type, binding, Bindings.None)
+            } else {
+                val result = isSubtypeOf(type.bound, other.bound, bindings)
+                if (result) {
+                    bindings.other[other.name] = type
+                }
+                return result
             }
         }
         else -> {
