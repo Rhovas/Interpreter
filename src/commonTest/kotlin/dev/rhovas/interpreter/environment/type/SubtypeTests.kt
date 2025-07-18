@@ -43,14 +43,14 @@ class SubtypeTests : RhovasSpec() {
         //constructor(type: Type, other: Type, bindings: Map<String, Type>, expected: Any, invariant: Any = false) : this(type, other, bindings, expected, invariant)
     }
 
-    private fun test(test: Test, wrapper: Type.Reference? = null) {
+    private fun test(test: Test, wrapper: Type.Reference? = null, subtype: Boolean = false) {
         fun test(type: Type, other: Type, initialBindings: Map<String, Type>?, expected: Any) {
             if (initialBindings == null) {
                 val subtype = isSubtypeOf(type, other, Bindings.None)
                 assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
             } else {
                 val finalBindings = initialBindings.toMutableMap()
-                val subtype = isSubtypeOf(type, other, Bindings.Supertype(finalBindings))
+                val subtype = isSubtypeOf(type, other, if (subtype) Bindings.Subtype(finalBindings) else Bindings.Supertype(finalBindings))
                 assertEquals(
                     Pair(expected != false, expected as? Map<*, *> ?: finalBindings),
                     Pair(subtype, finalBindings),
@@ -250,6 +250,32 @@ class SubtypeTests : RhovasSpec() {
             "Lower Supertype" to Test(struct("x" to TYPE), variant(lower = struct("x" to SUPERTYPE)), false),
         )) { test(it) }
 
+        suite("Generic <: Reference") {
+
+            suite("Unbound", listOf(
+                "Equal" to Test(T, TYPE, true),
+                "Subtype" to Test(T_SUBTYPE, TYPE, true),
+                "Supertype" to Test(T_SUPERTYPE, TYPE, false),
+                "Dynamic" to Test(T, Type.DYNAMIC, true, invariant = true),
+            )) { test(it) }
+
+            suite("Bindable", listOf(
+                "Equal" to Test(T, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Subtype" to Test(T_SUBTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE))),
+                "Supertype" to Test(T_SUPERTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Dynamic" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            )) { test(it, subtype = true) }
+
+            suite("Bound", listOf(
+                "Equal" to Test(T, TYPE, mapOf("T" to TYPE), true, invariant = true),
+                "Subtype" to Test(T, TYPE, mapOf("T" to SUBTYPE), true),
+                "Supertype" to Test(T, TYPE, mapOf("T" to SUPERTYPE), false),
+                "Dynamic" to Test(T, Type.DYNAMIC, mapOf("T" to TYPE), true, invariant = true),
+                "Bound Dynamic" to Test(T, TYPE, mapOf("T" to Type.DYNAMIC), true, invariant = true),
+            )) { test(it, subtype = true) }
+
+        }
+
         suite("Generic <: Generic") {
 
             suite("Unbound", listOf(
@@ -266,7 +292,7 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it) }
 
             suite("Supertype Bound", listOf(
-                "Equal" to Test(T, T, mapOf("T" to TYPE), true, invariant = true),
+                "Equal" to Test(T, T, mapOf("T" to TYPE), true),
                 "Subtype" to Test(T_SUBTYPE, T, mapOf("T" to TYPE), true),
                 "Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to TYPE), false),
                 "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
@@ -274,8 +300,6 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it) }
 
         }
-
-        //List<*> <: List<Any>
 
         suite("Variant <: Reference", listOf(
             "Unbound" to Test(variant(), TYPE, false),

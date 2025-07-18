@@ -91,7 +91,21 @@ private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: Binding
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
-    return isSubtypeOf(type.bound, other, bindings)
+    if (bindings.type == null) {
+        return isSubtypeOf(type.bound, other, bindings)
+    } else if (bindings.type!!.containsKey(type.name)) {
+        val binding = bindings.type!![type.name]!!
+        return isSubtypeOf(binding, other, bindings)
+    } else if (other.component.name == "Dynamic") {
+        bindings.type!![type.name] = other
+        return true
+    } else if (isSubtypeOf(type.bound, other, bindings)) {
+        bindings.type!![type.name] = Type.Variant(null, type.bound)
+        return true
+    } else {
+        bindings.type!![type.name] = Type.Variant(null, other)
+        return isSubtypeOf(other, type.bound, bindings)
+    }
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindings): Boolean {
