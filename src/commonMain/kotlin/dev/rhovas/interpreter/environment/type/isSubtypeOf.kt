@@ -133,7 +133,25 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindi
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
-    return isSubtypeOf(type.bound, other, bindings)
+    if (bindings.type == null) {
+        return (other.lower == null || isSupertypeOf(type, other.lower, bindings))
+            && isSubtypeOf(type.bound, other.upper ?: Type.ANY, bindings)
+    } else if (bindings.type!!.containsKey(type.name)) {
+        val binding = bindings.type!![type.name]!!
+        return isSubtypeOf(binding, other, bindings)
+    } else {
+        val upper = when {
+            isSupertypeOf(type.bound, other.upper ?: Type.ANY, bindings) -> other.upper
+            isSubtypeOf(type.bound, other.upper ?: Type.ANY, bindings) -> type.bound
+            else -> return false
+        }
+        val lower = when {
+            other.lower == null || isSupertypeOf(type.bound, other.lower, bindings) -> other.lower
+            else -> return false
+        }
+        bindings.type!![type.name] = Type.Variant(lower, upper)
+        return true
+    }
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: Bindings): Boolean {
@@ -141,7 +159,16 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: Bin
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindings): Boolean {
-    return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
+    if (bindings.other == null) {
+        return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
+    } else if (bindings.other!!.containsKey(other.name)) {
+        val binding = bindings.other!![other.name]!!
+        return isSubtypeOf(type, binding, bindings)
+    } else {
+        //TODO: Audit contextualized use cases
+        bindings.other!![other.name] = type
+        return isSubtypeOf(type.upper ?: Type.ANY, other.bound, bindings)
+    }
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {

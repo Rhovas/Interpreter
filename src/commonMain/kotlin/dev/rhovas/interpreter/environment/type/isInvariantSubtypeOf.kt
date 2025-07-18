@@ -118,7 +118,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
-    return isInvariantSubtypeOf(type.bound, other, bindings)
+    return isSubtypeOf(type, other, bindings)
 }
 
 private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Reference, bindings: Bindings): Boolean {
@@ -126,7 +126,16 @@ private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Reference, bind
 }
 
 private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindings): Boolean {
-    return false
+    if (bindings.other == null) {
+        return false
+    } else if (bindings.other!!.containsKey(other.name)) {
+        val binding = bindings.other!![other.name]!!
+        return isInvariantSubtypeOf(type, binding, bindings)
+    } else {
+        //TODO: Audit contextualized use cases
+        bindings.other!![other.name] = type
+        return isSubtypeOf(type.upper ?: Type.ANY, other.bound, bindings)
+    }
 }
 
 private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {

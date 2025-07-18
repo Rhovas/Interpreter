@@ -327,6 +327,42 @@ class SubtypeTests : RhovasSpec() {
 
         }
 
+        suite("Generic <: Variant") {
+
+            suite("Unbound", listOf(
+                "Wildcard" to Test(T_TYPE, variant(), true, invariant = true),
+                "Upper Subtype" to Test(T_SUBTYPE, variant(upper = TYPE), true, invariant = true),
+                "Upper Supertype" to Test(T_SUPERTYPE, variant(upper = TYPE), false),
+                "Upper Generic" to Test(T, variant(upper = T), false),
+                "Lower Subtype" to Test(T_SUBTYPE, variant(lower = TYPE), false),
+                "Lower Supertype" to Test(T_SUPERTYPE, variant(lower = TYPE), false),
+                // List<T> <: List<T : *>
+                "Lower Generic" to Test(T, variant(lower = T), true, invariant = true),
+            )) { test(it) }
+
+            suite("Bindable", listOf(
+                "Wildcard" to Test(T, variant(), mapOf(), mapOf("T" to variant()), invariant = true),
+                "Wildcard Generic Bound" to Test(T_TYPE, variant(), mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = true),
+                "Upper Subtype" to Test(T_SUBTYPE, variant(upper = TYPE), mapOf(), mapOf("T" to variant(upper = SUBTYPE)), invariant = true),
+                "Upper Supertype" to Test(T_SUPERTYPE, variant(upper = TYPE), mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = true),
+                "Upper Disjoint" to Test(generic("T", Type.STRING), variant(upper = TYPE), mapOf(), false),
+                "Upper Dynamic" to Test(T, variant(upper = Type.DYNAMIC), mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = true),
+                "Lower Subtype" to Test(T_SUBTYPE, variant(lower = TYPE), mapOf(), false),
+                "Lower Supertype" to Test(T_SUPERTYPE, variant(lower = TYPE), mapOf(), mapOf("T" to variant(lower = TYPE, upper = SUPERTYPE)), invariant = true),
+                "Lower Disjoint" to Test(generic("T", Type.STRING), variant(lower = TYPE), mapOf(), false),
+                "Lower Dynamic" to Test(T, variant(lower = Type.DYNAMIC), mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = true),
+            )) { test(it, subtype = true) }
+
+            suite("Bound", listOf(
+                "Wildcard" to Test(T, variant(), mapOf("T" to TYPE), true, invariant = true),
+                "Upper Subtype" to Test(T, variant(upper = TYPE), mapOf("T" to SUBTYPE), true, invariant = true),
+                "Upper Supertype" to Test(T, variant(upper = TYPE), mapOf("T" to SUPERTYPE), false),
+                "Lower Subtype" to Test(T, variant(lower = TYPE), mapOf("T" to SUBTYPE), false),
+                "Lower Supertype" to Test(T, variant(lower = TYPE), mapOf("T" to SUPERTYPE), true, invariant = true),
+            )) { test(it, subtype = true) }
+
+        }
+
         suite("Variant <: Reference", listOf(
             "Unbound" to Test(variant(), TYPE, false),
             "Unbound Any" to Test(variant(), Type.ANY, true),
@@ -353,6 +389,41 @@ class SubtypeTests : RhovasSpec() {
             "Lower Subtype" to Test(variant(lower = struct("x" to SUBTYPE)), struct("x" to TYPE), false),
             "Lower Supertype" to Test(variant(lower = struct("x" to SUPERTYPE)), struct("x" to TYPE), false),
         )) { test(it) }
+
+        suite("Variant <: Generic") {
+
+            suite("Unbound", listOf(
+                "Wildcard" to Test(variant(), T_TYPE, false),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), T_TYPE, false),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), T_TYPE, false),
+                "Upper Generic" to Test(variant(upper = T), T, true),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), T_TYPE, false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), T_TYPE, false),
+                "Lower Generic" to Test(variant(lower = T), T, false),
+            )) { test(it) }
+
+            suite("Bindable", listOf(
+                "Wildcard" to Test(variant(), T, mapOf(), mapOf("T" to variant()), invariant = true),
+                "Wildcard Generic Bound" to Test(variant(), T_TYPE, mapOf(), false),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), T_TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE)), invariant = true),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), T_TYPE, mapOf(), false),
+                "Upper Disjoint" to Test(variant(upper = Type.STRING), T_TYPE, mapOf(), false),
+                "Upper Dynamic" to Test(variant(upper = Type.DYNAMIC), T_TYPE, mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = true),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), T_TYPE, mapOf(), false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), T_TYPE, mapOf(), false),
+                "Lower Disjoint" to Test(variant(lower = Type.STRING), T_TYPE, mapOf(), false),
+                "Lower Dynamic" to Test(variant(lower = Type.DYNAMIC), T_TYPE, mapOf(), false),
+            )) { test(it) }
+
+            suite("Bound", listOf(
+                "Wildcard" to Test(variant(), T, mapOf("T" to TYPE), false),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), T, mapOf("T" to TYPE), true),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), T, mapOf("T" to TYPE), false),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), T, mapOf("T" to TYPE), false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), T, mapOf("T" to TYPE), false),
+            )) { test(it) }
+
+        }
 
         suite("Variant <: Variant") {
 
