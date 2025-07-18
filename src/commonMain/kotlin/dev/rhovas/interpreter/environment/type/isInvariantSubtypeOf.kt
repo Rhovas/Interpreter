@@ -89,7 +89,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bind
         return isInvariantSubtypeOf(binding, other, Bindings.None) //TODO: Audit
     } else {
         bindings.type!![type.name] = other
-        return isSubtypeOf(other, type.bound, bindings)
+        return isSupertypeOf(type.bound, other, bindings)
     }
 }
 

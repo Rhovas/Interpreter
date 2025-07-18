@@ -72,7 +72,7 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bin
 }
 
 private fun isSubtypeOf(type: Type.Reference, other: Type.Variant, bindings: Bindings): Boolean {
-    return (other.lower == null || isSubtypeOf(other.lower, type, bindings))
+    return (other.lower == null || isSupertypeOf(type, other.lower, bindings))
         && (other.upper == null || isSubtypeOf(type, other.upper, bindings))
 }
 
@@ -104,7 +104,7 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bin
         return true
     } else {
         bindings.type!![type.name] = Type.Variant(null, other)
-        return isSubtypeOf(other, type.bound, bindings)
+        return isSupertypeOf(type.bound, other, bindings)
     }
 }
 
@@ -145,7 +145,7 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindi
 }
 
 private fun isSubtypeOf(type: Type.Variant, other: Type.Variant, bindings: Bindings): Boolean {
-    return (other.lower == null || type.lower != null && isSubtypeOf(other.lower, type.lower, bindings))
+    return (other.lower == null || type.lower != null && isSupertypeOf(type.lower, other.lower, bindings))
         && (other.upper == null || isSubtypeOf(type, other.upper, bindings))
 }
 
@@ -165,4 +165,13 @@ private fun isSubtypeOfBinding(type: Type, name: String, bindings: Bindings): Bo
         bindings.other?.set(name, Type.Variant(type, (bindings.other?.get(name)!! as Type.Variant).upper))
     }
     return subtype
+}
+
+fun isSupertypeOf(type: Type, other: Type, bindings: Bindings): Boolean {
+    return isSubtypeOf(other, type, when (bindings) {
+        is Bindings.None -> bindings
+        is Bindings.Subtype -> Bindings.Supertype(bindings.type)
+        is Bindings.Supertype -> Bindings.Subtype(bindings.other)
+        is Bindings.Both -> bindings
+    })
 }
