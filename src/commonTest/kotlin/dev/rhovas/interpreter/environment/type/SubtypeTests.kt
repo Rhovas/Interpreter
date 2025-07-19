@@ -106,6 +106,13 @@ class SubtypeTests : RhovasSpec() {
                 "Dynamic" to Test(Type.DYNAMIC, T_TYPE, true, invariant = true),
             )) { test(it) }
 
+            suite("Bindable", listOf(
+                "Equal" to Test(TYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Subtype" to Test(SUBTYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower = SUBTYPE)), invariant = mapOf("T" to SUBTYPE)),
+                "Supertype" to Test(SUPERTYPE, T_TYPE, mapOf(), false),
+                "Dynamic" to Test(Type.DYNAMIC, T, mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
+            )) { test(it) }
+
             suite("Bound", listOf(
                 "Equal" to Test(TYPE, T, mapOf("T" to TYPE), true, invariant = true),
                 "Subtype" to Test(SUBTYPE, T, mapOf("T" to TYPE), true),
