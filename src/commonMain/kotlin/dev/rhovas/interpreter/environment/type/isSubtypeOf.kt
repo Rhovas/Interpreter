@@ -64,7 +64,11 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bin
         return type.component.name == "Dynamic"
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isSubtypeOf(type, binding, Bindings.None)
+        val result = isSubtypeOf(type, binding, Bindings.None)
+        if (result && binding is Type.Variant) {
+            bindings.other!![other.name] = Type.Variant(type, binding.upper)
+        }
+        return result
     } else {
         bindings.other!![other.name] = Type.Variant(type, null)
         return isSubtypeOf(type, other.bound, bindings)
@@ -95,7 +99,19 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bin
         return isSubtypeOf(type.bound, other, bindings)
     } else if (bindings.type!!.containsKey(type.name)) {
         val binding = bindings.type!![type.name]!!
-        return isSubtypeOf(binding, other, Bindings.None)
+        if (binding is Type.Variant) {
+            if (isSubtypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
+                return true
+            } else if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
+                return false
+            } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
+                return false
+            }
+            bindings.type!![type.name] = Type.Variant(binding.lower, other)
+            return true
+        } else {
+            return isSubtypeOf(binding, other, Bindings.None)
+        }
     } else if (other.component.name == "Dynamic") {
         bindings.type!![type.name] = other
         return true
@@ -113,8 +129,18 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindi
         is Bindings.None -> type.name == other.name
         is Bindings.Subtype -> {
             val binding = bindings.type[type.name]
-            if (binding != null) {
-                isSubtypeOf(binding, other, Bindings.None)
+            if (binding is Type.Variant) {
+                if (isSubtypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
+                    return true
+                } else if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
+                    return false
+                } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
+                    return false
+                }
+                bindings.type[type.name] = Type.Variant(binding.lower, other)
+                return true
+            } else if (binding != null) {
+                return isSubtypeOf(binding, other, Bindings.None)
             } else {
                 val result = isSupertypeOf(type.bound, other.bound, bindings)
                 if (result) {
@@ -125,7 +151,15 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindi
         }
         is Bindings.Supertype -> {
             val binding = bindings.other[other.name]
-            if (binding != null) {
+            if (binding is Type.Variant) {
+                if (binding.lower != null && isSubtypeOf(type, binding.lower, Bindings.None)) {
+                    return true
+                } else if (!isSubtypeOf(type, binding.upper ?: Type.ANY, Bindings.None)) {
+                    return false
+                }
+                bindings.other[other.name] = Type.Variant(type, binding.upper)
+                return true
+            } else if (binding != null) {
                 isSubtypeOf(type, binding, Bindings.None)
             } else {
                 val result = isSubtypeOf(type.bound, other.bound, bindings)

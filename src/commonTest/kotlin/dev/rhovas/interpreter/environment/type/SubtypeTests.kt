@@ -122,6 +122,14 @@ class SubtypeTests : RhovasSpec() {
                 "Bound Generic" to Test(Type.TUPLE[tuple(T)], T, mapOf("T" to tuple(T)), true, invariant = true),
             )) { test(it) }
 
+            suite("Bound Variant", listOf(
+                "Wildcard" to Test(TYPE, T, mapOf("T" to variant()), mapOf("T" to variant(lower = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Upper Subtype" to Test(SUBTYPE, T, mapOf("T" to variant(upper = TYPE)), mapOf("T" to variant(lower = SUBTYPE, upper = TYPE)), invariant = mapOf("T" to SUBTYPE)),
+                "Upper Supertype" to Test(SUPERTYPE, T, mapOf("T" to variant(upper = TYPE)), false),
+                "Lower Subtype" to Test(SUBTYPE, T, mapOf("T" to variant(lower = TYPE)), false),
+                "Lower Supertype" to Test(SUPERTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = SUPERTYPE)), invariant = mapOf("T" to SUPERTYPE)),
+            )) { test(it) }
+
         }
 
         suite("Reference <: Variant", listOf(
@@ -272,6 +280,14 @@ class SubtypeTests : RhovasSpec() {
                 "Bound Generic" to Test(T, Type.TUPLE[tuple(T)], mapOf("T" to tuple(T)), true, invariant = true),
             )) { test(it, subtype = true) }
 
+            suite("Bound Variant", listOf(
+                "Wildcard" to Test(T, TYPE, mapOf("T" to variant()), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Upper Subtype" to Test(T, TYPE, mapOf("T" to variant(upper = SUBTYPE)), mapOf("T" to variant(upper = SUBTYPE))),
+                "Upper Supertype" to Test(T, TYPE, mapOf("T" to variant(upper = SUPERTYPE)), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Lower Subtype" to Test(T, TYPE, mapOf("T" to variant(lower = SUBTYPE)), mapOf("T" to variant(lower = SUBTYPE, upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Lower Supertype" to Test(T, TYPE, mapOf("T" to variant(lower = SUPERTYPE)), false),
+            )) { test(it, subtype = true) }
+
         }
 
         suite("Generic <: Tuple", listOf(
@@ -304,8 +320,18 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T, T_TYPE, mapOf("T" to TYPE), false),
                 "Subtype" to Test(T, T_TYPE, mapOf("T" to SUBTYPE), false),
                 "Supertype" to Test(T, T_TYPE, mapOf("T" to SUPERTYPE), false),
-                "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
-                "Generic" to Test(T, T, mapOf("T" to T), true, invariant = true),
+                "Dynamic" to Test(T, T_TYPE, mapOf("T" to Type.DYNAMIC), true, invariant = true),
+                "Generic" to Test(T, T_TYPE, mapOf("T" to T_TYPE), true, invariant = true),
+            )) { test(it, subtype = true) }
+
+            suite("Subtype Bound Variant", listOf(
+                "Wildcard" to Test(T, T_TYPE, mapOf("T" to variant()), mapOf("T" to variant(upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Upper Subtype" to Test(T, T_TYPE, mapOf("T" to variant(upper = SUBTYPE)), false),
+                "Upper Supertype" to Test(T, T_TYPE, mapOf("T" to variant(upper = SUPERTYPE)), mapOf("T" to variant(upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Upper Generic" to Test(T, T_TYPE, mapOf("T" to variant(upper = T_TYPE)), mapOf("T" to variant(upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Lower Subtype" to Test(T, T_TYPE, mapOf("T" to variant(lower = SUBTYPE)), false),
+                "Lower Supertype" to Test(T, T_TYPE, mapOf("T" to variant(lower = SUPERTYPE)), false),
+                "Lower Generic" to Test(T, T_TYPE, mapOf("T" to variant(lower = T_TYPE)), mapOf("T" to variant(lower = T_TYPE, upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
             )) { test(it, subtype = true) }
 
             suite("Supertype Bindable", listOf(
@@ -321,6 +347,16 @@ class SubtypeTests : RhovasSpec() {
                 "Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to TYPE), false),
                 "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Generic" to Test(T, T, mapOf("T" to T), true, invariant = true),
+            )) { test(it) }
+
+            suite("Supertype Bound Variant", listOf(
+                "Wildcard" to Test(T_TYPE, T, mapOf("T" to variant()), mapOf("T" to variant(lower = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Upper Subtype" to Test(T_SUBTYPE, T, mapOf("T" to variant(upper = TYPE)), mapOf("T" to variant(lower = T_SUBTYPE, upper = TYPE)), invariant = mapOf("T" to T_SUBTYPE)),
+                "Upper Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to variant(upper = TYPE)), false),
+                "Upper Generic" to Test(T_TYPE, T, mapOf("T" to variant(upper = T_TYPE)), mapOf("T" to variant(lower = T_TYPE, upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
+                "Lower Subtype" to Test(T_SUBTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = TYPE)), invariant = mapOf("T" to T_SUBTYPE)),
+                "Lower Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = T_SUPERTYPE)), invariant = mapOf("T" to T_SUPERTYPE)),
+                "Lower Generic" to Test(T_TYPE, T, mapOf("T" to variant(lower = T_TYPE)), mapOf("T" to variant(lower = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
             )) { test(it) }
 
         }
