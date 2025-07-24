@@ -482,6 +482,28 @@ class SubtypeTests : RhovasSpec() {
                 "Lower Generic" to Test(variant(lower = T), T, mapOf("T" to T), false),
             )) { test(it) }
 
+            suite("Bound Variant Wildcard", listOf(
+                "Wildcard" to Test(variant(), T, mapOf("T" to variant()), mapOf("T" to variant(lower = Type.ANY)), invariant = mapOf("T" to variant(lower = variant(), upper = variant()))),
+                "Upper" to Test(variant(upper = TYPE), T, mapOf("T" to variant()), mapOf("T" to variant(lower = TYPE)), invariant = mapOf("T" to variant(lower = variant(upper = TYPE), upper = variant()))),
+                "Lower" to Test(variant(lower = TYPE), T, mapOf("T" to variant()), mapOf("T" to variant(lower = Type.ANY)), invariant = mapOf("T" to variant(lower = variant(lower = TYPE), upper = variant()))),
+            )) { test(it) }
+
+            suite("Bound Variant Upper Bound", listOf(
+                "Wildcard" to Test(variant(), T, mapOf("T" to variant(upper = TYPE)), false),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), T, mapOf("T" to variant(upper = TYPE)), mapOf("T" to variant(lower = SUBTYPE, upper = TYPE)), invariant = mapOf("T" to variant(lower = variant(upper = SUBTYPE), upper = variant(upper = TYPE)))),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), T, mapOf("T" to variant(upper = TYPE)), false),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), T, mapOf("T" to variant(upper = TYPE)), false),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), T, mapOf("T" to variant(upper = TYPE)), false),
+            )) { test(it) }
+
+            suite("Bound Variant Lower Bound", listOf(
+                "Wildcard" to Test(variant(), T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = Type.ANY))),
+                "Upper Subtype" to Test(variant(upper = SUBTYPE), T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = TYPE))),
+                "Upper Supertype" to Test(variant(upper = SUPERTYPE), T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = SUPERTYPE))),
+                "Lower Subtype" to Test(variant(lower = SUBTYPE), T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = Type.ANY))),
+                "Lower Supertype" to Test(variant(lower = SUPERTYPE), T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = Type.ANY)), invariant = mapOf("T" to variant(lower = variant(lower = SUPERTYPE), upper = variant(lower = TYPE)))),
+            )) { test(it) }
+
         }
 
         suite("Variant <: Variant") {

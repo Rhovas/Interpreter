@@ -171,7 +171,18 @@ private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Generic, bindin
         return false
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isInvariantSubtypeOf(type, binding, Bindings.None)
+        if (binding is Type.Variant) {
+            if (!isSubtypeOf(type.upper ?: Type.ANY, binding.upper ?: Type.ANY, Bindings.None)) {
+                return false
+            }
+            if (binding.lower != null && (type.lower == null || !isSupertypeOf(type.lower, binding.lower, Bindings.None))) {
+                return false
+            }
+            bindings.other!![other.name] = Type.Variant(type, binding)
+            return true
+        } else {
+            return isInvariantSubtypeOf(type, binding, Bindings.None)
+        }
     } else {
         //TODO: Audit contextualized use cases
         bindings.other!![other.name] = type

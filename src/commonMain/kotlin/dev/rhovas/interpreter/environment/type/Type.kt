@@ -293,8 +293,12 @@ sealed class Type {
         }
 
         override fun toString(): String {
+            fun format(bound: Type?) = when (bound) {
+                is Generic, is Variant -> "(${bound})"
+                else -> bound.toString()
+            }
             return when {
-                ::bound.isInitialized -> "${name}: ${bound.bind(mapOf(name to Generic(name)))}"
+                ::bound.isInitialized -> "${name}: ${format(bound.bind(mapOf(name to Generic(name))))}"
                 else -> name //special case for recursive generics within toString
             }
         }
@@ -318,9 +322,14 @@ sealed class Type {
         }
 
         override fun toString(): String {
+            fun format(bound: Type?) = when (bound) {
+                null -> "*"
+                is Generic, is Variant -> "(${bound})"
+                else -> bound.toString()
+            }
             return when {
                 lower == null && upper == null -> "*"
-                else -> "${lower ?: "*"} : ${upper ?: "*"}"
+                else -> "${format(lower)} : ${format(upper)}"
             }
         }
 

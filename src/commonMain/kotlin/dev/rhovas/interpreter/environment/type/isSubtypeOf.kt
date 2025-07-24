@@ -230,7 +230,18 @@ private fun isSubtypeOf(type: Type.Variant, other: Type.Generic, bindings: Bindi
         return isSubtypeOf(type.upper ?: Type.ANY, other, bindings)
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
-        return isSubtypeOf(type, binding, Bindings.None)
+        if (binding is Type.Variant) {
+            val lower = when {
+                binding.lower == null && isSubtypeOf(type.upper ?: Type.ANY, binding.upper ?: Type.ANY, Bindings.None) -> type.upper ?: Type.ANY
+                binding.lower != null && isSubtypeOf(type.upper ?: Type.ANY, binding.lower, Bindings.None) -> binding.lower
+                binding.lower != null && isSupertypeOf(type.upper ?: Type.ANY, binding.lower, Bindings.None) -> type.upper ?: Type.ANY
+                else -> return false
+            }
+            bindings.other!![other.name] = Type.Variant(lower, binding.upper)
+            return true
+        } else {
+            return isSubtypeOf(type, binding, Bindings.None)
+        }
     } else {
         //TODO: Audit contextualized use cases
         bindings.other!![other.name] = type
