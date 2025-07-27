@@ -119,6 +119,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
             } else if (binding != null) {
                 isInvariantSubtypeOf(binding, other, Bindings.None)
             } else {
+                bindings.type[type.name] = other.bound
                 val result = isSupertypeOf(type.bound, other.bound, bindings)
                 if (result) {
                     bindings.type[type.name] = other
@@ -140,6 +141,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
             } else if (binding != null) {
                 isInvariantSubtypeOf(type, binding, Bindings.None)
             } else {
+                bindings.other[other.name] = type.bound
                 val result = isSubtypeOf(type.bound, other.bound, bindings)
                 if (result) {
                     bindings.other[other.name] = type
