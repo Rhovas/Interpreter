@@ -16,6 +16,7 @@ object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modif
             parameters = listOf("instance" to generic("T"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, lambda): T2<Object, Evaluator.Lambda> ->
+            //TODO: This is NOT right!?
             val returnsType = instance.type.generic("R", Type.LAMBDA.GENERIC)!!
             lambda.invoke(listOf(instance), returnsType)
         }
@@ -33,14 +34,14 @@ object AnyInitializer: Library.ComponentInitializer(Component.Class("Any", Modif
             parameters = listOf("type" to Type.TYPE[generic("T")]),
             returns = Type.BOOLEAN,
         ) { (instance, type): T2<Object, Type> ->
-            Object(Type.BOOLEAN, instance.type.isSubtypeOf(type))
+            Object(Type.BOOLEAN, instance.type.isSubtypeOf(type, false))
         }
 
         method("as",
             parameters = listOf("type" to Type.TYPE[generic("T")]),
             returns = Type.NULLABLE[generic("T")],
         ) { (instance, type): T2<Object, Type> ->
-            val result = instance.takeIf { it.type.isSubtypeOf(type) }
+            val result = instance.takeIf { it.type.isSubtypeOf(type, false) }
             Object(Type.NULLABLE[type], result?.let { Pair(it, null) })
         }
 

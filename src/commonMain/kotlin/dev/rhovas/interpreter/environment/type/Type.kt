@@ -72,18 +72,32 @@ sealed class Type {
 
     abstract fun bind(bindings: Map<String, Type>): Type
 
-    fun isSubtypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        return isSubtypeOf(this, other, Bindings.Both(bindings, bindings))
+    fun isSubtypeOf(other: Type, bindable: Boolean): Boolean {
+        // true = yes, false = no, null = irrelevant (for transition)
+        val bindings = if (bindable) Bindings.Supertype(mutableMapOf()) else Bindings.None
+        return isSubtypeOf(this, other, bindings)
     }
 
-    fun isSupertypeOf(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        return isSubtypeOf(other, this, Bindings.Both(bindings, bindings)) //TODO: Stub
+    fun isSubtypeOf(other: Type, bindings: Bindings): Boolean {
+        return isSubtypeOf(this, other, bindings)
+    }
+
+    fun isSupertypeOf(other: Type, bindable: Boolean?): Boolean {
+        // true = yes, false = no, null = irrelevant (for transition)
+        // String >: T: Any
+        // String <: T: Any -> T:
+        val bindings = if (bindable == true) Bindings.Subtype(mutableMapOf()) else Bindings.None
+        return isSubtypeOf(other, this, bindings)
+    }
+
+    fun isSupertypeOf(other: Type, bindings: Bindings): Boolean {
+        return isSupertypeOf(this, other, bindings)
     }
 
     fun generic(name: String, projection: Type): Type? {
         return when (this) {
             DYNAMIC -> DYNAMIC
-            else -> mutableMapOf<String, Type>().also { isSubtypeOf(projection, it) }[name]
+            else -> mutableMapOf<String, Type>().also { isSubtypeOf(projection, Bindings.Supertype(it)) }[name]
         }
     }
 
@@ -285,7 +299,8 @@ sealed class Type {
         }
 
         override fun bind(bindings: Map<String, Type>): Type {
-            return bindings[name] ?: this
+            //TODO: Review uses of fallback bindings; this is sketchy!
+            return bindings[name] ?: bound.bind(bindings + mapOf(name to DYNAMIC))
         }
 
         override fun equals(other: Any?): Boolean {

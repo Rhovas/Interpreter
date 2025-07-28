@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Bindings
 import dev.rhovas.interpreter.environment.type.Type
 
 sealed class Component<S: Scope<in Variable.Definition, out Variable, in Function.Definition, out Function>>(
@@ -26,7 +27,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
         }
         type.component.scope.functions.collect()
             .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
-            .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type) ?: false }
+            .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type, Bindings.Subtype(mutableMapOf())) ?: false }
             .map { (name, function) -> Pair(name, function.bind(type.component.generics.keys.zip(type.generics.values).associate { it.first to it.second })) }
             .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
             .forEach { (name, function) ->

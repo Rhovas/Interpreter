@@ -119,7 +119,9 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
             } else if (binding != null) {
                 isInvariantSubtypeOf(binding, other, Bindings.None)
             } else {
-                bindings.type[type.name] = other.bound
+                //TODO: Fix recursive generics checks loosing generic relations
+                //See comment for Supertype bindings below
+                bindings.type[type.name] = Type.DYNAMIC
                 val result = isSupertypeOf(type.bound, other.bound, bindings)
                 if (result) {
                     bindings.type[type.name] = other
@@ -141,7 +143,10 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
             } else if (binding != null) {
                 isInvariantSubtypeOf(type, binding, Bindings.None)
             } else {
-                bindings.other[other.name] = type.bound
+                //TODO: Fix recursive generics checks loosing generic relations
+                //when lowering to bounds, e.g. T: String <: Equatable<T>. Is
+                //this even well-formed? e.g. class MyNum : Equatable<Number>
+                bindings.other[other.name] = Type.DYNAMIC //type.bound
                 val result = isSubtypeOf(type.bound, other.bound, bindings)
                 if (result) {
                     bindings.other[other.name] = type

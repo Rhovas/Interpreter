@@ -73,6 +73,8 @@ class SubtypeTests : RhovasSpec() {
                 "Generic Supertype" to Test(Type.LIST[SUPERTYPE], Type.LIST[TYPE], false),
                 "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST[TYPE], true, invariant = true),
                 "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[Type.DYNAMIC], true, invariant = true),
+                "Recursive Bound" to Test(Type.EQUATABLE.GENERIC, Type.EQUATABLE.GENERIC, true, invariant = true),
+                "Recursive Bound Bindable" to Test(Type.EQUATABLE.GENERIC, Type.EQUATABLE.GENERIC, mapOf(), mapOf("T" to generic("T", Type.EQUATABLE.GENERIC)), invariant = mapOf("T" to generic("T", Type.EQUATABLE.GENERIC))),
             )) { test(it) }
 
         }

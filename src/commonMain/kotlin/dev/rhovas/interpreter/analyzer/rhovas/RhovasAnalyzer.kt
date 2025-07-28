@@ -11,6 +11,7 @@ import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.environment.Variable
+import dev.rhovas.interpreter.environment.type.Bindings
 import dev.rhovas.interpreter.library.Library
 import dev.rhovas.interpreter.parser.Input
 import dev.rhovas.interpreter.parser.rhovas.RhovasAst
@@ -339,7 +340,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     override fun visit(ir: RhovasIr.DefinitionPhase.Member.Property): RhovasIr.Member.Property = analyzeAst(ir.ast) { analyze {
         ir.getter.generics.forEach { context.scope.types.define(it.key, it.value) }
         val value = ir.ast.value?.let { visit(it, ir.getter.returns) }
-        require(value == null || value.type.isSubtypeOf(ir.getter.returns)) { error(ir.ast,
+        require(value == null || value.type.isSubtypeOf(ir.getter.returns, false)) { error(ir.ast,
             "Invalid value type.",
             "The property ${ir.ast.name} requires a value of type ${ir.getter.returns}, but received ${value!!.type}."
         ) }
@@ -429,7 +430,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         ) }
         val type = ast.type?.let { visit(it).type }
         val value = ast.value?.let { visit(it, type) }
-        require(type == null || value == null || value.type.isSubtypeOf(type)) { error(ast,
+        require(type == null || value == null || value.type.isSubtypeOf(type, false)) { error(ast,
             "Invalid value type.",
             "The variable ${ast.name} requires a value of type ${type}, but received ${value!!.type}."
         ) }
@@ -454,7 +455,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             ir.function.generics.forEach { context.scope.types.define(it.key, it.value) }
             ir.function.parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             val block = visit(ir.ast.block)
-            require(ir.function.returns.isSubtypeOf(Type.VOID) || context.jumps.contains("")) { error(ir.ast,
+            require(ir.function.returns.isSubtypeOf(Type.VOID, false) || context.jumps.contains("")) { error(ir.ast,
                 "Missing return value.",
                 "The function ${ir.ast.name}/${ir.ast.parameters.size} requires a return value.",
             ) }
@@ -487,7 +488,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                     }
                 }
                 val value = visit(ast.value, receiver.variable.type)
-                require(value.type.isSubtypeOf(receiver.variable.type)) { error(ast.value,
+                require(value.type.isSubtypeOf(receiver.variable.type, false)) { error(ast.value,
                     "Invalid assignment value type.",
                     "The variable ${receiver.variable.name} requires the value to be type ${receiver.variable.type}, but received ${value.type}.",
                 ) }
@@ -504,7 +505,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                     "The property ${receiver.type}.${receiver.property.name} is not assignable.",
                 ) }
                 val value = visit(ast.value, receiver.property.type)
-                require(value.type.isSubtypeOf(receiver.property.type)) { error(ast.value,
+                require(value.type.isSubtypeOf(receiver.property.type, false)) { error(ast.value,
                     "Invalid assignment value type.",
                     "The property ${receiver.type}.${receiver.property.name} requires the value to be type ${receiver.property.type}, but received ${value.type}.",
                 ) }
@@ -528,7 +529,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.If): RhovasIr.Statement.If = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.condition,
             "Invalid if condition type.",
             "An if statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
@@ -545,7 +546,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     override fun visit(ast: RhovasAst.Statement.Match.Conditional): RhovasIr.Statement.Match.Conditional = analyzeAst(ast) {
         fun visitCondition(ast: RhovasAst.Expression): RhovasIr.Expression {
             val condition = visit(ast, Type.BOOLEAN)
-            require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast,
+            require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast,
                 "Invalid match condition type.",
                 "A conditional match statement requires the condition to be type Boolean, but received ${condition.type}.",
             ) }
@@ -594,7 +595,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For = analyzeAst(ast) {
         val argument = visit(ast.argument, Type.LIST.GENERIC)
-        require(argument.type.isSubtypeOf(Type.ITERABLE.DYNAMIC)) { error(ast.argument,
+        require(argument.type.isSubtypeOf(Type.ITERABLE.DYNAMIC, false)) { error(ast.argument,
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
         ) }
@@ -610,7 +611,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.While): RhovasIr.Statement.While = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.condition,
             "Invalid while condition type.",
             "An while statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
@@ -625,7 +626,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         val child = context.child()
         ast.catchBlocks.forEach { analyze(it.context) {
             val type = visit(it.type).type
-            require(type.isSubtypeOf(Type.EXCEPTION)) { error(it.type,
+            require(type.isSubtypeOf(Type.EXCEPTION, false)) { error(it.type,
                 "Invalid catch type",
                 "An catch block requires the type to be a subtype of Exception, but received ${type}."
             ) }
@@ -712,7 +713,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             "A return statement requires an enclosing function definition.",
         ) }
         val value = ast.value?.let { visit(it, context.function!!.returns) }
-        require((value?.type ?: Type.VOID).isSubtypeOf(context.function!!.returns)) { error(ast,
+        require((value?.type ?: Type.VOID).isSubtypeOf(context.function!!.returns, false)) { error(ast,
             "Invalid return value type.",
             "The enclosing function ${context.function!!.name}/${context.function!!.parameters.size} requires the return value to be type ${context.function!!.returns}, but received ${value?.type ?: Type.VOID}.",
         ) }
@@ -722,11 +723,11 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.Throw): RhovasIr.Statement.Throw = analyzeAst(ast) {
         val exception = visit(ast.exception, Type.EXCEPTION)
-        require(exception.type.isSubtypeOf(Type.EXCEPTION)) { error(ast.exception,
+        require(exception.type.isSubtypeOf(Type.EXCEPTION, false)) { error(ast.exception,
             "Invalid throw expression type.",
             "An throw statement requires the expression to be type Exception, but received ${exception.type}.",
         ) }
-        require(context.exceptions.any { exception.type.isSubtypeOf(it) }) { error(ast.exception,
+        require(context.exceptions.any { exception.type.isSubtypeOf(it, false) }) { error(ast.exception,
             "Uncaught exception.",
             "An exception is thrown of type ${exception.type}, but this exception is never caught or declared.",
         ) }
@@ -736,12 +737,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.Assert): RhovasIr.Statement.Assert = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.condition,
             "Invalid assert condition type.",
             "An assert statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING, false)) { error(ast.message!!,
             "Invalid assert message type.",
             "An assert statement requires the message to be type String, but received ${message!!.type}.",
         ) }
@@ -750,12 +751,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.Require): RhovasIr.Statement.Require = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.condition,
             "Invalid require condition type.",
             "A require statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING, false)) { error(ast.message!!,
             "Invalid require message type.",
             "A require statement requires the message to be type String, but received ${message!!.type}.",
         ) }
@@ -764,12 +765,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Statement.Ensure): RhovasIr.Statement.Ensure = analyzeAst(ast) {
         val condition = visit(ast.condition, Type.BOOLEAN)
-        require(condition.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.condition,
+        require(condition.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.condition,
             "Invalid ensure condition type.",
             "An ensure statement requires the condition to be type Boolean, but received ${condition.type}.",
         ) }
         val message = ast.message?.let { visit(it, Type.STRING) }
-        require(message == null || message.type.isSubtypeOf(Type.STRING)) { error(ast.message!!,
+        require(message == null || message.type.isSubtypeOf(Type.STRING, false)) { error(ast.message!!,
             "Invalid ensure message type.",
             "An ensure statement requires the message to be type String, but received ${message!!.type}.",
         ) }
@@ -828,7 +829,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.List): RhovasIr.Expression.Literal.List = analyzeAst(ast) {
-        val (elements, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.TUPLE.GENERIC)) {
+        val (elements, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.TUPLE.GENERIC, true)) {
             val generics = (context.inference.generic("T", Type.TUPLE.GENERIC)!! as? Type.Tuple)?.elements
             val elements = ast.elements.withIndex().map { visit(it.value, generics?.getOrNull(it.index)?.type) }
             val type = Type.TUPLE[elements.map { it.type }, true]
@@ -843,7 +844,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Literal.Object): RhovasIr.Expression.Literal.Object = analyzeAst(ast) {
-        val (properties, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.MAP.GENERIC)) {
+        val (properties, type) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.MAP.GENERIC, true)) {
             val inferredKey = context.inference.generic("K", Type.MAP.GENERIC) ?: Type.ANY
             val inferredValue = context.inference.generic("V", Type.MAP.GENERIC) ?: Type.ANY
             val properties = mutableMapOf<String, RhovasIr.Expression>()
@@ -854,7 +855,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 ) }
                 properties[it.first] = visit(it.second, inferredValue)
             }
-            val keyType = inferredKey.takeIf { properties.isEmpty() || !it.isSupertypeOf(Type.ATOM) } ?: Type.ATOM
+            val keyType = inferredKey.takeIf { properties.isEmpty() || !it.isSupertypeOf(Type.ATOM, null) } ?: Type.ATOM
             val valueType = properties.values.map { it.type }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
             Pair(properties, Type.MAP[keyType, valueType])
         } else {
@@ -894,12 +895,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         when (ast.operator) {
             "&&", "||" -> {
                 val left = visit(ast.left, Type.BOOLEAN)
-                require(left.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.left,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, Type.BOOLEAN)
-                require(right.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.right,
+                require(right.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.right,
                     "Invalid binary operand.",
                     "A logical binary expression requires the left operand to be type Boolean, but received ${left.type}.",
                 ) }
@@ -907,12 +908,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             }
             "==", "!=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC) || left.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC)) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC, false) || left.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC, false)) { error(ast.left,
                     "Unequatable type.",
                     "A logical binary expression requires the left operand to be unifiable with type Equatable, but received ${left.type}.",
                 ) }
                 val right = visit(ast.right, left.type)
-                require(right.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC) || right.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC)) { error(ast.right,
+                require(right.type.isSubtypeOf(Type.EQUATABLE.DYNAMIC, false) || right.type.isSupertypeOf(Type.EQUATABLE.DYNAMIC, false)) { error(ast.right,
                     "Unequatable type.",
                     "A logical binary expression requires the right operand to be unifiable with type Equatable, but received ${right.type}.",
                 ) }
@@ -925,7 +926,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             }
             "<", ">", "<=", ">=" -> {
                 val left = visit(ast.left)
-                require(left.type.isSubtypeOf(Type.COMPARABLE.DYNAMIC)) { error(ast.left,
+                require(left.type.isSubtypeOf(Type.COMPARABLE.DYNAMIC, false)) { error(ast.left,
                     "Uncomparable type.",
                     "A logical equality expression requires the left operand to be type Comparable, but received ${left.type}.",
                 ) }
@@ -968,7 +969,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             "The property getter ${ast.name.removeSuffix("!")}() is not defined in ${receiverType}.",
         )
         val returnsType = if (bang) {
-            require(property.type.isSubtypeOf(Type.RESULT.DYNAMIC)) { error(ast,
+            require(property.type.isSubtypeOf(Type.RESULT.DYNAMIC, false)) { error(ast,
                 "Invalid bang attribute.",
                 "A bang attribute requires the property getter ${ast.name.removeSuffix("!")}() to return type Result, but received ${property.type}"
             ) }
@@ -1069,8 +1070,8 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         return when {
             cascade -> receiver
             coalesce -> when {
-                returns.isSubtypeOf(Type.RESULT.DYNAMIC) -> returns
-                receiver.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Type.NULLABLE[returns]
+                returns.isSubtypeOf(Type.RESULT.DYNAMIC, false) -> returns
+                receiver.isSubtypeOf(Type.NULLABLE.DYNAMIC, false) -> Type.NULLABLE[returns]
                 else -> Type.RESULT[returns, receiver.generic("E", Type.RESULT.GENERIC)!!]
             }
             else -> returns
@@ -1104,7 +1105,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         for (i in 0 until arity) {
             val inference = filtered.map { it.first.parameters[i].type.bind(it.second) }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.ANY
             val (ast, type) = generator(Pair(i, inference)).also { arguments.add(it.second) }
-            filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, it.second) }
+            filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, Bindings.Supertype(it.second)) }
             require(filtered.isNotEmpty()) { when (candidates.size) {
                 1 -> error(ast,
                     "Invalid argument.",
@@ -1119,7 +1120,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
         val exceptions = function.throws + listOfNotNull(function.returns.generic("E", Type.RESULT.GENERIC)?.takeIf { name.endsWith('!') })
         exceptions.filter { (it as? Type.Reference)?.component?.name != "Dynamic" }.forEach { exception ->
-            require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
+            require(context.exceptions.any { exception.isSubtypeOf(it, false) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",
             ) }
@@ -1177,7 +1178,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
         //TODO(#2): Forward thrown exceptions from context into declaration
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.LAMBDA.GENERIC)) {
+        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (context.inference != Type.DYNAMIC && context.inference.isSubtypeOf(Type.LAMBDA.GENERIC, true)) {
             val parameters = (context.inference.generic("T", Type.LAMBDA.GENERIC)?.generic("T", Type.TUPLE.GENERIC) as? Type.Tuple)?.let {
                 Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
                     is Type.Generic -> it.type.bound
@@ -1208,13 +1209,13 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type))
             }
             visit(ast.body).also {
-                require(it.type.isSubtypeOf(function.returns) || context.jumps.contains("")) { analyze(it.context) { error(ast,
+                require(it.type.isSubtypeOf(function.returns, false) || context.jumps.contains("")) { analyze(it.context) { error(ast,
                     "Invalid return value type.",
                     "The enclosing function ${function.name}/${function.parameters.size} requires the return value to be type ${function.returns}, but received ${it.type}.",
                 ) } }
             }
         }
-        val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it.withIndex().map { it.value.copy(name = it.index.toString()) })] } ?: Type.TUPLE.DYNAMIC, returns, Type.DYNAMIC]
+        val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it.withIndex().map { it.value.copy(name = it.index.toString()) })] } ?: Type.TUPLE.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC]
         RhovasIr.Expression.Lambda(parameters, body, type)
     }
 
@@ -1234,7 +1235,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Pattern.Value): RhovasIr.Pattern.Value = analyzeAst(ast) {
         val value = visit(ast.value, context.inference)
-        require(value.type.isSubtypeOf(context.inference)) { error(ast,
+        require(value.type.isSubtypeOf(context.inference, false)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${value.type}.",
         ) }
@@ -1248,7 +1249,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             pattern.bindings.forEach { (context.scope as Scope.Declaration).variables.define(it.value) }
             visit(ast.predicate, Type.BOOLEAN)
         }
-        require(predicate.type.isSubtypeOf(Type.BOOLEAN)) { error(ast.predicate,
+        require(predicate.type.isSubtypeOf(Type.BOOLEAN, false)) { error(ast.predicate,
             "Invalid pattern predicate type.",
             "A predicate pattern requires the predicate to be type Boolean, but received ${predicate.type}.",
         ) }
@@ -1256,7 +1257,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Pattern.OrderedDestructure): RhovasIr.Pattern.OrderedDestructure = analyzeAst(ast) {
-        require(context.inference.isSupertypeOf(Type.LIST.DYNAMIC)) { error(ast,
+        require(context.inference.isSupertypeOf(Type.LIST.GENERIC, true)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received List.",
         ) }
@@ -1283,7 +1284,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Pattern.NamedDestructure): RhovasIr.Pattern.NamedDestructure = analyzeAst(ast) {
-        require(context.inference.isSupertypeOf(Type.STRUCT.GENERIC)) { error(ast,
+        require(context.inference.isSupertypeOf(Type.STRUCT.GENERIC, true)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received Struct.",
         ) }
@@ -1324,7 +1325,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
 
     override fun visit(ast: RhovasAst.Pattern.TypedDestructure): RhovasIr.Pattern.TypedDestructure = analyzeAst(ast) {
         val type = visit(ast.type).type
-        require(context.inference.isSupertypeOf(type)) { error(ast,
+        require(context.inference.isSupertypeOf(type, false)) { error(ast,
             "Unmatchable pattern type",
             "This pattern is within a context that requires type ${context.inference}, but received ${type}.",
         ) }
@@ -1368,7 +1369,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             ) }
             val generics = component.generics.values.withIndex().associate {
                 val generic = visit(ast.generics[it.index]).type
-                require(generic.isSubtypeOf(it.value.bound)) { error(ast.generics[it.index],
+                require(generic.isSubtypeOf(it.value.bound, true)) { error(ast.generics[it.index],
                     "Invalid generic parameter.",
                     "The type ${type} requires generic parameter ${it.index} to be type ${it.value.bound}, but received ${generic}.",
                 ) }

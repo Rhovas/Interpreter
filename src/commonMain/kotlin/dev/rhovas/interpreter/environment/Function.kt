@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Bindings
 import dev.rhovas.interpreter.environment.type.Type
 
 sealed interface Function {
@@ -20,13 +21,11 @@ sealed interface Function {
      * only be considered meaningful if this method returns true.
      */
     fun isResolvedBy(arguments: List<Type>, generics: MutableMap<String, Type> = mutableMapOf()): Boolean {
+        val bindings = Bindings.Supertype(generics)
         val result = arguments.indices.all {
-            arguments[it].isSubtypeOf(parameters[it].type, generics)
+            arguments[it].isSubtypeOf(parameters[it].type, bindings)
         }
-        generics.mapValuesTo(generics) { (_, type) ->
-            // Finalize variant type bounds between arguments after resolution is complete.
-            if (type is Type.Variant) type.upper ?: type.lower ?: Type.ANY else type
-        }
+        bindings.finalize()
         return result
     }
 
@@ -43,7 +42,7 @@ sealed interface Function {
             parameters.zip(other.parameters).any {
                 val type = it.first.type.bind(generics)
                 val other = it.second.type.bind(other.generics)
-                !type.isSubtypeOf(other) && !type.isSupertypeOf(other)
+                !type.isSubtypeOf(other, false) && !type.isSupertypeOf(other, false)
             }
         )
     }
