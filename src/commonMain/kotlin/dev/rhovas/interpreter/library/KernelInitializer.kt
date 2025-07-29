@@ -62,8 +62,8 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
                 //TODO(#16): Union type for String | Regex
                 literal.value as String + when {
                     argument == null -> ""
-                    argument.type.isSubtypeOf(Type.STRING, false) -> Regex.escape(argument.value as String)
-                    argument.type.isSubtypeOf(Type.REGEX, false) -> (argument.value as Regex).pattern
+                    argument.type.isSubtypeOf(Type.STRING) -> Regex.escape(argument.value as String)
+                    argument.type.isSubtypeOf(Type.REGEX) -> (argument.value as Regex).pattern
                     else -> throw error(
                         "Invalid argument.",
                         "The native function #regex requires argument ${index} to be type String | Regex, but received ${argument.type}.",

@@ -42,7 +42,7 @@ sealed interface Function {
             parameters.zip(other.parameters).any {
                 val type = it.first.type.bind(generics)
                 val other = it.second.type.bind(other.generics)
-                !type.isSubtypeOf(other, false) && !type.isSupertypeOf(other, false)
+                !type.isSubtypeOf(other) && !type.isSupertypeOf(other)
             }
         )
     }

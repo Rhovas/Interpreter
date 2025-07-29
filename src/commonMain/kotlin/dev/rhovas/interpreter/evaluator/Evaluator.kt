@@ -45,14 +45,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         ir.members.forEach { visit(it) }
         val current = scope
         val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
-        (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }], false) } as Function.Definition).implementation = { arguments ->
+        (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }]) } as Function.Definition).implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
                 val initial = arguments[0].value as Map<String, Object>
                 Object(type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null) })
             }
         }
-        (ir.component.inherited.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns, null) } } as Function.Definition).implementation = { arguments ->
+        (ir.component.inherited.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } } as Function.Definition).implementation = { arguments ->
             scoped(Scope.Definition(current)) {
                 val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
                 Object(type, fields.keys.withIndex().associate { it.value to arguments[it.index] })
@@ -105,7 +105,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 try {
                     visit(ir.block)
                 } catch (e: Throw) {
-                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it, false) }) { error(ir,
+                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(ir,
                         "Uncaught exception.",
                         "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods.toString()}"
                     ) }
@@ -158,7 +158,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     visit(ir.block)
                     Object(Type.VOID, Unit)
                 } catch (e: Throw) {
-                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it, false) }) { error(ir,
+                    require(ir.function.throws.any { e.exception.type.isSubtypeOf(it) }) { error(ir,
                         "Uncaught exception.",
                         "An exception of type ${e.exception.type} was thrown but not declared: ${e.exception.methods.toString()}"
                     ) }
@@ -188,7 +188,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "Unassignable property.",
             "The property ${receiver.type}.${ir.property.name} does not support assignment.",
         )
-        require(value.type.isSubtypeOf(method.parameters[0].type, false)) { error(ir.value,
+        require(value.type.isSubtypeOf(method.parameters[0].type)) { error(ir.value,
             "Invalid property value type.",
             "The property ${receiver.type}.${method.name} requires the value to be type ${method.parameters[0].type}, but received ${value.type}.",
         ) }
@@ -206,7 +206,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].type, false)) { error(ir.arguments.getOrNull(i) ?: ir.value,
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments.getOrNull(i) ?: ir.value,
                 "Invalid method argument type.",
                 "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -323,7 +323,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         try {
             visit(ir.tryBlock)
         } catch (e: Throw) {
-            val catch = ir.catchBlocks.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type, false) }
+            val catch = ir.catchBlocks.firstOrNull { e.exception.type.isSubtypeOf(it.variable.type) }
             if (catch != null) {
                 scoped(Scope.Definition(scope)) {
                     scope.variables.define(Variable.Definition(catch.variable, e.exception))
@@ -501,7 +501,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${left.type}.",
                 )
                 val right = visit(ir.right)
-                require(right.type.isSubtypeOf(method.parameters[0].type, false)) { error(ir.right,
+                require(right.type.isSubtypeOf(method.parameters[0].type)) { error(ir.right,
                     "Invalid method argument type.",
                     "The method ${left.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument 0 to be type ${method.parameters[0].type}, but received ${right.type}."
                 ) }
@@ -558,7 +558,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].type, false)) { error(ir.arguments[i],
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid method argument type.",
                 "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -572,7 +572,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val function = ir.function as? Function.Definition ?: scope.types[ir.qualifier.component.name]!!.functions[ir.function.name, ir.function.parameters.map { it.type }]!! as Function.Definition
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type, false)) { error(ir.arguments[i],
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid initializer argument type.",
                 "The initializer ${ir.type}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -586,7 +586,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val function = ir.function as? Function.Definition ?: scope.functions[ir.function.name, ir.function.parameters.map { it.type }]!!
         val arguments = ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type, false)) { error(ir.arguments[i],
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid function argument type.",
                 "The function ${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -605,7 +605,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "The method ${ir.method.name}(${ir.method.parameters.map { it.type }.joinToString(", ")}) is not defined in ${receiver.type}.",
         )
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(method.parameters[i].type, false)) { error(ir.arguments[i],
+            require(arguments[i].type.isSubtypeOf(method.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid method argument type.",
                 "The method ${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${method.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -622,7 +622,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val receiver = computeCoalesceReceiver(original, ir.coalesce) ?: return original
         val arguments = listOf(receiver) + ir.arguments.map { visit(it) }
         for (i in arguments.indices) {
-            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type, false)) { error(ir.arguments[i],
+            require(arguments[i].type.isSubtypeOf(ir.function.parameters[i].type)) { error(ir.arguments[i],
                 "Invalid function argument type.",
                 "The function ${ir.qualifier?.let { "$it." } ?: ""}${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")}) requires argument ${i} to be type ${ir.function.parameters[i].type}, but received ${arguments[i].type}.",
             ) }
@@ -676,10 +676,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.OrderedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.LIST.GENERIC, true)) {
-            return Object(Type.BOOLEAN, false)
-        }
-        val type = patternState.value.type.generic("T", Type.LIST.GENERIC)!!
+        val type = Type.LIST.bindings(patternState.value.type)?.get("T")
+            ?: return Object(Type.BOOLEAN, false)
         val list = patternState.value.value as List<Object>
         var i = 0
         for (pattern in ir.patterns) {
@@ -703,7 +701,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.NamedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.GENERIC, true)) {
+        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.DYNAMIC)) {
             return Object(Type.BOOLEAN, false)
         }
         val map = patternState.value.value as Map<String, Object>
@@ -731,14 +729,14 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.TypedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(ir.type, false)) {
+        if (!patternState.value.type.isSubtypeOf(ir.type)) {
             return Object(Type.BOOLEAN, false)
         }
         return ir.pattern?.let { visit(it) } ?: Object(Type.BOOLEAN, true)
     }
 
     override fun visit(ir: RhovasIr.Pattern.VarargDestructure): Object {
-        if (patternState.value.type.isSubtypeOf(Type.LIST.GENERIC, true)) {
+        if (patternState.value.type.isSubtypeOf(Type.LIST.DYNAMIC)) {
             val list = patternState.value.value as List<Object>
             if (ir.operator == "+" && list.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
@@ -760,7 +758,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 bindings.forEach { patternState.scope.variables.define(it.value) }
                 Object(Type.BOOLEAN, result)
             }
-        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.GENERIC, true)) {
+        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.DYNAMIC)) {
             val map = patternState.value.value as Map<String, Object>
             if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
@@ -810,7 +808,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     Object(Type.RESULT[result.type, Type.DYNAMIC], Pair(result, null))
                 } catch (e: Throw) {
                     when {
-                        throws.any { it.isSupertypeOf(e.exception.type, null) } -> Object(Type.RESULT[Type.DYNAMIC, e.exception.type], Pair(null, e.exception))
+                        throws.any { it.isSupertypeOf(e.exception.type) } -> Object(Type.RESULT[Type.DYNAMIC, e.exception.type], Pair(null, e.exception))
                         else -> throw e
                     }
                 }
@@ -884,7 +882,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                             "The invoked lambda defined ${ir.parameters.size} parameter(s), but received ${arguments.size} argument(s).",
                         )}
                         arguments.indices.forEach {
-                            evaluator.require(arguments[it].type.isSubtypeOf(ir.parameters[it].type, false)) { evaluator.error(ir,
+                            evaluator.require(arguments[it].type.isSubtypeOf(ir.parameters[it].type)) { evaluator.error(ir,
                                 "Invalid lambda argument type.",
                                 "The invoked lambda requires argument ${it} to be type ${ir.parameters[it].type}, but received ${arguments[it].type}.",
                             ) }
@@ -904,7 +902,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     e.value ?: Object(Type.VOID, Unit)
                 }
                 //TODO: isSupertypeOf is wrong?
-                evaluator.require(result.type.isSupertypeOf(returns, null)) { evaluator.error(ir,
+                evaluator.require(result.type.isSupertypeOf(returns)) { evaluator.error(ir,
                     "Invalid lambda return value.",
                     "The invoked lambda requires the return value to be type ${returns}, but received ${result.type}."
                 ) }

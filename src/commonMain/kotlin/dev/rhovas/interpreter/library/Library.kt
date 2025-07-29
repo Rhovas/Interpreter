@@ -120,7 +120,7 @@ object Library {
                     else -> transform as T
                 }
                 val result = implementation.invoke(Context(generics), wrapper)
-                EVALUATOR.require(result.type.isSubtypeOf(returns.bind(generics), false))
+                EVALUATOR.require(result.type.isSubtypeOf(returns.bind(generics)))
                 result
             }
             component.scope.functions.define(function)

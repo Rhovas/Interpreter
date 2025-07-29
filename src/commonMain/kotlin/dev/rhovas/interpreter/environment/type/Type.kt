@@ -41,6 +41,7 @@ sealed class Type {
             val GENERIC get() = Library.type(name)
             val DYNAMIC get() = Library.type(name, generics.associateWith { Type.DYNAMIC })
             operator fun get(vararg generics: Type) = Library.type(name, this.generics.zip(generics).associate { it.first to it.second })
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
         }
 
         class TupleDelegate(val name: String) {
@@ -50,6 +51,7 @@ sealed class Type {
             operator fun get(elements: List<Type>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Tuple(elements.withIndex().map {
                 Variable.Declaration(it.index.toString(), it.value, mutable)
             })))
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
         }
 
         class StructDelegate(val name: String) {
@@ -59,6 +61,7 @@ sealed class Type {
             operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Struct(fields.associate {
                 it.first to Variable.Declaration(it.first, it.second, mutable)
             })))
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
         }
     }
 
@@ -72,33 +75,12 @@ sealed class Type {
 
     abstract fun bind(bindings: Map<String, Type>): Type
 
-    fun isSubtypeOf(other: Type, bindable: Boolean): Boolean {
-        // true = yes, false = no, null = irrelevant (for transition)
-        val bindings = if (bindable) Bindings.Supertype(mutableMapOf()) else Bindings.None
+    fun isSubtypeOf(other: Type, bindings: Bindings = Bindings.None): Boolean {
         return isSubtypeOf(this, other, bindings)
     }
 
-    fun isSubtypeOf(other: Type, bindings: Bindings): Boolean {
-        return isSubtypeOf(this, other, bindings)
-    }
-
-    fun isSupertypeOf(other: Type, bindable: Boolean?): Boolean {
-        // true = yes, false = no, null = irrelevant (for transition)
-        // String >: T: Any
-        // String <: T: Any -> T:
-        val bindings = if (bindable == true) Bindings.Subtype(mutableMapOf()) else Bindings.None
-        return isSubtypeOf(other, this, bindings)
-    }
-
-    fun isSupertypeOf(other: Type, bindings: Bindings): Boolean {
+    fun isSupertypeOf(other: Type, bindings: Bindings = Bindings.None): Boolean {
         return isSupertypeOf(this, other, bindings)
-    }
-
-    fun generic(name: String, projection: Type): Type? {
-        return when (this) {
-            DYNAMIC -> DYNAMIC
-            else -> mutableMapOf<String, Type>().also { isSubtypeOf(projection, Bindings.Supertype(it)) }[name]
-        }
     }
 
     fun unify(other: Type): Type {
