@@ -101,8 +101,8 @@ sealed class Type {
         }
     }
 
-    fun unify(other: Type, bindings: MutableMap<String, Type> = mutableMapOf()): Type {
-        return unify(this, other, bindings)
+    fun unify(other: Type): Type {
+        return unify(this, other)
     }
 
     inner class FunctionsDelegate {

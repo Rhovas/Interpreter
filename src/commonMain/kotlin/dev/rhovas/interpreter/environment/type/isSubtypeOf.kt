@@ -290,6 +290,5 @@ fun isSupertypeOf(type: Type, other: Type, bindings: Bindings): Boolean {
         is Bindings.None -> bindings
         is Bindings.Subtype -> Bindings.Supertype(bindings.type)
         is Bindings.Supertype -> Bindings.Subtype(bindings.other)
-        is Bindings.Both -> bindings
     })
 }
