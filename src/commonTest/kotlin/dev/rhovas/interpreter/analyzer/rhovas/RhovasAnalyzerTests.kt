@@ -2137,8 +2137,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Tuple([1, "string"])
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.TUPLE.GENERIC,
-                            Type.TUPLE.GENERIC.functions["", listOf(Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true])]!!,
+                            Type.TUPLE.component.type,
+                            Type.TUPLE.component.type.functions["", listOf(Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true])]!!,
                             listOf(RhovasIr.Expression.Literal.List(
                                 listOf(literal(BigInteger.parseString("1")), literal("string")),
                                 Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true],
@@ -2177,8 +2177,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Map({key: "value"})
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.MAP.GENERIC,
-                            Type.MAP.GENERIC.functions["", listOf(Type.MAP[Type.ATOM, Type.STRING])]!!,
+                            Type.MAP.component.type,
+                            Type.MAP.component.type.functions["", listOf(Type.MAP[Type.ATOM, Type.STRING])]!!,
                             listOf(RhovasIr.Expression.Literal.Object(
                                 mapOf("key" to literal("value")),
                                 Type.MAP[Type.ATOM, Type.STRING],
@@ -2487,8 +2487,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Property(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.GENERIC,
-                                Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!!,
+                                Type.NULLABLE.component.type,
+                                Type.NULLABLE.component.type.functions["", listOf(Type.STRING)]!!,
                                 listOf(literal("string")),
                                 Type.NULLABLE[Type.STRING]
                             ),
@@ -2503,8 +2503,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Property(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.TUPLE.GENERIC,
-                                Type.TUPLE.GENERIC.functions["", listOf(Type.TUPLE[listOf(Type.INTEGER), true])]!!,
+                                Type.TUPLE.component.type,
+                                Type.TUPLE.component.type.functions["", listOf(Type.TUPLE[listOf(Type.INTEGER), true])]!!,
                                 listOf(RhovasIr.Expression.Literal.List(listOf(literal(BigInteger.parseString("1"))), Type.TUPLE[listOf(Type.INTEGER), true])),
                                 Type.TUPLE[listOf(Type.INTEGER), true],
                             ),
@@ -2542,8 +2542,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Access.Index(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.GENERIC,
-                                Type.NULLABLE.GENERIC.functions["", listOf(Type.LIST[Type.ANY])]!!,
+                                Type.NULLABLE.component.type,
+                                Type.NULLABLE.component.type.functions["", listOf(Type.LIST[Type.ANY])]!!,
                                 listOf(variable("list", Type.LIST[Type.ANY])),
                                 Type.NULLABLE[Type.LIST[Type.ANY]]
                             ),
@@ -2574,8 +2574,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                         Nullable("argument")
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Constructor(
-                            Type.NULLABLE.GENERIC,
-                            Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!!,
+                            Type.NULLABLE.component.type,
+                            Type.NULLABLE.component.type.functions["", listOf(Type.STRING)]!!,
                             listOf(literal("argument")),
                             Type.NULLABLE[Type.STRING],
                         )
@@ -2633,8 +2633,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Method(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.GENERIC,
-                                Type.NULLABLE.GENERIC.functions["", listOf(Type.STRING)]!! as Function.Definition,
+                                Type.NULLABLE.component.type,
+                                Type.NULLABLE.component.type.functions["", listOf(Type.STRING)]!! as Function.Definition,
                                 listOf(literal("string")),
                                 Type.NULLABLE[Type.STRING],
                             ),
@@ -2710,8 +2710,8 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     """.trimIndent()) {
                         RhovasIr.Expression.Invoke.Pipeline(
                             RhovasIr.Expression.Invoke.Constructor(
-                                Type.NULLABLE.GENERIC,
-                                Type.NULLABLE.GENERIC.functions["", listOf(Type.INTEGER)]!! as Function.Definition,
+                                Type.NULLABLE.component.type,
+                                Type.NULLABLE.component.type.functions["", listOf(Type.INTEGER)]!! as Function.Definition,
                                 listOf(literal(BigInteger.parseString("1"))),
                                 Type.NULLABLE[Type.INTEGER],
                             ),

@@ -12,12 +12,16 @@ class SubtypeTests : RhovasSpec() {
     private val SUBTYPE = reference("Subtype", linkedMapOf(), listOf(TYPE))
     private val DISJOINT = reference("Disjoint", linkedMapOf(), listOf(Type.ANY))
     private val STRUCT_SUBTYPE = reference("StructSubtype", linkedMapOf(), listOf(Type.STRUCT[struct("x" to TYPE)]))
+    private val RECURSIVE_BOUND = Type.EQUATABLE.component.type
+    private val RECURSIVE_BOUND_SUBTYPE = Type.STRING
 
     private val T = generic("T")
     private val T_TYPE = generic("T", TYPE)
     private val T_SUBTYPE = generic("T", SUBTYPE)
     private val T_SUPERTYPE = generic("T", SUPERTYPE)
     private val T_DISJOINT = generic("T", DISJOINT)
+    private val T_RECURSIVE_BOUND = Type.EQUATABLE.component.generics.values.single()
+    private val T_RECURSIVE_BOUND_SUBTYPE = generic("T", RECURSIVE_BOUND_SUBTYPE)
     private val R = generic("R")
 
     data class Test(
@@ -73,8 +77,9 @@ class SubtypeTests : RhovasSpec() {
                 "Generic Supertype" to Test(Type.LIST[SUPERTYPE], Type.LIST[TYPE], false),
                 "Generic Dynamic Subtype" to Test(Type.LIST[Type.DYNAMIC], Type.LIST[TYPE], true, invariant = true),
                 "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[Type.DYNAMIC], true, invariant = true),
-                "Recursive Bound" to Test(Type.EQUATABLE.GENERIC, Type.EQUATABLE.GENERIC, true, invariant = true),
-                "Recursive Bound Bindable" to Test(Type.EQUATABLE.GENERIC, Type.EQUATABLE.GENERIC, mapOf(), mapOf("T" to generic("T", Type.EQUATABLE.GENERIC)), invariant = mapOf("T" to generic("T", Type.EQUATABLE.GENERIC))),
+                "Generic Dynamic Supertype" to Test(Type.LIST[TYPE], Type.LIST[Type.DYNAMIC], true, invariant = true),
+                "Recursive Bound" to Test(RECURSIVE_BOUND, RECURSIVE_BOUND, true, invariant = true),
+                "Recursive Bound Bindable" to Test(RECURSIVE_BOUND, RECURSIVE_BOUND, mapOf(), mapOf("T" to T_RECURSIVE_BOUND), invariant = mapOf("T" to T_RECURSIVE_BOUND)),
             )) { test(it) }
 
         }
@@ -113,7 +118,7 @@ class SubtypeTests : RhovasSpec() {
                 "Subtype" to Test(SUBTYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower = SUBTYPE)), invariant = mapOf("T" to SUBTYPE)),
                 "Supertype" to Test(SUPERTYPE, T_TYPE, mapOf(), false),
                 "Dynamic" to Test(Type.DYNAMIC, T, mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
-                "Recursive Bound" to Test(Type.STRING, generic("T", Type.EQUATABLE.GENERIC), mapOf(), mapOf("T" to variant(lower = Type.STRING)), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf(), mapOf("T" to variant(lower = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
             suite("Bound", listOf(
@@ -123,7 +128,7 @@ class SubtypeTests : RhovasSpec() {
                 "Dynamic" to Test(Type.DYNAMIC, T, mapOf("T" to TYPE), true, invariant = true),
                 "Bound Dynamic" to Test(TYPE, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Bound Generic" to Test(Type.TUPLE[tuple(T)], T, mapOf("T" to tuple(T)), true, invariant = true),
-                "Recursive Bound" to Test(Type.STRING, generic("T", Type.EQUATABLE.GENERIC), mapOf("T" to Type.STRING), mapOf("T" to Type.STRING), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf("T" to RECURSIVE_BOUND_SUBTYPE), mapOf("T" to RECURSIVE_BOUND_SUBTYPE), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
             suite("Bound Variant", listOf(
@@ -132,7 +137,7 @@ class SubtypeTests : RhovasSpec() {
                 "Upper Supertype" to Test(SUPERTYPE, T, mapOf("T" to variant(upper = TYPE)), false),
                 "Lower Subtype" to Test(SUBTYPE, T, mapOf("T" to variant(lower = TYPE)), false),
                 "Lower Supertype" to Test(SUPERTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = SUPERTYPE)), invariant = mapOf("T" to SUPERTYPE)),
-                "Recursive Bound" to Test(Type.STRING, generic("T", Type.EQUATABLE.GENERIC), mapOf("T" to variant(lower = Type.STRING)), mapOf("T" to variant(lower = Type.STRING)), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf("T" to variant(lower = RECURSIVE_BOUND_SUBTYPE)), mapOf("T" to variant(lower = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
         }
@@ -274,7 +279,7 @@ class SubtypeTests : RhovasSpec() {
                 "Subtype" to Test(T_SUBTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE))),
                 "Supertype" to Test(T_SUPERTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Dynamic" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), Type.STRING, mapOf(), mapOf("T" to variant(upper = Type.STRING)), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf(), mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 
             suite("Bound", listOf(
@@ -284,7 +289,7 @@ class SubtypeTests : RhovasSpec() {
                 "Dynamic" to Test(T, Type.DYNAMIC, mapOf("T" to TYPE), true, invariant = true),
                 "Bound Dynamic" to Test(T, TYPE, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Bound Generic" to Test(T, Type.TUPLE[tuple(T)], mapOf("T" to tuple(T)), true, invariant = true),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), Type.STRING, mapOf("T" to Type.STRING), mapOf("T" to Type.STRING), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf("T" to RECURSIVE_BOUND_SUBTYPE), mapOf("T" to RECURSIVE_BOUND_SUBTYPE), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 
             suite("Bound Variant", listOf(
@@ -293,7 +298,7 @@ class SubtypeTests : RhovasSpec() {
                 "Upper Supertype" to Test(T, TYPE, mapOf("T" to variant(upper = SUPERTYPE)), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Lower Subtype" to Test(T, TYPE, mapOf("T" to variant(lower = SUBTYPE)), mapOf("T" to variant(lower = SUBTYPE, upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Lower Supertype" to Test(T, TYPE, mapOf("T" to variant(lower = SUPERTYPE)), false),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), Type.STRING, mapOf("T" to variant()), mapOf("T" to variant(upper = Type.STRING)), invariant = mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf("T" to variant()), mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 
         }
@@ -322,7 +327,7 @@ class SubtypeTests : RhovasSpec() {
                 "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), false),
                 "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), mapOf("T" to variant(upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
                 "Disjoint" to Test(T_DISJOINT, T_TYPE, mapOf(), false),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), generic("T", Type.STRING), mapOf(), mapOf("T" to variant(upper = generic("T", Type.STRING))), invariant = mapOf("T" to generic("T", Type.STRING))),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, T_RECURSIVE_BOUND_SUBTYPE, mapOf(), mapOf("T" to variant(upper = T_RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to T_RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 
             suite("Subtype Bound", listOf(
@@ -331,7 +336,7 @@ class SubtypeTests : RhovasSpec() {
                 "Supertype" to Test(T, T_TYPE, mapOf("T" to SUPERTYPE), false),
                 "Dynamic" to Test(T, T_TYPE, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Generic" to Test(T, T_TYPE, mapOf("T" to T_TYPE), true, invariant = true),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), generic("T", Type.STRING), mapOf("T" to Type.STRING), false),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, T_RECURSIVE_BOUND_SUBTYPE, mapOf("T" to RECURSIVE_BOUND_SUBTYPE), false),
             )) { test(it, subtype = true) }
 
             suite("Subtype Bound Variant", listOf(
@@ -342,7 +347,7 @@ class SubtypeTests : RhovasSpec() {
                 "Lower Subtype" to Test(T, T_TYPE, mapOf("T" to variant(lower = SUBTYPE)), false),
                 "Lower Supertype" to Test(T, T_TYPE, mapOf("T" to variant(lower = SUPERTYPE)), false),
                 "Lower Generic" to Test(T, T_TYPE, mapOf("T" to variant(lower = T_TYPE)), mapOf("T" to variant(lower = T_TYPE, upper = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
-                "Recursive Bound" to Test(generic("T", Type.EQUATABLE.GENERIC), generic("T", Type.STRING), mapOf("T" to variant(upper = Type.STRING)), mapOf("T" to variant(upper = generic("T", Type.STRING))), invariant = mapOf("T" to generic("T", Type.STRING))),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND, T_RECURSIVE_BOUND_SUBTYPE, mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), mapOf("T" to variant(upper = T_RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to T_RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 
             suite("Supertype Bindable", listOf(
@@ -350,7 +355,7 @@ class SubtypeTests : RhovasSpec() {
                 "Subtype" to Test(T_SUBTYPE, T_TYPE, mapOf(), mapOf("T" to variant(lower = T_SUBTYPE)), invariant = mapOf("T" to T_SUBTYPE)),
                 "Supertype" to Test(T_SUPERTYPE, T_TYPE, mapOf(), false),
                 "Disjoint" to Test(T_DISJOINT, T_TYPE, mapOf(), false),
-                "Recursive Bound" to Test(generic("T", Type.STRING), generic("T", Type.EQUATABLE.GENERIC), mapOf(), mapOf("T" to variant(lower = generic("T", Type.STRING))), invariant = mapOf("T" to generic("T", Type.STRING))),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf(), mapOf("T" to variant(lower = T_RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to T_RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
             suite("Supertype Bound", listOf(
@@ -359,7 +364,7 @@ class SubtypeTests : RhovasSpec() {
                 "Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to TYPE), false),
                 "Dynamic" to Test(T, T, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Generic" to Test(T, T, mapOf("T" to T), true, invariant = true),
-                "Recursive Bound" to Test(generic("T", Type.STRING), generic("T", Type.EQUATABLE.GENERIC), mapOf("T" to Type.STRING), mapOf("T" to Type.STRING)),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf("T" to RECURSIVE_BOUND_SUBTYPE), mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
             suite("Supertype Bound Variant", listOf(
@@ -370,7 +375,7 @@ class SubtypeTests : RhovasSpec() {
                 "Lower Subtype" to Test(T_SUBTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = TYPE)), invariant = mapOf("T" to T_SUBTYPE)),
                 "Lower Supertype" to Test(T_SUPERTYPE, T, mapOf("T" to variant(lower = TYPE)), mapOf("T" to variant(lower = T_SUPERTYPE)), invariant = mapOf("T" to T_SUPERTYPE)),
                 "Lower Generic" to Test(T_TYPE, T, mapOf("T" to variant(lower = T_TYPE)), mapOf("T" to variant(lower = T_TYPE)), invariant = mapOf("T" to T_TYPE)),
-                "Recursive Bound" to Test(generic("T", Type.STRING), generic("T", Type.EQUATABLE.GENERIC), mapOf("T" to variant(upper = Type.STRING)), mapOf("T" to variant(lower = generic("T", Type.STRING), upper = Type.STRING)), invariant = mapOf("T" to generic("T", Type.STRING))),
+                "Recursive Bound" to Test(T_RECURSIVE_BOUND_SUBTYPE, T_RECURSIVE_BOUND, mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), mapOf("T" to variant(lower = T_RECURSIVE_BOUND_SUBTYPE, upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to T_RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it) }
 
         }

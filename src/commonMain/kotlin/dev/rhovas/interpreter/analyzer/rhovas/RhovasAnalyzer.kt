@@ -273,7 +273,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Import): RhovasIr.Import = analyzeAst(ast) {
-        val type = Library.TYPES[ast.path.joinToString(".")] ?: throw error(ast,
+        val type = Library.SCOPE.types[ast.path.joinToString(".")] ?: throw error(ast,
             "Undefined type.",
             "The type ${ast.path.joinToString(".")} is not defined."
         )
@@ -405,7 +405,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
             }
             else -> throw AssertionError()
         }
-        val initializer = ast.initializer?.let { visit(it, Type.STRUCT.GENERIC) as RhovasIr.Expression.Literal.Object }
+        val initializer = ast.initializer?.let { visit(it, Type.STRUCT.DYNAMIC) as RhovasIr.Expression.Literal.Object }
         //TODO(#14): Validate available fields
         RhovasIr.Statement.Initializer(ast.name, delegate, arguments, initializer)
     }
@@ -594,7 +594,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Statement.For): RhovasIr.Statement.For = analyzeAst(ast) {
-        val argument = visit(ast.argument, Type.LIST.GENERIC)
+        val argument = visit(ast.argument, Type.ITERABLE.DYNAMIC)
         val type = Type.ITERABLE.bindings(argument.type)?.get("T") ?: throw error(ast.argument,
             "Invalid for loop argument type.",
             "A for loop requires the argument to be type Iterable, but received ${argument.type}.",
@@ -1302,7 +1302,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                         val type = remaining?.map { it.value.type }?.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.DYNAMIC
                         visit(it, type)
                     }
-                    val bindings = p?.bindings?.mapValues { b -> Variable.Declaration(b.key, remaining?.let { Type.STRUCT[it.keys.map { it to b.value.type }, b.value.mutable] } ?: Type.STRUCT.GENERIC, b.value.mutable) } ?: mapOf()
+                    val bindings = p?.bindings?.mapValues { b -> Variable.Declaration(b.key, remaining?.let { Type.STRUCT[it.keys.map { it to b.value.type }, b.value.mutable] } ?: Type.STRUCT.DYNAMIC, b.value.mutable) } ?: mapOf()
                     context.bindings.putAll(bindings)
                     RhovasIr.Pattern.VarargDestructure(p, pattern.operator, bindings)
                 })

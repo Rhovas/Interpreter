@@ -37,31 +37,31 @@ sealed class Type {
         val TYPE get() = GenericDelegate("Type", listOf("T"))
         val VOID get() = Library.type("Void")
 
-        class GenericDelegate(val name: String, val generics: List<String>) {
-            val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, generics.associateWith { Type.DYNAMIC })
-            operator fun get(vararg generics: Type) = Library.type(name, this.generics.zip(generics).associate { it.first to it.second })
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
+        class GenericDelegate(name: String, private val generics: List<String>) {
+            val component = Library.type(name).component
+            val DYNAMIC = Reference(component, generics.associateWith { Type.DYNAMIC })
+            operator fun get(vararg generics: Type) = Reference(component, this.generics.zip(generics).associate { it.first to it.second })
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
         }
 
-        class TupleDelegate(val name: String) {
-            val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, mapOf("T" to Type.DYNAMIC))
-            operator fun get(generic: Tuple) = Library.type(name, mapOf("T" to generic))
-            operator fun get(elements: List<Type>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Tuple(elements.withIndex().map {
+        class TupleDelegate(name: String) {
+            val component = Library.type(name).component
+            val DYNAMIC = Reference(component, mapOf("T" to Type.DYNAMIC))
+            operator fun get(generic: Tuple) = Reference(component, mapOf("T" to generic))
+            operator fun get(elements: List<Type>, mutable: Boolean = false) = Reference(component, mapOf("T" to Tuple(elements.withIndex().map {
                 Variable.Declaration(it.index.toString(), it.value, mutable)
             })))
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
         }
 
-        class StructDelegate(val name: String) {
-            val GENERIC get() = Library.type(name)
-            val DYNAMIC get() = Library.type(name, mapOf("T" to Type.DYNAMIC))
-            operator fun get(generic: Struct) = Library.type(name, mapOf("T" to generic))
-            operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Library.type(name, mapOf("T" to Struct(fields.associate {
+        class StructDelegate(name: String) {
+            val component = Library.type(name).component
+            val DYNAMIC = Reference(component, mapOf("T" to Type.DYNAMIC))
+            operator fun get(generic: Struct) = Reference(component, mapOf("T" to generic))
+            operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Reference(component, mapOf("T" to Struct(fields.associate {
                 it.first to Variable.Declaration(it.first, it.second, mutable)
             })))
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, GENERIC, Bindings.Supertype(it)) }
+            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
         }
     }
 
@@ -199,12 +199,12 @@ sealed class Type {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + TUPLE.GENERIC.component.scope.functions[name, arity]
+            return scope.functions[name, arity] + TUPLE.component.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: TUPLE.GENERIC.component.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: TUPLE.component.scope.functions[name, arguments]
         }
 
         override fun bind(bindings: Map<String, Type>): Type {
@@ -245,12 +245,12 @@ sealed class Type {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + STRUCT.GENERIC.component.scope.functions[name, arity]
+            return scope.functions[name, arity] + STRUCT.component.scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: STRUCT.GENERIC.component.scope.functions[name, arguments]
+            return scope.functions[name, arguments] ?: STRUCT.component.scope.functions[name, arguments]
         }
 
         override fun bind(bindings: Map<String, Type>): Type {

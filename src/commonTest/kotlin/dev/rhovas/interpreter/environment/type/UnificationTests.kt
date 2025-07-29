@@ -39,7 +39,7 @@ class UnificationTests : RhovasSpec() {
             "Common Supertype" to Test(Type.INTEGER, Type.DECIMAL, Type.NUMBER),
             "Dynamic" to Test(Type.INTEGER, Type.DYNAMIC, Type.DYNAMIC),
             "Dynamic Any" to Test(Type.DYNAMIC, Type.ANY, Type.DYNAMIC),
-        )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
+        )) { test(it.type, it.other, it.expected, Type.LIST.component) }
 
         suite("Tuple", listOf(
             "Equal" to Test(tuple(Type.INTEGER), tuple(Type.INTEGER), tuple(Type.INTEGER)),
@@ -47,7 +47,7 @@ class UnificationTests : RhovasSpec() {
             "Different Size" to Test(tuple(Type.INTEGER, Type.INTEGER), tuple(Type.INTEGER), tuple(Type.INTEGER)),
             "Any" to Test(tuple(Type.INTEGER), Type.ANY, Type.ANY),
             "Dynamic" to Test(tuple(Type.INTEGER), Type.DYNAMIC, Type.DYNAMIC),
-        )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.component) }
+        )) { test(it.type, it.other, it.expected, Type.TUPLE.component) }
 
         suite("Struct", listOf(
             "Equal" to Test(struct("x" to Type.INTEGER), struct("x" to Type.INTEGER), struct("x" to Type.INTEGER)),
@@ -55,17 +55,17 @@ class UnificationTests : RhovasSpec() {
             "Different Size" to Test(struct("x" to Type.INTEGER, "y" to Type.INTEGER), struct("x" to Type.INTEGER), struct("x" to Type.INTEGER)),
             "Any" to Test(struct("x" to Type.INTEGER), Type.ANY, Type.ANY),
             "Dynamic" to Test(struct("x" to Type.INTEGER), Type.DYNAMIC, Type.DYNAMIC),
-        )) { test(it.type, it.other, it.expected, Type.TUPLE.GENERIC.component) }
+        )) { test(it.type, it.other, it.expected, Type.TUPLE.component) }
 
         suite("Generic", listOf(
             "Equal" to Test(generic("T"), generic("T"), generic("T")),
             "Unbound" to Test(generic("T"), Type.INTEGER, Type.ANY),
-        )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
+        )) { test(it.type, it.other, it.expected, Type.LIST.component) }
 
         suite("Variant", listOf(
             "Equal" to Test(Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER), Type.Variant(Type.INTEGER, Type.NUMBER)),
             "Unbound" to Test(Type.Variant(null, null), Type.INTEGER, Type.ANY),
-        )) { test(it.type, it.other, it.expected, Type.LIST.GENERIC.component) }
+        )) { test(it.type, it.other, it.expected, Type.LIST.component) }
     }
 
     private fun tuple(vararg types: Type, mutable: Boolean = false): Type.Tuple {

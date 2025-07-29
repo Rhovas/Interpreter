@@ -42,7 +42,7 @@ class ResolutionTests : RhovasSpec() {
             } }
 
             suite("Generics", listOf(
-                "Unbound" to Test("get", listOf(Type.LIST.GENERIC, Type.INTEGER), generic("T")),
+                "Unbound" to Test("get", listOf(Type.LIST.component.type, Type.INTEGER), generic("T")),
                 "Bound" to Test("get", listOf(Type.LIST[Type.INTEGER], Type.INTEGER), Type.INTEGER),
                 "Dynamic" to Test("get", listOf(Type.LIST[Type.DYNAMIC], Type.INTEGER), Type.DYNAMIC),
             )) { test(it) {
@@ -91,7 +91,7 @@ class ResolutionTests : RhovasSpec() {
                 "Subtype" to Test(Type.NUMBER, "<=>", listOf(Type.INTEGER), Type.INTEGER),
                 "Supertype" to Test(Type.NUMBER, "<=>", listOf(Type.ANY), null),
                 "Dynamic" to Test(Type.DYNAMIC, "undefined", listOf(Type.DYNAMIC), Type.DYNAMIC),
-                "Unbound" to Test(Type.LIST.GENERIC, "get", listOf(Type.INTEGER), generic("T")),
+                "Unbound" to Test(Type.LIST.component.type, "get", listOf(Type.INTEGER), generic("T")),
                 "Bound" to Test(Type.LIST[Type.NUMBER], "get", listOf(Type.INTEGER), Type.NUMBER),
             )) { test(it) }
 

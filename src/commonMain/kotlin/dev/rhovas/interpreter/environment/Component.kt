@@ -21,7 +21,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
     open fun inherit(type: Type.Reference) {
         require(inherits.contains(type))
         when (this) {
-            is Struct -> require(type.component == Type.STRUCT.GENERIC.component || type.component is Interface)
+            is Struct -> require(type.component == Type.STRUCT.component || type.component is Interface)
             is Class -> require(type.component.modifiers.inheritance in listOf(Modifiers.Inheritance.VIRTUAL, Modifiers.Inheritance.ABSTRACT))
             is Interface -> require(type.component == Type.ANY.component || type.component is Interface)
         }

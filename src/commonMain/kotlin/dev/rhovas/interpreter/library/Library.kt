@@ -14,7 +14,6 @@ import kotlin.reflect.typeOf
 object Library {
 
     val SCOPE = Scope.Definition(null)
-    val TYPES get() = SCOPE.types
 
     init {
         // This list is intended to be in initialization order following DAG
@@ -49,7 +48,7 @@ object Library {
             MathInitializer,
         )
         initializers.forEach { initializer ->
-            TYPES.define(initializer.component.name, initializer.component.type)
+            SCOPE.types.define(initializer.component.name, initializer.component.type)
         }
         initializers.forEach { initializer ->
             initializer.declare()
@@ -65,9 +64,8 @@ object Library {
         }
     }
 
-    fun type(name: String, generics: Map<String, Type> = mapOf()): Type.Reference {
-        val type = TYPES[name]!! as Type.Reference
-        return if (generics.isEmpty()) type else Type.Reference(type.component, generics)
+    fun type(name: String): Type.Reference {
+        return SCOPE.types[name]!! as Type.Reference
     }
 
     abstract class ComponentInitializer(
