@@ -12,6 +12,7 @@ import dev.rhovas.interpreter.library.Library
 sealed class Type {
 
     companion object {
+
         val ANY get() = Library.type("Any")
         val ATOM get() = Library.type("Atom")
         val BOOLEAN get() = Library.type("Boolean")
@@ -41,7 +42,7 @@ sealed class Type {
             val component = Library.type(name).component
             val DYNAMIC = Reference(component, generics.associateWith { Type.DYNAMIC })
             operator fun get(vararg generics: Type) = Reference(component, this.generics.zip(generics).associate { it.first to it.second })
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
+            fun bindings(type: Type) = bindings(type, component)
         }
 
         class TupleDelegate(name: String) {
@@ -51,7 +52,9 @@ sealed class Type {
             operator fun get(elements: List<Type>, mutable: Boolean = false) = Reference(component, mapOf("T" to Tuple(elements.withIndex().map {
                 Variable.Declaration(it.index.toString(), it.value, mutable)
             })))
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
+            fun bindings(type: Type) = bindings(type, component)?.mapValues {
+                (it.value as Reference).takeIf { it.component.name == "Tuple" }?.generics["T"] as Tuple? ?: it.value
+            }
         }
 
         class StructDelegate(name: String) {
@@ -61,8 +64,19 @@ sealed class Type {
             operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Reference(component, mapOf("T" to Struct(fields.associate {
                 it.first to Variable.Declaration(it.first, it.second, mutable)
             })))
-            fun bindings(type: Type) = mutableMapOf<String, Type>().takeIf { isSubtypeOf(type, component.type, Bindings.Supertype(it)) }
+            fun bindings(type: Type) = bindings(type, component)?.mapValues {
+                (it.value as Reference).takeIf { it.component.name == "Struct" }?.generics["T"] as Struct? ?: it.value
+            }
         }
+
+        private fun bindings(type: Type, component: Component<*>): Map<String, Type>? {
+            val bindings = Bindings.Supertype(mutableMapOf())
+            return when (isSubtypeOf(type, component.type, bindings)) {
+                true -> bindings.finalize()
+                false -> null
+            }
+        }
+
     }
 
     val functions = FunctionsDelegate()

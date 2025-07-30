@@ -41,7 +41,6 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
     }
 
     override fun toString(): String {
-        println("Component.toString: " + name + "<" + generics + ">")
         return "Component(name='${name}', modifiers=${modifiers}), generics=${generics}, inherits=${inherits})"
     }
 

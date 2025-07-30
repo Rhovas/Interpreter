@@ -7,7 +7,6 @@ import dev.rhovas.interpreter.analyzer.Analyzer
 import dev.rhovas.interpreter.environment.Component
 import dev.rhovas.interpreter.environment.Function
 import dev.rhovas.interpreter.environment.Method
-import dev.rhovas.interpreter.environment.Modifiers
 import dev.rhovas.interpreter.environment.Scope
 import dev.rhovas.interpreter.environment.type.Type
 import dev.rhovas.interpreter.environment.Variable
@@ -1176,44 +1175,37 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
     }
 
     override fun visit(ast: RhovasAst.Expression.Lambda): RhovasIr.Expression.Lambda = analyzeAst(ast) {
-        //TODO(#2): Forward thrown exceptions from context into declaration
-        val lambda = Type.LAMBDA.bindings(context.inference)?.takeIf { context.inference != Type.DYNAMIC }
-        val (inferenceParameters, inferenceReturns, inferenceThrows) = if (lambda != null) {
-            val parameters = (Type.TUPLE.bindings(lambda["T"]!!)?.get("T") as? Type.Tuple)?.let {
-                Type.Tuple(it.elements.map { it.copy(type = when (it.type) {
-                    is Type.Generic -> it.type.bound
-                    is Type.Variant -> it.type.upper ?: Type.ANY
-                    else -> it.type
-                }) })
-            }
-            Triple(parameters, lambda["R"]!!, lambda["E"]!!)
-        } else Triple(null, null, null)
+        val inference = Type.LAMBDA.bindings(context.inference)?.takeIf { context.inference != Type.DYNAMIC }
+        val inferenceParameters = inference?.let { Type.TUPLE.bindings(it["T"]!!)?.get("T") as? Type.Tuple }?.elements // null == Type.DYNAMIC
         val parameters = ast.parameters.withIndex().map {
             val type = it.value.second?.let { visit(it).type }
-                ?: inferenceParameters?.elements?.getOrNull(it.index)?.type
+                ?: inferenceParameters?.getOrNull(it.index)?.type
                 ?: Type.DYNAMIC
             Variable.Declaration(it.value.first, type)
         }
-        val returns = inferenceReturns?.bind(mapOf("R" to Type.DYNAMIC)) ?: Type.DYNAMIC
-        val throws = listOfNotNull(inferenceThrows?.bind(mapOf("E" to Type.EXCEPTION)))
-        val function = Function.Declaration("lambda", Modifiers(), linkedMapOf(), parameters, returns, throws)
+        val function = Function.Declaration("lambda",
+            parameters = parameters.ifEmpty { inferenceParameters ?: listOf(Variable.Declaration("val", Type.DYNAMIC)) },
+            returns = inference?.get("R") ?: Type.DYNAMIC,
+            throws = listOf(inference?.get("E") ?: Type.DYNAMIC),
+        )
         val body = analyze(context.forFunction(function)) {
             if (parameters.isNotEmpty()) {
                 parameters.forEach { (context.scope as Scope.Declaration).variables.define(it) }
             } else {
-                val type = inferenceParameters?.takeIf { it.elements.size == 1 }?.let { it.elements[0].type }
-                    ?: inferenceParameters?.let { Type.TUPLE[it] }
+                val type = inferenceParameters?.singleOrNull()?.type
+                    ?: inferenceParameters?.let { Type.TUPLE[Type.Tuple(it)] }
                     ?: Type.DYNAMIC
                 (context.scope as Scope.Declaration).variables.define(Variable.Declaration("val", type))
             }
             visit(ast.body).also {
-                require(it.type.isSubtypeOf(function.returns) || context.jumps.contains("")) { analyze(it.context) { error(ast,
+                require(context.jumps.contains("") || it.type.isSubtypeOf(function.returns)) { analyze(it.context) { error(ast,
                     "Invalid return value type.",
                     "The enclosing function ${function.name}/${function.parameters.size} requires the return value to be type ${function.returns}, but received ${it.type}.",
                 ) } }
             }
         }
-        val type = Type.LAMBDA[parameters.takeIf { it.isNotEmpty() }?.let { Type.TUPLE[Type.Tuple(it.withIndex().map { it.value.copy(name = it.index.toString()) })] } ?: Type.TUPLE.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC]
+        //TODO: Infer returns/throws types from body analysis
+        val type = Type.LAMBDA[parameters.ifEmpty { inferenceParameters }?.let { Type.TUPLE[Type.Tuple(it)] } ?: Type.TUPLE.DYNAMIC, Type.DYNAMIC, Type.DYNAMIC]
         RhovasIr.Expression.Lambda(parameters, body, type)
     }
 

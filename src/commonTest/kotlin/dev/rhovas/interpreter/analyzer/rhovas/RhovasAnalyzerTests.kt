@@ -2803,24 +2803,24 @@ class RhovasAnalyzerTests: RhovasSpec() {
                 "Parameter" to Test("""
                     lambda |x| {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[listOf(Type.DYNAMIC)], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
                         RhovasIr.Expression.Lambda(
                             listOf(Variable.Declaration("x", Type.DYNAMIC)),
                             block(),
-                            Type.LAMBDA[Type.TUPLE[listOf(Type.DYNAMIC)], Type.DYNAMIC, Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC)))], Type.DYNAMIC, Type.DYNAMIC],
                         ),
-                    ), Type.LAMBDA[Type.TUPLE[listOf(Type.DYNAMIC)], Type.DYNAMIC, Type.DYNAMIC])
+                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.DYNAMIC)))], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Parameter Type" to Test("""
                     lambda |x: Integer| {}
                 """.trimIndent()) {
-                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[listOf(Type.INTEGER)], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
+                    RhovasIr.Expression.Invoke.Function(null, Library.SCOPE.functions["lambda", listOf(Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER)))], Type.DYNAMIC, Type.DYNAMIC])]!!, false, listOf(
                         RhovasIr.Expression.Lambda(
                             listOf(Variable.Declaration("x", Type.INTEGER)),
                             block(),
-                            Type.LAMBDA[Type.TUPLE[listOf(Type.INTEGER)], Type.DYNAMIC, Type.DYNAMIC],
+                            Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER)))], Type.DYNAMIC, Type.DYNAMIC],
                         ),
-                    ), Type.LAMBDA[Type.TUPLE[listOf(Type.INTEGER)], Type.DYNAMIC, Type.DYNAMIC])
+                    ), Type.LAMBDA[Type.TUPLE[Type.Tuple(listOf(Variable.Declaration("x", Type.INTEGER)))], Type.DYNAMIC, Type.DYNAMIC])
                 },
                 "Expression" to Test("""
                     lambda { 1 }
