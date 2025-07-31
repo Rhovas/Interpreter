@@ -27,12 +27,15 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
         }
         type.component.scope.functions.collect()
             .flatMap { entry -> entry.value.map { Pair(entry.key.first, it) } }
-            .filter { (_, function) -> function.parameters.firstOrNull()?.type?.isSupertypeOf(type, Bindings.Subtype(mutableMapOf())) ?: false }
-            .map { (name, function) -> Pair(name, function.bind(type.component.generics.keys.zip(type.generics.values).associate { it.first to it.second })) }
-            .filter { (name, function) -> scope.functions[name, function.parameters.size].all { it.isDisjointWith(function) } }
-            .forEach { (name, function) ->
-                //require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
-                inherited.functions.define(function, name)
+            .filter { (_, function) -> function.parameters.isNotEmpty() }
+            .filter { (_, function) -> this.type.isSubtypeOf(function.parameters[0].type, Bindings.Supertype(mutableMapOf())) }
+            .filter { (alias, function) -> scope.functions[alias, function.parameters.size].all { it.isDisjointWith(function) } }
+            .forEach { (alias, function) ->
+                require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
+                val bindings = Bindings.Supertype(mutableMapOf())
+                require(this.type.isSubtypeOf(function.parameters[0].type, bindings))
+                val generics = bindings.finalize().mapValues { Type.Generic(it.key, it.value) }
+                inherited.functions.define(function.bind(generics), alias)
             }
     }
 

@@ -40,9 +40,8 @@ sealed interface Function {
             name != other.name ||
             parameters.size != other.parameters.size ||
             parameters.zip(other.parameters).any {
-                val type = it.first.type.bind(generics)
-                val other = it.second.type.bind(other.generics)
-                !type.isSubtypeOf(other) && !type.isSupertypeOf(other)
+                !it.first.type.isSubtypeOf(it.second.type, Bindings.Supertype(mutableMapOf()))
+                && !it.first.type.isSupertypeOf(it.second.type, Bindings.Supertype(mutableMapOf()))
             }
         )
     }
@@ -59,10 +58,11 @@ sealed interface Function {
         override val declaration = this
 
         override fun bind(bindings: Map<String, Type>): Declaration {
+            val bindings = generics + bindings //retain non-bound generics
             return Declaration(
                 name,
                 modifiers,
-                generics.mapValuesTo(linkedMapOf()) { Type.Generic(it.key, it.value.bound.bind(bindings)) },
+                bindings.values.filterIsInstance<Type.Generic>().associateByTo(linkedMapOf()) { it.name },
                 parameters.map { Variable.Declaration(it.name, it.type.bind(bindings), it.mutable) },
                 returns.bind(bindings),
                 throws.map { it.bind(bindings) }
