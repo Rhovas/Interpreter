@@ -34,7 +34,7 @@ sealed class Component<S: Scope<in Variable.Definition, out Variable, in Functio
                 require(function is Function.Definition || modifiers.inheritance == Modifiers.Inheritance.ABSTRACT)
                 val bindings = Bindings.Supertype(mutableMapOf())
                 require(this.type.isSubtypeOf(function.parameters[0].type, bindings))
-                val generics = bindings.finalize().mapValues { Type.Generic(it.key, it.value) }
+                val generics = bindings.refined().mapValues { Type.Generic(it.key, it.value) }
                 inherited.functions.define(function.bind(generics), alias)
             }
     }

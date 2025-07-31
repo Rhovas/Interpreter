@@ -15,18 +15,16 @@ sealed interface Function {
     val throws get() = declaration.throws
 
     /**
-     * Returns true if this function is resolved by [arguments], thus it can be
-     * invoked by arguments of that type. Bounds on generic types are stored in
-     * the given [generics] map for later use (such as with [bind]) and should
-     * only be considered meaningful if this method returns true.
+     * Returns a map of bindings allowing this function to be resolved by
+     * [arguments], if any solution exists.
      */
-    fun isResolvedBy(arguments: List<Type>, generics: MutableMap<String, Type> = mutableMapOf()): Boolean {
-        val bindings = Bindings.Supertype(generics)
-        val result = arguments.indices.all {
-            arguments[it].isSubtypeOf(parameters[it].type, bindings)
+    fun isResolvedBy(arguments: List<Type>): Map<String, Type>? {
+        require(arguments.size == parameters.size)
+        val bindings = Bindings.Supertype(mutableMapOf())
+        return when (arguments.zip(parameters).all { it.first.isSubtypeOf(it.second.type, bindings) }) {
+            true -> bindings.refined()
+            else -> null
         }
-        bindings.finalize()
-        return result
     }
 
     fun bind(bindings: Map<String, Type>): Function

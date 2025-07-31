@@ -100,8 +100,7 @@ object Library {
         ) {
             val declaration = Function.Declaration(name, modifiers, generics.associateByTo(linkedMapOf()) { it.name }, parameters.map { Variable.Declaration(it.first, it.second) }, returns, throws)
             val function = Function.Definition(declaration) { arguments ->
-                val generics = mutableMapOf<String, Type>()
-                EVALUATOR.require(declaration.isResolvedBy(arguments.map { it.type }, generics))
+                val generics = declaration.isResolvedBy(arguments.map { it.type })!!
                 val transform = arguments.indices.map {
                     when (typeOf<T>().arguments[it].type?.classifier) {
                         Object::class -> arguments[it]

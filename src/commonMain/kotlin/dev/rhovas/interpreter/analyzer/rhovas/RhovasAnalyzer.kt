@@ -1093,7 +1093,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                     qualifier?.functions?.get(variant, arity) ?: context.scope.functions[variant, arity]
                 } else listOf()
             }
-            .map { Pair(it, mutableMapOf<String, Type>()) }
+            .map { Pair(it, Bindings.Supertype(mutableMapOf())) }
             .ifEmpty { throw error(ast,
                 "Undefined ${term}.",
                 "The ${term} ${descriptor} is not defined.",
@@ -1101,13 +1101,13 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         val filtered = candidates.toMutableList()
         val arguments = mutableListOf<Type>()
         for (i in 0 until arity) {
-            val inference = filtered.map { it.first.parameters[i].type.bind(it.second) }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.ANY
+            val inference = filtered.map { it.first.parameters[i].type.bind(it.second.refined()) }.reduceOrNull { acc, type -> acc.unify(type) } ?: Type.ANY
             val (ast, type) = generator(Pair(i, inference)).also { arguments.add(it.second) }
-            filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, Bindings.Supertype(it.second)) }
+            filtered.retainAll { type.isSubtypeOf(it.first.parameters[i].type, it.second) }
             require(filtered.isNotEmpty()) { when (candidates.size) {
                 1 -> error(ast,
                     "Invalid argument.",
-                    "The ${term} ${descriptor} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second)} but received ${arguments[i]}.",
+                    "The ${term} ${descriptor} requires argument ${i} to be type ${candidates[0].first.parameters[i].type.bind(candidates[0].second.refined())} but received ${arguments[i]}.",
                 )
                 else -> error(ast,
                     "Unresolved ${term}.",

@@ -1,5 +1,6 @@
 package dev.rhovas.interpreter.environment
 
+import dev.rhovas.interpreter.environment.type.Bindings
 import dev.rhovas.interpreter.environment.type.Type
 
 sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
@@ -51,8 +52,7 @@ sealed class Scope<VI: VO, VO: Variable, FI: FO, FO: Function>(
 
         operator fun get(name: String, arguments: List<Type>, current: Boolean = false): FO? {
             return get(name, arguments.size, current).firstNotNullOfOrNull { function ->
-                val generics = mutableMapOf<String, Type>()
-                function.takeIf { it.isResolvedBy(arguments, generics) }?.bind(generics) as FO?
+                function.isResolvedBy(arguments)?.let { function.bind(it) as FO }
             }
         }
 

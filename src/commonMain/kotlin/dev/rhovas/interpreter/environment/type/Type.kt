@@ -72,7 +72,7 @@ sealed class Type {
         private fun bindings(type: Type, component: Component<*>): Map<String, Type>? {
             val bindings = Bindings.Supertype(mutableMapOf())
             return when (isSubtypeOf(type, component.type, bindings)) {
-                true -> bindings.finalize()
+                true -> bindings.refined()
                 false -> null
             }
         }

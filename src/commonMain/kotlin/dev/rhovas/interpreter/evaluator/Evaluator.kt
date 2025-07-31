@@ -95,8 +95,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         val current = scope
         ir.function.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val generics = mutableMapOf<String, Type>()
-                require(ir.function.isResolvedBy(arguments.map { it.type }, generics))
+                val generics = ir.function.isResolvedBy(arguments.map { it.type })!!
                 val instance = Object(ir.function.returns.bind(generics), mutableMapOf<String, Object>())
                 scope.variables.define(Variable.Definition(Variable.Declaration("this", instance.type), instance))
                 for (i in ir.function.parameters.indices) {
@@ -111,7 +110,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ) }
                     throw e
                 } catch (ignored: Return) {}
-                scope.variables["this"]!!.value!!
+                scope.variables["this"]!!.value
             }
         }
         return Object(Type.VOID, Unit)
