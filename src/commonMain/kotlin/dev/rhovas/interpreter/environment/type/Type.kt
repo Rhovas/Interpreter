@@ -144,17 +144,27 @@ sealed class Type {
         }
 
         override fun getFunction(name: String, arity: Int): List<Function> {
-            return component.scope.functions[name, arity].takeIf { it.isNotEmpty() } ?: listOfNotNull(getFunctionDynamic(name, (1..arity).map { DYNAMIC }))
+            return when (component.name) {
+                "Dynamic" -> listOf(Function.Declaration(name,
+                    parameters = (0 until arity).map { Variable.Declaration(it.toString(), DYNAMIC) },
+                    returns = DYNAMIC,
+                ))
+                "Tuple" -> when ((generics["T"]!! as? Reference)?.component?.name) {
+                    "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
+                    else -> generics["T"]!!.getFunction(name, arity)
+                }
+                "Struct" -> when ((generics["T"]!! as? Reference)?.component?.name) {
+                    "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
+                    else -> generics["T"]!!.getFunction(name, arity)
+                }
+                else -> component.scope.functions[name, arity]
+            }
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            return component.scope.functions[name, arguments] ?: getFunctionDynamic(name, arguments)
-        }
-
-        private fun getFunctionDynamic(name: String, arguments: List<Type>): Function? {
             return when (component.name) {
                 "Dynamic" -> Function.Declaration(name,
-                    parameters = arguments.indices.map { Variable.Declaration("val_${it}", DYNAMIC) },
+                    parameters = arguments.indices.map { Variable.Declaration(it.toString(), DYNAMIC) },
                     returns = DYNAMIC,
                 )
                 "Tuple" -> when ((generics["T"]!! as? Reference)?.component?.name) {
@@ -165,7 +175,7 @@ sealed class Type {
                     "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     else -> generics["T"]!!.getFunction(name, arguments)
                 }
-                else -> null
+                else -> component.scope.functions[name, arguments]
             }
         }
 
@@ -189,7 +199,7 @@ sealed class Type {
         val elements: List<Variable.Declaration>,
     ) : Type() {
 
-        val scope = Scope.Declaration(null)
+        val scope = Scope.Definition(null)
 
         private fun defineProperty(field: Variable.Declaration) {
             scope.functions.define(Function.Definition(Function.Declaration(field.name,
@@ -211,14 +221,24 @@ sealed class Type {
             }
         }
 
+        private fun resolveScope(name: String): Scope<*, *, *, *>? {
+            val builtins = TUPLE.component.scope.functions.collect()
+            val field = name.toIntOrNull()?.let { elements.getOrNull(it) }
+            return when {
+                builtins.any { it.key.first == name } -> TUPLE.component.scope
+                field != null -> scope.also { scope.functions[name, 1].ifEmpty { defineProperty(field) } }
+                else -> null
+            }
+        }
+
         override fun getFunction(name: String, arity: Int): List<Function> {
-            name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + TUPLE.component.scope.functions[name, arity]
+            val scope = resolveScope(name) ?: return listOf()
+            return scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            name.toIntOrNull()?.let { elements.getOrNull(it) }?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: TUPLE.component.scope.functions[name, arguments]
+            val scope = resolveScope(name) ?: return null
+            return scope.functions[name, arguments]
         }
 
         override fun bind(bindings: Map<String, Type>): Type {
@@ -235,7 +255,7 @@ sealed class Type {
         val fields: Map<String, Variable.Declaration>,
     ) : Type() {
 
-        val scope = Scope.Declaration(null)
+        val scope = Scope.Definition(null)
 
         private fun defineProperty(field: Variable.Declaration) {
             scope.functions.define(Function.Definition(Function.Declaration(field.name,
@@ -257,14 +277,24 @@ sealed class Type {
             }
         }
 
+        private fun resolveScope(name: String): Scope<*, *, *, *>? {
+            val builtins = STRUCT.component.scope.functions.collect()
+            val field = fields[name]
+            return when {
+                builtins.any { it.key.first == name } -> TUPLE.component.scope
+                field != null -> scope.also { scope.functions[name, 1].ifEmpty { defineProperty(field) } }
+                else -> null
+            }
+        }
+
         override fun getFunction(name: String, arity: Int): List<Function> {
-            fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arity] + STRUCT.component.scope.functions[name, arity]
+            val scope = resolveScope(name) ?: return listOf()
+            return scope.functions[name, arity]
         }
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
-            fields[name]?.takeIf { scope.functions[name, 1].isEmpty() }?.let { defineProperty(it) }
-            return scope.functions[name, arguments] ?: STRUCT.component.scope.functions[name, arguments]
+            val scope = resolveScope(name) ?: return null
+            return scope.functions[name, arguments]
         }
 
         override fun bind(bindings: Map<String, Type>): Type {
