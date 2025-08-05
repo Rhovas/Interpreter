@@ -1357,11 +1357,12 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
                 "Invalid generic parameters.",
                 "The type ${type} requires ${component.generics.size} generic parameters, but received ${ast.generics.size}.",
             ) }
+            val bindings = Bindings.Supertype(mutableMapOf())
             val generics = component.generics.values.withIndex().associate {
                 val generic = visit(ast.generics[it.index]).type
-                require(generic.isSubtypeOf(it.value.bound)) { error(ast.generics[it.index],
+                require(generic.isSubtypeOf(it.value.bound, bindings)) { error(ast.generics[it.index],
                     "Invalid generic parameter.",
-                    "The type ${type} requires generic parameter ${it.index} to be type ${it.value.bound}, but received ${generic}.",
+                    "The type ${type} requires generic parameter ${it.value.name} to be type ${it.value.bound.bind(component.generics + bindings.other)}, but received ${generic}.",
                 ) }
                 it.value.name to generic
             }
