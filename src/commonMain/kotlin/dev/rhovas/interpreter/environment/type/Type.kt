@@ -150,6 +150,7 @@ sealed class Type {
                     returns = DYNAMIC,
                 ))
                 "Tuple" -> when ((generics["T"]!! as? Reference)?.component?.name) {
+                    //TODO: This construction works, but is conceptually flawed with how indices are handled.
                     "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
                     else -> generics["T"]!!.getFunction(name, arity)
                 }
@@ -224,6 +225,8 @@ sealed class Type {
         private fun resolveScope(name: String): Scope<*, *, *, *>? {
             val builtins = TUPLE.component.scope.functions.collect()
             val field = name.toIntOrNull()?.let { elements.getOrNull(it) }
+                //TODO: Decouple named access from static type
+                ?: elements.firstOrNull { it.name == name }
             return when {
                 builtins.any { it.key.first == name } -> TUPLE.component.scope
                 field != null -> scope.also { scope.functions[name, 1].ifEmpty { defineProperty(field) } }
