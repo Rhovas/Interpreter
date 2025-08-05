@@ -41,6 +41,7 @@ class DeclarationPhase(
         }
         val fields = mutableMapOf<String, Variable.Declaration>()
         analyzer.analyze {
+            component.inherits.add(Type.DYNAMIC) // skip bound checks during initial extraction
             component.generics.forEach { context.scope.types.define(it.key, it.value) }
             ast.members.filterIsInstance<RhovasAst.Member.Property>().map {
                 analyzer.require(fields[it.name] == null) { analyzer.error(ast,
@@ -49,9 +50,12 @@ class DeclarationPhase(
                 ) }
                 fields[it.name] = Variable.Declaration(it.name, analyzer.visit(it.type).type, it.mutable)
             }
+            component.inherits[0] = Type.STRUCT[Type.Struct(fields)] //set inherited struct type
+            ast.members.filterIsInstance<RhovasAst.Member.Property>().forEach {
+                analyzer.visit(it.type) //recheck bounds with finalized inherited struct type
+            }
         }
         val (_, implements) = visitInherits(ast.inherits, component)
-        component.inherits.add(Type.STRUCT[Type.Struct(fields)])
         component.inherits.addAll(implements)
     }
 
