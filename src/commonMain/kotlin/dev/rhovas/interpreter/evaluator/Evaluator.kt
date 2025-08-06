@@ -644,7 +644,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     private fun computeCoalesceCascadeReturn(returns: Object, receiver: Object, coalesce: Boolean, cascade: Boolean): Object {
         return when {
             cascade -> receiver
-            coalesce -> Object(receiver.type, Pair(returns, null))
+            coalesce -> when {
+                returns.type.isSubtypeOf(Type.RESULT.DYNAMIC) -> returns
+                receiver.type.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Object(Type.NULLABLE.DYNAMIC, null)
+                else -> Object(Type.RESULT.DYNAMIC, Pair(returns, null))
+            }
             else -> returns
         }
     }
