@@ -94,9 +94,11 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     override fun visit(ir: RhovasIr.Member.Initializer): Object {
         val current = scope
         ir.function.implementation = { arguments ->
+            //by convention, super initializers are called with a trailing instance
+            val instance = arguments.lastOrNull()
+                ?.takeIf { arguments.size > ir.function.parameters.size }
+                ?: Object(ir.function.returns.bind(ir.function.isResolvedBy(arguments.map { it.type })!!), mutableMapOf<String, Object>())
             scoped(Scope.Definition(current)) {
-                val generics = ir.function.isResolvedBy(arguments.map { it.type })!!
-                val instance = Object(ir.function.returns.bind(generics), mutableMapOf<String, Object>())
                 scope.variables.define(Variable.Definition(Variable.Declaration("this", instance.type), instance))
                 for (i in ir.function.parameters.indices) {
                     scope.variables.define(Variable.Definition(ir.function.parameters[i], arguments[i]))
@@ -110,8 +112,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                     ) }
                     throw e
                 } catch (ignored: Return) {}
-                scope.variables["this"]!!.value
             }
+            instance
         }
         return Object(Type.VOID, Unit)
     }
@@ -127,10 +129,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Statement.Initializer): Object {
-        val variable = scope.variables["this"]!!
+        val instance = scope.variables["this"]!!.value
         val arguments = ir.arguments.map { visit(it) }
-        ir.delegate?.let { variable.value = Object(variable.type, it.invoke(arguments).value) }
-        ir.initializer?.let { (variable.value!!.value as MutableMap<String, Object>).putAll(visit(it).value as MutableMap<String, Object>) }
+        ir.initializer?.let { (instance.value as MutableMap<String, Object>).putAll(visit(it).value as MutableMap<String, Object>) }
+        ir.delegate?.let { it.invoke(arguments + listOf(instance)) }
         return Object(Type.VOID, Unit)
     }
 
