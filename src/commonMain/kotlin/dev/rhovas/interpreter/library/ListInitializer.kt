@@ -159,7 +159,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
 
         method("reduce",
             generics = listOf(generic("R")),
-            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("T"), generic("T"))], generic("T"), Type.DYNAMIC]),
+            parameters = listOf("initial" to generic("R"), "lambda" to Type.LAMBDA[Type.TUPLE[listOf(generic("R"), generic("T"))], generic("R"), Type.DYNAMIC]),
             returns = generic("R"),
         ) { (instance, initial, lambda): T3<List<Object>, Object, Evaluator.Lambda> ->
             instance.fold(initial) { result, element -> lambda.invoke(listOf(result, element), generics["R"]!!) }
