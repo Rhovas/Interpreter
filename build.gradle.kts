@@ -3,13 +3,14 @@ import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.targets.js.testing.KotlinJsTest
 
 plugins {
-    kotlin("multiplatform") version "2.0.0"
-    id("io.kotest.multiplatform") version "5.9.1"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    kotlin("multiplatform") version "2.4.0"
+    id("io.kotest") version "6.1.11"
+    id("com.google.devtools.ksp") version "2.3.9"
+    id("com.gradleup.shadow") version "8.3.11"
 }
 
 group = "dev.rhovas.interpreter"
-version = "0.0.0"
+version = ""
 
 repositories {
     mavenCentral()
@@ -25,13 +26,13 @@ kotlin {
     sourceSets {
         val commonMain by getting {
             dependencies {
-                implementation("com.ionspin.kotlin:bignum:0.3.8")
+                implementation("com.ionspin.kotlin:bignum:0.3.10")
             }
         }
         val commonTest by getting {
             dependencies {
                 implementation(kotlin("test"))
-                implementation("io.kotest:kotest-framework-engine:5.6.2")
+                implementation("io.kotest:kotest-framework-engine:6.1.11")
             }
         }
         val jsMain by getting {}
@@ -39,7 +40,7 @@ kotlin {
         val jvmMain by getting {}
         val jvmTest by getting {
             dependencies {
-                implementation("io.kotest:kotest-runner-junit5:5.6.2")
+                implementation("io.kotest:kotest-runner-junit5:6.1.11")
             }
         }
     }
