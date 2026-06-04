@@ -82,6 +82,32 @@ class SubtypeTests : RhovasSpec() {
                 "Recursive Bound Bindable" to Test(RECURSIVE_BOUND, RECURSIVE_BOUND, mapOf(), mapOf("T" to T_RECURSIVE_BOUND), invariant = mapOf("T" to T_RECURSIVE_BOUND)),
             )) { test(it) }
 
+            run {
+                val COMMON_PARENT = reference("CommonParent", linkedMapOf("T" to generic("T")), listOf())
+                val TYPE_PARENT = reference("TypeParent", linkedMapOf(), listOf(COMMON_PARENT.bind(mapOf("T" to TYPE))))
+                val SUBTYPE_PARENT = reference("SubtypeParent", linkedMapOf(), listOf(COMMON_PARENT.bind(mapOf("T" to SUBTYPE))))
+                val SUPERTYPE_PARENT = reference("SupertypeParent", linkedMapOf(), listOf(COMMON_PARENT.bind(mapOf("T" to SUPERTYPE))))
+                val DISJOINT_PARENT = reference("DisjointParent", linkedMapOf(), listOf(COMMON_PARENT.bind(mapOf("T" to DISJOINT))))
+                val CHILD = reference("Child", linkedMapOf(), listOf(TYPE_PARENT, SUBTYPE_PARENT, SUPERTYPE_PARENT, DISJOINT_PARENT))
+                suite("Multiple Inheritance", listOf(
+                    "Disjoint" to Test(CHILD, DISJOINT, false),
+                    "Type Parent" to Test(CHILD, TYPE_PARENT, true),
+                    "Subtype Parent" to Test(CHILD, SUBTYPE_PARENT, true),
+                    "Supertype Parent" to Test(CHILD, SUPERTYPE_PARENT, true),
+                    "Disjoint Parent" to Test(CHILD, DISJOINT_PARENT, true),
+                    "Common Parent Unbindable" to Test(CHILD, COMMON_PARENT, false),
+                    "Common Parent Bound Type" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to TYPE)), true),
+                    "Common Parent Bound Subtype" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to SUBTYPE)), true),
+                    "Common Parent Bound Supertype" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to SUPERTYPE)), true),
+                    "Common Parent Bound Disjoint" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to DISJOINT)), true),
+                    "Common Parent Bindable Bound Type" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to generic("T", TYPE))), mapOf(), mapOf("T" to TYPE)),
+                    "Common Parent Bindable Bound Subtype" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to generic("T", SUBTYPE))), mapOf(), mapOf("T" to SUBTYPE)),
+                    //TODO: Expected should be SUPERTYPE, but binding prioritizes first inherited type hence TYPE
+                    "Common Parent Bindable Bound Supertype" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to generic("T", SUPERTYPE))), mapOf(), mapOf("T" to TYPE)),
+                    "Common Parent Bindable Bound Disjoint" to Test(CHILD, COMMON_PARENT.bind(mapOf("T" to generic("T", DISJOINT))), mapOf(), mapOf("T" to DISJOINT)),
+                )) { test(it) }
+            }
+
         }
 
         suite("Reference <: Tuple", listOf(

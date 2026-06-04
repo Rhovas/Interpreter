@@ -50,11 +50,10 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: B
             }
         }
         else -> {
-            type.component.inherits.any { inherited ->
-                // TODO: Review accuracy of inherited.bind(type.generics).
-                // TODO: Review binding behavior for false isSubtypeOf calls.
-                isSubtypeOf(inherited.bind(type.generics), other, bindings)
-            }
+            // TODO: Review accuracy of inherited.bind(type.generics).
+            // TODO: Fix Diamond Problem concerns around generic bindings from prioritizing first valid inherited type
+            val inherits = type.component.inherits.firstOrNull { isSubtypeOf(it.bind(type.generics), other, bindings.copy()) }
+            inherits?.also { isSubtypeOf(it.bind(type.generics), other, bindings) } != null
         }
     }
 }

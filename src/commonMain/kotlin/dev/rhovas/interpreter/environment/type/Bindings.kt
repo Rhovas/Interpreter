@@ -5,11 +5,19 @@ sealed class Bindings {
     open val type: MutableMap<String, Type>? = null
     open val other: MutableMap<String, Type>? = null
 
-    object None : Bindings()
+    data object None : Bindings()
 
     data class Subtype(override val type: MutableMap<String, Type>) : Bindings()
 
     data class Supertype(override val other: MutableMap<String, Type>) : Bindings()
+
+    fun copy(): Bindings {
+        return when (this) {
+            is None -> None
+            is Subtype -> Subtype(type.toMutableMap())
+            is Supertype -> Supertype(other.toMutableMap())
+        }
+    }
 
     /**
      * Returns a map of refined bindings, which transforms unrefined variant

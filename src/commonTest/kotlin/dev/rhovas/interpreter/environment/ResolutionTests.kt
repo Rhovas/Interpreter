@@ -10,13 +10,14 @@ class ResolutionTests : RhovasSpec() {
 
     enum class Subtype { TRUE, FALSE, INVARIANT }
 
+    //TODO: Audit and remove, do NOT modify environment state! (see commit)
     //Not ideal, but based on the old tests and can't be trivially updated.
     private val Type.Companion.NUMBER by lazy {
         val component = Component.Class("Number", Modifiers(Modifiers.Inheritance.ABSTRACT))
         component.inherits.add(Type.COMPARABLE[component.type])
         component.inherits.forEach { component.inherit(it) }
-        Type.INTEGER.component.inherits.add(0, component.type)
-        Type.DECIMAL.component.inherits.add(0, component.type)
+        Type.INTEGER.component.inherits.add(component.type)
+        Type.DECIMAL.component.inherits.add(component.type)
         //Library.SCOPE.types.define(component.name, component.type)
         component.type
     }
