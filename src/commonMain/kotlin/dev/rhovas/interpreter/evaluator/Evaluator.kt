@@ -438,23 +438,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.List): Object {
-        val value = ir.elements.map { visit(it) }
-        return if (ir.type.isSubtypeOf(Type.TUPLE.DYNAMIC)) {
-            Object(Type.TUPLE.DYNAMIC, value)
-        } else {
-            Object(Type.LIST.DYNAMIC, value)
-        }
+        return Object(ir.type, ir.elements.map { visit(it) })
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
-        return if (ir.type.isSubtypeOf(Type.MAP.DYNAMIC)) {
-            val keyType = if (ir.properties.keys.isNotEmpty()) Type.ATOM else Type.DYNAMIC
-            val value = ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
-            Object(Type.MAP[keyType, Type.DYNAMIC], value)
-        } else {
-            val value = ir.properties.mapValues { visit(it.value) }
-            Object(Type.STRUCT.DYNAMIC, value)
+        val value = when (ir.type.isSubtypeOf(Type.MAP.DYNAMIC)) {
+            true -> ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
+            false -> ir.properties.mapValues { visit(it.value) }
         }
+        return Object(ir.type, value)
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Type): Object {

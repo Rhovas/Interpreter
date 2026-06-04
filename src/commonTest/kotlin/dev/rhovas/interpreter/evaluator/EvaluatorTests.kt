@@ -806,36 +806,46 @@ class EvaluatorTests: RhovasSpec() {
                     "Single" to Test("""
                         [1]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
+                        Object(Type.LIST[Type.INTEGER], mutableListOf(
                             literal(BigInteger.parseString("1")),
                         ))
                     },
                     "Multiple" to Test("""
                         [1, 2, 3]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.DYNAMIC], mutableListOf(
+                        Object(Type.LIST[Type.INTEGER], mutableListOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                             literal(BigInteger.parseString("3")),
                         ))
                     },
+                    "Tuple" to Test("""
+                        Tuple([true, 2, "three"])
+                    """.trimIndent()) {
+                        Object(Type.TUPLE[listOf(Type.BOOLEAN, Type.INTEGER, Type.STRING), true], mutableListOf(literal(true), literal(BigInteger.parseString("2")), literal("three")))
+                    }
                 )) { test("expression", it.source, it.log, it.expected) }
 
                 suite("Object", listOf(
                     "Empty" to Test("""
                         {}
                     """.trimIndent()) {
-                        Object(Type.STRUCT.DYNAMIC, mapOf<String, Object>())
+                        Object(Type.STRUCT[listOf(), true], mutableMapOf<String, Object>())
                     },
                     "Single" to Test("""
                         {key: "value"}
                     """.trimIndent()) {
-                        Object(Type.STRUCT.DYNAMIC, mapOf("key" to literal("value")))
+                        Object(Type.STRUCT[listOf("key" to Type.STRING), true], mapOf("key" to literal("value")))
                     },
                     "Multiple" to Test("""
                         {k1: "v1", k2: "v2", k3: "v3"}
                     """.trimIndent()) {
-                        Object(Type.STRUCT.DYNAMIC, mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")))
+                        Object(Type.STRUCT[listOf("k1" to Type.STRING, "k2" to Type.STRING, "k3" to Type.STRING), true], mapOf("k1" to literal("v1"), "k2" to literal("v2"), "k3" to literal("v3")))
+                    },
+                    "Map" to Test("""
+                        Map({k1: "v1", k2: "v2", k3: "v3"})
+                    """.trimIndent()) {
+                        Object(Type.MAP[Type.ATOM, Type.STRING], mapOf(Object.Hashable(literal(RhovasAst.Atom("k1"))) to literal("v1"), Object.Hashable(literal(RhovasAst.Atom("k2"))) to literal("v2"), Object.Hashable(literal(RhovasAst.Atom("k3"))) to literal("v3")))
                     },
                 )) { test("expression", it.source, it.log, it.expected) }
 
@@ -1004,7 +1014,7 @@ class EvaluatorTests: RhovasSpec() {
                     "List Concat" to Test("""
                         [1] + [2]
                     """.trimIndent()) {
-                        Object(Type.LIST[Type.DYNAMIC], listOf(
+                        Object(Type.LIST[Type.INTEGER], listOf(
                             literal(BigInteger.parseString("1")),
                             literal(BigInteger.parseString("2")),
                         ))
