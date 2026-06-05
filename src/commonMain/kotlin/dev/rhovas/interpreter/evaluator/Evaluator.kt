@@ -45,17 +45,19 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         ir.members.forEach { visit(it) }
         val current = scope
         val fields = ir.members.filterIsInstance<RhovasIr.Member.Property>().associateBy { it.getter.name }
-        (ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }]) } as Function.Definition).implementation = { arguments ->
+        val structInitializer = ir.component.inherited.functions["", 1].first { it.parameters[0].type.isSubtypeOf(Type.STRUCT[fields.filter { it.value.value == null }.map { it.key to it.value.getter.returns }]) } as Function.Definition
+        structInitializer.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
+                val bindings = requireNotNull(structInitializer.isResolvedBy(arguments.map { it.type }))
                 val initial = arguments[0].value as Map<String, Object>
-                Object(type, fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null) })
+                Object(structInitializer.returns.bind(bindings), fields.mapValues { initial[it.key] ?: it.value.value?.let { visit(it) } ?: Object(Type.NULLABLE[it.value.getter.returns.bind(bindings)], null) })
             }
         }
-        (ir.component.inherited.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } } as Function.Definition).implementation = { arguments ->
+        val fieldsInitializer = ir.component.inherited.functions["", fields.size].first { it.parameters.zip(fields.values).all { it.first.type.isSupertypeOf(it.second.getter.returns) } } as Function.Definition
+        fieldsInitializer.implementation = { arguments ->
             scoped(Scope.Definition(current)) {
-                val type = Type.Reference(ir.component, ir.component.generics.mapValues { Type.DYNAMIC })
-                Object(type, fields.keys.withIndex().associate { it.value to arguments[it.index] })
+                val bindings = requireNotNull(fieldsInitializer.isResolvedBy(arguments.map { it.type }))
+                Object(fieldsInitializer.returns.bind(bindings), fields.keys.withIndex().associate { it.value to arguments[it.index] })
             }
         }
         return Object(Type.VOID, Unit)
@@ -143,7 +145,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
 
     override fun visit(ir: RhovasIr.Statement.Declaration.Variable): Object {
         val variable = ir.variable as? Variable.Definition ?: Variable.Definition(ir.variable as Variable.Declaration).also { scope.variables.define(it) }
-        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE.DYNAMIC, null)
+        variable.value = ir.value?.let { visit(it) } ?: Object(Type.NULLABLE[variable.type], null)
         return Object(Type.VOID, Unit)
     }
 
@@ -537,7 +539,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             "The property ${ir.property.name} is not defined in ${receiver.type}.",
         )
         val returns = trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            invokeBang(ir.bang, method.throws) { method.invoke(listOf()) }
+            invokeBang(ir.bang, method.returns, method.throws) { method.invoke(listOf()) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, false)
     }
@@ -585,7 +587,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         return trace(ir, "Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
+            invokeBang(ir.bang, function.returns, function.throws) { function.invoke(arguments) }
         }
     }
 
@@ -604,7 +606,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         val returns = trace(ir, "${receiver.type}.${method.name}(${method.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            invokeBang(ir.bang, method.throws) { method.invoke(arguments) }
+            invokeBang(ir.bang, method.returns, method.throws) { method.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
     }
@@ -621,7 +623,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             ) }
         }
         val returns = trace(ir, "Source.${ir.function.name}(${ir.function.parameters.map { it.type }.joinToString(", ")})", ir.context.firstOrNull()) {
-            invokeBang(ir.bang, function.throws) { function.invoke(arguments) }
+            invokeBang(ir.bang, function.returns, function.throws) { function.invoke(arguments) }
         }
         return computeCoalesceCascadeReturn(returns, original, ir.coalesce, ir.cascade)
     }
@@ -638,15 +640,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
             cascade -> receiver
             coalesce -> when {
                 returns.type.isSubtypeOf(Type.RESULT.DYNAMIC) -> returns
-                receiver.type.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Object(Type.NULLABLE.DYNAMIC, null)
-                else -> Object(Type.RESULT.DYNAMIC, Pair(returns, null))
+                receiver.type.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Object(Type.NULLABLE[returns.type], null)
+                else -> Object(Type.RESULT[returns.type, Type.EXCEPTION], Pair(returns, null))
             }
             else -> returns
         }
     }
 
     override fun visit(ir: RhovasIr.Expression.Lambda): Object {
-        return Object(Type.LAMBDA.DYNAMIC, Lambda(ir, scope, this))
+        return Object(ir.type, Lambda(ir, scope, this))
     }
 
     override fun visit(ir: RhovasIr.Pattern.Variable): Object {
@@ -698,16 +700,15 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.NamedDestructure): Object {
-        if (!patternState.value.type.isSubtypeOf(Type.STRUCT.DYNAMIC)) {
-            return Object(Type.BOOLEAN, false)
-        }
+        val type = Type.STRUCT.bindings(patternState.value.type)?.get("T") as? Type.Struct
+            ?: return Object(Type.BOOLEAN, false)
         val map = patternState.value.value as Map<String, Object>
         val named = ir.patterns.map { it.first }.toSet()
         var vararg = false
         for ((key, pattern) in ir.patterns) {
             val value = if (pattern is RhovasIr.Pattern.VarargDestructure) {
                 vararg = true
-                Object(Type.STRUCT.DYNAMIC, map.filterKeys { !named.contains(it) })
+                Object(Type.STRUCT[type.fields.filterKeys { !named.contains(it) }.entries.map { it.key to it.value.type }], map.filterKeys { !named.contains(it) })
             } else {
                 map[key] ?: return Object(Type.BOOLEAN, false)
             }
@@ -742,7 +743,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, patternState.value)) }
                 Object(Type.BOOLEAN, true)
             } else {
-                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.LIST.DYNAMIC, mutableListOf<Object>())) }
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(patternState.value.type, mutableListOf<Object>())) }
                 val parent = patternState
                 val result = list.all {
                     patternState = PatternState(Scope.Definition(parent.scope), it)
@@ -761,10 +762,10 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 return Object(Type.BOOLEAN, false)
             }
             return if (ir.pattern is RhovasIr.Pattern.Variable) {
-                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, Object(Type.STRUCT.DYNAMIC, map))) }
+                ir.pattern.variable?.let { patternState.scope.variables.define(Variable.Definition(it, patternState.value)) }
                 Object(Type.BOOLEAN, true)
             } else {
-                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(Type.STRUCT.DYNAMIC, mutableMapOf<String, Object>())) }
+                val bindings = ir.bindings.mapValues { Variable.Definition(it.value, Object(patternState.value.type, mutableMapOf<String, Object>())) }
                 val parent = patternState
                 val result = map.all { entry ->
                     patternState = PatternState(Scope.Definition(parent.scope), entry.value)
@@ -796,16 +797,16 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         }
     }
 
-    private fun invokeBang(bang: Boolean, throws: List<Type>, invoke: () -> Object): Object {
+    private fun invokeBang(bang: Boolean, returns: Type, throws: List<Type>, invoke: () -> Object): Object {
         return when {
             bang && throws.isEmpty() -> invoke().methods["value!", listOf()]!!.invoke(listOf())
             !bang && throws.isNotEmpty() -> {
                 try {
                     val result = invoke()
-                    Object(Type.RESULT[result.type, Type.DYNAMIC], Pair(result, null))
+                    Object(Type.RESULT[result.type, throws.reduce { acc, type -> acc.unify(type) }], Pair(result, null))
                 } catch (e: Throw) {
                     when {
-                        throws.any { it.isSupertypeOf(e.exception.type) } -> Object(Type.RESULT[Type.DYNAMIC, e.exception.type], Pair(null, e.exception))
+                        throws.any { it.isSupertypeOf(e.exception.type) } -> Object(Type.RESULT[returns, e.exception.type], Pair(null, e.exception))
                         else -> throw e
                     }
                 }
