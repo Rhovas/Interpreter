@@ -2136,6 +2136,14 @@ class RhovasAnalyzerTests: RhovasSpec() {
                     "Tuple" to Test("""
                         Tuple([1, "string"])
                     """.trimIndent()) {
+                        println("Tuple: " + Type.TUPLE.component.type)
+                        println("Scope: " + Type.TUPLE.component.scope)
+                        println("Functions: " + Type.TUPLE.component.type.functions["", 1])
+                        println("Scope Functions: " + Type.TUPLE.component.scope.functions["", 1])
+                        println("Immutable Subtype Dynamic: " + Type.TUPLE[listOf(Type.INTEGER, Type.STRING)].isSubtypeOf(Type.TUPLE.DYNAMIC))
+                        println("Immutable Subtype Wildcard: " + Type.TUPLE[listOf(Type.INTEGER, Type.STRING)].isSubtypeOf(Type.TUPLE.VARIANT))
+                        println("Mutable Subtype Dynamic: " + Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true].isSubtypeOf(Type.TUPLE.DYNAMIC))
+                        println("Mutable Subtype Wildcard: " + Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true].isSubtypeOf(Type.TUPLE.VARIANT))
                         RhovasIr.Expression.Invoke.Constructor(
                             Type.TUPLE.component.type,
                             Type.TUPLE.component.type.functions["", listOf(Type.TUPLE[listOf(Type.INTEGER, Type.STRING), true])]!!,

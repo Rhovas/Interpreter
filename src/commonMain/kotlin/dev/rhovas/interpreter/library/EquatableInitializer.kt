@@ -15,7 +15,7 @@ object EquatableInitializer : Library.ComponentInitializer(Component.Interface("
     override fun define() {
         method("equals", operator = "==",
             modifiers = Modifiers(Modifiers.Inheritance.VIRTUAL),
-            parameters = listOf("other" to Type.EQUATABLE.DYNAMIC),
+            parameters = listOf("other" to Type.EQUATABLE.VARIANT),
             returns = Type.BOOLEAN,
         ) { (instance, other): T2<Any?, Any?> ->
             fun equals(value: Any?, other: Any?): Boolean {

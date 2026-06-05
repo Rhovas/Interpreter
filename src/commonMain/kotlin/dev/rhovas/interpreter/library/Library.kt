@@ -120,6 +120,9 @@ object Library {
                 EVALUATOR.require(result.type.isSubtypeOf(returns.bind(generics)))
                 result
             }
+            if (component.name == "Tuple") {
+                println("Define: " + function)
+            }
             component.scope.functions.define(function)
             operator?.let { component.scope.functions.define(function, it) }
         }

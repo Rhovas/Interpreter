@@ -10,7 +10,7 @@ object SetInitializer : Library.ComponentInitializer(Component.Class("Set")) {
     override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
-        inherits.add(Type.EQUATABLE[Type.SET.DYNAMIC])
+        inherits.add(Type.EQUATABLE[Type.SET.VARIANT])
     }
 
     override fun define() {

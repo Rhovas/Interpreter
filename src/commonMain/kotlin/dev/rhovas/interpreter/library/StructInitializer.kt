@@ -7,8 +7,8 @@ import dev.rhovas.interpreter.environment.type.Type
 object StructInitializer : Library.ComponentInitializer(Component.Class("Struct", Modifiers(Modifiers.Inheritance.VIRTUAL))) {
 
     override fun declare() {
-        generics.add(generic("T", Type.STRUCT.DYNAMIC))
-        inherits.add(Type.EQUATABLE[Type.STRUCT.DYNAMIC])
+        generics.add(generic("T", Type.STRUCT.VARIANT))
+        inherits.add(Type.EQUATABLE[Type.STRUCT.VARIANT])
     }
 
     override fun define() {}

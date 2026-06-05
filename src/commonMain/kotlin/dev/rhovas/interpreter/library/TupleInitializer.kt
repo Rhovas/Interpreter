@@ -7,8 +7,8 @@ import dev.rhovas.interpreter.environment.type.Type
 object TupleInitializer : Library.ComponentInitializer(Component.Class("Tuple")) {
 
     override fun declare() {
-        generics.add(generic("T", Type.TUPLE.DYNAMIC))
-        inherits.add(Type.EQUATABLE[Type.TUPLE.DYNAMIC])
+        generics.add(generic("T", Type.TUPLE.VARIANT)) // TODO
+        inherits.add(Type.EQUATABLE[Type.TUPLE.VARIANT])
     }
 
     override fun define() {

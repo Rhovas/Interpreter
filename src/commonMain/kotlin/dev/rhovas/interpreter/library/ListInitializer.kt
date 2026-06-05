@@ -11,7 +11,7 @@ object ListInitializer : Library.ComponentInitializer(Component.Class("List")) {
     override fun declare() {
         generics.add(generic("T"))
         inherits.add(Type.ITERABLE[generic("T")])
-        inherits.add(Type.EQUATABLE[Type.LIST.DYNAMIC])
+        inherits.add(Type.EQUATABLE[Type.LIST.VARIANT])
     }
 
     override fun define() {

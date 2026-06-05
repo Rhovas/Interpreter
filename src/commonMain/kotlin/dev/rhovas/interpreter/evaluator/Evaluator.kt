@@ -444,7 +444,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Expression.Literal.Object): Object {
-        val value = when (ir.type.isSubtypeOf(Type.MAP.DYNAMIC)) {
+        val value = when (ir.type.isSubtypeOf(Type.MAP.VARIANT)) {
             true -> ir.properties.entries.associate { Object.Hashable(Object(Type.ATOM, RhovasAst.Atom(it.key))) to visit(it.value) }
             false -> ir.properties.mapValues { visit(it.value) }
         }
@@ -639,8 +639,8 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
         return when {
             cascade -> receiver
             coalesce -> when {
-                returns.type.isSubtypeOf(Type.RESULT.DYNAMIC) -> returns
-                receiver.type.isSubtypeOf(Type.NULLABLE.DYNAMIC) -> Object(Type.NULLABLE[returns.type], null)
+                returns.type.isSubtypeOf(Type.RESULT.VARIANT) -> returns
+                receiver.type.isSubtypeOf(Type.NULLABLE.VARIANT) -> Object(Type.NULLABLE[returns.type], null)
                 else -> Object(Type.RESULT[returns.type, Type.EXCEPTION], Pair(returns, null))
             }
             else -> returns
@@ -734,7 +734,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
     }
 
     override fun visit(ir: RhovasIr.Pattern.VarargDestructure): Object {
-        if (patternState.value.type.isSubtypeOf(Type.LIST.DYNAMIC)) {
+        if (patternState.value.type.isSubtypeOf(Type.LIST.VARIANT)) {
             val list = patternState.value.value as List<Object>
             if (ir.operator == "+" && list.isEmpty()) {
                 return Object(Type.BOOLEAN, false)
@@ -756,7 +756,7 @@ class Evaluator(private var scope: Scope.Definition) : RhovasIr.Visitor<Object> 
                 bindings.forEach { patternState.scope.variables.define(it.value) }
                 Object(Type.BOOLEAN, result)
             }
-        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.DYNAMIC)) {
+        } else if (patternState.value.type.isSubtypeOf(Type.STRUCT.VARIANT)) {
             val map = patternState.value.value as Map<String, Object>
             if (ir.operator == "+" && map.isEmpty()) {
                 return Object(Type.BOOLEAN, false)

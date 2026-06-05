@@ -47,15 +47,15 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
         }
 
         function("lambda",
-            generics = listOf(generic("T", Type.TUPLE.DYNAMIC), generic("R")),
-            parameters = listOf("lambda" to Type.LAMBDA[generic("T", Type.TUPLE.DYNAMIC), generic("R"), Type.DYNAMIC]),
-            returns = Type.LAMBDA[generic("T", Type.TUPLE.DYNAMIC), generic("R"), Type.DYNAMIC],
+            generics = listOf(generic("T", Type.TUPLE.VARIANT), generic("R")),
+            parameters = listOf("lambda" to Type.LAMBDA[generic("T", Type.TUPLE.VARIANT), generic("R"), Type.DYNAMIC]),
+            returns = Type.LAMBDA[generic("T", Type.TUPLE.VARIANT), generic("R"), Type.DYNAMIC],
         ) { (lambda): T1<Object> ->
             lambda
         }
 
         function("regex",
-            parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST.DYNAMIC),
+            parameters = listOf("literals" to Type.LIST[Type.STRING], "arguments" to Type.LIST.VARIANT),
             returns = Type.REGEX,
         ) { (literals, arguments): T2<List<Object>, List<Object>> ->
             val pattern = literals.zip(arguments + listOf(null)).mapIndexed { index, (literal, argument) ->
@@ -75,7 +75,7 @@ object KernelInitializer: Library.ComponentInitializer(Component.Class("Kernel")
 
         function("typeof",
             parameters = listOf("element" to Type.ANY),
-            returns = Type.TYPE.DYNAMIC,
+            returns = Type.TYPE.VARIANT,
         ) { (element): T1<Object> ->
             Object(Type.TYPE[element.type], element.type)
         }
