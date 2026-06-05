@@ -3,7 +3,16 @@ package dev.rhovas.interpreter.environment.type
 import dev.rhovas.interpreter.environment.Variable
 
 fun isInvariantSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean = when(type) {
+    is Type.Dynamic -> when (other) {
+        is Type.Dynamic -> isInvariantSubtypeOf(type, other, bindings)
+        is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
+        is Type.Tuple -> isInvariantSubtypeOf(type, other, bindings)
+        is Type.Struct -> isInvariantSubtypeOf(type, other, bindings)
+        is Type.Variant -> isInvariantSubtypeOf(type, other, bindings)
+        is Type.Generic -> isInvariantSubtypeOf(type, other, bindings)
+    }
     is Type.Reference -> when (other) {
+        is Type.Dynamic -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Tuple -> isInvariantSubtypeOf(type, Type.TUPLE[other], bindings)
         is Type.Struct -> isInvariantSubtypeOf(type, Type.STRUCT[other], bindings)
@@ -19,6 +28,7 @@ fun isInvariantSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean =
         else -> isInvariantSubtypeOf(Type.STRUCT[type], other, bindings)
     }
     is Type.Generic -> when (other) {
+        is Type.Dynamic -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Tuple -> isInvariantSubtypeOf(type, Type.TUPLE[other], bindings)
         is Type.Struct -> isInvariantSubtypeOf(type, Type.STRUCT[other], bindings)
@@ -26,6 +36,7 @@ fun isInvariantSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean =
         is Type.Generic -> isInvariantSubtypeOf(type, other, bindings)
     }
     is Type.Variant -> when (other) {
+        is Type.Dynamic -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Reference -> isInvariantSubtypeOf(type, other, bindings)
         is Type.Tuple -> isInvariantSubtypeOf(type, Type.TUPLE[other], bindings)
         is Type.Struct -> isInvariantSubtypeOf(type, Type.STRUCT[other], bindings)
@@ -34,10 +45,49 @@ fun isInvariantSubtypeOf(type: Type, other: Type, bindings: Bindings): Boolean =
     }
 }
 
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Dynamic, bindings: Bindings): Boolean {
+    return true
+}
+
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Reference, bindings: Bindings): Boolean {
+    return other.generics.all { isInvariantSubtypeOf(type, it.value, bindings) }
+}
+
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Tuple, bindings: Bindings): Boolean {
+    return other.elements.all { isInvariantSubtypeOf(type, it.type, bindings) }
+}
+
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Struct, bindings: Bindings): Boolean {
+    return other.fields.all { isInvariantSubtypeOf(type, it.value.type, bindings) }
+}
+
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Generic, bindings: Bindings): Boolean {
+    if (bindings.other == null) {
+        return true
+    } else if (bindings.other!!.containsKey(other.name)) {
+        val binding = bindings.other!![other.name]!!
+        val result = isInvariantSubtypeOf(type, binding, Bindings.None)
+        if (result) {
+            //TODO: Review; probably wrong. Likely should only adjust when variant
+            bindings.other!![other.name] = type
+        }
+        return result
+    } else {
+        bindings.other!![other.name] = type
+        return isSubtypeOf(type, other.bound, bindings)
+    }
+}
+
+private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Variant, bindings: Bindings): Boolean {
+    return isSubtypeOf(type, other, bindings)
+}
+
+private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Dynamic, bindings: Bindings): Boolean {
+    return type.component.generics.all { isInvariantSubtypeOf(it.value, other, bindings) }
+}
+
 private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: Bindings): Boolean {
     return when {
-        // TODO: Dynamic should ensure generics are still bound.
-        type.component.name == "Dynamic" || other.component.name == "Dynamic" -> true
         type.component.name == other.component.name -> {
             type.generics.values.zip(other.generics.values).all { (type, other) ->
                 isInvariantSubtypeOf(type, other, bindings)
@@ -49,7 +99,7 @@ private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Reference, bi
 
 private fun isInvariantSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
     if (bindings.other == null) {
-        return type.component.name == "Dynamic"
+        return false
     } else if (bindings.other!!.containsKey(other.name)) {
         val binding = bindings.other!![other.name]!!
         val result = isInvariantSubtypeOf(type, binding, Bindings.None)
@@ -81,9 +131,31 @@ private fun isInvariantSubtypeOf(type: Type.Struct, other: Type.Struct, bindings
         }
 }
 
+private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Dynamic, bindings: Bindings): Boolean {
+    if (bindings.type == null) {
+        return true
+    } else if (bindings.type!!.containsKey(type.name)) {
+        val binding = bindings.type!![type.name]!!
+        if (binding is Type.Variant) {
+            if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
+                return false
+            } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
+                return false
+            }
+            bindings.type!![type.name] = other
+            return true
+        } else {
+            return isInvariantSubtypeOf(binding, other, Bindings.None)
+        }
+    } else {
+        bindings.type!![type.name] = other
+        return isSupertypeOf(type.bound, other, bindings)
+    }
+}
+
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
     if (bindings.type == null) {
-        return other.component.name == "Dynamic"
+        return false
     } else if (bindings.type!!.containsKey(type.name)) {
         val binding = bindings.type!![type.name]!!
         if (binding is Type.Variant) {
@@ -166,6 +238,10 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Variant, bindings: Bindings): Boolean {
+    return isSubtypeOf(type, other, bindings)
+}
+
+private fun isInvariantSubtypeOf(type: Type.Variant, other: Type.Dynamic, bindings: Bindings): Boolean {
     return isSubtypeOf(type, other, bindings)
 }
 

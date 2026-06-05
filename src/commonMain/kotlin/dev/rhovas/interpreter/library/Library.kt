@@ -20,7 +20,6 @@ object Library {
         // requirements for inheritance (aka, no type should inherit from a type
         // defined later in the initialization order).
         val initializers = listOf(
-            DynamicInitializer,
             AnyInitializer,
             EquatableInitializer,
             ComparableInitializer,
@@ -47,6 +46,7 @@ object Library {
             KernelInitializer,
             MathInitializer,
         )
+        SCOPE.types.define("Dynamic", Type.Dynamic)
         initializers.forEach { initializer ->
             SCOPE.types.define(initializer.component.name, initializer.component.type)
         }

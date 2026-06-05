@@ -1117,7 +1117,7 @@ class RhovasAnalyzer(scope: Scope<in Variable.Definition, out Variable, in Funct
         }
         val function = (qualifier?.functions?.get(filtered.first().first.name, arguments) ?: context.scope.functions[filtered.first().first.name, arguments])!!
         val exceptions = function.throws + listOfNotNull(Type.RESULT.bindings(function.returns)?.get("E")?.takeIf { name.endsWith('!') })
-        exceptions.filter { (it as? Type.Reference)?.component?.name != "Dynamic" }.forEach { exception ->
+        exceptions.filter { it != Type.DYNAMIC }.forEach { exception ->
             require(context.exceptions.any { exception.isSubtypeOf(it) }) { error(ast,
                 "Uncaught exception.",
                 "An exception is thrown of type ${exception}, but this exception is never caught or declared.",

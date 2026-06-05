@@ -54,6 +54,62 @@ class SubtypeTests : RhovasSpec() {
     }
 
     init {
+        suite("Dynamic <: Dynamic", listOf(
+            "Dynamic" to Test(Type.DYNAMIC, Type.DYNAMIC, true, invariant = true),
+        )) { test(it) }
+
+        suite("Dynamic <: Reference", listOf(
+            "Base" to Test(Type.DYNAMIC, TYPE, true, invariant = true),
+            "Bound Generic" to Test(Type.DYNAMIC, Type.LIST[TYPE], true, invariant = true),
+            "Unbound Generic" to Test(Type.DYNAMIC, Type.LIST[T], true, invariant = true),
+            "Dynamic Generic" to Test(Type.DYNAMIC, Type.LIST[Type.DYNAMIC], true, invariant = true),
+            "Wildcard Generic" to Test(Type.DYNAMIC, Type.LIST[variant()], true, invariant = true),
+            "Bindable Generic" to Test(Type.DYNAMIC, Type.LIST[T], mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it) }
+
+        suite("Dynamic <: Tuple", listOf(
+            "Base" to Test(Type.DYNAMIC, tuple(TYPE), true, invariant = true),
+            "Generic" to Test(Type.DYNAMIC, Type.TUPLE[tuple(TYPE)], true, invariant = true),
+            "Unbound Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], true, invariant = true),
+            "Dynamic Generic" to Test(Type.DYNAMIC, Type.TUPLE[Type.DYNAMIC], true, invariant = true),
+            "Wildcard Generic" to Test(Type.DYNAMIC, Type.TUPLE[variant()], true, invariant = true),
+            "Bindable Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], mapOf("T" to tuple(TYPE)), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it) }
+
+        suite("Dynamic <: Struct", listOf(
+            "Base" to Test(Type.DYNAMIC, struct("x" to TYPE), true, invariant = true),
+            "Generic" to Test(Type.DYNAMIC, Type.STRUCT[struct("x" to TYPE)], true, invariant = true),
+            "Unbound Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], true, invariant = true),
+            "Dynamic Generic" to Test(Type.DYNAMIC, Type.STRUCT[Type.DYNAMIC], true, invariant = true),
+            "Wildcard Generic" to Test(Type.DYNAMIC, Type.STRUCT[variant()], true, invariant = true),
+            "Bindable Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], mapOf("T" to struct("x" to TYPE)), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it) }
+
+        suite("Dynamic <: Generic", listOf(
+            "Unbound" to Test(Type.DYNAMIC, T, true, invariant = true),
+            "Bindable" to Test(Type.DYNAMIC, T, mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
+            //see TODOs, these seem incorrect
+            "Bound" to Test(Type.DYNAMIC, T, mapOf("T" to TYPE), mapOf("T" to TYPE), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Variant" to Test(Type.DYNAMIC, T, mapOf("T" to variant(SUBTYPE, SUPERTYPE)), mapOf("T" to variant(Type.DYNAMIC, SUPERTYPE)), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it) }
+
+        suite("Dynamic <: Variant", listOf(
+            "Wildcard" to Test(Type.DYNAMIC, variant(), true, invariant = true),
+            "Lower Bound" to Test(Type.DYNAMIC, variant(lower = TYPE), true, invariant = true),
+            "Upper Bound" to Test(Type.DYNAMIC, variant(upper = TYPE), true, invariant = true),
+        )) { test(it) }
+
+        suite("Reference <: Dynamic", listOf(
+            "Base" to Test(TYPE, Type.DYNAMIC, true, invariant = true),
+            "Bound Generic" to Test(Type.LIST[TYPE], Type.DYNAMIC, true, invariant = true),
+            "Unbound Generic" to Test(Type.LIST[T], Type.DYNAMIC, true, invariant = true),
+            "Dynamic Generic" to Test(Type.LIST[Type.DYNAMIC], Type.DYNAMIC, true, invariant = true),
+            "Wildcard Generic" to Test(Type.LIST[variant()], Type.DYNAMIC, true, invariant = true),
+            "Bindable Generic" to Test(Type.LIST[T], Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it, subtype = true) }
+
         suite("Reference <: Reference") {
 
             suite("Base", listOf(
@@ -65,8 +121,6 @@ class SubtypeTests : RhovasSpec() {
                 "Disjoint" to Test(DISJOINT, TYPE, false),
                 "Any Subtype" to Test(Type.ANY, TYPE, false),
                 "Any Supertype" to Test(TYPE, Type.ANY, true),
-                "Dynamic Subtype" to Test(Type.DYNAMIC, TYPE, true, invariant = true),
-                "Dynamic Supertype" to Test(TYPE, Type.DYNAMIC, true, invariant = true),
             )) { test(it) }
 
             suite("Generics", listOf(
@@ -114,7 +168,6 @@ class SubtypeTests : RhovasSpec() {
             "Equal" to Test(Type.TUPLE[tuple(TYPE)], tuple(TYPE), true, invariant = true),
             // Note: Unlike Struct, Tuple is a final class hence no subtypes.
             "Base Supertype" to Test(Type.ANY, tuple(TYPE), false),
-            "Base Dynamic" to Test(Type.DYNAMIC, tuple(TYPE), true, invariant = true),
             "Field Subtype" to Test(Type.TUPLE[tuple(SUBTYPE)], tuple(TYPE), true),
             "Field Supertype" to Test(Type.TUPLE[tuple(SUPERTYPE)], tuple(TYPE), false),
             "Field Dynamic" to Test(Type.TUPLE.DYNAMIC, tuple(TYPE), true, invariant = true),
@@ -124,7 +177,6 @@ class SubtypeTests : RhovasSpec() {
             "Equal" to Test(Type.STRUCT[struct("x" to TYPE)], struct("x" to TYPE), true, invariant = true),
             "Base Subtype" to Test(STRUCT_SUBTYPE, struct("x" to TYPE), true),
             "Base Supertype" to Test(Type.ANY, struct("x" to TYPE), false),
-            "Base Dynamic" to Test(Type.DYNAMIC, struct("x" to TYPE), true, invariant = true),
             "Field Subtype" to Test(Type.STRUCT[struct("x" to SUBTYPE)], struct("x" to TYPE), true),
             "Field Supertype" to Test(Type.STRUCT[struct("x" to SUPERTYPE)], struct("x" to TYPE), false),
             "Field Dynamic" to Test(Type.STRUCT.DYNAMIC, struct("x" to TYPE), true, invariant = true),
@@ -177,6 +229,16 @@ class SubtypeTests : RhovasSpec() {
             "Lower Supertype" to Test(TYPE, variant(lower = SUPERTYPE), false),
             "Lower Generic" to Test(TYPE, variant(lower = T), mapOf("T" to TYPE), true, invariant = true),
         )) { test(it) }
+
+        suite("Tuple <: Dynamic", listOf(
+            "Base" to Test(tuple(TYPE), Type.DYNAMIC, true, invariant = true),
+            "Generic" to Test(Type.TUPLE[tuple(TYPE)], Type.DYNAMIC, true, invariant = true),
+            "Unbound Generic" to Test(Type.TUPLE[T], Type.DYNAMIC, true, invariant = true),
+            "Dynamic Generic" to Test(Type.TUPLE[Type.DYNAMIC], Type.DYNAMIC, true, invariant = true),
+            "Wildcard Generic" to Test(Type.TUPLE[variant()], Type.DYNAMIC, true, invariant = true),
+            "Bindable Generic" to Test(Type.TUPLE[T], Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.TUPLE[T], Type.DYNAMIC, mapOf("T" to tuple(TYPE)), mapOf("T" to tuple(TYPE)), invariant = mapOf("T" to tuple(TYPE))),
+        )) { test(it, subtype = true) }
 
         suite("Tuple <: Reference", listOf(
             "Equal" to Test(tuple(TYPE), Type.TUPLE[tuple(TYPE)], true, invariant = true),
@@ -234,6 +296,16 @@ class SubtypeTests : RhovasSpec() {
             "Lower Supertype" to Test(tuple(TYPE), variant(lower = tuple(SUPERTYPE)), false),
         )) { test(it) }
 
+        suite("Struct <: Tuple", listOf(
+            "Base" to Test(struct("x" to TYPE), Type.DYNAMIC, true, invariant = true),
+            "Generic" to Test(Type.STRUCT[struct("x" to TYPE)], Type.DYNAMIC, true, invariant = true),
+            "Unbound Generic" to Test(Type.STRUCT[T], Type.DYNAMIC, true, invariant = true),
+            "Dynamic Generic" to Test(Type.STRUCT[Type.DYNAMIC], Type.DYNAMIC, true, invariant = true),
+            "Wildcard Generic" to Test(Type.STRUCT[variant()], Type.DYNAMIC, true, invariant = true),
+            "Bindable Generic" to Test(Type.STRUCT[T], Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.STRUCT[T], Type.DYNAMIC, mapOf("T" to struct("x" to TYPE)), mapOf("T" to struct("x" to TYPE)), invariant = mapOf("T" to struct("x" to TYPE))),
+        )) { test(it, subtype = true) }
+
         suite("Struct <: Reference", listOf(
             "Equal" to Test(struct("x" to TYPE), Type.STRUCT[struct("x" to TYPE)], true, invariant = true),
             "Supertype" to Test(struct("x" to TYPE), Type.ANY, true),
@@ -290,6 +362,14 @@ class SubtypeTests : RhovasSpec() {
             "Lower Subtype" to Test(struct("x" to TYPE), variant(lower = struct("x" to SUBTYPE)), true, invariant = true),
             "Lower Supertype" to Test(struct("x" to TYPE), variant(lower = struct("x" to SUPERTYPE)), false),
         )) { test(it) }
+
+        suite("Generic <: Dynamic", listOf(
+            "Unbound" to Test(T, Type.DYNAMIC, true, invariant = true),
+            "Bindable" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            //see TODOs, these seem incorrect
+            "Bound" to Test(T, Type.DYNAMIC, mapOf("T" to TYPE), mapOf("T" to TYPE), invariant = mapOf("T" to TYPE)),
+            "Bound Variant" to Test(T, Type.DYNAMIC, mapOf("T" to variant(SUBTYPE, SUPERTYPE)), mapOf("T" to variant(SUBTYPE, SUPERTYPE)), invariant = mapOf("T" to Type.DYNAMIC)),
+        )) { test(it, subtype = true) }
 
         suite("Generic <: Reference") {
 
@@ -464,6 +544,12 @@ class SubtypeTests : RhovasSpec() {
             )) { test(it, subtype = true) }
 
         }
+
+        suite("Variant <: Dynamic", listOf(
+            "Wildcard" to Test(variant(), Type.DYNAMIC, true, invariant = true),
+            "Lower Bound" to Test(variant(lower = TYPE), Type.DYNAMIC, true, invariant = true),
+            "Upper Bound" to Test(variant(upper = TYPE), Type.DYNAMIC, true, invariant = true),
+        )) { test(it) }
 
         suite("Variant <: Reference", listOf(
             "Unbound" to Test(variant(), TYPE, false),

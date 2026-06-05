@@ -3,6 +3,7 @@ package dev.rhovas.interpreter.environment.type
 import dev.rhovas.interpreter.environment.Variable
 
 fun unify(type: Type, other: Type): Type = when(type) {
+    is Type.Dynamic -> unify(type, other)
     is Type.Reference -> unify(type, other)
     is Type.Tuple -> unify(type, other)
     is Type.Struct -> unify(type, other)
@@ -10,9 +11,13 @@ fun unify(type: Type, other: Type): Type = when(type) {
     is Type.Variant -> unify(type, other)
 }
 
+private fun unify(type: Type.Dynamic, other: Type): Type {
+    return Type.DYNAMIC
+}
+
 private fun unify(type: Type.Reference, other: Type): Type = when (other) {
+    is Type.Dynamic -> Type.DYNAMIC
     is Type.Reference -> when {
-        type.component.name == "Dynamic" || other.component.name == "Dynamic" -> Type.DYNAMIC
         type.component.name == "Any" || other.component.name == "Any" -> Type.ANY
         type.component.name == other.component.name -> Type.Reference(type.component, type.generics.keys.associateWith { unify(type.generics[it]!!, other.generics[it]!!) })
         else -> {

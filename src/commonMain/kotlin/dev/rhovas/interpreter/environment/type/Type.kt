@@ -18,7 +18,7 @@ sealed class Type {
         val BOOLEAN get() = Library.type("Boolean")
         val COMPARABLE get() = GenericDelegate("Comparable", listOf("T"))
         val DECIMAL get() = Library.type("Decimal")
-        val DYNAMIC get() = Library.type("Dynamic")
+        val DYNAMIC get() = Dynamic
         val EQUATABLE get() = GenericDelegate("Equatable", listOf("T"))
         val EXCEPTION get() = Library.type("Exception")
         val HASHABLE get() = GenericDelegate("Hashable", listOf("T"))
@@ -50,12 +50,12 @@ sealed class Type {
             val component = Library.type(name).component
             val DYNAMIC = Reference(component, mapOf("T" to Type.DYNAMIC))
             val VARIANT = Reference(component, mapOf("T" to Variant(null, null)))
-            operator fun get(generic: Tuple) = Reference(component, mapOf("T" to generic))
+            operator fun get(generic: Type) = Reference(component, mapOf("T" to generic))
             operator fun get(elements: List<Type>, mutable: Boolean = false) = Reference(component, mapOf("T" to Tuple(elements.withIndex().map {
                 Variable.Declaration(it.index.toString(), it.value, mutable)
             })))
             fun bindings(type: Type) = bindings(type, component)?.mapValues {
-                (it.value as Reference).takeIf { it.component.name == "Tuple" }?.generics["T"] as Tuple? ?: it.value
+                (it.value as? Reference)?.takeIf { it.component.name == "Tuple" }?.generics["T"] as Tuple? ?: it.value
             }
         }
 
@@ -63,12 +63,12 @@ sealed class Type {
             val component = Library.type(name).component
             val DYNAMIC = Reference(component, mapOf("T" to Type.DYNAMIC))
             val VARIANT = Reference(component, mapOf("T" to Variant(null, null)))
-            operator fun get(generic: Struct) = Reference(component, mapOf("T" to generic))
+            operator fun get(generic: Type) = Reference(component, mapOf("T" to generic))
             operator fun get(fields: List<Pair<String, Type>>, mutable: Boolean = false) = Reference(component, mapOf("T" to Struct(fields.associate {
                 it.first to Variable.Declaration(it.first, it.second, mutable)
             })))
             fun bindings(type: Type) = bindings(type, component)?.mapValues {
-                (it.value as Reference).takeIf { it.component.name == "Struct" }?.generics["T"] as Struct? ?: it.value
+                (it.value as? Reference)?.takeIf { it.component.name == "Struct" }?.generics["T"] as Struct? ?: it.value
             }
         }
 
@@ -136,6 +136,25 @@ sealed class Type {
 
     }
 
+    data object Dynamic : Type() {
+
+        override fun getFunction(name: String, arity: Int): List<Function> {
+            return listOf(getFunction(name, (0 until arity).map { DYNAMIC }))
+        }
+
+        override fun getFunction(name: String, arguments: List<Type>): Function {
+            return Function.Declaration(name,
+                parameters = arguments.indices.map { Variable.Declaration(it.toString(), DYNAMIC) },
+                returns = DYNAMIC,
+            )
+        }
+
+        override fun bind(bindings: Map<String, Type>): Type {
+            return DYNAMIC
+        }
+
+    }
+
     data class Reference(
         val component: Component<*>,
         val generics: Map<String, Type>,
@@ -148,18 +167,14 @@ sealed class Type {
 
         override fun getFunction(name: String, arity: Int): List<Function> {
             return when (component.name) {
-                "Dynamic" -> listOf(Function.Declaration(name,
-                    parameters = (0 until arity).map { Variable.Declaration(it.toString(), DYNAMIC) },
-                    returns = DYNAMIC,
-                ))
                 "Tuple" -> when {
                     //TODO: This construction works, but is conceptually flawed with how indices are handled.
-                    (generics["T"]!! as? Reference)?.component?.name == "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
+                    generics["T"]!! == DYNAMIC -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
                     (generics["T"]!! as? Variant)?.let { it.upper == null } == true -> component.scope.functions[name, arity]
                     else -> generics["T"]!!.getFunction(name, arity)
                 }
                 "Struct" -> when {
-                    (generics["T"]!! as? Reference)?.component?.name == "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
+                    generics["T"]!! == DYNAMIC -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arity)
                     (generics["T"]!! as? Variant)?.let { it.upper == null } == true -> component.scope.functions[name, arity]
                     else -> generics["T"]!!.getFunction(name, arity)
                 }
@@ -169,17 +184,13 @@ sealed class Type {
 
         override fun getFunction(name: String, arguments: List<Type>): Function? {
             return when (component.name) {
-                "Dynamic" -> Function.Declaration(name,
-                    parameters = arguments.indices.map { Variable.Declaration(it.toString(), DYNAMIC) },
-                    returns = DYNAMIC,
-                )
                 "Tuple" -> when {
-                    (generics["T"]!! as? Reference)?.component?.name == "Dynamic" -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
+                    generics["T"]!! == DYNAMIC -> Tuple(listOf(Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     (generics["T"]!! as? Variant)?.let { it.upper == null } == true -> component.scope.functions[name, arguments]
                     else -> generics["T"]!!.getFunction(name, arguments)
                 }
                 "Struct" -> when {
-                    (generics["T"]!! as? Reference)?.component?.name == "Dynamic" -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
+                    generics["T"]!! == DYNAMIC -> Struct(mapOf(name to Variable.Declaration(name, DYNAMIC, true))).getFunction(name, arguments)
                     (generics["T"]!! as? Variant)?.let { it.upper == null } == true -> component.scope.functions[name, arguments]
                     else -> generics["T"]!!.getFunction(name, arguments)
                 }
