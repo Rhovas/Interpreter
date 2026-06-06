@@ -375,6 +375,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T_TYPE, TYPE, true),
                 "Subtype" to Test(T_SUBTYPE, TYPE, true),
                 "Supertype" to Test(T_SUPERTYPE, TYPE, false),
+                "Disjoint" to Test(T_TYPE, DISJOINT, false),
                 "Dynamic" to Test(T, Type.DYNAMIC, true, invariant = true),
             )) { test(it) }
 
@@ -382,6 +383,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T_TYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Subtype" to Test(T_SUBTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE))),
                 "Supertype" to Test(T_SUPERTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Disjoint" to Test(T_TYPE, DISJOINT, mapOf(), false),
                 "Dynamic" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
                 "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf(), mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
@@ -390,6 +392,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T, TYPE, mapOf("T" to TYPE), true, invariant = true),
                 "Subtype" to Test(T, TYPE, mapOf("T" to SUBTYPE), true),
                 "Supertype" to Test(T, TYPE, mapOf("T" to SUPERTYPE), false),
+                "Disjoint" to Test(T, DISJOINT, mapOf("T" to TYPE), false),
                 "Dynamic" to Test(T, Type.DYNAMIC, mapOf("T" to TYPE), true, invariant = true),
                 "Bound Dynamic" to Test(T, TYPE, mapOf("T" to Type.DYNAMIC), true, invariant = true),
                 "Bound Generic" to Test(T, Type.TUPLE[tuple(T)], mapOf("T" to tuple(T)), true, invariant = true),
@@ -400,8 +403,10 @@ class SubtypeTests : RhovasSpec() {
                 "Wildcard" to Test(T, TYPE, mapOf("T" to variant()), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Upper Subtype" to Test(T, TYPE, mapOf("T" to variant(upper = SUBTYPE)), mapOf("T" to variant(upper = SUBTYPE))),
                 "Upper Supertype" to Test(T, TYPE, mapOf("T" to variant(upper = SUPERTYPE)), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
+                "Upper Disjoint" to Test(T, DISJOINT, mapOf("T" to variant(upper = TYPE)), false),
                 "Lower Subtype" to Test(T, TYPE, mapOf("T" to variant(lower = SUBTYPE)), mapOf("T" to variant(lower = SUBTYPE, upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Lower Supertype" to Test(T, TYPE, mapOf("T" to variant(lower = SUPERTYPE)), false),
+                "Lower Disjoint" to Test(T, DISJOINT, mapOf("T" to variant(lower = TYPE)), false),
                 "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf("T" to variant()), mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 

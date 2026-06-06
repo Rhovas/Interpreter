@@ -101,20 +101,16 @@ private fun isSubtypeOf(type: Type.Reference, other: Type.Reference, bindings: B
 private fun isSubtypeOf(type: Type.Reference, other: Type.Generic, bindings: Bindings): Boolean {
     if (bindings.other == null) {
         return false
-    } else if (bindings.other!!.containsKey(other.name)) {
-        val binding = bindings.other!![other.name]!!
-        val result = isSubtypeOf(type, binding, Bindings.None)
-        if (result && binding is Type.Variant) {
-            bindings.other!![other.name] = Type.Variant(type, binding.upper)
+    } else if (other.name !in bindings.other!!) {
+        bindings.other!![other.name] = type // update binding first for recursive generic bounds
+        return isSubtypeOf(type, other.bound, bindings).also {
+            if (it) bindings.other!![other.name] = Type.Variant(type, null) // NECESSARY to correct invariant bindings from recursive bounds, e.g. T: Equatable<T>
         }
-        return result
     } else {
-        bindings.other!![other.name] = Type.Variant(type, null)
-        val result = isSubtypeOf(type, other.bound, bindings)
-        if (result) {
-            bindings.other!![other.name] = Type.Variant(type, null)
+        val binding = bindings.other!![other.name]!!
+        return isSubtypeOf(type, binding, Bindings.None).also {
+            if (it && binding is Type.Variant) bindings.other!![other.name] = Type.Variant(type, binding.upper) // update binding only if subtype for debugging bindings
         }
-        return result
     }
 }
 
@@ -145,35 +141,32 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Dynamic, bindings: Bindi
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
+    // TODO: isSubtypeOf(type.bound, other) is vulnerable to infinite recursion via T : T / Type.Generic("T") { it }
     if (bindings.type == null) {
         return isSubtypeOf(type.bound, other, bindings)
-    } else if (bindings.type!!.containsKey(type.name)) {
-        val binding = bindings.type!![type.name]!!
-        if (binding is Type.Variant) {
-            if (isSubtypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
-                return true
-            } else if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
-                return false
-            } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
-                return false
-            }
-            bindings.type!![type.name] = Type.Variant(binding.lower, other)
-            return true
-        } else {
-            return isSubtypeOf(binding, other, Bindings.None)
+    } else if (type.name !in bindings.type!!) {
+        return when {
+            // If type.bound is a subtype of other, variant bind any subtype of type.bound
+            //   e.g. T : Subtype <: Type -> T = * : Subtype
+            // TODO: Potential issue with cross-pollination of type/other in bindings via type.bound
+            isSubtypeOf(type.bound, other, bindings) -> true.also { bindings.type!![type.name] = Type.Variant(null, type.bound) }
+            // Else, ensure type.bound constrains other and variant bind any subtype of other
+            //   e.g. T : Supertype <: Type -> T = * : Type
+            isSupertypeOf(type.bound, other, bindings) -> true.also { bindings.type!![type.name] = Type.Variant(null, other) }
+            else -> false
         }
     } else {
-        bindings.type!![type.name] = other
-        if (isSubtypeOf(type.bound, other, bindings)) {
-            bindings.type!![type.name] = Type.Variant(null, type.bound)
-            return true
-        } else {
-            bindings.type!![type.name] = Type.Variant(null, other)
-            val result = isSupertypeOf(type.bound, other, bindings)
-            if (result) {
-                bindings.type!![type.name] = Type.Variant(null, other)
-            }
-            return result
+        val binding = bindings.type!![type.name]!!
+        return when {
+            // If binding is a concrete type, variant refinement doesn't apply
+            binding !is Type.Variant -> isSubtypeOf(binding, other, Bindings.None)
+            // If variant binding is a subtype of other, T is already sufficiently constrained
+            //   e.g. T = * : Subtype <: Type
+            isSubtypeOf(binding, other, Bindings.None) -> true
+            // Else, ensure variant binding constrains other and refine T's upper bound to other
+            //   e.g. T = * : Supertype <: Type -> T = * : Type
+            isSupertypeOf(binding, other, Bindings.None) -> true.also { bindings.type!![type.name] = Type.Variant(binding.lower, other) }
+            else -> false
         }
     }
 }
