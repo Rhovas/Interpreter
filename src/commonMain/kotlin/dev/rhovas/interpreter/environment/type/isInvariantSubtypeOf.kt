@@ -62,20 +62,23 @@ private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Struct, binding
 }
 
 private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Generic, bindings: Bindings): Boolean {
-    if (bindings.other == null) {
-        return true
-    } else if (bindings.other!!.containsKey(other.name)) {
-        val binding = bindings.other!![other.name]!!
-        val result = isInvariantSubtypeOf(type, binding, Bindings.None)
-        if (result) {
-            //TODO: Review; probably wrong. Likely should only adjust when variant
-            bindings.other!![other.name] = type
-        }
-        return result
-    } else {
-        bindings.other!![other.name] = type
-        return isSubtypeOf(type, other.bound, bindings)
+    when {
+        // If other is not bindable, then trivially true
+        bindings.other == null -> Unit
+        // If other is currently unbound, then invariant bind to Dynamic
+        other.name !in bindings.other!! -> bindings.other!![other.name] = Type.DYNAMIC
+        // If other is bound to a variant, overwrite with an invariant binding to propagate Dynamic during refinement
+        //   e.g. for cons<T>(T, List<T>): List<T>, checking cons(Type, List<Dynamic>) binds T = Type : *
+        //   Refining T = Type : * is not permitted by refinement; T must refine to a concrete type
+        //   Refining T = Type is unsafe, e.g. cons(Type, List<Supertype>): List<Type> (!)
+        //   Refining T = Any (* upper) is safe, but not ergonomic and defeats the point of Dynamic
+        //   Refining T = Dynamic is thus ideal, hence binding it here
+        // May be overwritten later with a non-Dynamic invariant binding, e.g. append2(Type, List<Dynamic>, List<Type>)
+        bindings.other!![other.name] is Type.Variant -> bindings.other!![other.name] = Type.DYNAMIC
+        // Otherwise, the current binding is already invariant and the correct type
+        else -> Unit
     }
+    return true
 }
 
 private fun isInvariantSubtypeOf(type: Type.Dynamic, other: Type.Variant, bindings: Bindings): Boolean {
@@ -132,25 +135,14 @@ private fun isInvariantSubtypeOf(type: Type.Struct, other: Type.Struct, bindings
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Dynamic, bindings: Bindings): Boolean {
-    if (bindings.type == null) {
-        return true
-    } else if (bindings.type!!.containsKey(type.name)) {
-        val binding = bindings.type!![type.name]!!
-        if (binding is Type.Variant) {
-            if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
-                return false
-            } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
-                return false
-            }
-            bindings.type!![type.name] = other
-            return true
-        } else {
-            return isInvariantSubtypeOf(binding, other, Bindings.None)
-        }
-    } else {
-        bindings.type!![type.name] = other
-        return isSupertypeOf(type.bound, other, bindings)
-    }
+    // Note: This case is only interesting when type is bindable (Bindings.Subtype). It's not clear if/when this is
+    // reachable outside constructed unit tests to understand expected behavior.
+    // Assume that List<T> <: List<Dynamic> should mirror List<Dynamic> <: List<T> and delegate.
+    return isInvariantSubtypeOf(other, type, when (bindings) {
+        is Bindings.None -> bindings
+        is Bindings.Subtype -> Bindings.Supertype(bindings.type)
+        is Bindings.Supertype -> Bindings.Subtype(bindings.other)
+    })
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {

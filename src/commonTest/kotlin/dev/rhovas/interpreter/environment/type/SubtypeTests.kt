@@ -37,15 +37,15 @@ class SubtypeTests : RhovasSpec() {
     private fun test(test: Test, subtype: Boolean = false) {
         fun test(type: Type, other: Type, initialBindings: Map<String, Type>?, expected: Any) {
             if (initialBindings == null) {
-                val subtype = isSubtypeOf(type, other, Bindings.None)
-                assertEquals(expected, subtype, "isSubtypeOf(${type}, ${other}):")
+                val received = isSubtypeOf(type, other, Bindings.None)
+                assertEquals(expected, received, "isSubtypeOf(${type}, ${other}):")
             } else {
                 val finalBindings = initialBindings.toMutableMap()
-                val subtype = isSubtypeOf(type, other, if (subtype) Bindings.Subtype(finalBindings) else Bindings.Supertype(finalBindings))
+                val received = isSubtypeOf(type, other, if (subtype) Bindings.Subtype(finalBindings) else Bindings.Supertype(finalBindings))
                 assertEquals(
                     Pair(expected != false, expected as? Map<*, *> ?: finalBindings),
-                    Pair(subtype, finalBindings),
-                    "isSubtypeOf(${type}, ${other}, ${initialBindings}):"
+                    Pair(received, finalBindings),
+                    "isSubtypeOf(${type}, ${other}, ${if (subtype) "Subtype" else "Supertype"} ${initialBindings}):"
                 )
             }
         }
@@ -74,7 +74,7 @@ class SubtypeTests : RhovasSpec() {
             "Dynamic Generic" to Test(Type.DYNAMIC, Type.TUPLE[Type.DYNAMIC], true, invariant = true),
             "Wildcard Generic" to Test(Type.DYNAMIC, Type.TUPLE[variant()], true, invariant = true),
             "Bindable Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
-            "Bound Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], mapOf("T" to tuple(TYPE)), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.DYNAMIC, Type.TUPLE[T], mapOf("T" to tuple(TYPE)), mapOf("T" to tuple(TYPE)), invariant = mapOf("T" to tuple(TYPE))),
         )) { test(it) }
 
         suite("Dynamic <: Struct", listOf(
@@ -84,15 +84,14 @@ class SubtypeTests : RhovasSpec() {
             "Dynamic Generic" to Test(Type.DYNAMIC, Type.STRUCT[Type.DYNAMIC], true, invariant = true),
             "Wildcard Generic" to Test(Type.DYNAMIC, Type.STRUCT[variant()], true, invariant = true),
             "Bindable Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
-            "Bound Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], mapOf("T" to struct("x" to TYPE)), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound Generic" to Test(Type.DYNAMIC, Type.STRUCT[T], mapOf("T" to struct("x" to TYPE)), mapOf("T" to struct("x" to TYPE)), invariant = mapOf("T" to struct("x" to TYPE))),
         )) { test(it) }
 
         suite("Dynamic <: Generic", listOf(
             "Unbound" to Test(Type.DYNAMIC, T, true, invariant = true),
             "Bindable" to Test(Type.DYNAMIC, T, mapOf(), mapOf("T" to variant(lower = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
-            //see TODOs, these seem incorrect
-            "Bound" to Test(Type.DYNAMIC, T, mapOf("T" to TYPE), mapOf("T" to TYPE), invariant = mapOf("T" to Type.DYNAMIC)),
-            "Bound Variant" to Test(Type.DYNAMIC, T, mapOf("T" to variant(SUBTYPE, SUPERTYPE)), mapOf("T" to variant(Type.DYNAMIC, SUPERTYPE)), invariant = mapOf("T" to Type.DYNAMIC)),
+            "Bound" to Test(Type.DYNAMIC, T, mapOf("T" to TYPE), mapOf("T" to TYPE), invariant = mapOf("T" to TYPE)),
+            "Bound Variant" to Test(Type.DYNAMIC, T, mapOf("T" to variant(SUBTYPE, SUPERTYPE)), mapOf("T" to variant(SUBTYPE, SUPERTYPE)), invariant = mapOf("T" to Type.DYNAMIC)),
         )) { test(it) }
 
         suite("Dynamic <: Variant", listOf(
@@ -365,8 +364,7 @@ class SubtypeTests : RhovasSpec() {
 
         suite("Generic <: Dynamic", listOf(
             "Unbound" to Test(T, Type.DYNAMIC, true, invariant = true),
-            "Bindable" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
-            //see TODOs, these seem incorrect
+            "Bindable" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
             "Bound" to Test(T, Type.DYNAMIC, mapOf("T" to TYPE), mapOf("T" to TYPE), invariant = mapOf("T" to TYPE)),
             "Bound Variant" to Test(T, Type.DYNAMIC, mapOf("T" to variant(SUBTYPE, SUPERTYPE)), mapOf("T" to variant(SUBTYPE, SUPERTYPE)), invariant = mapOf("T" to Type.DYNAMIC)),
         )) { test(it, subtype = true) }
@@ -384,7 +382,7 @@ class SubtypeTests : RhovasSpec() {
                 "Equal" to Test(T_TYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
                 "Subtype" to Test(T_SUBTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = SUBTYPE))),
                 "Supertype" to Test(T_SUPERTYPE, TYPE, mapOf(), mapOf("T" to variant(upper = TYPE)), invariant = mapOf("T" to TYPE)),
-                "Dynamic" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to Type.DYNAMIC), invariant = mapOf("T" to Type.DYNAMIC)),
+                "Dynamic" to Test(T, Type.DYNAMIC, mapOf(), mapOf("T" to variant(upper = Type.DYNAMIC)), invariant = mapOf("T" to Type.DYNAMIC)),
                 "Recursive Bound" to Test(T_RECURSIVE_BOUND, RECURSIVE_BOUND_SUBTYPE, mapOf(), mapOf("T" to variant(upper = RECURSIVE_BOUND_SUBTYPE)), invariant = mapOf("T" to RECURSIVE_BOUND_SUBTYPE)),
             )) { test(it, subtype = true) }
 

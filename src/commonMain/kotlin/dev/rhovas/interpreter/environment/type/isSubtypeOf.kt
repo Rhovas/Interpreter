@@ -62,23 +62,10 @@ private fun isSubtypeOf(type: Type.Dynamic, other: Type.Struct, bindings: Bindin
 }
 
 private fun isSubtypeOf(type: Type.Dynamic, other: Type.Generic, bindings: Bindings): Boolean {
-    if (bindings.other == null) {
-        return true
-    } else if (bindings.other!!.containsKey(other.name)) {
-        val binding = bindings.other!![other.name]!!
-        val result = isSubtypeOf(type, binding, Bindings.None)
-        if (result && binding is Type.Variant) {
-            bindings.other!![other.name] = Type.Variant(type, binding.upper)
-        }
-        return result
-    } else {
-        bindings.other!![other.name] = Type.Variant(type, null)
-        val result = isSubtypeOf(type, other.bound, bindings)
-        if (result) {
-            bindings.other!![other.name] = Type.Variant(type, null)
-        }
-        return result
+    if (bindings.other != null && !bindings.other!!.containsKey(other.name)) {
+        bindings.other!![other.name] = Type.Variant(Type.DYNAMIC, null)
     }
+    return true
 }
 
 private fun isSubtypeOf(type: Type.Dynamic, other: Type.Variant, bindings: Bindings): Boolean {
@@ -151,27 +138,10 @@ private fun isSubtypeOf(type: Type.Struct, other: Type.Struct, bindings: Binding
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Dynamic, bindings: Bindings): Boolean {
-    if (bindings.type == null) {
-        return true
-    } else if (bindings.type!!.containsKey(type.name)) {
-        val binding = bindings.type!![type.name]!!
-        if (binding is Type.Variant) {
-            if (isSubtypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
-                return true
-            } else if (!isSupertypeOf(binding.upper ?: Type.ANY, other, Bindings.None)) {
-                return false
-            } else if (binding.lower != null && !isSubtypeOf(binding.lower, other, Bindings.None)) {
-                return false
-            }
-            bindings.type!![type.name] = Type.Variant(binding.lower, other)
-            return true
-        } else {
-            return isSubtypeOf(binding, other, Bindings.None)
-        }
-    } else {
-        bindings.type!![type.name] = other
-        return true
+    if (bindings.type != null && !bindings.type!!.containsKey(type.name)) {
+        bindings.type!![type.name] = Type.Variant(null, Type.DYNAMIC)
     }
+    return true
 }
 
 private fun isSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
