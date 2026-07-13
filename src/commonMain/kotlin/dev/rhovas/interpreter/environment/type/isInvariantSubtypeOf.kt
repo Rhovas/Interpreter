@@ -136,11 +136,7 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Dynamic, bindin
     // Note: This case is only interesting when type is bindable (Bindings.Subtype). It's not clear if/when this is
     // reachable outside constructed unit tests to understand expected behavior.
     // Assume that List<T> <: List<Dynamic> should mirror List<Dynamic> <: List<T> and delegate.
-    return isInvariantSubtypeOf(other, type, when (bindings) {
-        is Bindings.None -> bindings
-        is Bindings.Subtype -> Bindings.Supertype(bindings.type)
-        is Bindings.Supertype -> Bindings.Subtype(bindings.other)
-    })
+    return bindings.type == null || isInvariantSubtypeOf(other, type, Bindings.Supertype(bindings.type!!))
 }
 
 private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Reference, bindings: Bindings): Boolean {
@@ -212,14 +208,6 @@ private fun isInvariantSubtypeOf(type: Type.Generic, other: Type.Generic, bindin
                     bindings.other[other.name] = type
                 }
                 return result
-            }
-        }
-        else -> {
-            //TODO: Stub
-            val binding = bindings.other?.get(other.name)
-            return when {
-                binding == null -> type.name == other.name
-                else -> isInvariantSubtypeOf(type, binding, bindings.also { it.other?.set(other.name, type) })
             }
         }
     }

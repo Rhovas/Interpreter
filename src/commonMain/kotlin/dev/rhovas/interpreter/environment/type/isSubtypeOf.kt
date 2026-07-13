@@ -218,14 +218,6 @@ private fun isSubtypeOf(type: Type.Generic, other: Type.Generic, bindings: Bindi
                 return result
             }
         }
-        else -> {
-            //TODO: Stub
-            val binding = bindings.other?.get(other.name)
-            return when {
-                binding == null -> type.name == other.name
-                else -> isSubtypeOfBinding(type, other.name, bindings)
-            }
-        }
     }
 }
 
@@ -315,14 +307,6 @@ private fun isSubtypeOf(field: Variable.Declaration, other: Variable.Declaration
         field.mutable -> isInvariantSubtypeOf(field.type, other.type, bindings)
         else -> false
     }
-}
-
-private fun isSubtypeOfBinding(type: Type, name: String, bindings: Bindings): Boolean {
-    val subtype = isSubtypeOf(type, bindings.other?.get(name)!!, bindings)
-    if (subtype && bindings.other?.get(name) is Type.Variant) {
-        bindings.other?.set(name, Type.Variant(type, (bindings.other?.get(name)!! as Type.Variant).upper))
-    }
-    return subtype
 }
 
 fun isSupertypeOf(type: Type, other: Type, bindings: Bindings): Boolean {
